@@ -70,13 +70,18 @@ public final class SafraClientConfig {
         Path path = configPath();
         if (!Files.exists(path)) {
             SafraClientConfig config = new SafraClientConfig();
+            config.applyDevelopmentDefaults();
             config.save();
             return config;
         }
 
         try (Reader reader = Files.newBufferedReader(path)) {
             SafraClientConfig config = GSON.fromJson(reader, SafraClientConfig.class);
-            return config == null ? new SafraClientConfig() : config;
+            SafraClientConfig resolvedConfig = config == null ? new SafraClientConfig() : config;
+            if (resolvedConfig.applyDevelopmentDefaults()) {
+                resolvedConfig.save();
+            }
+            return resolvedConfig;
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn("Safra client config could not be read, using defaults", exception);
             return new SafraClientConfig();
@@ -97,5 +102,17 @@ public final class SafraClientConfig {
 
     private static Path configPath() {
         return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+    }
+
+    private boolean applyDevelopmentDefaults() {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            return false;
+        }
+        if (!openToLanP2pEnabled || !openToLanOnlineModeEnabled || !directConnectP2pEnabled) {
+            return false;
+        }
+
+        openToLanOnlineModeEnabled = false;
+        return true;
     }
 }
