@@ -3,12 +3,15 @@ package org.developerkubilay.safra.p2p;
 import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Enumeration;
 
 final class P2pSockets {
+    private static final InetAddress IPV4_LOOPBACK = createIpv4Loopback();
+
     private P2pSockets() {
     }
 
@@ -29,6 +32,10 @@ final class P2pSockets {
         trySet(() -> socket.setKeepAlive(true));
         trySet(() -> socket.setReceiveBufferSize(P2pConstants.TCP_BUFFER_SIZE));
         trySet(() -> socket.setSendBufferSize(P2pConstants.TCP_BUFFER_SIZE));
+    }
+
+    static InetAddress loopbackAddress() {
+        return IPV4_LOOPBACK;
     }
 
     static String localHost(DatagramSocket socket) {
@@ -85,6 +92,14 @@ final class P2pSockets {
 
     private static boolean isUsableLocalAddress(InetAddress address) {
         return address != null && !address.isAnyLocalAddress() && !address.isLoopbackAddress();
+    }
+
+    private static InetAddress createIpv4Loopback() {
+        try {
+            return InetAddress.getByName(P2pConstants.LOCAL_PROXY_HOST);
+        } catch (UnknownHostException exception) {
+            throw new IllegalStateException("IPv4 loopback address could not be resolved", exception);
+        }
     }
 
     private static void trySet(SocketSetter setter) {
