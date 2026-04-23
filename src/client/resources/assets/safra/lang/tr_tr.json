@@ -1,0 +1,17 @@
+{
+  "safra.p2p.toggle": "P2P",
+  "safra.p2p.placeholder": "Ornek: ABC123",
+  "safra.p2p.prepare_failed": "Safra P2P ara proxy'si hazirlanamadi: %s",
+  "safra.p2p.button.on": "P2P: Acik",
+  "safra.p2p.button.off": "P2P: Kapali",
+  "safra.p2p.online_mode.on": "Online Mode: Acik",
+  "safra.p2p.online_mode.off": "Online Mode: Kapali",
+  "safra.p2p.open_hint": "Etkin oldugunda Safra P2P LAN dunyasini UDP uzerinden erisilebilir tutar.",
+  "safra.p2p.host.starting": "Safra P2P paylasim kodunu arka planda hazirliyor...",
+  "safra.p2p.host.started": "Safra P2P paylasim kodu: %s",
+  "safra.p2p.host.copied": "Paylasim kodu panoya kopyalandi. Tekrar kopyalamak icin chattaki koda tikla.",
+  "safra.p2p.host.instructions": "Arkadasin Dogrudan Baglan ekraninda P2P secenegini acip bu kodu yapistirmali.",
+  "safra.p2p.host.narration": "Safra P2P paylasim kodu %s",
+  "safra.p2p.host.failed": "Safra P2P baslatilamadi: %s",
+  "safra.p2p.copy_hint": "P2P paylasim kodunu kopyalamak icin tikla"
+}
