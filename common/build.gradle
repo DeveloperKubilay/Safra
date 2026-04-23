@@ -1,0 +1,31 @@
+plugins {
+    id 'java-library'
+}
+
+base {
+    archivesName = "${project.archives_base_name}-common"
+}
+
+def targetJavaVersion = 21
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+dependencies {
+    compileOnly 'com.google.code.gson:gson:2.11.0'
+    compileOnly 'com.google.guava:guava:33.4.8-jre'
+    compileOnly 'org.slf4j:slf4j-api:2.0.16'
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
