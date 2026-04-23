@@ -6,6 +6,23 @@ group = project.maven_group
 version = project.mod_version
 def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
+ext.devRunUsername = { Project targetProject ->
+    def override = gradle.startParameter.projectProperties['devUsername']
+    if (override != null && !override.isBlank()) {
+        return override
+    }
+
+    def baseByProject = [
+        fabric  : 100,
+        neoforge: 400,
+        forge   : 700
+    ]
+    int base = baseByProject.get(targetProject.name, 100)
+    long seed = System.currentTimeMillis() ^ (targetProject.path.hashCode() * 31L)
+    int offset = Math.floorMod((int) seed, 300)
+    return "Player${base + offset}"
+}
+
 allprojects {
     group = rootProject.group
     version = rootProject.version

@@ -15,6 +15,8 @@ base {
     archivesName = "${project.archives_base_name}-forge"
 }
 
+def devUsername = rootProject.ext.devRunUsername(project)
+
 def targetJavaVersion = 21
 
 java {
@@ -46,6 +48,7 @@ minecraft {
 
         register('client') {
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+            args '--username', devUsername
         }
 
         register('server') {

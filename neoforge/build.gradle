@@ -14,6 +14,8 @@ base {
     archivesName = "${project.archives_base_name}-neoforge"
 }
 
+def devUsername = rootProject.ext.devRunUsername(project)
+
 def targetJavaVersion = 21
 
 tasks.withType(JavaCompile).configureEach {
@@ -32,6 +34,8 @@ neoForge {
     runs {
         client {
             client()
+            programArgument '--username'
+            programArgument devUsername
         }
         server {
             server()
