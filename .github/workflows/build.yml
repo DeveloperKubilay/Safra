@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mod_version:
-        description: Build-time mod version override for all loader artifacts
+        description: Version number
         required: false
         type: string
 
