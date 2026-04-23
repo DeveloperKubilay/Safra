@@ -33,7 +33,7 @@ public final class P2pHostService implements AutoCloseable {
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
-        this(tcpPort, token, InetAddress.getLoopbackAddress());
+        this(tcpPort, token, P2pSockets.loopbackAddress());
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress) {

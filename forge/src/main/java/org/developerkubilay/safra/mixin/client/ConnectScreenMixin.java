@@ -15,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Mixin(ConnectScreen.class)
 abstract class ConnectScreenMixin {
@@ -28,7 +30,11 @@ abstract class ConnectScreenMixin {
 
         try {
             P2pManager.RewriteResult rewriteResult = P2pManager.getInstance().createRewrite(serverInfo);
-            ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState);
+            CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
+                client.execute(() ->
+                    ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState)
+                )
+            );
         } catch (IOException exception) {
             client.setScreen(new DisconnectedScreen(
                 parent,

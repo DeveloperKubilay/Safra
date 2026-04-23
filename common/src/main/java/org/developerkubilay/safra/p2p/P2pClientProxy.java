@@ -48,8 +48,9 @@ public final class P2pClientProxy implements AutoCloseable {
             tunnelToken = shareCode.token();
         }
 
-        proxyServer = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
-        LOGGER.debug("Safra P2P client proxy listening on 127.0.0.1:{} and dialing {}", proxyServer.getLocalPort(), remoteAddress);
+        proxyServer = new ServerSocket(0, 16, P2pSockets.loopbackAddress());
+        LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
+            proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
 
         Thread.ofVirtual().name("safra-p2p-client-recv").start(this::receiveLoop);
         Thread.ofVirtual().name("safra-p2p-client-accept").start(this::acceptLoop);

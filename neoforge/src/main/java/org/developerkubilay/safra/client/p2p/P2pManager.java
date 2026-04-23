@@ -5,6 +5,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
+import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
@@ -126,9 +127,10 @@ public final class P2pManager {
         }
 
         activeClientProxy = proxy;
-        ServerData rewritten = new ServerData(originalServerInfo.name, "127.0.0.1:" + localPort, originalServerInfo.type());
+        String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
+        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.type());
         rewritten.copyFrom(originalServerInfo);
-        rewritten.ip = "127.0.0.1:" + localPort;
+        rewritten.ip = localAddress;
         return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
     }
 
