@@ -3,6 +3,12 @@ plugins {
     id 'maven-publish'
 }
 
+sourceSets {
+    main {
+        resources.srcDir(project(':common').file('src/main/resources'))
+    }
+}
+
 base {
     archivesName = "${project.archives_base_name}-fabric"
 }
@@ -61,6 +67,7 @@ java {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(project(':common').sourceSets.main.output)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
@@ -68,6 +75,7 @@ jar {
 }
 
 tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(project(':common').sourceSets.main.allSource)
 }
 

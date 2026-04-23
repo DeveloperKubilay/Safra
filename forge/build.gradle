@@ -5,6 +5,12 @@ plugins {
     id 'net.minecraftforge.renamer' version '1.0.14'
 }
 
+sourceSets {
+    main {
+        resources.srcDir(project(':common').file('src/main/resources'))
+    }
+}
+
 base {
     archivesName = "${project.archives_base_name}-forge"
 }
@@ -91,6 +97,7 @@ processResources {
 }
 
 tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(project(':common').sourceSets.main.output)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
@@ -101,6 +108,7 @@ tasks.named('jar', Jar) {
 }
 
 tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(project(':common').sourceSets.main.allSource)
 }
 

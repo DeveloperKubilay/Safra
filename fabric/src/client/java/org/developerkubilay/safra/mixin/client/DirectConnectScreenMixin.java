@@ -7,9 +7,11 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -24,6 +26,10 @@ abstract class DirectConnectScreenMixin extends Screen {
 
     @Shadow
     private TextFieldWidget addressField;
+
+    @Shadow
+    @Final
+    private ServerInfo serverEntry;
 
     @Unique
     private CyclingButtonWidget<Boolean> safra$p2pToggle;
@@ -81,18 +87,23 @@ abstract class DirectConnectScreenMixin extends Screen {
 
     @Inject(method = "saveAndClose", at = @At("HEAD"))
     private void safra$storeP2pAddress(CallbackInfo ci) {
-        SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-        if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(this.addressField.getText())) {
-            this.addressField.setText(P2pManager.toStoredAddress(this.addressField.getText()));
-        }
+        this.safra$persistStoredAddress();
     }
 
     @Inject(method = "removed", at = @At("HEAD"))
     private void safra$storeLastP2pAddress(CallbackInfo ci) {
+        this.safra$persistStoredAddress();
+    }
+
+    @Unique
+    private void safra$persistStoredAddress() {
         SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-        if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(this.addressField.getText())) {
-            this.addressField.setText(P2pManager.toStoredAddress(this.addressField.getText()));
+        String address = this.addressField.getText();
+        if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
+            address = P2pManager.toStoredAddress(address);
         }
+        this.addressField.setText(address);
+        this.serverEntry.address = address;
     }
 
     @Unique
