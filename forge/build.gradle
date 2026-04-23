@@ -1,0 +1,117 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[7.0.23,8.0)'
+    id 'net.minecraftforge.renamer' version '1.0.14'
+}
+
+base {
+    archivesName = "${project.archives_base_name}-forge"
+}
+
+def targetJavaVersion = 21
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+renamer.enableMixinRefmaps {
+    config "${project.mod_id}.forge.mixins.json"
+}
+
+renamer.classes(tasks.named('jar', Jar)) {
+    archiveClassifier = 'srg'
+    mappings renamer.mixin.generatedMappings
+}
+
+minecraft {
+    mappings channel: 'official', version: project.minecraft_version
+
+    runs {
+        configureEach {
+            workingDir.convention layout.projectDirectory.dir('run')
+            args "--mixin.config=${project.mod_id}.forge.mixins.json"
+        }
+
+        register('client') {
+            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        register('server') {
+            args '--nogui'
+        }
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
+    implementation project(':common')
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+}
+
+renamer.mappings(minecraft.dependency.toSrg)
+
+processResources {
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
+    inputs.property 'forge_loader_version_range', project.forge_loader_version_range
+    inputs.property 'forge_version_range', project.forge_version_range
+    inputs.property 'mod_id', project.mod_id
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_license', project.mod_license
+    inputs.property 'mod_version', project.version
+    inputs.property 'mod_description', project.mod_description
+    filteringCharset = 'UTF-8'
+
+    filesMatching('META-INF/mods.toml') {
+        expand(
+            minecraft_version: project.minecraft_version,
+            forge_minecraft_version_range: project.forge_minecraft_version_range,
+            forge_loader_version_range: project.forge_loader_version_range,
+            forge_version_range: project.forge_version_range,
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_version: project.version,
+            mod_description: project.mod_description
+        )
+    }
+}
+
+tasks.named('jar', Jar) {
+    from(project(':common').sourceSets.main.output)
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+    manifest {
+        attributes['MixinConfigs'] = "${project.mod_id}.forge.mixins.json"
+    }
+}
+
+tasks.named('sourcesJar') {
+    from(project(':common').sourceSets.main.allSource)
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            artifactId = "${project.archives_base_name}-forge"
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}

@@ -2,6 +2,11 @@ name: Build
 
 on:
   workflow_dispatch:
+    inputs:
+      mod_version:
+        description: Build-time mod version override for all loader artifacts
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -30,13 +35,25 @@ jobs:
           gradle-version: '9.4.0'
           cache-provider: basic
 
+      - name: Resolve build version
+        shell: bash
+        run: |
+          mod_version="${{ github.event.inputs.mod_version }}"
+          if [ -z "$mod_version" ]; then
+            mod_version="$(grep '^mod_version=' gradle.properties | cut -d= -f2-)"
+            echo "GRADLE_VERSION_ARG=" >> "$GITHUB_ENV"
+          else
+            echo "GRADLE_VERSION_ARG=-Pmod_version=$mod_version" >> "$GITHUB_ENV"
+          fi
+          echo "SAFRA_MOD_VERSION=$mod_version" >> "$GITHUB_ENV"
+
       - name: Build
-        run: gradle build --stacktrace
+        run: gradle build --stacktrace $GRADLE_VERSION_ARG
 
       - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: safra-build-libs
+          name: safra-build-libs-${{ env.SAFRA_MOD_VERSION }}
           path: build/libs/*
           if-no-files-found: warn

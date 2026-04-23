@@ -4,6 +4,7 @@ plugins {
 
 group = project.maven_group
 version = project.mod_version
+def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
 allprojects {
     group = rootProject.group
@@ -18,19 +19,42 @@ subprojects {
             url = 'https://maven.fabricmc.net/'
         }
         maven {
+            name = 'Forge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+        maven {
             name = 'NeoForged'
             url = 'https://maven.neoforged.net/releases/'
         }
     }
 }
 
+project(':neoforge').tasks.matching { it.name == 'runClient' }.configureEach {
+    onlyIf { !rootRunClientRequested }
+}
+
+project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
+    onlyIf { !rootRunClientRequested }
+}
+
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':neoforge:build')
+    dependsOn(':fabric:build', ':neoforge:build', ':forge:build')
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from(project(':fabric').layout.buildDirectory.dir('libs'))
     from(project(':neoforge').layout.buildDirectory.dir('libs'))
+    from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
-    include('*.jar')
+    include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+
+    doFirst {
+        delete(layout.buildDirectory.dir('libs').get().asFile)
+    }
+}
+
+tasks.register('runClient') {
+    group = 'application'
+    description = 'Runs the Fabric client from the root project.'
+    dependsOn(':fabric:runClient')
 }
 
 tasks.named('build') {
