@@ -1,0 +1,17 @@
+{
+  "safra.p2p.toggle": "P2P",
+  "safra.p2p.placeholder": "예시: ABC123",
+  "safra.p2p.prepare_failed": "Safra P2P 프록시를 준비하지 못했습니다: %s",
+  "safra.p2p.button.on": "P2P: 켜짐",
+  "safra.p2p.button.off": "P2P: 꺼짐",
+  "safra.p2p.online_mode.on": "온라인 모드: 켜짐",
+  "safra.p2p.online_mode.off": "온라인 모드: 꺼짐",
+  "safra.p2p.open_hint": "활성화하면 Safra P2P가 LAN 월드를 UDP를 통해 접속 가능하게 유지합니다.",
+  "safra.p2p.host.starting": "Safra P2P가 백그라운드에서 공유 코드를 준비하는 중입니다...",
+  "safra.p2p.host.started": "Safra P2P 공유 코드: %s",
+  "safra.p2p.host.copied": "공유 코드가 클립보드에 복사되었습니다. 다시 복사하려면 채팅의 코드를 다시 클릭하세요.",
+  "safra.p2p.host.instructions": "친구는 직접 연결을 사용하고 P2P를 켠 뒤 이 코드를 붙여넣어야 합니다.",
+  "safra.p2p.host.narration": "Safra P2P 공유 코드는 %s 입니다",
+  "safra.p2p.host.failed": "Safra P2P를 시작할 수 없습니다: %s",
+  "safra.p2p.copy_hint": "클릭하여 P2P 공유 코드 복사"
+}

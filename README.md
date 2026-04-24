@@ -1,6 +1,6 @@
 # Safra
 
-Safra is a Fabric mod for Minecraft 1.21.11. The current goal is to let a player open a singleplayer world or dedicated server to friends over a direct UDP P2P tunnel instead of requiring manual TCP port forwarding.
+Safra is a multi-loader mod for Minecraft 1.21.11 with Fabric, NeoForge, and Forge builds. The current goal is to let a player open a singleplayer world or dedicated server to friends over a direct UDP P2P tunnel instead of requiring manual TCP port forwarding.
 
 ## Current Feature: P2P LAN Sharing
 
@@ -22,13 +22,15 @@ The local Minecraft LAN port and the public UDP endpoint are intentionally diffe
 
 ## UDP Packet Sizing
 
-Safra carries the TCP stream in UDP datagrams with a max payload of `1200` bytes plus an `18` byte Safra header. That keeps each UDP datagram around `1218` bytes before IP/UDP headers, safely below normal MTU limits such as Ethernet `1500` and IPv6 minimum `1280`. Larger Minecraft/TCP data is split across multiple reliable UDP packets.
+Safra carries the TCP stream in UDP datagrams with a max payload of `1000` bytes plus an `18` byte Safra header. That keeps each UDP datagram around `1018` bytes before IP/UDP headers, safely below normal MTU limits such as Ethernet `1500` and IPv6 minimum `1280`. Larger Minecraft/TCP data is split across multiple reliable UDP packets.
 
-STUN servers currently used:
+STUN servers currently used, in order:
 
 - `stun.l.google.com:19302`
 - `stun1.l.google.com:19302`
 - `stun2.l.google.com:19302`
+- `stun.cloudflare.com:3478`
+- `global.stun.twilio.com:3478`
 
 STUN is only used to discover the public UDP endpoint. Minecraft traffic does not pass through the STUN server or the Cloudflare rendezvous server.
 
@@ -48,9 +50,20 @@ The default rendezvous backend URL is `https://safra.developerkubilay.workers.de
 `-Dsafra.rendezvousUrl=...` or `SAFRA_RENDEZVOUS_URL` when using another `workers.dev` subdomain
 or a production custom domain. `SAFRA_SIGNALING_URL` still works as a legacy fallback.
 
+## Project Layout
+
+- `common/`
+  - Shared tunnel, rendezvous, STUN, and share-code logic that is reused by all loaders.
+- `fabric/`
+  - Fabric entrypoints, lifecycle hooks, mixins, and client integration.
+- `neoforge/`
+  - NeoForge entrypoints, lifecycle hooks, mixins, and client integration.
+- `forge/`
+  - Forge entrypoints, lifecycle hooks, mixins, and client integration.
+
 ## Implemented Pieces
 
-- `src/main/java/org/developerkubilay/safra/p2p/`
+- `common/src/main/java/org/developerkubilay/safra/p2p/`
   - `P2pStunClient`: sends STUN binding requests and reads the public UDP endpoint.
   - `P2pHostService`: runs on the world host and forwards UDP tunnel traffic into the local LAN TCP port.
   - `P2pClientProxy`: runs on the joining client and exposes a local TCP proxy for Minecraft.
@@ -58,20 +71,21 @@ or a production custom domain. `SAFRA_SIGNALING_URL` still works as a legacy fal
   - `P2pShareCode`: parses short rendezvous codes and legacy `host:port#token` share codes.
   - `SafraRendezvousClient`: keeps the WebSocket control channel open and exchanges UDP endpoints through Cloudflare.
 
-- `src/client/java/org/developerkubilay/safra/client/p2p/`
-  - `P2pManager`: owns host/client lifecycle and rewrites P2P connections to loopback.
+- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/`
+- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/`
+- `forge/src/main/java/org/developerkubilay/safra/client/p2p/`
+  - `P2pManager`: owns host/client lifecycle and rewrites P2P connections to loopback for each loader.
 
-- `src/main/java/org/developerkubilay/safra/server/`
-  - `DedicatedP2pServerManager`: starts P2P hosting after a dedicated server reaches `SERVER_STARTED` and closes it during `SERVER_STOPPING`.
-
-- `src/client/java/org/developerkubilay/safra/mixin/client/`
+- `fabric/src/client/java/org/developerkubilay/safra/mixin/client/`
+- `neoforge/src/main/java/org/developerkubilay/safra/mixin/client/`
+- `forge/src/main/java/org/developerkubilay/safra/mixin/client/`
   - `OpenToLanScreenMixin`: adds the P2P and Online Mode toggles to Open to LAN, starts hosting, copies the share code to clipboard, and prints a clickable copyable chat message plus a normal log line.
   - `DirectConnectScreenMixin`: adds the P2P toggle to Direct Connect.
   - `ConnectScreenMixin`: intercepts P2P Direct Connect attempts and redirects Minecraft to the local proxy.
 
 ## Current Test Flow
 
-In IntelliJ, use the normal `runClient` task. If you need two clients, enable "Allow multiple instances" on the run configuration and start `runClient` twice.
+In IntelliJ, the root `runClient` task launches the Fabric dev client. If you need two Fabric clients, enable "Allow multiple instances" on the run configuration and start `runClient` twice. NeoForge and Forge can also be launched separately with `:neoforge:runClient` and `:forge:runClient`.
 
 Production launcher note: Minecraft 1.21.11 / Feather runs on Java 21. The mod jar must also target Java 21 (`JAVA_21` mixin compatibility and class major version 65). Do not build/release a Java 25-targeted jar, because it crashes at startup on normal launchers.
 
@@ -94,7 +108,7 @@ Joiner:
 
 Dedicated server:
 
-1. Put the Safra jar on the Fabric dedicated server.
+1. Put the matching Safra jar on the Fabric, NeoForge, or Forge dedicated server.
 2. Start the server normally.
 3. After the server reaches `Done`, Safra starts the UDP P2P host automatically.
 4. The console logs `Safra P2P dedicated server opened on local TCP port ... Share code: ...`.

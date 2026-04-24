@@ -1,0 +1,17 @@
+{
+  "safra.p2p.toggle": "P2P",
+  "safra.p2p.placeholder": "Пример: ABC123",
+  "safra.p2p.prepare_failed": "Не удалось подготовить прокси Safra P2P: %s",
+  "safra.p2p.button.on": "P2P: ВКЛ",
+  "safra.p2p.button.off": "P2P: ВЫКЛ",
+  "safra.p2p.online_mode.on": "Сетевой режим: ВКЛ",
+  "safra.p2p.online_mode.off": "Сетевой режим: ВЫКЛ",
+  "safra.p2p.open_hint": "Когда включено, Safra P2P оставляет мир LAN доступным по UDP.",
+  "safra.p2p.host.starting": "Safra P2P подготавливает код доступа в фоновом режиме...",
+  "safra.p2p.host.started": "Код доступа Safra P2P: %s",
+  "safra.p2p.host.copied": "Код доступа скопирован в буфер обмена. Нажмите на код в чате, чтобы скопировать его снова.",
+  "safra.p2p.host.instructions": "Ваш друг должен использовать Прямое подключение, включить P2P и вставить этот код.",
+  "safra.p2p.host.narration": "Код доступа Safra P2P: %s",
+  "safra.p2p.host.failed": "Не удалось запустить Safra P2P: %s",
+  "safra.p2p.copy_hint": "Нажмите, чтобы скопировать код доступа P2P"
+}
