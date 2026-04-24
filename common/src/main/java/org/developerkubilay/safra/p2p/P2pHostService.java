@@ -53,34 +53,46 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        try {
-            discoveredEndpoint = stunClient.discover(socket)
-                .orElseThrow(() -> new IOException("STUN ile genel UDP ucu bulunamadi"));
-        } catch (IOException exception) {
-            socket.close();
-            throw exception;
-        }
+        discoveredEndpoint = stunClient.discover(socket).orElse(null);
         if (closed) {
             socket.close();
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        Thread.ofVirtual().name("safra-p2p-host-recv").start(this::receiveLoop);
-        scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
-            P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        InetSocketAddress publishedEndpoint = discoveredEndpoint != null
+            ? discoveredEndpoint.publicAddress()
+            : P2pSockets.localUdpEndpoint(socket);
+        if (publishedEndpoint == null) {
+            socket.close();
+            throw new IOException("STUN ile genel UDP ucu bulunamadi ve yerel UDP ucu da bulunamadi");
+        }
 
-        InetSocketAddress publicAddress = discoveredEndpoint.publicAddress();
-        InetAddress address = publicAddress.getAddress();
-        String host = address == null ? publicAddress.getHostString() : address.getHostAddress();
-        LOGGER.debug("Safra P2P host UDP socket bound on local port {}, public endpoint {}:{}", socket.getLocalPort(), host, publicAddress.getPort());
-        P2pShareCode directShareCode = new P2pShareCode(host, publicAddress.getPort(), token);
+        Thread.ofVirtual().name("safra-p2p-host-recv").start(this::receiveLoop);
+        if (discoveredEndpoint != null) {
+            scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
+                P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        } else {
+            LOGGER.warn("Safra P2P STUN could not discover a public UDP endpoint; falling back to LAN UDP endpoint {}:{}",
+                publishedEndpoint.getHostString(), publishedEndpoint.getPort());
+        }
+
+        InetAddress address = publishedEndpoint.getAddress();
+        String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
+        LOGGER.debug("Safra P2P host UDP socket bound on local port {}, published endpoint {}:{}", socket.getLocalPort(), host, publishedEndpoint.getPort());
+        P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
 
         try {
-            rendezvousSession = SafraRendezvousClient.startHost(tcpPort, token, publicAddress, socket, this::punchRemoteEndpoint);
+            rendezvousSession = SafraRendezvousClient.startHost(
+                tcpPort,
+                token,
+                discoveredEndpoint == null ? null : discoveredEndpoint.publicAddress(),
+                socket,
+                this::punchRemoteEndpoint
+            );
             LOGGER.info("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
-            LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct endpoint share code", exception);
+            LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
             return directShareCode;
         }
     }

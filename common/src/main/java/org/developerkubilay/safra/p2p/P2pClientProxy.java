@@ -84,9 +84,21 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void resolveRendezvousShareCode() throws IOException {
-        P2pStunClient.DiscoveredEndpoint endpoint = stunClient.discover(udpSocket)
-            .orElseThrow(() -> new IOException("STUN ile joiner genel UDP ucu bulunamadi"));
-        rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), endpoint.publicAddress(), udpSocket);
+        P2pStunClient.DiscoveredEndpoint endpoint = stunClient.discover(udpSocket).orElse(null);
+        if (endpoint == null) {
+            InetSocketAddress localEndpoint = P2pSockets.localUdpEndpoint(udpSocket);
+            if (localEndpoint == null) {
+                throw new IOException("STUN ile joiner genel UDP ucu bulunamadi ve yerel UDP ucu da bulunamadi");
+            }
+            LOGGER.warn("Safra P2P STUN could not discover a public joiner UDP endpoint; trying LAN UDP fallback {}:{}",
+                localEndpoint.getHostString(), localEndpoint.getPort());
+        }
+
+        rendezvousSession = SafraRendezvousClient.join(
+            shareCode.rendezvousCode(),
+            endpoint == null ? null : endpoint.publicAddress(),
+            udpSocket
+        );
         remoteAddress = rendezvousSession.hostAddress();
         tunnelToken = rendezvousSession.tunnelToken();
         if (tunnelToken == 0) {

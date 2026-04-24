@@ -48,6 +48,7 @@ minecraft {
 
         register('client') {
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+            systemProperty 'io.netty.transport.noNative', 'true'
             args '--username', devUsername
         }
 
