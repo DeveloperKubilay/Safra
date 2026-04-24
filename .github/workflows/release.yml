@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_number:
+        description: Version number
+        required: true
+        type: string
+      prerelease:
+        description: Publish as prerelease
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle 9.4.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.0'
+          cache-provider: basic
+
+      - name: Resolve release version
+        shell: bash
+        run: |
+          version_number="${{ github.event.inputs.version_number }}"
+          if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
+            echo "Invalid version_number: $version_number"
+            exit 1
+          fi
+
+          echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
+          echo "SAFRA_TAG=v$version_number" >> "$GITHUB_ENV"
+
+      - name: Build release artifacts
+        run: gradle build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > release-notes.md <<EOF
+          Safra ${{ env.SAFRA_VERSION }} for Minecraft 1.21.11
+
+          Included artifacts:
+          - Fabric
+          - NeoForge
+          - Forge
+
+          Files are attached from the workflow build output.
+          EOF
+
+      - name: Ensure release tag is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if gh release view "${{ env.SAFRA_TAG }}" >/dev/null 2>&1; then
+            echo "Release ${{ env.SAFRA_TAG }} already exists."
+            exit 1
+          fi
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          prerelease_flag=""
+          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            prerelease_flag="--prerelease"
+          fi
+
+          gh release create "${{ env.SAFRA_TAG }}" build/libs/* \
+            --target "${GITHUB_SHA}" \
+            --title "Safra ${{ env.SAFRA_VERSION }}" \
+            --notes-file release-notes.md \
+            $prerelease_flag

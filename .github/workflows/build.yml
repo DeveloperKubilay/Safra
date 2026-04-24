@@ -3,7 +3,7 @@ name: Build
 on:
   workflow_dispatch:
     inputs:
-      mod_version:
+      version_number:
         description: Version number
         required: false
         type: string
@@ -38,14 +38,14 @@ jobs:
       - name: Resolve build version
         shell: bash
         run: |
-          mod_version="${{ github.event.inputs.mod_version }}"
-          if [ -z "$mod_version" ]; then
-            mod_version="$(grep '^mod_version=' gradle.properties | cut -d= -f2-)"
+          version_number="${{ github.event.inputs.version_number }}"
+          if [ -z "$version_number" ]; then
+            version_number="$(grep '^mod_version=' gradle.properties | cut -d= -f2-)"
             echo "GRADLE_VERSION_ARG=" >> "$GITHUB_ENV"
           else
-            echo "GRADLE_VERSION_ARG=-Pmod_version=$mod_version" >> "$GITHUB_ENV"
+            echo "GRADLE_VERSION_ARG=-Pmod_version=$version_number" >> "$GITHUB_ENV"
           fi
-          echo "SAFRA_MOD_VERSION=$mod_version" >> "$GITHUB_ENV"
+          echo "SAFRA_MOD_VERSION=$version_number" >> "$GITHUB_ENV"
 
       - name: Build
         run: gradle build --stacktrace $GRADLE_VERSION_ARG
