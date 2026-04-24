@@ -299,7 +299,6 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static final class JoinListener extends JsonListener {
         private final CompletableFuture<Void> welcomeFuture = new CompletableFuture<>();
         private final CompletableFuture<ResolvedHost> resolvedHostFuture = new CompletableFuture<>();
-
         @Override
         protected void handle(JsonObject message) {
             String type = string(message, "type");
@@ -346,11 +345,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             return null;
         }
 
-        InetSocketAddress local = localEndpoint(object);
-        if (local != null) {
-            return local;
-        }
-
         String host = string(object, "host");
         int port = integer(object.get("port"), 0);
         if (host.isBlank() || port < 1 || port > 65535) {
@@ -388,24 +382,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    private static InetSocketAddress localEndpoint(JsonObject object) {
-        String host = string(object, "localHost");
-        int port = integer(object.get("localPort"), 0);
-        if (host.isBlank() || port < 1 || port > 65535) {
-            return null;
-        }
-
-        try {
-            InetAddress address = InetAddress.getByName(host);
-            if (!P2pSockets.isReachableLocalPeer(address)) {
-                return null;
-            }
-            return new InetSocketAddress(address, port);
-        } catch (IOException exception) {
-            return null;
-        }
-    }
-
     record HostSession(String code, SafraRendezvousClient client) implements AutoCloseable {
         @Override
         public void close() {
@@ -424,18 +400,12 @@ final class SafraRendezvousClient implements AutoCloseable {
     private record ResolvedHost(InetSocketAddress address, int tunnelToken) {
     }
 
-    private record UdpEndpoint(String host, int port, String family, String localHost, int localPort) {
+    private record UdpEndpoint(String host, int port, String family) {
         static UdpEndpoint from(InetSocketAddress publicEndpoint, DatagramSocket socket) {
-            String localHost = P2pSockets.localHost(socket);
-            InetSocketAddress publishedEndpoint = publicEndpoint != null ? publicEndpoint : P2pSockets.localUdpEndpoint(socket);
-            if (publishedEndpoint == null) {
-                throw new IllegalStateException("No UDP endpoint is available for rendezvous registration");
-            }
-
-            InetAddress address = publishedEndpoint.getAddress();
-            String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
+            InetAddress address = publicEndpoint.getAddress();
+            String host = address == null ? publicEndpoint.getHostString() : address.getHostAddress();
             String family = address != null && address.getAddress().length == 16 ? "ipv6" : "ipv4";
-            return new UdpEndpoint(host, publishedEndpoint.getPort(), family, localHost, socket.getLocalPort());
+            return new UdpEndpoint(host, publicEndpoint.getPort(), family);
         }
 
         JsonObject toJson() {
@@ -443,12 +413,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             object.addProperty("host", host);
             object.addProperty("port", port);
             object.addProperty("family", family);
-            if (!localHost.isBlank()) {
-                object.addProperty("localHost", localHost);
-            }
-            if (localPort > 0) {
-                object.addProperty("localPort", localPort);
-            }
             return object;
         }
     }

@@ -9,6 +9,7 @@ config="safra.neoforge.mixins.json"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
+logoFile="assets/safra/icon.png"
 description='''${mod_description}'''
 
 [[dependencies.${mod_id}]]

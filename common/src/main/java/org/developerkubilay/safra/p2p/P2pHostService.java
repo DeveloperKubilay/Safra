@@ -61,20 +61,15 @@ public final class P2pHostService implements AutoCloseable {
 
         InetSocketAddress publishedEndpoint = discoveredEndpoint != null
             ? discoveredEndpoint.publicAddress()
-            : P2pSockets.localUdpEndpoint(socket);
+            : null;
         if (publishedEndpoint == null) {
             socket.close();
-            throw new IOException("STUN ile genel UDP ucu bulunamadi ve yerel UDP ucu da bulunamadi");
+            throw new IOException("STUN ile genel UDP ucu bulunamadi");
         }
 
         Thread.ofVirtual().name("safra-p2p-host-recv").start(this::receiveLoop);
-        if (discoveredEndpoint != null) {
-            scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
-                P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
-        } else {
-            LOGGER.warn("Safra P2P STUN could not discover a public UDP endpoint; falling back to LAN UDP endpoint {}:{}",
-                publishedEndpoint.getHostString(), publishedEndpoint.getPort());
-        }
+        scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
+            P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
 
         InetAddress address = publishedEndpoint.getAddress();
         String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
@@ -85,7 +80,7 @@ public final class P2pHostService implements AutoCloseable {
             rendezvousSession = SafraRendezvousClient.startHost(
                 tcpPort,
                 token,
-                discoveredEndpoint == null ? null : discoveredEndpoint.publicAddress(),
+                discoveredEndpoint.publicAddress(),
                 socket,
                 this::punchRemoteEndpoint
             );
