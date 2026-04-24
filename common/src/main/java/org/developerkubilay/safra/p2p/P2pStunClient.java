@@ -13,6 +13,8 @@ import java.util.Arrays;
 import java.util.Optional;
 
 final class P2pStunClient {
+    private static final int DISCOVERY_ATTEMPTS_PER_SERVER = 2;
+    private static final int DISCOVERY_TIMEOUT_MS = 2_500;
     private static final int BINDING_REQUEST = 0x0001;
     private static final int BINDING_SUCCESS_RESPONSE = 0x0101;
     private static final int MAPPED_ADDRESS = 0x0001;
@@ -23,16 +25,18 @@ final class P2pStunClient {
 
     Optional<DiscoveredEndpoint> discover(DatagramSocket socket) {
         for (String serverSpec : P2pConstants.STUN_SERVERS) {
-            try {
-                InetSocketAddress server = parseServer(serverSpec);
-                byte[] transactionId = new byte[12];
-                random.nextBytes(transactionId);
-                sendBindingRequest(socket, server, transactionId);
-                DiscoveredEndpoint endpoint = readBindingResponse(socket, transactionId, 2_500);
-                if (endpoint != null) {
-                    return Optional.of(endpoint.withServer(server));
+            InetSocketAddress server = parseServer(serverSpec);
+            for (int attempt = 0; attempt < DISCOVERY_ATTEMPTS_PER_SERVER; attempt++) {
+                try {
+                    byte[] transactionId = new byte[12];
+                    random.nextBytes(transactionId);
+                    sendBindingRequest(socket, server, transactionId);
+                    DiscoveredEndpoint endpoint = readBindingResponse(socket, transactionId, DISCOVERY_TIMEOUT_MS);
+                    if (endpoint != null) {
+                        return Optional.of(endpoint.withServer(server));
+                    }
+                } catch (IOException ignored) {
                 }
-            } catch (IOException ignored) {
             }
         }
         return Optional.empty();

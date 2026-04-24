@@ -55,8 +55,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile long lastOpenPacketAt = 0L;
     private volatile long openStartedAt = System.currentTimeMillis();
     private volatile ScheduledFuture<?> maintenanceTask;
-    private int lastAcknowledgement;
-    private int duplicateAcknowledgements;
 
     ReliableTunnelConnection(Logger logger, String side, int token, int connectionId, InetSocketAddress remoteAddress,
                              Socket tcpSocket, PacketSender packetSender, RemovalCallback removalCallback,
@@ -228,26 +226,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         if (removed) {
-            lastAcknowledgement = acknowledgement;
-            duplicateAcknowledgements = 0;
             synchronized (sendWindowMonitor) {
                 sendWindowMonitor.notifyAll();
-            }
-            return;
-        }
-
-        if (acknowledgement == lastAcknowledgement) {
-            duplicateAcknowledgements++;
-        } else {
-            lastAcknowledgement = acknowledgement;
-            duplicateAcknowledgements = 0;
-        }
-
-        if (duplicateAcknowledgements >= P2pConstants.FAST_RESEND_DUP_ACKS) {
-            PendingSegment segment = pendingSegments.get(acknowledgement);
-            if (segment != null) {
-                duplicateAcknowledgements = 0;
-                sendData(segment.sequence, segment.payload);
             }
         }
     }
