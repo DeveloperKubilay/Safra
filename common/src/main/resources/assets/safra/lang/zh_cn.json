@@ -1,0 +1,17 @@
+{
+  "safra.p2p.toggle": "P2P",
+  "safra.p2p.placeholder": "示例：ABC123",
+  "safra.p2p.prepare_failed": "无法准备 Safra P2P 代理：%s",
+  "safra.p2p.button.on": "P2P：开",
+  "safra.p2p.button.off": "P2P：关",
+  "safra.p2p.online_mode.on": "联机模式：开",
+  "safra.p2p.online_mode.off": "联机模式：关",
+  "safra.p2p.open_hint": "启用后，Safra P2P 会让 LAN 世界继续通过 UDP 可访问。",
+  "safra.p2p.host.starting": "Safra P2P 正在后台准备分享代码...",
+  "safra.p2p.host.started": "Safra P2P 分享代码：%s",
+  "safra.p2p.host.copied": "分享代码已复制到剪贴板。点击聊天中的代码可再次复制。",
+  "safra.p2p.host.instructions": "你的朋友应使用直接连接，启用 P2P，并粘贴这段代码。",
+  "safra.p2p.host.narration": "Safra P2P 分享代码是 %s",
+  "safra.p2p.host.failed": "无法启动 Safra P2P：%s",
+  "safra.p2p.copy_hint": "点击复制 P2P 分享代码"
+}

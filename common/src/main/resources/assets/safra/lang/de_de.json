@@ -1,0 +1,17 @@
+{
+  "safra.p2p.toggle": "P2P",
+  "safra.p2p.placeholder": "Beispiel: ABC123",
+  "safra.p2p.prepare_failed": "Der Safra-P2P-Proxy konnte nicht vorbereitet werden: %s",
+  "safra.p2p.button.on": "P2P: EIN",
+  "safra.p2p.button.off": "P2P: AUS",
+  "safra.p2p.online_mode.on": "Online-Modus: EIN",
+  "safra.p2p.online_mode.off": "Online-Modus: AUS",
+  "safra.p2p.open_hint": "Wenn aktiviert, hält Safra P2P die LAN-Welt über UDP erreichbar.",
+  "safra.p2p.host.starting": "Safra P2P bereitet den Freigabecode im Hintergrund vor...",
+  "safra.p2p.host.started": "Safra-P2P-Freigabecode: %s",
+  "safra.p2p.host.copied": "Freigabecode in die Zwischenablage kopiert. Klicke im Chat erneut auf den Code, um ihn noch einmal zu kopieren.",
+  "safra.p2p.host.instructions": "Dein Freund sollte Direkt verbinden verwenden, P2P aktivieren und diesen Code einfügen.",
+  "safra.p2p.host.narration": "Der Safra-P2P-Freigabecode ist %s",
+  "safra.p2p.host.failed": "Safra P2P konnte nicht gestartet werden: %s",
+  "safra.p2p.copy_hint": "Klicke, um den P2P-Freigabecode zu kopieren"
+}
