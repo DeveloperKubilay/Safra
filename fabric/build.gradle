@@ -46,6 +46,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     implementation project(':common')
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
 processResources {

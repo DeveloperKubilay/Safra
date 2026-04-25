@@ -18,6 +18,9 @@
     ],
     "main": [
       "org.developerkubilay.safra.Safra"
+    ],
+    "voicechat": [
+      "org.developerkubilay.safra.voicechat.SafraFabricVoicechatPlugin"
     ]
   },
   "mixins": [

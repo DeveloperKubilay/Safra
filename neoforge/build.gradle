@@ -52,6 +52,7 @@ neoForge {
 
 dependencies {
     implementation project(':common')
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
 processResources {
