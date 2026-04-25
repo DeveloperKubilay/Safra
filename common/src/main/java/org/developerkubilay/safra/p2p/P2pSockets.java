@@ -40,20 +40,6 @@ final class P2pSockets {
         return IPV4_LOOPBACK;
     }
 
-    static boolean sameAddressFamily(InetSocketAddress left, InetSocketAddress right) {
-        if (left == null || right == null) {
-            return false;
-        }
-
-        InetAddress leftAddress = left.getAddress();
-        InetAddress rightAddress = right.getAddress();
-        if (leftAddress == null || rightAddress == null) {
-            return false;
-        }
-
-        return (leftAddress instanceof Inet4Address) == (rightAddress instanceof Inet4Address);
-    }
-
     static String addressFamily(InetSocketAddress address) {
         if (address == null || address.getAddress() == null) {
             return "unknown";
