@@ -23,14 +23,14 @@ public final class SafraVoiceTransportManager {
     public synchronized void setHostSession(String code, SafraRendezvousClient.HostSession session) {
         hostCode = code;
         hostSession = session;
-        refreshServerSockets();
+        refreshServerSocketsAsync();
     }
 
     public synchronized void clearHostSession(SafraRendezvousClient.HostSession session) {
         if (hostSession == session) {
             hostSession = null;
             hostCode = null;
-            refreshServerSockets();
+            refreshServerSocketsAsync();
         }
     }
 
@@ -64,16 +64,22 @@ public final class SafraVoiceTransportManager {
 
     void registerServerSocket(SafraVoiceServerSocket socket) {
         serverSockets.add(socket);
-        socket.refreshSafraBinding();
+        refreshServerSocketAsync(socket);
     }
 
     void unregisterServerSocket(SafraVoiceServerSocket socket) {
         serverSockets.remove(socket);
     }
 
-    private void refreshServerSockets() {
+    private void refreshServerSocketsAsync() {
         for (SafraVoiceServerSocket socket : serverSockets) {
-            socket.refreshSafraBinding();
+            refreshServerSocketAsync(socket);
         }
+    }
+
+    private void refreshServerSocketAsync(SafraVoiceServerSocket socket) {
+        Thread.ofVirtual()
+            .name("safra-voice-refresh")
+            .start(socket::refreshSafraBinding);
     }
 }
