@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -46,7 +45,7 @@ final class SafraRendezvousClient implements AutoCloseable {
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, Collection<InetSocketAddress> publicEndpoints,
-                                 DatagramSocket socket, Consumer<InetSocketAddress> punchHandler) throws IOException {
+                                 Consumer<InetSocketAddress> punchHandler) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
         HostListener listener = new HostListener(punchHandler);
         try {
@@ -82,7 +81,7 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    static JoinSession join(String code, Collection<InetSocketAddress> publicEndpoints, DatagramSocket socket) throws IOException {
+    static JoinSession join(String code, Collection<InetSocketAddress> publicEndpoints) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
         JoinListener listener = new JoinListener();
         try {

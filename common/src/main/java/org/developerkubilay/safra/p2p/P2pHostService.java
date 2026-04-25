@@ -11,7 +11,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -61,7 +60,7 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        P2pStunClient.DiscoveredEndpoint preferredEndpoint = preferredDiscoveredEndpoint();
+        P2pStunClient.DiscoveredEndpoint preferredEndpoint = P2pStunClient.preferredCandidate(discoveredEndpoints);
         InetSocketAddress publishedEndpoint = preferredEndpoint != null ? preferredEndpoint.publicAddress() : null;
         if (publishedEndpoint == null) {
             socket.close();
@@ -81,8 +80,7 @@ public final class P2pHostService implements AutoCloseable {
             rendezvousSession = SafraRendezvousClient.startHost(
                 tcpPort,
                 token,
-                discoveredPublicEndpoints(),
-                socket,
+                P2pStunClient.publicEndpoints(discoveredEndpoints),
                 this::punchRemoteEndpoint
             );
             LOGGER.info("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
@@ -259,41 +257,6 @@ public final class P2pHostService implements AutoCloseable {
         } catch (BindException ignored) {
             return P2pSockets.datagramSocket();
         }
-    }
-
-    private P2pStunClient.DiscoveredEndpoint preferredDiscoveredEndpoint() {
-        P2pStunClient.DiscoveredEndpoint ipv4 = discoveredEndpoints.get("ipv4");
-        if (ipv4 != null) {
-            return ipv4;
-        }
-
-        P2pStunClient.DiscoveredEndpoint ipv6 = discoveredEndpoints.get("ipv6");
-        if (ipv6 != null) {
-            return ipv6;
-        }
-
-        return discoveredEndpoints.values().stream().findFirst().orElse(null);
-    }
-
-    private java.util.Collection<InetSocketAddress> discoveredPublicEndpoints() {
-        ArrayList<InetSocketAddress> endpoints = new ArrayList<>();
-        P2pStunClient.DiscoveredEndpoint ipv4 = discoveredEndpoints.get("ipv4");
-        if (ipv4 != null) {
-            endpoints.add(ipv4.publicAddress());
-        }
-
-        P2pStunClient.DiscoveredEndpoint ipv6 = discoveredEndpoints.get("ipv6");
-        if (ipv6 != null) {
-            endpoints.add(ipv6.publicAddress());
-        }
-
-        if (endpoints.isEmpty()) {
-            P2pStunClient.DiscoveredEndpoint fallback = preferredDiscoveredEndpoint();
-            if (fallback != null) {
-                endpoints.add(fallback.publicAddress());
-            }
-        }
-        return endpoints;
     }
 
     private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {

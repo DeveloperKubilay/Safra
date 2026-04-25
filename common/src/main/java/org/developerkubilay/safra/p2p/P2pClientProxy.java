@@ -10,7 +10,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -92,8 +91,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
         rendezvousSession = SafraRendezvousClient.join(
             shareCode.rendezvousCode(),
-            discoveredPublicEndpoints(discoveredEndpoints),
-            udpSocket
+            P2pStunClient.publicEndpoints(discoveredEndpoints)
         );
         remoteAddress = rendezvousSession.hostAddress();
         tunnelToken = rendezvousSession.tunnelToken();
@@ -110,27 +108,6 @@ public final class P2pClientProxy implements AutoCloseable {
             LOGGER.debug("Safra P2P host and joiner resolved to the same public IP {}; attempting NAT hairpin/self-connect path", remoteAddress.getAddress());
         }
         LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
-    }
-
-    private java.util.Collection<InetSocketAddress> discoveredPublicEndpoints(Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints) {
-        ArrayList<InetSocketAddress> endpoints = new ArrayList<>();
-        P2pStunClient.DiscoveredEndpoint ipv4 = discoveredEndpoints.get("ipv4");
-        if (ipv4 != null) {
-            endpoints.add(ipv4.publicAddress());
-        }
-
-        P2pStunClient.DiscoveredEndpoint ipv6 = discoveredEndpoints.get("ipv6");
-        if (ipv6 != null) {
-            endpoints.add(ipv6.publicAddress());
-        }
-
-        if (endpoints.isEmpty()) {
-            discoveredEndpoints.values().stream()
-                .findFirst()
-                .map(P2pStunClient.DiscoveredEndpoint::publicAddress)
-                .ifPresent(endpoints::add);
-        }
-        return endpoints;
     }
 
     private boolean samePublicIp(InetSocketAddress joinerAddress, InetSocketAddress hostAddress) {

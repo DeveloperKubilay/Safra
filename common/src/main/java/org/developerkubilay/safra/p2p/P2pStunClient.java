@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 final class P2pStunClient {
     private static final int DISCOVERY_ATTEMPTS_PER_SERVER = 2;
@@ -28,10 +27,6 @@ final class P2pStunClient {
     private static final int MAGIC_COOKIE = 0x2112A442;
 
     private final SecureRandom random = new SecureRandom();
-
-    Optional<DiscoveredEndpoint> discover(DatagramSocket socket) {
-        return Optional.ofNullable(selectPreferredCandidate(discoverCandidates(socket)));
-    }
 
     Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket) {
         Map<String, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
@@ -233,7 +228,7 @@ final class P2pStunClient {
         throw new IllegalArgumentException("STUN server " + host + " did not resolve to any address");
     }
 
-    private DiscoveredEndpoint selectPreferredCandidate(Map<String, DiscoveredEndpoint> discovered) {
+    static DiscoveredEndpoint preferredCandidate(Map<String, DiscoveredEndpoint> discovered) {
         if (discovered.isEmpty()) {
             return null;
         }
@@ -249,6 +244,27 @@ final class P2pStunClient {
         }
 
         return discovered.values().iterator().next();
+    }
+
+    static List<InetSocketAddress> publicEndpoints(Map<String, DiscoveredEndpoint> discovered) {
+        ArrayList<InetSocketAddress> endpoints = new ArrayList<>();
+        DiscoveredEndpoint ipv4 = discovered.get("ipv4");
+        if (ipv4 != null) {
+            endpoints.add(ipv4.publicAddress());
+        }
+
+        DiscoveredEndpoint ipv6 = discovered.get("ipv6");
+        if (ipv6 != null) {
+            endpoints.add(ipv6.publicAddress());
+        }
+
+        if (endpoints.isEmpty()) {
+            DiscoveredEndpoint fallback = preferredCandidate(discovered);
+            if (fallback != null) {
+                endpoints.add(fallback.publicAddress());
+            }
+        }
+        return endpoints;
     }
 
     record DiscoveredEndpoint(InetSocketAddress publicAddress, InetSocketAddress stunServer) {
