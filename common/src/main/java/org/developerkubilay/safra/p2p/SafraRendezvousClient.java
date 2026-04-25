@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.p2p;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -19,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -43,7 +45,7 @@ final class SafraRendezvousClient implements AutoCloseable {
     private ScheduledFuture<?> pingTask;
     private volatile boolean closed;
 
-    static HostSession startHost(int tcpPort, int tunnelToken, InetSocketAddress publicEndpoint,
+    static HostSession startHost(int tcpPort, int tunnelToken, Collection<InetSocketAddress> publicEndpoints,
                                  DatagramSocket socket, Consumer<InetSocketAddress> punchHandler) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
         HostListener listener = new HostListener(punchHandler);
@@ -51,10 +53,15 @@ final class SafraRendezvousClient implements AutoCloseable {
             String peerId = "host-" + UUID.randomUUID();
             client.connect(webSocketUri("/v1/host", peerId), listener);
             String code = listener.codeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
+            if (primaryEndpoint == null) {
+                throw new IOException("rendezvous host requires at least one UDP candidate");
+            }
 
             JsonObject ready = new JsonObject();
             ready.addProperty("type", "host:ready");
-            ready.add("udp", UdpEndpoint.from(publicEndpoint, socket).toJson());
+            ready.add("udp", UdpEndpoint.from(primaryEndpoint).toJson());
+            ready.add("udpCandidates", UdpEndpoint.toJsonArray(publicEndpoints));
 
             JsonObject tunnel = new JsonObject();
             tunnel.addProperty("token", tunnelToken);
@@ -75,17 +82,22 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    static JoinSession join(String code, InetSocketAddress publicEndpoint, DatagramSocket socket) throws IOException {
+    static JoinSession join(String code, Collection<InetSocketAddress> publicEndpoints, DatagramSocket socket) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
         JoinListener listener = new JoinListener();
         try {
             String peerId = "joiner-" + UUID.randomUUID();
             client.connect(webSocketUri("/v1/join/" + encode(code), peerId), listener);
             listener.welcomeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
+            if (primaryEndpoint == null) {
+                throw new IOException("rendezvous join requires at least one UDP candidate");
+            }
 
             JsonObject ready = new JsonObject();
             ready.addProperty("type", "join:ready");
-            ready.add("udp", UdpEndpoint.from(publicEndpoint, socket).toJson());
+            ready.add("udp", UdpEndpoint.from(primaryEndpoint).toJson());
+            ready.add("udpCandidates", UdpEndpoint.toJsonArray(publicEndpoints));
             client.send(ready);
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -196,6 +208,30 @@ final class SafraRendezvousClient implements AutoCloseable {
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private static InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> publicEndpoints) {
+        if (publicEndpoints == null) {
+            return null;
+        }
+
+        InetSocketAddress ipv4 = null;
+        InetSocketAddress fallback = null;
+        for (InetSocketAddress endpoint : publicEndpoints) {
+            if (endpoint == null || endpoint.getAddress() == null) {
+                continue;
+            }
+
+            if (fallback == null) {
+                fallback = endpoint;
+            }
+            if ("ipv4".equals(P2pSockets.addressFamily(endpoint))) {
+                ipv4 = endpoint;
+                break;
+            }
+        }
+
+        return ipv4 != null ? ipv4 : fallback;
     }
 
     private static IOException asIOException(String message, Exception exception) {
@@ -401,11 +437,26 @@ final class SafraRendezvousClient implements AutoCloseable {
     }
 
     private record UdpEndpoint(String host, int port, String family) {
-        static UdpEndpoint from(InetSocketAddress publicEndpoint, DatagramSocket socket) {
+        static UdpEndpoint from(InetSocketAddress publicEndpoint) {
             InetAddress address = publicEndpoint.getAddress();
             String host = address == null ? publicEndpoint.getHostString() : address.getHostAddress();
             String family = address != null && address.getAddress().length == 16 ? "ipv6" : "ipv4";
             return new UdpEndpoint(host, publicEndpoint.getPort(), family);
+        }
+
+        static JsonArray toJsonArray(Collection<InetSocketAddress> publicEndpoints) {
+            JsonArray array = new JsonArray();
+            if (publicEndpoints == null) {
+                return array;
+            }
+
+            for (InetSocketAddress endpoint : publicEndpoints) {
+                if (endpoint == null || endpoint.getAddress() == null) {
+                    continue;
+                }
+                array.add(from(endpoint).toJson());
+            }
+            return array;
         }
 
         JsonObject toJson() {

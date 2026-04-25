@@ -11,7 +11,11 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 final class P2pStunClient {
@@ -26,22 +30,31 @@ final class P2pStunClient {
     private final SecureRandom random = new SecureRandom();
 
     Optional<DiscoveredEndpoint> discover(DatagramSocket socket) {
+        return Optional.ofNullable(selectPreferredCandidate(discoverCandidates(socket)));
+    }
+
+    Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket) {
+        Map<String, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
         for (String serverSpec : P2pConstants.STUN_SERVERS) {
-            InetSocketAddress server = parseServer(serverSpec);
-            for (int attempt = 0; attempt < DISCOVERY_ATTEMPTS_PER_SERVER; attempt++) {
-                try {
-                    byte[] transactionId = new byte[12];
-                    random.nextBytes(transactionId);
-                    sendBindingRequest(socket, server, transactionId);
-                    DiscoveredEndpoint endpoint = readBindingResponse(socket, transactionId, DISCOVERY_TIMEOUT_MS);
-                    if (endpoint != null) {
-                        return Optional.of(endpoint.withServer(server));
+            for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
+                for (int attempt = 0; attempt < DISCOVERY_ATTEMPTS_PER_SERVER; attempt++) {
+                    try {
+                        byte[] transactionId = new byte[12];
+                        random.nextBytes(transactionId);
+                        sendBindingRequest(socket, server, transactionId);
+                        DiscoveredEndpoint endpoint = readBindingResponse(socket, transactionId, DISCOVERY_TIMEOUT_MS);
+                        if (endpoint != null) {
+                            discovered.putIfAbsent(endpoint.family(), endpoint.withServer(server));
+                            if (discovered.containsKey("ipv4") && discovered.containsKey("ipv6")) {
+                                return discovered;
+                            }
+                        }
+                    } catch (IOException ignored) {
                     }
-                } catch (IOException ignored) {
                 }
             }
         }
-        return Optional.empty();
+        return discovered;
     }
 
     void sendKeepAlive(DatagramSocket socket, InetSocketAddress server) throws IOException {
@@ -55,11 +68,15 @@ final class P2pStunClient {
         return parseResponse(payload);
     }
 
-    private InetSocketAddress parseServer(String rawServer) {
+    private List<InetSocketAddress> parseServerCandidates(String rawServer) {
         int separator = rawServer.lastIndexOf(':');
         String host = rawServer.substring(0, separator);
         int port = Integer.parseInt(rawServer.substring(separator + 1));
-        return new InetSocketAddress(resolvePreferredAddress(host), port);
+        List<InetSocketAddress> servers = new ArrayList<>();
+        for (InetAddress address : resolveAddresses(host)) {
+            servers.add(new InetSocketAddress(address, port));
+        }
+        return servers;
     }
 
     private void sendBindingRequest(DatagramSocket socket, InetSocketAddress server, byte[] transactionId) throws IOException {
@@ -198,17 +215,16 @@ final class P2pStunClient {
         }
     }
 
-    private InetAddress resolvePreferredAddress(String host) {
+    private InetAddress[] resolveAddresses(String host) {
         try {
-            InetAddress[] addresses = InetAddress.getAllByName(host);
-            for (InetAddress address : addresses) {
-                if (address instanceof Inet4Address) {
-                    return address;
-                }
-            }
-
-            if (addresses.length > 0) {
-                return addresses[0];
+            InetAddress[] resolved = InetAddress.getAllByName(host);
+            Arrays.sort(resolved, (left, right) -> {
+                boolean leftIpv6 = !(left instanceof Inet4Address);
+                boolean rightIpv6 = !(right instanceof Inet4Address);
+                return Boolean.compare(rightIpv6, leftIpv6);
+            });
+            if (resolved.length > 0) {
+                return resolved;
             }
         } catch (UnknownHostException exception) {
             throw new IllegalArgumentException("Could not resolve STUN server " + host, exception);
@@ -217,9 +233,31 @@ final class P2pStunClient {
         throw new IllegalArgumentException("STUN server " + host + " did not resolve to any address");
     }
 
+    private DiscoveredEndpoint selectPreferredCandidate(Map<String, DiscoveredEndpoint> discovered) {
+        if (discovered.isEmpty()) {
+            return null;
+        }
+
+        DiscoveredEndpoint ipv4 = discovered.get("ipv4");
+        if (ipv4 != null) {
+            return ipv4;
+        }
+
+        DiscoveredEndpoint ipv6 = discovered.get("ipv6");
+        if (ipv6 != null) {
+            return ipv6;
+        }
+
+        return discovered.values().iterator().next();
+    }
+
     record DiscoveredEndpoint(InetSocketAddress publicAddress, InetSocketAddress stunServer) {
         DiscoveredEndpoint withServer(InetSocketAddress server) {
             return new DiscoveredEndpoint(publicAddress, server);
+        }
+
+        String family() {
+            return P2pSockets.addressFamily(publicAddress);
         }
 
         boolean matches(SocketAddress remote) {

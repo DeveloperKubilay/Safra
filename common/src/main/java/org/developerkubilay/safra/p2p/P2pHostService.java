@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -28,7 +29,7 @@ public final class P2pHostService implements AutoCloseable {
     private final InetAddress targetAddress;
 
     private DatagramSocket socket;
-    private P2pStunClient.DiscoveredEndpoint discoveredEndpoint;
+    private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
     private volatile boolean closed;
 
@@ -53,15 +54,15 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        discoveredEndpoint = stunClient.discover(socket).orElse(null);
+        discoveredEndpoints.clear();
+        discoveredEndpoints.putAll(stunClient.discoverCandidates(socket));
         if (closed) {
             socket.close();
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        InetSocketAddress publishedEndpoint = discoveredEndpoint != null
-            ? discoveredEndpoint.publicAddress()
-            : null;
+        P2pStunClient.DiscoveredEndpoint preferredEndpoint = preferredDiscoveredEndpoint();
+        InetSocketAddress publishedEndpoint = preferredEndpoint != null ? preferredEndpoint.publicAddress() : null;
         if (publishedEndpoint == null) {
             socket.close();
             throw new IOException("STUN ile genel UDP ucu bulunamadi");
@@ -80,7 +81,7 @@ public final class P2pHostService implements AutoCloseable {
             rendezvousSession = SafraRendezvousClient.startHost(
                 tcpPort,
                 token,
-                discoveredEndpoint.publicAddress(),
+                discoveredPublicEndpoints(),
                 socket,
                 this::punchRemoteEndpoint
             );
@@ -134,14 +135,19 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void refreshStunMapping() {
-        if (closed || socket == null || socket.isClosed() || discoveredEndpoint == null || discoveredEndpoint.stunServer() == null) {
+        if (closed || socket == null || socket.isClosed() || discoveredEndpoints.isEmpty()) {
             return;
         }
 
-        try {
-            stunClient.sendKeepAlive(socket, discoveredEndpoint.stunServer());
-        } catch (IOException exception) {
-            LOGGER.debug("STUN keepalive failed: {}", exception.toString());
+        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
+            if (endpoint.stunServer() == null) {
+                continue;
+            }
+            try {
+                stunClient.sendKeepAlive(socket, endpoint.stunServer());
+            } catch (IOException exception) {
+                LOGGER.debug("STUN keepalive failed: {}", exception.toString());
+            }
         }
     }
 
@@ -160,10 +166,11 @@ public final class P2pHostService implements AutoCloseable {
                 return;
             }
 
-            if (discoveredEndpoint != null && discoveredEndpoint.matches(datagramPacket.getSocketAddress())) {
+            P2pStunClient.DiscoveredEndpoint stunEndpoint = matchingStunEndpoint(datagramPacket.getSocketAddress());
+            if (stunEndpoint != null) {
                 P2pStunClient.DiscoveredEndpoint refreshed = stunClient.tryParseResponse(datagramPacket);
                 if (refreshed != null) {
-                    discoveredEndpoint = refreshed.withServer(discoveredEndpoint.stunServer());
+                    discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
                 }
                 continue;
             }
@@ -252,5 +259,49 @@ public final class P2pHostService implements AutoCloseable {
         } catch (BindException ignored) {
             return P2pSockets.datagramSocket();
         }
+    }
+
+    private P2pStunClient.DiscoveredEndpoint preferredDiscoveredEndpoint() {
+        P2pStunClient.DiscoveredEndpoint ipv4 = discoveredEndpoints.get("ipv4");
+        if (ipv4 != null) {
+            return ipv4;
+        }
+
+        P2pStunClient.DiscoveredEndpoint ipv6 = discoveredEndpoints.get("ipv6");
+        if (ipv6 != null) {
+            return ipv6;
+        }
+
+        return discoveredEndpoints.values().stream().findFirst().orElse(null);
+    }
+
+    private java.util.Collection<InetSocketAddress> discoveredPublicEndpoints() {
+        ArrayList<InetSocketAddress> endpoints = new ArrayList<>();
+        P2pStunClient.DiscoveredEndpoint ipv4 = discoveredEndpoints.get("ipv4");
+        if (ipv4 != null) {
+            endpoints.add(ipv4.publicAddress());
+        }
+
+        P2pStunClient.DiscoveredEndpoint ipv6 = discoveredEndpoints.get("ipv6");
+        if (ipv6 != null) {
+            endpoints.add(ipv6.publicAddress());
+        }
+
+        if (endpoints.isEmpty()) {
+            P2pStunClient.DiscoveredEndpoint fallback = preferredDiscoveredEndpoint();
+            if (fallback != null) {
+                endpoints.add(fallback.publicAddress());
+            }
+        }
+        return endpoints;
+    }
+
+    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {
+        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
+            if (endpoint.matches(remoteAddress)) {
+                return endpoint;
+            }
+        }
+        return null;
     }
 }
