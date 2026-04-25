@@ -10,27 +10,19 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.SocketTimeoutException;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceClientSocket.class);
 
-    private final P2pStunClient stunClient = new P2pStunClient();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory());
-    private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
+    private final P2pStunMappings stunMappings = new P2pStunMappings();
 
     private DatagramSocket socket;
     private volatile boolean closed = true;
     private volatile InetSocketAddress safraRemoteAddress;
-    private volatile IOException resolutionFailure;
-    private volatile CompletableFuture<Void> resolverTask;
 
     @Override
     public synchronized void open() throws Exception {
@@ -38,57 +30,44 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             throw new IllegalStateException("Voice socket already opened");
         }
 
-        socket = P2pSockets.datagramSocket();
-        socket.setSoTimeout(500);
-        closed = false;
-        resolutionFailure = null;
+        DatagramSocket createdSocket = P2pSockets.datagramSocket();
+        try {
+            InetSocketAddress resolvedRemoteAddress = resolveSafraRemote(createdSocket);
+            socket = createdSocket;
+            safraRemoteAddress = resolvedRemoteAddress;
+            closed = false;
+        } catch (Exception exception) {
+            createdSocket.close();
+            throw exception;
+        }
         scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
             P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
-        resolverTask = CompletableFuture.runAsync(() -> {
-            try {
-                resolveSafraRemote();
-            } catch (IOException exception) {
-                resolutionFailure = exception;
-                LOGGER.warn("Safra voice join could not resolve host UDP endpoint", exception);
-            }
-        }, runnable -> Thread.ofVirtual().name("safra-voice-join-resolve").start(runnable));
     }
 
-    private void resolveSafraRemote() throws IOException {
+    private InetSocketAddress resolveSafraRemote(DatagramSocket discoverySocket) throws IOException {
         SafraRendezvousClient.JoinSession joinSession = SafraVoiceTransportManager.getInstance().joinSession();
         if (joinSession == null) {
-            safraRemoteAddress = null;
-            discoveredEndpoints.clear();
-            return;
+            stunMappings.clear();
+            return null;
         }
 
-        Map<String, P2pStunClient.DiscoveredEndpoint> candidates = stunClient.discoverCandidates(socket);
-        if (candidates.isEmpty()) {
+        // Resolve STUN/public candidates before Simple Voice Chat starts its auth loop on this socket.
+        if (stunMappings.discoverPublicEndpoints(discoverySocket).isEmpty()) {
             throw new IOException("Safra voice joiner genel UDP ucu bulunamadi");
         }
 
-        safraRemoteAddress = joinSession.resolveVoice(P2pStunClient.publicEndpoints(candidates));
-        discoveredEndpoints.clear();
-        discoveredEndpoints.putAll(candidates);
-        LOGGER.debug("Safra voice join resolved to {}", safraRemoteAddress);
+        InetSocketAddress resolvedRemoteAddress = joinSession.resolveVoice(stunMappings.publicEndpoints());
+        LOGGER.debug("Safra voice join resolved to {}", resolvedRemoteAddress);
+        return resolvedRemoteAddress;
     }
 
     private void refreshStunMapping() {
         DatagramSocket currentSocket = socket;
-        if (closed || currentSocket == null || currentSocket.isClosed() || discoveredEndpoints.isEmpty()) {
+        if (closed || currentSocket == null || currentSocket.isClosed() || stunMappings.isEmpty()) {
             return;
         }
 
-        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
-            if (endpoint.stunServer() == null) {
-                continue;
-            }
-            try {
-                stunClient.sendKeepAlive(currentSocket, endpoint.stunServer());
-            } catch (IOException exception) {
-                LOGGER.debug("Safra voice join STUN keepalive failed: {}", exception.toString());
-            }
-        }
+        stunMappings.sendKeepAlives(currentSocket, LOGGER, "Safra voice join STUN keepalive failed");
     }
 
     @Override
@@ -100,24 +79,12 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
 
         byte[] buffer = new byte[8192];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        while (!closed) {
-            IOException failure = resolutionFailure;
-            if (failure != null) {
-                throw failure;
-            }
-
-            try {
-                currentSocket.receive(packet);
-                return new SafraRawUdpPacket(
-                    Arrays.copyOf(packet.getData(), packet.getLength()),
-                    packet.getSocketAddress(),
-                    System.currentTimeMillis()
-                );
-            } catch (SocketTimeoutException ignored) {
-            }
-        }
-
-        throw new IOException("Safra voice client socket closed");
+        currentSocket.receive(packet);
+        return new SafraRawUdpPacket(
+            Arrays.copyOf(packet.getData(), packet.getLength()),
+            packet.getSocketAddress(),
+            System.currentTimeMillis()
+        );
     }
 
     @Override
@@ -125,11 +92,6 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
         DatagramSocket currentSocket = socket;
         if (currentSocket == null || currentSocket.isClosed()) {
             return;
-        }
-
-        IOException failure = resolutionFailure;
-        if (failure != null) {
-            throw failure;
         }
 
         SocketAddress target = safraRemoteAddress;
@@ -147,13 +109,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
 
         closed = true;
         safraRemoteAddress = null;
-        resolutionFailure = null;
-        discoveredEndpoints.clear();
-        CompletableFuture<Void> task = resolverTask;
-        if (task != null) {
-            task.cancel(true);
-            resolverTask = null;
-        }
+        stunMappings.clear();
         scheduler.shutdownNow();
         if (socket != null) {
             socket.close();

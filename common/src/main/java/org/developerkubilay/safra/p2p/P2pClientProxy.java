@@ -12,7 +12,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +22,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private final P2pShareCode shareCode;
     private final P2pStunClient stunClient = new P2pStunClient();
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2, Thread.ofVirtual().factory());
+    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final Runnable onClose;
 
     private DatagramSocket udpSocket;
@@ -42,7 +41,7 @@ public final class P2pClientProxy implements AutoCloseable {
         udpSocket = P2pSockets.datagramSocket();
         if (shareCode.isRendezvous()) {
             resolveRendezvousShareCode();
-            SafraVoiceTransportManager.getInstance().setJoinSession(shareCode.rendezvousCode(), rendezvousSession);
+            SafraVoiceTransportManager.getInstance().setJoinSession(rendezvousSession);
         } else {
             InetAddress remoteInetAddress = InetAddress.getByName(shareCode.host());
             remoteAddress = new InetSocketAddress(remoteInetAddress, shareCode.port());
@@ -53,8 +52,8 @@ public final class P2pClientProxy implements AutoCloseable {
         LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
             proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
 
-        Thread.ofVirtual().name("safra-p2p-client-recv").start(this::receiveLoop);
-        Thread.ofVirtual().name("safra-p2p-client-accept").start(this::acceptLoop);
+        P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
+        P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
         return proxyServer.getLocalPort();
     }
 

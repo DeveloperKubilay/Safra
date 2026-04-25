@@ -24,7 +24,6 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +34,7 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
 
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory());
+    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
         .build();
@@ -45,9 +44,10 @@ final class SafraRendezvousClient implements AutoCloseable {
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, Collection<InetSocketAddress> publicEndpoints,
-                                 Consumer<InetSocketAddress> punchHandler) throws IOException {
+                                 Consumer<InetSocketAddress> punchHandler,
+                                 Consumer<InetSocketAddress> voicePunchHandler) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
-        HostListener listener = new HostListener(punchHandler);
+        HostListener listener = new HostListener(punchHandler, voicePunchHandler);
         try {
             String peerId = "host-" + UUID.randomUUID();
             client.connect(webSocketUri("/v1/host", peerId), listener);
@@ -326,9 +326,11 @@ final class SafraRendezvousClient implements AutoCloseable {
         private final CompletableFuture<String> codeFuture = new CompletableFuture<>();
         private final CompletableFuture<Void> readyFuture = new CompletableFuture<>();
         private final Consumer<InetSocketAddress> punchHandler;
+        private final Consumer<InetSocketAddress> voicePunchHandler;
 
-        private HostListener(Consumer<InetSocketAddress> punchHandler) {
+        private HostListener(Consumer<InetSocketAddress> punchHandler, Consumer<InetSocketAddress> voicePunchHandler) {
             this.punchHandler = punchHandler;
+            this.voicePunchHandler = voicePunchHandler;
         }
 
         @Override
@@ -348,6 +350,14 @@ final class SafraRendezvousClient implements AutoCloseable {
                 InetSocketAddress endpoint = endpoint(message.getAsJsonObject("udp"));
                 if (endpoint != null) {
                     punchHandler.accept(endpoint);
+                }
+                return;
+            }
+
+            if ("server:voice-joiner-ready".equals(type)) {
+                InetSocketAddress endpoint = endpoint(message.getAsJsonObject("udp"));
+                if (endpoint != null) {
+                    voicePunchHandler.accept(endpoint);
                 }
                 return;
             }

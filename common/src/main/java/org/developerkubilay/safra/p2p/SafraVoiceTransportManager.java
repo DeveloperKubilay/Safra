@@ -9,9 +9,7 @@ public final class SafraVoiceTransportManager {
     private final Set<SafraVoiceServerSocket> serverSockets = ConcurrentHashMap.newKeySet();
 
     private volatile SafraRendezvousClient.HostSession hostSession;
-    private volatile String hostCode;
     private volatile SafraRendezvousClient.JoinSession joinSession;
-    private volatile String joinCode;
 
     private SafraVoiceTransportManager() {
     }
@@ -20,8 +18,7 @@ public final class SafraVoiceTransportManager {
         return INSTANCE;
     }
 
-    public synchronized void setHostSession(String code, SafraRendezvousClient.HostSession session) {
-        hostCode = code;
+    public synchronized void setHostSession(SafraRendezvousClient.HostSession session) {
         hostSession = session;
         refreshServerSocketsAsync();
     }
@@ -29,20 +26,17 @@ public final class SafraVoiceTransportManager {
     public synchronized void clearHostSession(SafraRendezvousClient.HostSession session) {
         if (hostSession == session) {
             hostSession = null;
-            hostCode = null;
             refreshServerSocketsAsync();
         }
     }
 
-    public synchronized void setJoinSession(String code, SafraRendezvousClient.JoinSession session) {
-        joinCode = code;
+    public synchronized void setJoinSession(SafraRendezvousClient.JoinSession session) {
         joinSession = session;
     }
 
     public synchronized void clearJoinSession(SafraRendezvousClient.JoinSession session) {
         if (joinSession == session) {
             joinSession = null;
-            joinCode = null;
         }
     }
 
@@ -51,15 +45,16 @@ public final class SafraVoiceTransportManager {
     }
 
     String hostCode() {
-        return hostCode;
+        SafraRendezvousClient.HostSession session = hostSession;
+        return session == null ? null : session.code();
     }
 
-    SafraRendezvousClient.JoinSession joinSession() {
+    public SafraRendezvousClient.JoinSession joinSession() {
         return joinSession;
     }
 
-    String joinCode() {
-        return joinCode;
+    public boolean hasJoinSession() {
+        return joinSession != null;
     }
 
     void registerServerSocket(SafraVoiceServerSocket socket) {
@@ -78,8 +73,15 @@ public final class SafraVoiceTransportManager {
     }
 
     private void refreshServerSocketAsync(SafraVoiceServerSocket socket) {
-        Thread.ofVirtual()
-            .name("safra-voice-refresh")
-            .start(socket::refreshSafraBinding);
+        P2pRuntime.start("safra-voice-refresh", socket::refreshSafraBinding);
+    }
+
+    public void punchHostVoiceEndpoint(java.net.InetSocketAddress remoteAddress) {
+        if (remoteAddress == null) {
+            return;
+        }
+        for (SafraVoiceServerSocket socket : serverSockets) {
+            P2pRuntime.start("safra-voice-punch", () -> socket.punchRemoteEndpoint(remoteAddress));
+        }
     }
 }

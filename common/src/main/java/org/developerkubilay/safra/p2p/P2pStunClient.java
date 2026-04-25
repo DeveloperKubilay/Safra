@@ -58,9 +58,33 @@ final class P2pStunClient {
         sendBindingRequest(socket, server, transactionId);
     }
 
+    List<PendingRequest> requestCandidates(DatagramSocket socket) {
+        List<PendingRequest> pendingRequests = new ArrayList<>();
+        for (String serverSpec : P2pConstants.STUN_SERVERS) {
+            for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
+                try {
+                    byte[] transactionId = new byte[12];
+                    random.nextBytes(transactionId);
+                    sendBindingRequest(socket, server, transactionId);
+                    pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
+                } catch (IOException ignored) {
+                }
+            }
+        }
+        return pendingRequests;
+    }
+
     DiscoveredEndpoint tryParseResponse(DatagramPacket datagramPacket) {
         byte[] payload = Arrays.copyOf(datagramPacket.getData(), datagramPacket.getLength());
         return parseResponse(payload);
+    }
+
+    DiscoveredEndpoint tryParseResponse(DatagramPacket datagramPacket, PendingRequest pendingRequest) {
+        if (pendingRequest == null || !pendingRequest.matches(datagramPacket.getSocketAddress())) {
+            return null;
+        }
+        byte[] payload = Arrays.copyOf(datagramPacket.getData(), datagramPacket.getLength());
+        return parseResponse(payload, pendingRequest.transactionId());
     }
 
     private List<InetSocketAddress> parseServerCandidates(String rawServer) {
@@ -283,6 +307,17 @@ final class P2pStunClient {
                 && stunServer.getAddress() != null
                 && socketAddress.getAddress().equals(stunServer.getAddress())
                 && socketAddress.getPort() == stunServer.getPort();
+        }
+    }
+
+    record PendingRequest(InetSocketAddress server, byte[] transactionId) {
+        boolean matches(SocketAddress remote) {
+            return remote instanceof InetSocketAddress socketAddress
+                && server != null
+                && socketAddress.getAddress() != null
+                && server.getAddress() != null
+                && socketAddress.getAddress().equals(server.getAddress())
+                && socketAddress.getPort() == server.getPort();
         }
     }
 }
