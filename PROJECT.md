@@ -245,22 +245,68 @@ Bu repo, sonraki surumlere port icin base olarak dusunuluyor.
 Su anki tavsiye edilen branch stratejisi:
 
 - `main` = `1.21.11`
+- `mc/26.1` = yeni modern hat
 - sonra ihtiyaca gore surum branch'i
 
 Onerilen siralama:
 
-1. `mc/1.20.1`
-2. `mc/1.19.2`
-3. `mc/1.18.2`
-4. `mc/1.16.5`
-5. `mc/1.14.4`
-6. `mc/1.12.2-forge`
+1. `mc/26.1`
+2. `mc/1.20.1`
+3. `mc/1.19.2`
+4. `mc/1.18.2`
+5. `mc/1.16.5`
+6. `mc/1.14.4`
+7. `mc/1.12.2-forge`
 
 Not:
 
 - Her loader icin ayri branch acilmayacak.
 - Branch'ler Minecraft surum ailesine gore acilacak.
 - `1.12.2` icin ilk dusunce `Forge only`.
+- `26.1` ayni proje mantigiyla yapilabilir ama ayri branch ister.
+- `26.1` siradan bir patch bump degildir; mapping/toolchain tarafi ayri migration ister.
+
+## 26.1 Notlari
+
+`26.1` hattina gecis, `1.21.11` ile ayni branch icinde yapilmayacak.
+Sebep:
+
+- yeni Minecraft surumleme sistemi
+- modern toolchain farklari
+- official mappings zorunlulugu
+- Java 25 gereksinimi
+
+Bu yuzden `26.1` icin plan:
+
+1. `main` uzerinden `mc/26.1` branch ac
+2. Once build/toolchain gecisini yap
+3. Sonra Fabric / NeoForge / Forge glue katmanlarini tek tek duzelt
+4. `common` katmanini mümkün oldugunca ayni mantikta tut
+
+Kisa karar:
+
+- `1.21.11` = stabil base
+- `26.1` = bir sonraki buyuk modern hedef
+
+## Uzun Vadeli Destek Fikri
+
+Kullanici istegi, zamani geldikce bircok surume cikmak.
+Su an dusunulen genis yol haritasi:
+
+- `26.1`
+- `1.21.11`
+- `1.20.1`
+- `1.19.2`
+- `1.18.2`
+- `1.16.5`
+- `1.14.4`
+- `1.12.2`
+
+Pratik not:
+
+- modern surumler mevcut coklu-loader mimariye daha yakin
+- eski legacy surumler daha fazla ozel port ister
+- ozellikle `1.12.2` tarafinda bakim maliyeti yuksek
 
 ## Yeni Chat Acildiginda
 
