@@ -13,7 +13,6 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -22,7 +21,7 @@ public final class P2pHostService implements AutoCloseable {
 
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
     private final P2pStunClient stunClient = new P2pStunClient();
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2, Thread.ofVirtual().factory());
+    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final int tcpPort;
     private final int token;
     private final InetAddress targetAddress;
@@ -67,7 +66,7 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("STUN ile genel UDP ucu bulunamadi");
         }
 
-        Thread.ofVirtual().name("safra-p2p-host-recv").start(this::receiveLoop);
+        P2pRuntime.start("safra-p2p-host-recv", this::receiveLoop);
         scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
             P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
 
@@ -81,9 +80,10 @@ public final class P2pHostService implements AutoCloseable {
                 tcpPort,
                 token,
                 P2pStunClient.publicEndpoints(discoveredEndpoints),
-                this::punchRemoteEndpoint
+                this::punchRemoteEndpoint,
+                SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint
             );
-            SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession.code(), rendezvousSession);
+            SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
             LOGGER.info("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {

@@ -74,8 +74,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
     void start() throws IOException {
         P2pSockets.tune(tcpSocket);
 
-        Thread readerThread = Thread.ofVirtual().name(side + "-udp-reader-" + connectionId).start(this::tcpReaderLoop);
-        Thread writerThread = Thread.ofVirtual().name(side + "-udp-writer-" + connectionId).start(this::tcpWriterLoop);
+        Thread readerThread = P2pRuntime.start(side + "-udp-reader-" + connectionId, this::tcpReaderLoop);
+        Thread writerThread = P2pRuntime.start(side + "-udp-writer-" + connectionId, this::tcpWriterLoop);
         maintenanceTask = scheduler.scheduleAtFixedRate(this::maintenanceTick, P2pConstants.MAINTENANCE_TICK_MS,
             P2pConstants.MAINTENANCE_TICK_MS, TimeUnit.MILLISECONDS);
 
