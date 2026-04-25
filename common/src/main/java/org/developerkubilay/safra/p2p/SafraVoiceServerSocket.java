@@ -45,7 +45,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
             P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
     }
 
-    void refreshSafraBinding() {
+    synchronized void refreshSafraBinding() {
         DatagramSocket currentSocket = socket;
         if (closed || currentSocket == null || currentSocket.isClosed()) {
             return;
