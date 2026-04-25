@@ -3,10 +3,12 @@ package org.developerkubilay.safra.p2p;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -57,7 +59,7 @@ final class P2pStunClient {
         int separator = rawServer.lastIndexOf(':');
         String host = rawServer.substring(0, separator);
         int port = Integer.parseInt(rawServer.substring(separator + 1));
-        return new InetSocketAddress(host, port);
+        return new InetSocketAddress(resolvePreferredAddress(host), port);
     }
 
     private void sendBindingRequest(DatagramSocket socket, InetSocketAddress server, byte[] transactionId) throws IOException {
@@ -194,6 +196,25 @@ final class P2pStunClient {
             buffer.position(attributeStart + length);
             return null;
         }
+    }
+
+    private InetAddress resolvePreferredAddress(String host) {
+        try {
+            InetAddress[] addresses = InetAddress.getAllByName(host);
+            for (InetAddress address : addresses) {
+                if (address instanceof Inet4Address) {
+                    return address;
+                }
+            }
+
+            if (addresses.length > 0) {
+                return addresses[0];
+            }
+        } catch (UnknownHostException exception) {
+            throw new IllegalArgumentException("Could not resolve STUN server " + host, exception);
+        }
+
+        throw new IllegalArgumentException("STUN server " + host + " did not resolve to any address");
     }
 
     record DiscoveredEndpoint(InetSocketAddress publicAddress, InetSocketAddress stunServer) {
