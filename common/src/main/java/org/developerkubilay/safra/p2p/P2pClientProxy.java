@@ -99,6 +99,11 @@ public final class P2pClientProxy implements AutoCloseable {
         if (tunnelToken == 0) {
             throw new IOException("Rendezvous sunucusu gecersiz tunel token'i dondurdu");
         }
+        if (!P2pSockets.sameAddressFamily(endpoint.publicAddress(), remoteAddress)) {
+            throw new IOException("Host ve joiner farkli IP ailesi kullaniyor ("
+                + P2pSockets.addressFamily(endpoint.publicAddress()) + " / "
+                + P2pSockets.addressFamily(remoteAddress) + ")");
+        }
         LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
     }
 
