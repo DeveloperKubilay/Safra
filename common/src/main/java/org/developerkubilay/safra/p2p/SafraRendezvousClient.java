@@ -101,10 +101,43 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             client.startPing();
-            return new JoinSession(resolvedHost.address(), resolvedHost.tunnelToken(), client);
+            return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(), client, listener);
         } catch (Exception exception) {
             client.close();
             throw asIOException("Safra rendezvous join setup failed", exception);
+        }
+    }
+
+    private void publishVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+        InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
+        if (primaryEndpoint == null) {
+            throw new IOException("rendezvous voice host requires at least one UDP candidate");
+        }
+
+        JsonObject ready = new JsonObject();
+        ready.addProperty("type", "voice:host-ready");
+        ready.add("udp", UdpEndpoint.from(primaryEndpoint).toJson());
+        ready.add("udpCandidates", UdpEndpoint.toJsonArray(publicEndpoints));
+        send(ready);
+    }
+
+    private InetSocketAddress resolveVoice(JoinListener listener, Collection<InetSocketAddress> publicEndpoints) throws IOException {
+        InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
+        if (primaryEndpoint == null) {
+            throw new IOException("rendezvous voice join requires at least one UDP candidate");
+        }
+
+        CompletableFuture<ResolvedVoiceHost> future = listener.prepareVoiceFuture();
+        JsonObject ready = new JsonObject();
+        ready.addProperty("type", "voice:join-ready");
+        ready.add("udp", UdpEndpoint.from(primaryEndpoint).toJson());
+        ready.add("udpCandidates", UdpEndpoint.toJsonArray(publicEndpoints));
+        send(ready);
+
+        try {
+            return future.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS).address();
+        } catch (Exception exception) {
+            throw asIOException("Safra rendezvous voice join setup failed", exception);
         }
     }
 
@@ -319,6 +352,11 @@ final class SafraRendezvousClient implements AutoCloseable {
                 return;
             }
 
+            if ("server:voice-error".equals(type)) {
+                LOGGER.debug("Safra voice host rendezvous warning: {}", string(message, "message"));
+                return;
+            }
+
             if ("server:error".equals(type)) {
                 fail(new IOException(string(message, "message")));
             }
@@ -334,6 +372,14 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static final class JoinListener extends JsonListener {
         private final CompletableFuture<Void> welcomeFuture = new CompletableFuture<>();
         private final CompletableFuture<ResolvedHost> resolvedHostFuture = new CompletableFuture<>();
+        private volatile CompletableFuture<ResolvedVoiceHost> resolvedVoiceFuture;
+
+        CompletableFuture<ResolvedVoiceHost> prepareVoiceFuture() {
+            CompletableFuture<ResolvedVoiceHost> future = new CompletableFuture<>();
+            resolvedVoiceFuture = future;
+            return future;
+        }
+
         @Override
         protected void handle(JsonObject message) {
             String type = string(message, "type");
@@ -353,6 +399,33 @@ final class SafraRendezvousClient implements AutoCloseable {
                 return;
             }
 
+            if ("server:voice-host-ready".equals(type)) {
+                InetSocketAddress endpoint = endpoint(message.getAsJsonObject("udp"));
+                if (endpoint == null) {
+                    CompletableFuture<ResolvedVoiceHost> future = resolvedVoiceFuture;
+                    if (future != null) {
+                        future.completeExceptionally(new IOException("rendezvous voice host endpoint is missing"));
+                    }
+                    return;
+                }
+
+                CompletableFuture<ResolvedVoiceHost> future = resolvedVoiceFuture;
+                if (future != null) {
+                    future.complete(new ResolvedVoiceHost(endpoint));
+                    resolvedVoiceFuture = null;
+                }
+                return;
+            }
+
+            if ("server:voice-error".equals(type)) {
+                CompletableFuture<ResolvedVoiceHost> future = resolvedVoiceFuture;
+                if (future != null) {
+                    future.completeExceptionally(new IOException(string(message, "message")));
+                    resolvedVoiceFuture = null;
+                }
+                return;
+            }
+
             if ("server:session-closed".equals(type)) {
                 fail(new IOException("rendezvous session closed: " + string(message, "reason")));
                 return;
@@ -367,6 +440,10 @@ final class SafraRendezvousClient implements AutoCloseable {
         protected void fail(Throwable throwable) {
             welcomeFuture.completeExceptionally(throwable);
             resolvedHostFuture.completeExceptionally(throwable);
+            CompletableFuture<ResolvedVoiceHost> future = resolvedVoiceFuture;
+            if (future != null) {
+                future.completeExceptionally(throwable);
+            }
         }
     }
 
@@ -417,7 +494,23 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    record HostSession(String code, SafraRendezvousClient client) implements AutoCloseable {
+    static final class HostSession implements AutoCloseable {
+        private final String code;
+        private final SafraRendezvousClient client;
+
+        HostSession(String code, SafraRendezvousClient client) {
+            this.code = code;
+            this.client = client;
+        }
+
+        String code() {
+            return code;
+        }
+
+        void publishVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            client.publishVoice(publicEndpoints);
+        }
+
         @Override
         public void close() {
             client.deleteSession(code);
@@ -425,7 +518,37 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    record JoinSession(InetSocketAddress hostAddress, int tunnelToken, SafraRendezvousClient client) implements AutoCloseable {
+    static final class JoinSession implements AutoCloseable {
+        private final String code;
+        private final InetSocketAddress hostAddress;
+        private final int tunnelToken;
+        private final SafraRendezvousClient client;
+        private final JoinListener listener;
+
+        JoinSession(String code, InetSocketAddress hostAddress, int tunnelToken, SafraRendezvousClient client, JoinListener listener) {
+            this.code = code;
+            this.hostAddress = hostAddress;
+            this.tunnelToken = tunnelToken;
+            this.client = client;
+            this.listener = listener;
+        }
+
+        String code() {
+            return code;
+        }
+
+        InetSocketAddress hostAddress() {
+            return hostAddress;
+        }
+
+        int tunnelToken() {
+            return tunnelToken;
+        }
+
+        InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            return client.resolveVoice(listener, publicEndpoints);
+        }
+
         @Override
         public void close() {
             client.close();
@@ -433,6 +556,9 @@ final class SafraRendezvousClient implements AutoCloseable {
     }
 
     private record ResolvedHost(InetSocketAddress address, int tunnelToken) {
+    }
+
+    private record ResolvedVoiceHost(InetSocketAddress address) {
     }
 
     private record UdpEndpoint(String host, int port, String family) {

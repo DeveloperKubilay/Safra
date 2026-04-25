@@ -43,6 +43,10 @@ subprojects {
             name = 'NeoForged'
             url = 'https://maven.neoforged.net/releases/'
         }
+        maven {
+            name = 'MaxHenkel'
+            url = 'https://maven.maxhenkel.de/repository/public'
+        }
     }
 }
 

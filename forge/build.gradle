@@ -69,6 +69,7 @@ repositories {
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     implementation project(':common')
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 

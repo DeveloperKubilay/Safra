@@ -69,6 +69,40 @@ Bu yuzden su 3 senaryo vardir:
 3. `STUN/public UDP yok`
    Gercek internet P2P garanti degil.
 
+## Simple Voice Chat Compat
+
+Simple Voice Chat icin ayri gorunen bir ikinci share code/session acilmiyor.
+Mevcut Safra short-code oturumunun altina opsiyonel bir `voice` kanali ekleniyor.
+
+Karar:
+
+- Worker kaydi varsayilan olarak sadece `game` verisi tasir.
+- Host tarafinda Simple Voice Chat gercekten varsa ve socket acarsa worker kaydina `voice` UDP adaylari eklenir.
+- Joiner tarafinda Simple Voice Chat baglantisi acildiginda ayni websocket/session uzerinden `voice:join-ready` gonderilir.
+- Bu ilk surumde ayrica ikinci bir kullanici kodu yok.
+- Voice tarafi reliable tunnel ustunden gitmez; kendi ham UDP yolunu kullanir.
+
+Kod tarafi:
+
+- Ortak SVC socket/transport mantigi `common` icinde:
+  - `common/src/main/java/org/developerkubilay/safra/p2p/SafraVoiceServerSocket.java`
+  - `common/src/main/java/org/developerkubilay/safra/p2p/SafraVoiceClientSocket.java`
+  - `common/src/main/java/org/developerkubilay/safra/p2p/SafraVoiceTransportManager.java`
+- Ortak plugin tabani:
+  - `common/src/main/java/org/developerkubilay/safra/voicechat/SafraVoicechatPluginBase.java`
+- Loader entrypoint katmanlari:
+  - `fabric/.../SafraFabricVoicechatPlugin.java`
+  - `neoforge/.../SafraNeoForgeVoicechatPlugin.java`
+  - `forge/.../SafraForgeVoicechatPlugin.java`
+
+Onemli not:
+
+- SVC yüklü degilse bu compat hic devreye girmez.
+- Normal direct server/IP kullaniminda custom socket default UDP gibi davranir.
+- Safra rendezvous aktifse ayni socket STUN + worker uzerinden voice kanalini da baglar.
+- Worker degisiklikleri deploy edildi:
+  - `https://safra.developerkubilay.workers.dev`
+
 ## Su Anki STUN Sirasi
 
 STUN sunuculari bu sirayla deneniyor:
