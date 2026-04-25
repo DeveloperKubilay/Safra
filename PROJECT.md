@@ -1,30 +1,77 @@
-# Safra
+# Safra Project Notes
 
-Safra is a multi-loader mod for Minecraft 1.21.11 with Fabric, NeoForge, and Forge builds. The current goal is to let a player open a singleplayer world or dedicated server to friends over a direct UDP P2P tunnel instead of requiring manual TCP port forwarding.
+Bu dosya, yeni bir chat acildiginda projeye hizli geri donmek icin tutuluyor.
 
-## Current Feature: P2P LAN Sharing
+## Proje Kimligi
 
-Minecraft's normal "Open to LAN" starts a local TCP listener on a random local port, for example `57764`. Safra adds a P2P layer around that local TCP server:
+- Mod name: `Safra`
+- Mod id: `safra`
+- Maven group: `org.developerkubilay`
+- Java package: `org.developerkubilay.safra`
+- Minecraft target: `1.21.11`
+- Current mod version: `1.0-SNAPSHOT`
 
-1. The host opens a world and uses "Open to LAN".
-2. Safra starts a UDP socket and asks public STUN servers which public IP:port the NAT assigned to that UDP socket.
-3. Safra registers that endpoint with the Cloudflare rendezvous server and prints a short share code such as `ABC123`.
-4. The friend's client uses Direct Connect, enables the `P2P` option, and pastes that share code.
-5. Safra resolves the code through the rendezvous server, exchanges UDP endpoints, and both sides send UDP punch packets.
-6. Safra opens a local loopback TCP proxy on the friend's machine.
-7. Minecraft connects to `127.0.0.1:<proxyPort>`, while Safra carries that TCP stream over reliable UDP packets to the host.
-8. The host side forwards the UDP tunnel into the real LAN TCP port, for example `57764`.
+## Su Anki Mimari
 
-The local Minecraft LAN port and the public UDP endpoint are intentionally different:
+Proje coklu modullu:
 
-- `57764` is the host machine's local Minecraft TCP port. It is usually not reachable from the internet.
-- The public UDP port reported by STUN is stored behind the short rendezvous code. This is the endpoint the friend's Safra client tries to reach.
+- `common`
+  Ortak P2P, tunnel, share code, STUN, rendezvous ve reliable UDP mantigi.
+- `fabric`
+  Fabric entrypoint, mixin, config ve ekran entegrasyonu.
+- `neoforge`
+  NeoForge entrypoint, event kayitlari, config ve ekran entegrasyonu.
+- `forge`
+  Forge entrypoint, event kayitlari, config ve ekran entegrasyonu.
 
-## UDP Packet Sizing
+Temel kural:
 
-Safra carries the TCP stream in UDP datagrams with a max payload of `1000` bytes plus an `18` byte Safra header. That keeps each UDP datagram around `1018` bytes before IP/UDP headers, safely below normal MTU limits such as Ethernet `1500` and IPv6 minimum `1280`. Larger Minecraft/TCP data is split across multiple reliable UDP packets.
+- Loader bagimsiz mantik `common` icinde.
+- Loader API, lifecycle, mixin, UI glue ve config path gibi seyler platform modullerinde.
 
-STUN servers currently used, in order:
+## Ana Calisma Mantigi
+
+Safra, Minecraft istemcisinin veya integrated server'in yerel TCP portunu dogrudan internete acmaz.
+Bunun yerine:
+
+1. Host bir UDP socket acar.
+2. STUN ile public UDP endpoint bulunur.
+3. Endpoint Cloudflare Worker rendezvous servisine kaydedilir.
+4. Joiner kisa kodu girer.
+5. Worker iki tarafa uygun endpoint bilgisini verir.
+6. Iki taraf UDP hole punching dener.
+7. Joiner tarafinda `127.0.0.1:<proxyPort>` loopback proxy acilir.
+8. Minecraft local proxy'ye baglanir, Safra TCP akisini reliable UDP tunnel ustunden hosta tasir.
+
+Onemli:
+
+- Local proxy hala `127.0.0.1` kullanir. Bu normaldir.
+- Bu LAN fallback degildir.
+- Gercek oyun trafigi STUN sunucusundan veya Worker'dan gecmez.
+- Worker sadece tanistirma/sinyalleme icindir.
+
+## Network Kararlari
+
+Su anki tasarim bilerek soyle:
+
+- Ozel LAN fallback yok.
+- Ayni agdaysa bile sistem once public P2P / NAT hairpin mantigiyla calismayi dener.
+- Worker endpoint seciminde uygun adres ailesini secmeye yardim eder.
+- Sistem hem IPv4 hem IPv6 adaylarini tasiyabilecek hale getirildi.
+- Worker yoksa ve STUN/public endpoint varsa eski tip direct code (`ip:port#token`) hala fallback olarak destekli.
+
+Bu yuzden su 3 senaryo vardir:
+
+1. `worker up + STUN/public UDP var`
+   Kisa kodla normal rendezvous P2P.
+2. `worker down + STUN/public UDP var`
+   Direct `ip:port#token` fallback.
+3. `STUN/public UDP yok`
+   Gercek internet P2P garanti degil.
+
+## Su Anki STUN Sirasi
+
+STUN sunuculari bu sirayla deneniyor:
 
 - `stun.l.google.com:19302`
 - `stun1.l.google.com:19302`
@@ -32,116 +79,196 @@ STUN servers currently used, in order:
 - `stun.cloudflare.com:3478`
 - `global.stun.twilio.com:3478`
 
-STUN is only used to discover the public UDP endpoint. Minecraft traffic does not pass through the STUN server or the Cloudflare rendezvous server.
+## Su Anki Tuning Degerleri
 
-The P2P host does not shut down just because nobody connects. It keeps the UDP mapping alive with STUN refresh packets every 20 seconds and keeps the rendezvous session alive with WebSocket pings. For singleplayer LAN it closes when the player leaves the world, opens another LAN port, or exits the client. For dedicated servers it closes during `SERVER_STOPPING`.
+`common/src/main/java/org/developerkubilay/safra/p2p/P2pConstants.java`
 
-Each rendezvous session also carries a 32-bit tunnel token. The user sees only the short share code, while the token is delivered to the joining client by the rendezvous server. The token is not meant to replace Minecraft authentication, but it prevents random UDP traffic from opening a tunnel without the current share code.
+- `MAX_PAYLOAD_SIZE = 1000`
+- `SEND_WINDOW_SIZE = 32`
+- `RESEND_MS = 350`
+- `OPEN_RESEND_MS = 500`
+- `MAINTENANCE_TICK_MS = 100`
+- `KEEP_ALIVE_MS = 10000`
 
-Both players must use the same Safra release. The UDP tunnel protocol version changes when packet format changes, so old jars are not expected to connect to new jars.
+Bu ayarlar su an "stabil baseline" olarak kabul edildi. Simdilik adaptif tuning yok.
 
-Client UI preferences are stored in `config/safra-client.json`:
+## Onemli Dosyalar
 
-- Open to LAN `P2P` toggle.
-- Open to LAN `Online Mode` toggle.
-- Direct Connect `P2P` toggle.
+Ortak network cekirdegi:
 
-The default rendezvous backend URL is `https://safra.developerkubilay.workers.dev`. Override it with
-`-Dsafra.rendezvousUrl=...` or `SAFRA_RENDEZVOUS_URL` when using another `workers.dev` subdomain
-or a production custom domain. `SAFRA_SIGNALING_URL` still works as a legacy fallback.
+- `common/src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java`
+- `common/src/main/java/org/developerkubilay/safra/p2p/P2pHostService.java`
+- `common/src/main/java/org/developerkubilay/safra/p2p/P2pStunClient.java`
+- `common/src/main/java/org/developerkubilay/safra/p2p/SafraRendezvousClient.java`
+- `common/src/main/java/org/developerkubilay/safra/p2p/ReliableTunnelConnection.java`
+- `common/src/main/java/org/developerkubilay/safra/p2p/P2pConstants.java`
 
-## Project Layout
+Platform glue:
 
-- `common/`
-  - Shared tunnel, rendezvous, STUN, and share-code logic that is reused by all loaders.
-- `fabric/`
-  - Fabric entrypoints, lifecycle hooks, mixins, and client integration.
-- `neoforge/`
-  - NeoForge entrypoints, lifecycle hooks, mixins, and client integration.
-- `forge/`
-  - Forge entrypoints, lifecycle hooks, mixins, and client integration.
+- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
+- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
+- `forge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 
-## Implemented Pieces
-
-- `common/src/main/java/org/developerkubilay/safra/p2p/`
-  - `P2pStunClient`: sends STUN binding requests and reads the public UDP endpoint.
-  - `P2pHostService`: runs on the world host and forwards UDP tunnel traffic into the local LAN TCP port.
-  - `P2pClientProxy`: runs on the joining client and exposes a local TCP proxy for Minecraft.
-  - `ReliableTunnelConnection`: adds sequence numbers, ACKs, retransmit, keepalive, and close packets over UDP.
-  - `P2pShareCode`: parses short rendezvous codes and legacy `host:port#token` share codes.
-  - `SafraRendezvousClient`: keeps the WebSocket control channel open and exchanges UDP endpoints through Cloudflare.
-
-- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/`
-- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/`
-- `forge/src/main/java/org/developerkubilay/safra/client/p2p/`
-  - `P2pManager`: owns host/client lifecycle and rewrites P2P connections to loopback for each loader.
+Client mixin alanlari:
 
 - `fabric/src/client/java/org/developerkubilay/safra/mixin/client/`
 - `neoforge/src/main/java/org/developerkubilay/safra/mixin/client/`
 - `forge/src/main/java/org/developerkubilay/safra/mixin/client/`
-  - `OpenToLanScreenMixin`: adds the P2P and Online Mode toggles to Open to LAN, starts hosting, copies the share code to clipboard, and prints a clickable copyable chat message plus a normal log line.
-  - `DirectConnectScreenMixin`: adds the P2P toggle to Direct Connect.
-  - `ConnectScreenMixin`: intercepts P2P Direct Connect attempts and redirects Minecraft to the local proxy.
 
-## Current Test Flow
+## Build ve Run
 
-In IntelliJ, the root `runClient` task launches the Fabric dev client. If you need two Fabric clients, enable "Allow multiple instances" on the run configuration and start `runClient` twice. NeoForge and Forge can also be launched separately with `:neoforge:runClient` and `:forge:runClient`.
+Root task'lar:
 
-Production launcher note: Minecraft 1.21.11 / Feather runs on Java 21. The mod jar must also target Java 21 (`JAVA_21` mixin compatibility and class major version 65). Do not build/release a Java 25-targeted jar, because it crashes at startup on normal launchers.
+- `gradlew build`
+  Uc loader'i de build eder ve artifact'lari root `build/libs` altinda toplar.
+- `gradlew runClient`
+  Root'tan Fabric dev client acar.
+- `gradlew :neoforge:runClient`
+  NeoForge dev client.
+- `gradlew :forge:runClient`
+  Forge dev client.
 
-Host:
+Current root artifact isimleri:
 
-1. Start one `runClient` instance for the host.
-2. Enter a singleplayer world.
-3. Open to LAN with `P2P: ON`.
-4. If needed for dev/offline testing, set `Online Mode: OFF` before pressing Start LAN World.
-5. Safra copies the share code to clipboard and prints it in chat and logs.
+- `Safra-fabric-<version>.jar`
+- `Safra-neoforge-<version>.jar`
+- `Safra-forge-<version>.jar`
 
-Joiner:
+## GitHub Actions
 
-1. Start another `runClient` instance for the joiner.
-2. Open Multiplayer.
-3. Use Direct Connect.
-4. Enable `P2P`.
-5. Paste the host's share code.
-6. Connect.
+Workflow'lar:
 
-Dedicated server:
+- `.github/workflows/build.yml`
+  Manuel build. `version_number` input'u var.
+- `.github/workflows/release.yml`
+  Manuel GitHub Release. `version_number` ve `prerelease` input'lari var.
+- `.github/workflows/codeql.yml`
+  Push spam yapmayacak sekilde guvenlik taramasi.
 
-1. Put the matching Safra jar on the Fabric, NeoForge, or Forge dedicated server.
-2. Start the server normally.
-3. After the server reaches `Done`, Safra starts the UDP P2P host automatically.
-4. The console logs `Safra P2P dedicated server opened on local TCP port ... Share code: ...`.
-5. Players use Direct Connect, enable `P2P`, and paste that share code.
+Timeout'lar ekli:
 
-## Known Limits
+- Build: `25 dakika`
+- Release: `35 dakika`
+- CodeQL: `45 dakika`
 
-This is true direct UDP hole punching, not a traffic relay. It can fail on symmetric or strict NATs, carrier-grade NAT, blocked UDP, or firewalls. STUN and rendezvous only coordinate the public UDP mappings; they do not guarantee every peer can reach every other peer. If we want near-100% connection reliability later, the next step is adding an optional UDP relay fallback.
+## Worker / Rendezvous
 
-The `Failed to retrieve profile key pair` / HTTP 401 logs in development clients are Mojang auth/profile-key warnings from offline/dev sessions. They are not the P2P tunnel crash by themselves.
+Cloudflare Worker adresi:
 
-## Release Launcher Troubleshooting
+- `https://safra.developerkubilay.workers.dev`
 
-If the mod works in IntelliJ `runClient` but not from a normal launcher jar, first check the Safra P2P logs:
+Worker local repo yolu:
 
-- Joiner should log `Safra P2P client accepted local Minecraft connection ... opening UDP tunnel ...`.
-- Host should then log `Safra P2P host received tunnel open ...`.
-- If the joiner log appears but the host log never appears, Minecraft auth is not the blocker yet; the UDP packet is being dropped by Windows Firewall, router NAT filtering, CGNAT, or a strict/symmetric NAT.
-- If the host receives the tunnel open and Minecraft then disconnects the player, inspect the disconnect text in the Minecraft screen/server log; that is an auth/game protocol issue, not the UDP hole-punch stage.
-- Every new Open to LAN session gets a new share code. If the host logs `share-code token is old or wrong`, the joiner reached the host but pasted an old/wrong code.
+- `C:\Users\kubil\Desktop\p2p`
 
-For P2P LAN sharing, `Online Mode: OFF` is the recommended test mode for now. When P2P is enabled, Safra also disables `preventProxyConnections`, because the tunnel connects to the integrated server through a loopback proxy on the host side.
+Onemli not:
 
-## Recent Fix Notes
+- Worker degisikligi yapilirsa local repoda typecheck/deploy gerekebilir.
+- Mod kodu ile Worker protokolu birlikte dusunulmeli.
 
-- Fixed a `StackOverflowError` caused by the P2P connection rewrite recursively calling `ConnectScreen.connect`.
-- Added automatic clipboard copy for the real P2P share code.
-- Made the share code chat component clickable with `copy_to_clipboard`.
-- Fixed an `unresolved address` UDP send failure by resolving the P2P share-code host before opening the local proxy.
-- Removed P2P from Add Server; P2P joining is Direct Connect only.
-- Removed server-list filtering and pinger overrides so the normal Multiplayer server list stays vanilla.
-- Added an Open to LAN `Online Mode` toggle and explicit log lines for P2P share codes.
-- Fixed release jar startup on normal launchers by targeting Java 21 instead of Java 25.
-- P2P hosting now stops when the integrated server LAN port changes, which avoids stale host services between worlds.
-- Dedicated servers now auto-start P2P hosting after `SERVER_STARTED` and close UDP hosting during `SERVER_STOPPING`.
-- Added persistent client settings in `config/safra-client.json`.
+## UI ve Config
+
+Config dosyasi:
+
+- `config/safra-client.json`
+
+Orada kullanici tercihleri tutuluyor:
+
+- Open to LAN `P2P`
+- Open to LAN `Online Mode`
+- Direct Connect `P2P`
+
+Dev testlerde `Online Mode: OFF` kullanildi.
+
+## Icon ve Metadata
+
+Aktif mod iconu:
+
+- `common/src/main/resources/assets/safra/icon.png`
+
+Kaynak buyuk icon:
+
+- `icon1024.png`
+
+Icon su an `256x256` optimize edilmis halde kullaniliyor.
+
+## README Durumu
+
+Kullanici istegiyle README minimal tutuldu.
+Su an:
+
+- `README.md` sadece `readme.gif` gosteriyor.
+
+Bunu bilerek boyle biraktik.
+
+## Son Temizlikte Yapilanlar
+
+Release oncesi kucuk kod temizligi yapildi:
+
+- Ortak endpoint toplama mantigi `P2pStunClient` icine cekildi.
+- Kullanilmayan helper ve parametreler temizlendi.
+- Fabric metadata bos aciklama yerine ortak `mod_description` kullanacak hale getirildi.
+- README degisikligi geri alindi.
+
+Buyuk davranis degisimi yapilmadi.
+
+## Su Anki Durum
+
+Genel durum:
+
+- Fabric build OK
+- NeoForge build OK
+- Forge build OK
+- Common ayrimi temiz
+- Worker tabanli kisa kod sistemi var
+- Direct `ip:port#token` fallback var
+
+En son dogrulanan artifact boyutlari yaklasik:
+
+- Fabric jar: `241 KB`
+- NeoForge jar: `240 KB`
+- Forge jar: `241 KB`
+
+## Release Oncesi Kalanlar
+
+Teknik olarak su an release alinabilir gorunuyor.
+Yayina cikmadan once kalan mantikli adimlar:
+
+1. `mod_version` belirlemek
+2. `release.yml` ile release almak
+3. GitHub release notunu kontrol etmek
+4. Son bir gercek oyun testi yapmak istenirse yapmak
+
+## Sonraki Port Plani
+
+Bu repo, sonraki surumlere port icin base olarak dusunuluyor.
+Su anki tavsiye edilen branch stratejisi:
+
+- `main` = `1.21.11`
+- sonra ihtiyaca gore surum branch'i
+
+Onerilen siralama:
+
+1. `mc/1.20.1`
+2. `mc/1.19.2`
+3. `mc/1.18.2`
+4. `mc/1.16.5`
+5. `mc/1.14.4`
+6. `mc/1.12.2-forge`
+
+Not:
+
+- Her loader icin ayri branch acilmayacak.
+- Branch'ler Minecraft surum ailesine gore acilacak.
+- `1.12.2` icin ilk dusunce `Forge only`.
+
+## Yeni Chat Acildiginda
+
+Yeni bir chat'te hizli baslamak icin:
+
+1. Once bu dosyayi oku.
+2. Sonra `gradle.properties` surumlerini kontrol et.
+3. Sonra `common/src/main/java/org/developerkubilay/safra/p2p/` altindaki son network mantigina bak.
+4. Worker gerekiyorsa `C:\Users\kubil\Desktop\p2p` reposunu birlikte degerlendir.
+
+Bu dosya "nerede kaldik" ozeti olarak tutuluyor.
