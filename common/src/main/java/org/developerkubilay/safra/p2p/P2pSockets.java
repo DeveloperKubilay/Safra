@@ -4,25 +4,27 @@ import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.net.Socket;
 import java.net.SocketException;
 
 final class P2pSockets {
-    private static final InetAddress IPV4_ANY = createIpv4Any();
     private static final InetAddress IPV4_LOOPBACK = createIpv4Loopback();
 
     private P2pSockets() {
     }
 
     static DatagramSocket datagramSocket() throws SocketException {
-        DatagramSocket socket = new DatagramSocket(new InetSocketAddress(IPV4_ANY, 0));
+        DatagramSocket socket = new DatagramSocket((SocketAddress) null);
+        socket.bind(new InetSocketAddress(0));
         tune(socket);
         return socket;
     }
 
     static DatagramSocket datagramSocket(int port) throws SocketException {
-        DatagramSocket socket = new DatagramSocket(new InetSocketAddress(IPV4_ANY, port));
+        DatagramSocket socket = new DatagramSocket((SocketAddress) null);
+        socket.bind(new InetSocketAddress(port));
         tune(socket);
         return socket;
     }
@@ -64,14 +66,6 @@ final class P2pSockets {
         trySet(() -> socket.setReceiveBufferSize(P2pConstants.SOCKET_BUFFER_SIZE));
         trySet(() -> socket.setSendBufferSize(P2pConstants.SOCKET_BUFFER_SIZE));
         trySet(() -> socket.setTrafficClass(0x10));
-    }
-
-    private static InetAddress createIpv4Any() {
-        try {
-            return InetAddress.getByName("0.0.0.0");
-        } catch (UnknownHostException exception) {
-            throw new IllegalStateException("IPv4 wildcard address could not be resolved", exception);
-        }
     }
 
     private static InetAddress createIpv4Loopback() {

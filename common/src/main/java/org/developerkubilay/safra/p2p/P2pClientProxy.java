@@ -10,6 +10,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -84,14 +85,14 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void resolveRendezvousShareCode() throws IOException {
-        P2pStunClient.DiscoveredEndpoint endpoint = stunClient.discover(udpSocket).orElse(null);
-        if (endpoint == null) {
+        Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = stunClient.discoverCandidates(udpSocket);
+        if (discoveredEndpoints.isEmpty()) {
             throw new IOException("STUN ile joiner genel UDP ucu bulunamadi");
         }
 
         rendezvousSession = SafraRendezvousClient.join(
             shareCode.rendezvousCode(),
-            endpoint.publicAddress(),
+            discoveredPublicEndpoints(discoveredEndpoints),
             udpSocket
         );
         remoteAddress = rendezvousSession.hostAddress();
@@ -99,12 +100,49 @@ public final class P2pClientProxy implements AutoCloseable {
         if (tunnelToken == 0) {
             throw new IOException("Rendezvous sunucusu gecersiz tunel token'i dondurdu");
         }
-        if (!P2pSockets.sameAddressFamily(endpoint.publicAddress(), remoteAddress)) {
+        P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = discoveredEndpoints.get(P2pSockets.addressFamily(remoteAddress));
+        if (matchingLocalEndpoint == null) {
             throw new IOException("Host ve joiner farkli IP ailesi kullaniyor ("
-                + P2pSockets.addressFamily(endpoint.publicAddress()) + " / "
+                + discoveredEndpoints.keySet() + " / "
                 + P2pSockets.addressFamily(remoteAddress) + ")");
         }
+        if (samePublicIp(matchingLocalEndpoint.publicAddress(), remoteAddress)) {
+            LOGGER.debug("Safra P2P host and joiner resolved to the same public IP {}; attempting NAT hairpin/self-connect path", remoteAddress.getAddress());
+        }
         LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
+    }
+
+    private java.util.Collection<InetSocketAddress> discoveredPublicEndpoints(Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints) {
+        ArrayList<InetSocketAddress> endpoints = new ArrayList<>();
+        P2pStunClient.DiscoveredEndpoint ipv4 = discoveredEndpoints.get("ipv4");
+        if (ipv4 != null) {
+            endpoints.add(ipv4.publicAddress());
+        }
+
+        P2pStunClient.DiscoveredEndpoint ipv6 = discoveredEndpoints.get("ipv6");
+        if (ipv6 != null) {
+            endpoints.add(ipv6.publicAddress());
+        }
+
+        if (endpoints.isEmpty()) {
+            discoveredEndpoints.values().stream()
+                .findFirst()
+                .map(P2pStunClient.DiscoveredEndpoint::publicAddress)
+                .ifPresent(endpoints::add);
+        }
+        return endpoints;
+    }
+
+    private boolean samePublicIp(InetSocketAddress joinerAddress, InetSocketAddress hostAddress) {
+        if (joinerAddress == null || hostAddress == null) {
+            return false;
+        }
+
+        InetAddress joinerInetAddress = joinerAddress.getAddress();
+        InetAddress hostInetAddress = hostAddress.getAddress();
+        return joinerInetAddress != null
+            && hostInetAddress != null
+            && joinerInetAddress.equals(hostInetAddress);
     }
 
     private void acceptLoop() {

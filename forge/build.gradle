@@ -49,6 +49,7 @@ minecraft {
         register('client') {
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'io.netty.transport.noNative', 'true'
+            systemProperty 'java.net.preferIPv4Stack', 'false'
             args '--username', devUsername
         }
 
