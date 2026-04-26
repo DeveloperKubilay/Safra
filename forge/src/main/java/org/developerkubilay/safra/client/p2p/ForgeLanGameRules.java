@@ -28,6 +28,13 @@ public final class ForgeLanGameRules {
         return copy;
     }
 
+    public static Map<String, String> createDefaultSnapshot(Minecraft client) {
+        if (client.level == null) {
+            throw new IllegalStateException("Client level is not available");
+        }
+        return serialize(new GameRules(client.level.enabledFeatures()));
+    }
+
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
         rules.visitGameRuleTypes(new GameRuleTypeVisitor() {

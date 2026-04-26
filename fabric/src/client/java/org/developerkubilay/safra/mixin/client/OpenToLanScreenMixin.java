@@ -79,7 +79,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             this.safra$onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         }
         if (this.client != null && this.client.getServer() != null) {
-            FabricLanSessionState.initializeGameRules(this.client.getServer().getOverworld().getGameRules());
+            FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
 
         this.portField.setDimensionsAndPosition(70, 20, this.width / 2 - 80, 156);
