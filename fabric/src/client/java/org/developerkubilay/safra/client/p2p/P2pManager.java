@@ -7,6 +7,7 @@ import net.minecraft.server.integrated.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadLocalRandom;
 
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
@@ -45,7 +45,7 @@ public final class P2pManager {
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
         stopHosting();
 
-        int token = createShareToken();
+        int token = P2pHostSupport.createShareToken();
         P2pHostService service = new P2pHostService(tcpPort, token);
         long generation = ++hostStartGeneration;
         startingHostService = service;
@@ -239,14 +239,6 @@ public final class P2pManager {
 
     public static String toDisplayAddress(String address) {
         return P2pShareCode.parse(address).toDisplayCode();
-    }
-
-    private static int createShareToken() {
-        int token;
-        do {
-            token = ThreadLocalRandom.current().nextInt();
-        } while (token == 0);
-        return token;
     }
 
     private void cancelPendingRewriteInternal() {
