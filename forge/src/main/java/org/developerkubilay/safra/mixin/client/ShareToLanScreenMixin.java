@@ -52,7 +52,7 @@ abstract class ShareToLanScreenMixin extends Screen {
             ForgeLanSessionState.loadFromConfig();
         }
         if (this.minecraft != null && this.minecraft.getSingleplayerServer() != null) {
-            ForgeLanSessionState.initializeGameRules(ForgeLanGameRules.serialize(this.minecraft.getSingleplayerServer().overworld().getGameRules()));
+            ForgeLanSessionState.initializeGameRules(this.minecraft);
         }
 
         this.portEdit.setPosition(this.width / 2 - 80, 156);

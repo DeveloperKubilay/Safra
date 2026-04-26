@@ -28,6 +28,13 @@ public final class FabricLanGameRules {
         return copy;
     }
 
+    public static Map<String, String> createDefaultSnapshot(MinecraftClient client) {
+        if (client.world == null) {
+            throw new IllegalStateException("Client world is not available");
+        }
+        return serialize(new GameRules(client.world.getEnabledFeatures()));
+    }
+
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
         rules.accept(new GameRuleVisitor() {
