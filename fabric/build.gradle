@@ -5,6 +5,7 @@ plugins {
 
 sourceSets {
     main {
+        java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }
@@ -45,7 +46,6 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    implementation project(':common')
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
@@ -82,7 +82,6 @@ java {
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(project(':common').sourceSets.main.output)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
@@ -90,7 +89,6 @@ jar {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(project(':common').sourceSets.main.allSource)
 }
 
 publishing {

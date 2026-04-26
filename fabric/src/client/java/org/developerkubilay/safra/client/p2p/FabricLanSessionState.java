@@ -1,17 +1,18 @@
 package org.developerkubilay.safra.client.p2p;
 
+import net.minecraft.world.rule.GameRules;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public final class ForgeLanSessionState {
+public final class FabricLanSessionState {
     private static volatile boolean p2pEnabled = true;
     private static volatile boolean onlineModeEnabled = true;
     private static volatile boolean allowCommandsEnabled;
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
 
-    private ForgeLanSessionState() {
+    private FabricLanSessionState() {
     }
 
     public static void loadFromConfig() {
@@ -22,9 +23,9 @@ public final class ForgeLanSessionState {
         gameRuleSnapshot = new LinkedHashMap<>(config.getOpenToLanGameRules());
     }
 
-    public static void initializeGameRules(Map<String, String> snapshot) {
+    public static void initializeGameRules(GameRules rules) {
         if (gameRuleSnapshot.isEmpty()) {
-            gameRuleSnapshot = new LinkedHashMap<>(snapshot);
+            gameRuleSnapshot = new LinkedHashMap<>(FabricLanGameRules.serialize(rules));
         }
     }
 

@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameType;
+import org.developerkubilay.safra.client.p2p.NeoForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.NeoForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
@@ -49,6 +50,7 @@ abstract class IntegratedServerMixin {
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
+        NeoForgeLanGameRules.applyToServer(server, NeoForgeLanSessionState.getGameRuleSnapshot());
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));

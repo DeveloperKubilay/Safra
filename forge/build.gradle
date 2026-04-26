@@ -7,6 +7,7 @@ plugins {
 
 sourceSets {
     main {
+        java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }
@@ -68,7 +69,6 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
-    implementation project(':common')
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -104,7 +104,6 @@ processResources {
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(project(':common').sourceSets.main.output)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
@@ -115,7 +114,6 @@ tasks.named('jar', Jar) {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(project(':common').sourceSets.main.allSource)
 }
 
 publishing {

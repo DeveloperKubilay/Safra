@@ -13,5 +13,14 @@
   "safra.p2p.host.instructions": "你的朋友应使用直接连接，启用 P2P，并粘贴这段代码。",
   "safra.p2p.host.narration": "Safra P2P 分享代码是 %s",
   "safra.p2p.host.failed": "无法启动 Safra P2P：%s",
-  "safra.p2p.copy_hint": "点击复制 P2P 分享代码"
+  "safra.p2p.copy_hint": "点击复制 P2P 分享代码",
+  "safra.p2p.prepare_message": "Preparing the Safra P2P connection...",
+  "safra.p2p.server_settings": "Server Settings",
+  "safra.p2p.game_rules": "Game Rules",
+  "safra.p2p.allow_commands.on": "Cheats: ON",
+  "safra.p2p.allow_commands.off": "Cheats: OFF",
+  "safra.p2p.online_mode.short.off": "在线：关",
+  "safra.p2p.server_settings.reset": "重置服务器设置",
+  "safra.p2p.online_mode.short.on": "在线：开",
+  "safra.p2p.server_settings.short": "设置"
 }

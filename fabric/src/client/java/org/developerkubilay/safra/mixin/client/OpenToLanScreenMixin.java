@@ -13,6 +13,8 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
+import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.spongepowered.asm.mixin.Mixin;
@@ -38,11 +40,17 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Shadow
     private TextFieldWidget portField;
 
+    @Shadow
+    private boolean allowCommands;
+
     @Unique
     private ButtonWidget safra$p2pButton;
 
     @Unique
     private ButtonWidget safra$onlineModeButton;
+
+    @Unique
+    private ButtonWidget safra$serverSettingsButton;
 
     @Unique
     private boolean safra$p2pEnabled;
@@ -57,12 +65,21 @@ abstract class OpenToLanScreenMixin extends Screen {
         super(title);
     }
 
+    @Inject(method = "init", at = @At("HEAD"))
+    private void safra$loadLanSettings(CallbackInfo ci) {
+        FabricLanSessionState.loadFromConfig();
+        this.allowCommands = FabricLanSessionState.isAllowCommandsEnabled();
+    }
+
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         if (!this.safra$p2pInitialized) {
             SafraClientConfig config = SafraClientConfig.get();
             this.safra$p2pEnabled = config.isOpenToLanP2pEnabled();
             this.safra$onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
+        }
+        if (this.client != null && this.client.getServer() != null) {
+            FabricLanSessionState.initializeGameRules(this.client.getServer().getOverworld().getGameRules());
         }
 
         this.portField.setDimensionsAndPosition(70, 20, this.width / 2 - 80, 156);
@@ -78,7 +95,12 @@ abstract class OpenToLanScreenMixin extends Screen {
                 this.safra$onlineModeEnabled = !this.safra$onlineModeEnabled;
                 SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
                 button.setMessage(this.safra$getOnlineModeText());
-            }).dimensions(this.width / 2 - 80, 180, 160, 20).build()
+            }).dimensions(this.width / 2 - 100, 180, 98, 20).build()
+        );
+        this.safra$serverSettingsButton = this.addDrawableChild(
+            ButtonWidget.builder(Text.translatable("safra.p2p.server_settings.short"), button ->
+                this.client.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
+            ).dimensions(this.width / 2 + 2, 180, 98, 20).build()
         );
         this.safra$p2pInitialized = true;
     }
@@ -86,6 +108,7 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "method_19851", at = @At("HEAD"))
     private void safra$applyOnlineMode(IntegratedServer server, ButtonWidget button, CallbackInfo ci) {
         if (server != null) {
+            this.allowCommands = FabricLanSessionState.isAllowCommandsEnabled();
             server.setOnlineMode(this.safra$onlineModeEnabled);
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
@@ -104,6 +127,8 @@ abstract class OpenToLanScreenMixin extends Screen {
         if (server == null || server.getServerPort() != this.port) {
             return;
         }
+
+        FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
 
         if (!this.safra$p2pEnabled) {
             P2pManager.getInstance().stopHosting();
@@ -134,7 +159,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             this.textRenderer,
             Text.translatable("safra.p2p.open_hint"),
             this.width / 2,
-            208,
+            232,
             0xA0A0A0
         );
     }
@@ -146,7 +171,7 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Unique
     private MutableText safra$getOnlineModeText() {
-        return Text.translatable(this.safra$onlineModeEnabled ? "safra.p2p.online_mode.on" : "safra.p2p.online_mode.off");
+        return Text.translatable(this.safra$onlineModeEnabled ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off");
     }
 
     @Unique

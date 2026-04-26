@@ -13,16 +13,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
 @Mixin(JoinMultiplayerScreen.class)
 abstract class JoinMultiplayerScreenMixin extends Screen {
-    private static ProgressScreen safra$createPreparingScreen() {
-        ProgressScreen screen = new ProgressScreen(false);
-        screen.progressStartNoAbort(Component.translatable("connect.connecting"));
-        return screen;
-    }
-
     protected JoinMultiplayerScreenMixin(Component title) {
         super(title);
     }
@@ -34,7 +29,10 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
         }
 
         JoinMultiplayerScreen self = (JoinMultiplayerScreen) (Object) this;
-        Minecraft.getInstance().setScreen(safra$createPreparingScreen());
+        ProgressScreen progressScreen = new ProgressScreen(false);
+        progressScreen.progressStart(Component.translatable("connect.connecting"));
+        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        Minecraft.getInstance().setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             Minecraft.getInstance().execute(() -> {
                 if (throwable != null) {
@@ -42,6 +40,9 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                         && completionException.getCause() != null
                         ? completionException.getCause()
                         : throwable;
+                    if (cause instanceof CancellationException) {
+                        return;
+                    }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     Minecraft.getInstance().setScreen(new DisconnectedScreen(
                         (Screen) (Object) this,

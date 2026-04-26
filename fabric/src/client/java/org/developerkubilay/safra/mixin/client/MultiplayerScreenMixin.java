@@ -15,16 +15,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
 @Mixin(MultiplayerScreen.class)
 abstract class MultiplayerScreenMixin {
-    private static ProgressScreen safra$createPreparingScreen() {
-        ProgressScreen screen = new ProgressScreen(false);
-        screen.setTitleAndTask(Text.translatable("connect.connecting"));
-        return screen;
-    }
-
     @Shadow
     @Final
     private Screen parent;
@@ -36,7 +31,10 @@ abstract class MultiplayerScreenMixin {
         }
 
         MultiplayerScreen self = (MultiplayerScreen) (Object) this;
-        MinecraftClient.getInstance().setScreen(safra$createPreparingScreen());
+        ProgressScreen progressScreen = new ProgressScreen(false);
+        progressScreen.setTitle(Text.translatable("connect.connecting"));
+        progressScreen.setTask(Text.translatable("safra.p2p.prepare_message"));
+        MinecraftClient.getInstance().setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             MinecraftClient.getInstance().execute(() -> {
                 if (throwable != null) {
@@ -44,6 +42,9 @@ abstract class MultiplayerScreenMixin {
                         && completionException.getCause() != null
                         ? completionException.getCause()
                         : throwable;
+                    if (cause instanceof CancellationException) {
+                        return;
+                    }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     MinecraftClient.getInstance().setScreen(new DisconnectedScreen(
                         this.parent,

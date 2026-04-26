@@ -12,6 +12,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class SafraClientConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraClientConfig.class);
@@ -22,6 +24,8 @@ public final class SafraClientConfig {
 
     private boolean openToLanP2pEnabled = true;
     private boolean openToLanOnlineModeEnabled = true;
+    private boolean openToLanAllowCommandsEnabled = false;
+    private Map<String, String> openToLanGameRules = new LinkedHashMap<>();
     private boolean directConnectP2pEnabled = true;
 
     private SafraClientConfig() {
@@ -67,6 +71,40 @@ public final class SafraClientConfig {
         }
     }
 
+    public synchronized boolean isOpenToLanAllowCommandsEnabled() {
+        return openToLanAllowCommandsEnabled;
+    }
+
+    public synchronized void setOpenToLanAllowCommandsEnabled(boolean openToLanAllowCommandsEnabled) {
+        if (this.openToLanAllowCommandsEnabled != openToLanAllowCommandsEnabled) {
+            this.openToLanAllowCommandsEnabled = openToLanAllowCommandsEnabled;
+            save();
+        }
+    }
+
+    public synchronized Map<String, String> getOpenToLanGameRules() {
+        return new LinkedHashMap<>(openToLanGameRules);
+    }
+
+    public synchronized void setOpenToLanGameRules(Map<String, String> openToLanGameRules) {
+        Map<String, String> normalized = openToLanGameRules == null || openToLanGameRules.isEmpty()
+            ? new LinkedHashMap<>()
+            : new LinkedHashMap<>(openToLanGameRules);
+        if (!this.openToLanGameRules.equals(normalized)) {
+            this.openToLanGameRules = normalized;
+            save();
+        }
+    }
+
+    public synchronized void resetOpenToLanServerSettings() {
+        boolean changed = openToLanAllowCommandsEnabled || !openToLanGameRules.isEmpty();
+        openToLanAllowCommandsEnabled = false;
+        openToLanGameRules = new LinkedHashMap<>();
+        if (changed) {
+            save();
+        }
+    }
+
     private static SafraClientConfig load() {
         Path path = configPath();
         if (!Files.exists(path)) {
@@ -79,7 +117,11 @@ public final class SafraClientConfig {
         try (Reader reader = Files.newBufferedReader(path)) {
             SafraClientConfig config = GSON.fromJson(reader, SafraClientConfig.class);
             SafraClientConfig resolvedConfig = config == null ? new SafraClientConfig() : config;
+            boolean changed = resolvedConfig.normalize();
             if (resolvedConfig.applyDevelopmentDefaults()) {
+                changed = true;
+            }
+            if (changed) {
                 resolvedConfig.save();
             }
             return resolvedConfig;
@@ -103,6 +145,14 @@ public final class SafraClientConfig {
 
     private static Path configPath() {
         return FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
+    }
+
+    private boolean normalize() {
+        if (openToLanGameRules == null) {
+            openToLanGameRules = new LinkedHashMap<>();
+            return true;
+        }
+        return false;
     }
 
     private boolean applyDevelopmentDefaults() {

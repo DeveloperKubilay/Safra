@@ -13,5 +13,14 @@
   "safra.p2p.host.instructions": "Dein Freund sollte Direkt verbinden verwenden, P2P aktivieren und diesen Code einfügen.",
   "safra.p2p.host.narration": "Der Safra-P2P-Freigabecode ist %s",
   "safra.p2p.host.failed": "Safra P2P konnte nicht gestartet werden: %s",
-  "safra.p2p.copy_hint": "Klicke, um den P2P-Freigabecode zu kopieren"
+  "safra.p2p.copy_hint": "Klicke, um den P2P-Freigabecode zu kopieren",
+  "safra.p2p.prepare_message": "Preparing the Safra P2P connection...",
+  "safra.p2p.server_settings": "Server Settings",
+  "safra.p2p.game_rules": "Game Rules",
+  "safra.p2p.allow_commands.on": "Cheats: ON",
+  "safra.p2p.allow_commands.off": "Cheats: OFF",
+  "safra.p2p.online_mode.short.off": "Online: AUS",
+  "safra.p2p.server_settings.reset": "Servereinstellungen zurucksetzen",
+  "safra.p2p.online_mode.short.on": "Online: EIN",
+  "safra.p2p.server_settings.short": "Einstellungen"
 }
