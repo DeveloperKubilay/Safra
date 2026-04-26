@@ -134,6 +134,19 @@ public final class P2pManager {
         return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
     }
 
+    public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
+        Objects.requireNonNull(originalServerInfo, "originalServerInfo");
+        ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.type());
+        snapshot.copyFrom(originalServerInfo);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return createRewrite(snapshot);
+            } catch (IOException exception) {
+                throw new CompletionException(exception);
+            }
+        }, BACKGROUND_EXECUTOR);
+    }
+
     public synchronized void shutdown() {
         stopHosting();
         if (activeClientProxy != null) {
