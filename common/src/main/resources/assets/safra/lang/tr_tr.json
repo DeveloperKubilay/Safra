@@ -13,5 +13,14 @@
   "safra.p2p.host.instructions": "Arkadasin Dogrudan Baglan ekraninda P2P secenegini acip bu kodu yapistirmali.",
   "safra.p2p.host.narration": "Safra P2P paylasim kodu %s",
   "safra.p2p.host.failed": "Safra P2P baslatilamadi: %s",
-  "safra.p2p.copy_hint": "P2P paylasim kodunu kopyalamak icin tikla"
+  "safra.p2p.copy_hint": "P2P paylasim kodunu kopyalamak icin tikla",
+  "safra.p2p.prepare_message": "Safra P2P baglantisi hazirlaniyor...",
+  "safra.p2p.server_settings": "Sunucu Ayarlari",
+  "safra.p2p.game_rules": "Oyun Kurallari",
+  "safra.p2p.allow_commands.on": "Hileler: Acik",
+  "safra.p2p.allow_commands.off": "Hileler: Kapali",
+  "safra.p2p.online_mode.short.off": "Online: Kapali",
+  "safra.p2p.server_settings.reset": "Sunucu Ayarlarini Sifirla",
+  "safra.p2p.online_mode.short.on": "Online: Acik",
+  "safra.p2p.server_settings.short": "Ayarlar"
 }

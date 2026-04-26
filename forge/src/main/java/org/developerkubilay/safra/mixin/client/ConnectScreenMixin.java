@@ -16,17 +16,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 @Mixin(ConnectScreen.class)
 abstract class ConnectScreenMixin {
-    private static ProgressScreen safra$createPreparingScreen() {
-        ProgressScreen screen = new ProgressScreen(false);
-        screen.progressStartNoAbort(Component.translatable("connect.connecting"));
-        return screen;
-    }
-
     @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
                                                    ServerData serverInfo, boolean quickPlay,
@@ -35,7 +30,10 @@ abstract class ConnectScreenMixin {
             return;
         }
 
-        client.setScreen(safra$createPreparingScreen());
+        ProgressScreen progressScreen = new ProgressScreen(false);
+        progressScreen.progressStart(Component.translatable("connect.connecting"));
+        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        client.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
@@ -43,6 +41,9 @@ abstract class ConnectScreenMixin {
                         && completionException.getCause() != null
                         ? completionException.getCause()
                         : throwable;
+                    if (cause instanceof CancellationException) {
+                        return;
+                    }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     client.setScreen(new DisconnectedScreen(
                         parent,

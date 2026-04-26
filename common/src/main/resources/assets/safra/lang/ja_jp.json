@@ -13,5 +13,14 @@
   "safra.p2p.host.instructions": "フレンドはダイレクト接続を使い、P2P を有効にして、このコードを貼り付けてください。",
   "safra.p2p.host.narration": "Safra P2P の共有コードは %s です",
   "safra.p2p.host.failed": "Safra P2P を開始できませんでした: %s",
-  "safra.p2p.copy_hint": "クリックして P2P 共有コードをコピー"
+  "safra.p2p.copy_hint": "クリックして P2P 共有コードをコピー",
+  "safra.p2p.prepare_message": "Preparing the Safra P2P connection...",
+  "safra.p2p.server_settings": "Server Settings",
+  "safra.p2p.game_rules": "Game Rules",
+  "safra.p2p.allow_commands.on": "Cheats: ON",
+  "safra.p2p.allow_commands.off": "Cheats: OFF",
+  "safra.p2p.online_mode.short.off": "オンライン: オフ",
+  "safra.p2p.server_settings.reset": "サーバー設定をリセット",
+  "safra.p2p.online_mode.short.on": "オンライン: オン",
+  "safra.p2p.server_settings.short": "設定"
 }

@@ -6,6 +6,7 @@ plugins {
 
 sourceSets {
     main {
+        java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }
@@ -51,7 +52,6 @@ neoForge {
 }
 
 dependencies {
-    implementation project(':common')
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
@@ -86,7 +86,6 @@ processResources {
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(project(':common').sourceSets.main.output)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
@@ -94,7 +93,6 @@ jar {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(project(':common').sourceSets.main.allSource)
 }
 
 publishing {

@@ -13,5 +13,14 @@
   "safra.p2p.host.instructions": "친구는 직접 연결을 사용하고 P2P를 켠 뒤 이 코드를 붙여넣어야 합니다.",
   "safra.p2p.host.narration": "Safra P2P 공유 코드는 %s 입니다",
   "safra.p2p.host.failed": "Safra P2P를 시작할 수 없습니다: %s",
-  "safra.p2p.copy_hint": "클릭하여 P2P 공유 코드 복사"
+  "safra.p2p.copy_hint": "클릭하여 P2P 공유 코드 복사",
+  "safra.p2p.prepare_message": "Preparing the Safra P2P connection...",
+  "safra.p2p.server_settings": "Server Settings",
+  "safra.p2p.game_rules": "Game Rules",
+  "safra.p2p.allow_commands.on": "Cheats: ON",
+  "safra.p2p.allow_commands.off": "Cheats: OFF",
+  "safra.p2p.online_mode.short.off": "온라인: 꺼짐",
+  "safra.p2p.server_settings.reset": "서버 설정 초기화",
+  "safra.p2p.online_mode.short.on": "온라인: 켜짐",
+  "safra.p2p.server_settings.short": "설정"
 }
