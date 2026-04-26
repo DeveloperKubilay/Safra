@@ -1,12 +1,13 @@
 package org.developerkubilay.safra.client.p2p;
 
+import com.mojang.serialization.Dynamic;
 import net.minecraft.client.Minecraft;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.gamerules.GameRule;
-import net.minecraft.world.level.gamerules.GameRuleTypeVisitor;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,7 +22,7 @@ public final class ForgeLanGameRules {
             throw new IllegalStateException("Integrated server is not available");
         }
 
-        GameRules copy = server.overworld().getGameRules().copy(client.level.enabledFeatures());
+        GameRules copy = server.overworld().getGameRules().copy();
         if (!snapshot.isEmpty()) {
             apply(copy, snapshot, null);
         }
@@ -29,20 +30,15 @@ public final class ForgeLanGameRules {
     }
 
     public static Map<String, String> createDefaultSnapshot(Minecraft client) {
-        if (client.level == null) {
-            throw new IllegalStateException("Client level is not available");
-        }
-        return serialize(new GameRules(client.level.enabledFeatures()));
+        return serialize(new GameRules());
     }
 
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
-        rules.visitGameRuleTypes(new GameRuleTypeVisitor() {
-            @Override
-            public void visit(GameRule rule) {
-                values.put(rule.id(), rules.getAsString(rule));
-            }
-        });
+        CompoundTag tag = rules.createTag();
+        for (String key : tag.getAllKeys()) {
+            values.put(key, tag.getString(key));
+        }
         return values;
     }
 
@@ -56,15 +52,9 @@ public final class ForgeLanGameRules {
     }
 
     private static void apply(GameRules rules, Map<String, String> snapshot, MinecraftServer server) {
-        rules.visitGameRuleTypes(new GameRuleTypeVisitor() {
-            @Override
-            public void visit(GameRule rule) {
-                String serializedValue = snapshot.get(rule.id());
-                if (serializedValue == null) {
-                    return;
-                }
-                rule.deserialize(serializedValue).result().ifPresent(value -> rules.set(rule, value, server));
-            }
-        });
+        CompoundTag tag = rules.createTag();
+        snapshot.forEach(tag::putString);
+        GameRules updatedRules = new GameRules(new Dynamic<>(NbtOps.INSTANCE, tag));
+        rules.assignFrom(updatedRules, server);
     }
 }

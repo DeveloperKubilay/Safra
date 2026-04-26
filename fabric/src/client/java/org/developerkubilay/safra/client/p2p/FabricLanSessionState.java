@@ -1,6 +1,6 @@
 package org.developerkubilay.safra.client.p2p;
 
-import net.minecraft.world.rule.GameRules;
+import net.minecraft.world.GameRules;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import net.minecraft.client.MinecraftClient;
 

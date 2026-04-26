@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
@@ -30,7 +31,6 @@ abstract class MultiplayerScreenMixin {
             return;
         }
 
-        MultiplayerScreen self = (MultiplayerScreen) (Object) this;
         ProgressScreen progressScreen = new ProgressScreen(false);
         progressScreen.setTitle(Text.translatable("connect.connecting"));
         progressScreen.setTask(Text.translatable("safra.p2p.prepare_message"));
@@ -54,7 +54,7 @@ abstract class MultiplayerScreenMixin {
                     return;
                 }
 
-                self.connect(rewriteResult.serverInfo());
+                ConnectScreen.connect(this.parent, MinecraftClient.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false, null);
             })
         );
         ci.cancel();
