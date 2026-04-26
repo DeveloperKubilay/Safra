@@ -1,5 +1,6 @@
 package org.developerkubilay.safra.client.p2p;
 
+import net.minecraft.client.Minecraft;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 
 import java.util.LinkedHashMap;
@@ -7,9 +8,10 @@ import java.util.Map;
 
 public final class ForgeLanSessionState {
     private static volatile boolean p2pEnabled = true;
-    private static volatile boolean onlineModeEnabled = true;
+    private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
+    private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
 
     private ForgeLanSessionState() {
     }
@@ -22,9 +24,12 @@ public final class ForgeLanSessionState {
         gameRuleSnapshot = new LinkedHashMap<>(config.getOpenToLanGameRules());
     }
 
-    public static void initializeGameRules(Map<String, String> snapshot) {
+    public static void initializeGameRules(Minecraft client) {
+        if (defaultGameRuleSnapshot.isEmpty()) {
+            defaultGameRuleSnapshot = new LinkedHashMap<>(ForgeLanGameRules.createDefaultSnapshot(client));
+        }
         if (gameRuleSnapshot.isEmpty()) {
-            gameRuleSnapshot = new LinkedHashMap<>(snapshot);
+            gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
         }
     }
 
@@ -66,7 +71,11 @@ public final class ForgeLanSessionState {
 
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
-        gameRuleSnapshot = Map.of();
-        SafraClientConfig.get().resetOpenToLanServerSettings();
+        gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
+            ? Map.of()
+            : new LinkedHashMap<>(defaultGameRuleSnapshot);
+        SafraClientConfig config = SafraClientConfig.get();
+        config.setOpenToLanAllowCommandsEnabled(false);
+        config.setOpenToLanGameRules(gameRuleSnapshot);
     }
 }
