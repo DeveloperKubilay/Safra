@@ -2,6 +2,7 @@ package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
+import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
@@ -14,10 +15,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.io.IOException;
+import java.util.concurrent.CompletionException;
 
 @Mixin(MultiplayerScreen.class)
 abstract class MultiplayerScreenMixin {
+    private static ProgressScreen safra$createPreparingScreen() {
+        ProgressScreen screen = new ProgressScreen(false);
+        screen.setTitleAndTask(Text.translatable("connect.connecting"));
+        return screen;
+    }
+
     @Shadow
     @Final
     private Screen parent;
@@ -28,17 +35,27 @@ abstract class MultiplayerScreenMixin {
             return;
         }
 
-        try {
-            P2pManager.RewriteResult rewriteResult = P2pManager.getInstance().createRewrite(serverInfo);
-            serverInfo.copyWithSettingsFrom(rewriteResult.serverInfo());
-            serverInfo.address = rewriteResult.serverInfo().address;
-        } catch (IOException exception) {
-            MinecraftClient.getInstance().setScreen(new DisconnectedScreen(
-                this.parent,
-                Text.translatable("connect.failed"),
-                Text.translatable("safra.p2p.prepare_failed", exception.getMessage())
-            ));
-            ci.cancel();
-        }
+        MultiplayerScreen self = (MultiplayerScreen) (Object) this;
+        MinecraftClient.getInstance().setScreen(safra$createPreparingScreen());
+        P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
+            MinecraftClient.getInstance().execute(() -> {
+                if (throwable != null) {
+                    Throwable cause = throwable instanceof CompletionException completionException
+                        && completionException.getCause() != null
+                        ? completionException.getCause()
+                        : throwable;
+                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
+                    MinecraftClient.getInstance().setScreen(new DisconnectedScreen(
+                        this.parent,
+                        Text.translatable("connect.failed"),
+                        Text.translatable("safra.p2p.prepare_failed", message)
+                    ));
+                    return;
+                }
+
+                self.connect(rewriteResult.serverInfo());
+            })
+        );
+        ci.cancel();
     }
 }

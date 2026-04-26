@@ -13,12 +13,13 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 final class P2pStunClient {
-    private static final int DISCOVERY_ATTEMPTS_PER_SERVER = 2;
     private static final int DISCOVERY_TIMEOUT_MS = 2_500;
     private static final int BINDING_REQUEST = 0x0001;
     private static final int BINDING_SUCCESS_RESPONSE = 0x0101;
@@ -30,23 +31,15 @@ final class P2pStunClient {
 
     Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket) {
         Map<String, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
-        for (String serverSpec : P2pConstants.STUN_SERVERS) {
-            for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
-                for (int attempt = 0; attempt < DISCOVERY_ATTEMPTS_PER_SERVER; attempt++) {
-                    try {
-                        byte[] transactionId = new byte[12];
-                        random.nextBytes(transactionId);
-                        sendBindingRequest(socket, server, transactionId);
-                        DiscoveredEndpoint endpoint = readBindingResponse(socket, transactionId, DISCOVERY_TIMEOUT_MS);
-                        if (endpoint != null) {
-                            discovered.putIfAbsent(endpoint.family(), endpoint.withServer(server));
-                            if (discovered.containsKey("ipv4") && discovered.containsKey("ipv6")) {
-                                return discovered;
-                            }
-                        }
-                    } catch (IOException ignored) {
-                    }
-                }
+        for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
+            List<PendingRequest> pendingRequests = requestCandidates(socket, serverGroup);
+            if (pendingRequests.isEmpty()) {
+                continue;
+            }
+
+            collectResponses(socket, pendingRequests, DISCOVERY_TIMEOUT_MS, discovered);
+            if (!discovered.isEmpty()) {
+                return discovered;
             }
         }
         return discovered;
@@ -60,7 +53,15 @@ final class P2pStunClient {
 
     List<PendingRequest> requestCandidates(DatagramSocket socket) {
         List<PendingRequest> pendingRequests = new ArrayList<>();
-        for (String serverSpec : P2pConstants.STUN_SERVERS) {
+        for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
+            pendingRequests.addAll(requestCandidates(socket, serverGroup));
+        }
+        return pendingRequests;
+    }
+
+    List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery) {
+        List<PendingRequest> pendingRequests = new ArrayList<>();
+        for (String serverSpec : serversToQuery) {
             for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
                 try {
                     byte[] transactionId = new byte[12];
@@ -105,6 +106,68 @@ final class P2pStunClient {
         request.putInt(MAGIC_COOKIE);
         request.put(transactionId);
         socket.send(new DatagramPacket(request.array(), request.capacity(), server));
+    }
+
+    private void collectResponses(DatagramSocket socket, List<PendingRequest> pendingRequests, int timeoutMs,
+                                  Map<String, DiscoveredEndpoint> discovered) {
+        byte[] buffer = new byte[512];
+        DatagramPacket response = new DatagramPacket(buffer, buffer.length);
+        int previousTimeout;
+        try {
+            previousTimeout = socket.getSoTimeout();
+        } catch (IOException ignored) {
+            previousTimeout = 0;
+        }
+
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+        try {
+            while (!pendingRequests.isEmpty()) {
+                long remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos <= 0L) {
+                    return;
+                }
+
+                int remainingMs = (int) Math.max(1L, TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+                try {
+                    socket.setSoTimeout(remainingMs);
+                } catch (IOException ignored) {
+                    return;
+                }
+                try {
+                    socket.receive(response);
+                } catch (SocketTimeoutException ignored) {
+                    return;
+                } catch (IOException ignored) {
+                    return;
+                }
+
+                consumeResponse(response, pendingRequests, discovered);
+                if (discovered.containsKey("ipv4")) {
+                    return;
+                }
+            }
+        } finally {
+            try {
+                socket.setSoTimeout(previousTimeout);
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    private void consumeResponse(DatagramPacket response, List<PendingRequest> pendingRequests,
+                                 Map<String, DiscoveredEndpoint> discovered) {
+        Iterator<PendingRequest> iterator = pendingRequests.iterator();
+        while (iterator.hasNext()) {
+            PendingRequest pendingRequest = iterator.next();
+            DiscoveredEndpoint endpoint = tryParseResponse(response, pendingRequest);
+            if (endpoint == null) {
+                continue;
+            }
+
+            iterator.remove();
+            discovered.putIfAbsent(endpoint.family(), endpoint.withServer(pendingRequest.server()));
+            return;
+        }
     }
 
     private DiscoveredEndpoint readBindingResponse(DatagramSocket socket, byte[] transactionId, int timeoutMs) throws IOException {
