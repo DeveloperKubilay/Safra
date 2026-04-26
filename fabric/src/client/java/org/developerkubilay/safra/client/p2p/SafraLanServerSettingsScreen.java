@@ -6,7 +6,7 @@ import net.minecraft.client.gui.screen.world.EditGameRulesScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
-import net.minecraft.world.rule.GameRules;
+import net.minecraft.world.GameRules;
 
 import java.util.Optional;
 
