@@ -2,15 +2,17 @@ package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.world.rule.GameRules;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import net.minecraft.client.MinecraftClient;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class FabricLanSessionState {
     private static volatile boolean p2pEnabled = true;
-    private static volatile boolean onlineModeEnabled = true;
+    private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
+    private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
 
     private FabricLanSessionState() {
     }
@@ -23,9 +25,12 @@ public final class FabricLanSessionState {
         gameRuleSnapshot = new LinkedHashMap<>(config.getOpenToLanGameRules());
     }
 
-    public static void initializeGameRules(GameRules rules) {
+    public static void initializeGameRules(MinecraftClient client, GameRules rules) {
+        if (defaultGameRuleSnapshot.isEmpty()) {
+            defaultGameRuleSnapshot = new LinkedHashMap<>(FabricLanGameRules.createDefaultSnapshot(client));
+        }
         if (gameRuleSnapshot.isEmpty()) {
-            gameRuleSnapshot = new LinkedHashMap<>(FabricLanGameRules.serialize(rules));
+            gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
         }
     }
 
@@ -67,7 +72,11 @@ public final class FabricLanSessionState {
 
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
-        gameRuleSnapshot = Map.of();
-        SafraClientConfig.get().resetOpenToLanServerSettings();
+        gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
+            ? Map.of()
+            : new LinkedHashMap<>(defaultGameRuleSnapshot);
+        SafraClientConfig config = SafraClientConfig.get();
+        config.setOpenToLanAllowCommandsEnabled(false);
+        config.setOpenToLanGameRules(gameRuleSnapshot);
     }
 }
