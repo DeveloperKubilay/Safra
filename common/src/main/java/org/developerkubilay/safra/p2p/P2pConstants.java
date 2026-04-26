@@ -20,12 +20,16 @@ public final class P2pConstants {
     static final long RENDEZVOUS_PING_MS = 10 * 60 * 1000L;
     static final String DEFAULT_RENDEZVOUS_URL = "https://safra.developerkubilay.workers.dev";
     static final String ADDRESS_SCHEME = "p2p://";
-    static final String[] STUN_SERVERS = {
-        "stun.l.google.com:19302",
-        "stun1.l.google.com:19302",
-        "stun2.l.google.com:19302",
-        "stun.cloudflare.com:3478",
-        "global.stun.twilio.com:3478"
+    static final String[][] STUN_SERVER_GROUPS = {
+        {
+            "stun.l.google.com:19302",
+            "stun1.l.google.com:19302",
+            "stun2.l.google.com:19302"
+        },
+        {
+            "stun.cloudflare.com:3478",
+            "global.stun.twilio.com:3478"
+        }
     };
 
     private P2pConstants() {
