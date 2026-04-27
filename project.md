@@ -190,7 +190,6 @@ Root artifact'lar:
 
 GitHub Actions:
 
-- `.github/workflows/build.yml`
 - `.github/workflows/release.yml`
 - `.github/workflows/codeql.yml`
 
@@ -287,3 +286,25 @@ Yeni bir surume gecerken ilk bakilacak yerler:
 - worker repo:
   - `C:\Users\kubil\Desktop\p2p\src\index.ts`
   - `C:\Users\kubil\Desktop\p2p\wrangler.jsonc`
+
+## Release and Port Guard Rails
+
+Yeni branch ya da yeni release oncesi hizli kontrol:
+
+1. Java matrix
+  - CI ve local build JVM degeri branch gereksinimiyle uyumlu olmali
+  - `1.20.1` icin pratikte build JVM `21`, compile target `17` tutulur
+
+2. Mixin uyumlulugu
+  - tum mixin json dosyalarinda `compatibilityLevel` ilgili branch runtime'ina uygun olmali
+  - overload method inject noktalarinda tam descriptor kullanilmali
+
+3. Resource metadata
+  - `pack.mcmeta` ilgili Minecraft surumunun kabul ettigi formatta olmali
+  - tek dosyayi tum surum branch'lerine kopyalamak yerine branch bazli kontrol edilmeli
+
+4. Release smoke test
+  - `gradlew runClient`
+  - `gradlew :forge:runClient`
+  - `gradlew :neoforge:runClient`
+  - loglarda mixin apply veya resource pack metadata hatasi kalmadigi dogrulanmali

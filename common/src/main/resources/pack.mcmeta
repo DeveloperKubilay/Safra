@@ -1,10 +1,6 @@
 {
   "pack": {
-    "description": "Safra resources",
-    "max_format": 94,
-    "min_format": [
-      94,
-      1
-    ]
+    "pack_format": 15,
+    "description": "Safra resources"
   }
 }
