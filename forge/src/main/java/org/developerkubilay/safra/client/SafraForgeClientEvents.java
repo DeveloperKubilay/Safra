@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.developerkubilay.safra.SafraForge;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -15,7 +15,10 @@ public final class SafraForgeClientEvents {
     }
 
     @SubscribeEvent
-    public static void clientTick(TickEvent.ClientTickEvent.Post event) {
+    public static void clientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         P2pManager.getInstance().tick(Minecraft.getInstance());
     }
 

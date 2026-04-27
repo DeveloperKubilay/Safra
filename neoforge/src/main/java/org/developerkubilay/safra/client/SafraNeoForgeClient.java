@@ -1,26 +1,29 @@
 package org.developerkubilay.safra.client;
 
 import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.GameShuttingDownEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.GameShuttingDownEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import org.developerkubilay.safra.SafraNeoForge;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 
-@Mod(value = SafraNeoForge.MOD_ID, dist = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = SafraNeoForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class SafraNeoForgeClient {
-    public SafraNeoForgeClient() {
-        NeoForge.EVENT_BUS.addListener(SafraNeoForgeClient::clientTick);
-        NeoForge.EVENT_BUS.addListener(SafraNeoForgeClient::clientStopping);
+    private SafraNeoForgeClient() {
     }
 
-    private static void clientTick(ClientTickEvent.Post event) {
+    @SubscribeEvent
+    public static void clientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         P2pManager.getInstance().tick(Minecraft.getInstance());
     }
 
-    private static void clientStopping(GameShuttingDownEvent event) {
+    @SubscribeEvent
+    public static void clientStopping(GameShuttingDownEvent event) {
         P2pManager.getInstance().shutdown();
     }
 }

@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -28,7 +29,6 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             return;
         }
 
-        JoinMultiplayerScreen self = (JoinMultiplayerScreen) (Object) this;
         ProgressScreen progressScreen = new ProgressScreen(false);
         progressScreen.progressStart(Component.translatable("connect.connecting"));
         progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
@@ -52,7 +52,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     return;
                 }
 
-                self.join(rewriteResult.serverInfo());
+                ConnectScreen.startConnecting((Screen) (Object) this, Minecraft.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
             })
         );
         ci.cancel();

@@ -6,7 +6,6 @@ import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.TransferState;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -24,8 +23,7 @@ import java.util.concurrent.TimeUnit;
 abstract class ConnectScreenMixin {
     @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
-                                                   ServerData serverInfo, boolean quickPlay,
-                                                   TransferState transferState, CallbackInfo ci) {
+                                                   ServerData serverInfo, boolean quickPlay, CallbackInfo ci) {
         if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.ip)) {
             return;
         }
@@ -55,7 +53,7 @@ abstract class ConnectScreenMixin {
 
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
                     client.execute(() ->
-                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState)
+                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay)
                     )
                 );
             })

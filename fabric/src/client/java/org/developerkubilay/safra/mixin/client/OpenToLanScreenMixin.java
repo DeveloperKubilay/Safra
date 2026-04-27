@@ -82,7 +82,9 @@ abstract class OpenToLanScreenMixin extends Screen {
             FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
 
-        this.portField.setDimensionsAndPosition(70, 20, this.width / 2 - 80, 156);
+        this.portField.setWidth(70);
+        this.portField.setX(this.width / 2 - 80);
+        this.portField.setY(156);
         this.safra$p2pButton = this.addDrawableChild(
             ButtonWidget.builder(this.safra$getToggleText(), button -> {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
@@ -185,8 +187,8 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withColor(Formatting.AQUA)
                 .withUnderline(true)
                 .withInsertion(shareCodeText)
-                .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
-                .withHoverEvent(new HoverEvent.ShowText(Text.translatable("safra.p2p.copy_hint"))));
+                .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.translatable("safra.p2p.copy_hint"))));
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.started", shareText));
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.copied"));
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.instructions"));

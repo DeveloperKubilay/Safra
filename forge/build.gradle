@@ -18,7 +18,7 @@ base {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 
-def targetJavaVersion = 21
+def targetJavaVersion = 17
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)

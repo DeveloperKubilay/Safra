@@ -4,6 +4,7 @@ run/
 .idea/
 out/
 *.iml
+.vscode/
 
 # OS files
 Thumbs.db

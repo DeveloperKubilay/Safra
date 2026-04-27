@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.ConnectScreen;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
@@ -54,7 +55,7 @@ abstract class MultiplayerScreenMixin {
                     return;
                 }
 
-                self.connect(rewriteResult.serverInfo());
+                ConnectScreen.connect(this.parent, MinecraftClient.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
             })
         );
         ci.cancel();

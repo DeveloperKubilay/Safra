@@ -4,9 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.rule.GameRule;
-import net.minecraft.world.rule.GameRuleVisitor;
-import net.minecraft.world.rule.GameRules;
+import net.minecraft.world.GameRules;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,7 +19,7 @@ public final class FabricLanGameRules {
             throw new IllegalStateException("Integrated server is not available");
         }
 
-        GameRules copy = server.getOverworld().getGameRules().withEnabledFeatures(client.world.getEnabledFeatures());
+        GameRules copy = server.getOverworld().getGameRules().copy();
         if (!snapshot.isEmpty()) {
             apply(copy, snapshot, null);
         }
@@ -32,15 +30,15 @@ public final class FabricLanGameRules {
         if (client.world == null) {
             throw new IllegalStateException("Client world is not available");
         }
-        return serialize(new GameRules(client.world.getEnabledFeatures()));
+        return serialize(new GameRules());
     }
 
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
-        rules.accept(new GameRuleVisitor() {
+        GameRules.accept(new GameRules.Visitor() {
             @Override
-            public void visit(GameRule rule) {
-                values.put(rule.getId().toString(), rule.getValueName(rules.getValue(rule)));
+            public <T extends GameRules.Rule<T>> void visit(GameRules.Key<T> key, GameRules.Type<T> type) {
+                values.put(key.getName(), rules.get(key).serialize());
             }
         });
         return values;
@@ -56,14 +54,23 @@ public final class FabricLanGameRules {
     }
 
     private static void apply(GameRules rules, Map<String, String> snapshot, MinecraftServer server) {
-        rules.accept(new GameRuleVisitor() {
+        GameRules.accept(new GameRules.Visitor() {
             @Override
-            public void visit(GameRule rule) {
-                String serializedValue = snapshot.get(rule.getId().toString());
+            public <T extends GameRules.Rule<T>> void visit(GameRules.Key<T> key, GameRules.Type<T> type) {
+                String serializedValue = snapshot.get(key.getName());
                 if (serializedValue == null) {
                     return;
                 }
-                rule.deserialize(serializedValue).result().ifPresent(value -> rules.setValue(rule, value, server));
+
+                GameRules.Rule<?> rule = rules.get(key);
+                if (rule instanceof GameRules.BooleanRule booleanRule) {
+                    booleanRule.set(Boolean.parseBoolean(serializedValue), server);
+                } else if (rule instanceof GameRules.IntRule intRule) {
+                    try {
+                        intRule.set(Integer.parseInt(serializedValue), server);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
             }
         });
     }

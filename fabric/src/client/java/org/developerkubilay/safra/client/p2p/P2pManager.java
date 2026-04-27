@@ -22,9 +22,11 @@ import java.util.concurrent.Executor;
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
     private static final P2pManager INSTANCE = new P2pManager();
-    private static final Executor BACKGROUND_EXECUTOR = command -> Thread.ofVirtual()
-        .name("safra-p2p-background")
-        .start(command);
+    private static final Executor BACKGROUND_EXECUTOR = command -> {
+        Thread thread = new Thread(command, "safra-p2p-background");
+        thread.setDaemon(true);
+        thread.start();
+    };
 
     private volatile P2pHostService hostService;
     private volatile P2pHostService startingHostService;
@@ -116,7 +118,7 @@ public final class P2pManager {
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerInfo originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        ServerInfo snapshot = new ServerInfo(originalServerInfo.name, originalServerInfo.address, originalServerInfo.getServerType());
+        ServerInfo snapshot = new ServerInfo(originalServerInfo.name, originalServerInfo.address, originalServerInfo.isLocal());
         snapshot.copyWithSettingsFrom(originalServerInfo);
 
         long generation;
@@ -190,7 +192,7 @@ public final class P2pManager {
             rewriteFuture = null;
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.getServerType());
+        ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
         rewritten.copyWithSettingsFrom(originalServerInfo);
         rewritten.address = localAddress;
         return new RewriteResult(ServerAddress.parse(rewritten.address), rewritten);

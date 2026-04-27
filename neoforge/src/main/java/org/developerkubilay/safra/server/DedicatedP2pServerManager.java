@@ -1,8 +1,8 @@
 package org.developerkubilay.safra.server;
 
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.slf4j.Logger;
