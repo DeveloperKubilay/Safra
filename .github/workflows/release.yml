@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           cat > release-notes.md <<EOF
-          Safra ${{ env.SAFRA_VERSION }} for Minecraft 1.21.11
+          Safra ${{ env.SAFRA_VERSION }} for Minecraft 1.21.1
 
           Included artifacts:
           - Fabric
