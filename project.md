@@ -33,11 +33,6 @@ Proje dort ana modulden olusur:
   - Forge event kayitlari
   - Forge client mixin
   - Forge config path ve loader bagli adapter'lar
-- `neoforge`
-  - NeoForge entrypoint
-  - NeoForge event kayitlari
-  - NeoForge client mixin
-  - NeoForge config path ve loader bagli adapter'lar
 
 ## Architecture Rule
 
@@ -45,7 +40,7 @@ Ana kural:
 
 - genel mantik `common` icinde kalir
 - loader API'sine bagli kod platform modulunde kalir
-- `fabric`, `forge`, `neoforge` katmanlari adapter/donusturucu gibi davranir
+- `fabric` ve `forge` katmanlari adapter/donusturucu gibi davranir
 
 Bir sey `common` icine alinacaksa su 3 kosulu saglamali:
 
@@ -147,13 +142,11 @@ Platform glue:
 
 - `fabric/src/client/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
-- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 
 Dedicated server adapter'lari:
 
 - `fabric/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
 - `forge/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
-- `neoforge/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
 
 LAN settings:
 
@@ -163,15 +156,11 @@ LAN settings:
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/ForgeLanSessionState.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/ForgeLanGameRules.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
-- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/NeoForgeLanSessionState.java`
-- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/NeoForgeLanGameRules.java`
-- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
 
 Mixin alanlari:
 
 - `fabric/src/client/java/org/developerkubilay/safra/mixin/client/`
 - `forge/src/main/java/org/developerkubilay/safra/mixin/client/`
-- `neoforge/src/main/java/org/developerkubilay/safra/mixin/client/`
 
 ## Build and Release
 
@@ -180,17 +169,14 @@ Ana komutlar:
 - `gradlew build`
 - `gradlew runClient`
 - `gradlew :forge:runClient`
-- `gradlew :neoforge:runClient`
 
 Root artifact'lar:
 
 - `build/libs/Safra-fabric-<version>.jar`
 - `build/libs/Safra-forge-<version>.jar`
-- `build/libs/Safra-neoforge-<version>.jar`
 
 GitHub Actions:
 
-- `.github/workflows/build.yml`
 - `.github/workflows/release.yml`
 - `.github/workflows/codeql.yml`
 
@@ -275,10 +261,8 @@ Yeni bir surume gecerken ilk bakilacak yerler:
 - root `build.gradle`
 - `fabric/build.gradle`
 - `forge/build.gradle`
-- `neoforge/build.gradle`
 - `fabric.mod.json`
 - `META-INF/mods.toml`
-- `META-INF/neoforge.mods.toml`
 - `common/src/main/java/org/developerkubilay/safra/p2p/`
 - `common/src/main/java/org/developerkubilay/safra/voicechat/`
 - platform `P2pManager` siniflari
@@ -287,3 +271,24 @@ Yeni bir surume gecerken ilk bakilacak yerler:
 - worker repo:
   - `C:\Users\kubil\Desktop\p2p\src\index.ts`
   - `C:\Users\kubil\Desktop\p2p\wrangler.jsonc`
+
+## Release and Port Guard Rails
+
+Yeni branch ya da yeni release oncesi hizli kontrol:
+
+1. Java matrix
+  - CI ve local build JVM degeri branch gereksinimiyle uyumlu olmali
+  - `1.20.1` icin pratikte build JVM `21`, compile target `17` tutulur
+
+2. Mixin uyumlulugu
+  - tum mixin json dosyalarinda `compatibilityLevel` ilgili branch runtime'ina uygun olmali
+  - overload method inject noktalarinda tam descriptor kullanilmali
+
+3. Resource metadata
+  - `pack.mcmeta` ilgili Minecraft surumunun kabul ettigi formatta olmali
+  - tek dosyayi tum surum branch'lerine kopyalamak yerine branch bazli kontrol edilmeli
+
+4. Release smoke test
+  - `gradlew runClient`
+  - `gradlew :forge:runClient`
+  - loglarda mixin apply veya resource pack metadata hatasi kalmadigi dogrulanmali
