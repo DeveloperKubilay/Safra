@@ -14,7 +14,6 @@ ext.devRunUsername = { Project targetProject ->
 
     def baseByProject = [
         fabric  : 100,
-        neoforge: 400,
         forge   : 700
     ]
     int base = baseByProject.get(targetProject.name, 100)
@@ -40,18 +39,10 @@ subprojects {
             url = 'https://maven.minecraftforge.net/'
         }
         maven {
-            name = 'NeoForged'
-            url = 'https://maven.neoforged.net/releases/'
-        }
-        maven {
             name = 'MaxHenkel'
             url = 'https://maven.maxhenkel.de/repository/public'
         }
     }
-}
-
-project(':neoforge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
 }
 
 project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
@@ -59,10 +50,9 @@ project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
 }
 
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':neoforge:build', ':forge:build')
+    dependsOn(':fabric:build', ':forge:build')
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':neoforge').layout.buildDirectory.dir('libs'))
     from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
     include("*-${project.version}.jar", "*-${project.version}-sources.jar")

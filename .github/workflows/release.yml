@@ -66,7 +66,6 @@ jobs:
 
           Included artifacts:
           - Fabric
-          - NeoForge
           - Forge
 
           Files are attached from the workflow build output.
