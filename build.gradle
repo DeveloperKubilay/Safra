@@ -4,7 +4,6 @@ plugins {
 
 group = project.maven_group
 version = project.mod_version
-def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -51,11 +50,11 @@ subprojects {
 }
 
 project(':neoforge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
+    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
 }
 
 project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
+    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
 }
 
 tasks.register('collectBuildLibs', Copy) {
