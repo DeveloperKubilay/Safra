@@ -201,6 +201,16 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
     }
 
+    public void shutdownAsync() {
+        BACKGROUND_EXECUTOR.execute(() -> {
+            try {
+                shutdown();
+            } catch (RuntimeException exception) {
+                LOGGER.debug("Safra P2P async shutdown failed", exception);
+            }
+        });
+    }
+
     public void tick(MinecraftClient client) {
         P2pHostService service = hostService;
         if (service == null) {

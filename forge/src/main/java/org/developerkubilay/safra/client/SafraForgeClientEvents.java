@@ -21,6 +21,6 @@ public final class SafraForgeClientEvents {
 
     @SubscribeEvent
     public static void clientStopping(GameShuttingDownEvent event) {
-        P2pManager.getInstance().shutdown();
+        P2pManager.getInstance().shutdownAsync();
     }
 }

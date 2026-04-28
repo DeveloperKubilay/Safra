@@ -10,6 +10,6 @@ public class SafraClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ClientTickEvents.END_CLIENT_TICK.register(P2pManager.getInstance()::tick);
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> P2pManager.getInstance().shutdown());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> P2pManager.getInstance().shutdownAsync());
     }
 }
