@@ -39,9 +39,14 @@ jobs:
 
       - name: Set up Gradle 9.4.0
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.4.0'
-          cache-provider: basic
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Configure Gradle JVM for CI
+        shell: bash
+        run: |
+          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
       - name: Resolve release version
         shell: bash
@@ -56,7 +61,7 @@ jobs:
           echo "SAFRA_TAG=v$version_number" >> "$GITHUB_ENV"
 
       - name: Build release artifacts
-        run: gradle build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
+        run: ./gradlew build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
 
       - name: Prepare release notes
         shell: bash

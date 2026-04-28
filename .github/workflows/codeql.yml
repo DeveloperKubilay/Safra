@@ -28,9 +28,14 @@ jobs:
 
       - name: Set up Gradle 9.4.0
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.4.0'
-          cache-provider: basic
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Configure Gradle JVM for CI
+        shell: bash
+        run: |
+          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -39,7 +44,7 @@ jobs:
           build-mode: manual
 
       - name: Build project
-        run: gradle build --stacktrace
+        run: ./gradlew build --stacktrace
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
