@@ -83,7 +83,7 @@ processResources {
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
-    inputs.property 'mod_version', project.version
+    inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
     filteringCharset = 'UTF-8'
 
@@ -96,7 +96,7 @@ processResources {
             mod_id: project.mod_id,
             mod_name: project.mod_name,
             mod_license: project.mod_license,
-            mod_version: project.version,
+            mod_version: project.mod_version,
             mod_description: project.mod_description
         )
     }

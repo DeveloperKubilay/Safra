@@ -3,7 +3,7 @@ plugins {
 }
 
 group = project.maven_group
-version = project.mod_version
+version = "${project.minecraft_version}-${project.mod_version}"
 def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
 ext.devRunUsername = { Project targetProject ->
