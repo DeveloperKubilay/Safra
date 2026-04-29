@@ -1,10 +1,16 @@
 .gradle/
 build/
 run/
+bin/
 .idea/
 out/
 *.iml
 .vscode/
+*.launch
+.settings/
+.classpath
+.project
+.eclipse/
 
 # OS files
 Thumbs.db
