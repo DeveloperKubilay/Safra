@@ -1,11 +1,10 @@
 package org.developerkubilay.safra.client.p2p;
 
-import net.minecraft.world.rule.GameRules;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
-import net.minecraft.client.MinecraftClient;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.gamerules.GameRules;
 
 public final class FabricLanSessionState {
     private static volatile boolean p2pEnabled = true;
@@ -25,7 +24,7 @@ public final class FabricLanSessionState {
         gameRuleSnapshot = new LinkedHashMap<>(config.getOpenToLanGameRules());
     }
 
-    public static void initializeGameRules(MinecraftClient client, GameRules rules) {
+    public static void initializeGameRules(Minecraft client, GameRules rules) {
         if (defaultGameRuleSnapshot.isEmpty()) {
             defaultGameRuleSnapshot = new LinkedHashMap<>(FabricLanGameRules.createDefaultSnapshot(client));
         }

@@ -1,12 +1,5 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.DisconnectedScreen;
-import net.minecraft.client.gui.screen.ProgressScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.text.Text;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,26 +10,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
+import net.minecraft.client.gui.screens.ProgressScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.network.chat.Component;
 
-@Mixin(MultiplayerScreen.class)
+@Mixin(JoinMultiplayerScreen.class)
 abstract class MultiplayerScreenMixin {
     @Shadow
     @Final
-    private Screen parent;
+    private Screen lastScreen;
 
-    @Inject(method = "connect", at = @At("HEAD"), cancellable = true)
-    private void safra$rewriteP2pBeforeVanillaParse(ServerInfo serverInfo, CallbackInfo ci) {
-        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.address)) {
+    @Inject(method = "join", at = @At("HEAD"), cancellable = true)
+    private void safra$rewriteP2pBeforeVanillaParse(ServerData serverInfo, CallbackInfo ci) {
+        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.ip)) {
             return;
         }
 
-        MultiplayerScreen self = (MultiplayerScreen) (Object) this;
+        JoinMultiplayerScreen self = (JoinMultiplayerScreen) (Object) this;
         ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.setTitle(Text.translatable("connect.connecting"));
-        progressScreen.setTask(Text.translatable("safra.p2p.prepare_message"));
-        MinecraftClient.getInstance().setScreen(progressScreen);
+        progressScreen.progressStartNoAbort(Component.translatable("connect.connecting"));
+        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        Minecraft.getInstance().setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
-            MinecraftClient.getInstance().execute(() -> {
+            Minecraft.getInstance().execute(() -> {
                 if (throwable != null) {
                     Throwable cause = throwable instanceof CompletionException completionException
                         && completionException.getCause() != null
@@ -46,15 +46,15 @@ abstract class MultiplayerScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    MinecraftClient.getInstance().setScreen(new DisconnectedScreen(
-                        this.parent,
-                        Text.translatable("connect.failed"),
-                        Text.translatable("safra.p2p.prepare_failed", message)
+                    Minecraft.getInstance().setScreen(new DisconnectedScreen(
+                        this.lastScreen,
+                        Component.translatable("connect.failed"),
+                        Component.translatable("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }
 
-                self.connect(rewriteResult.serverInfo());
+                self.join(rewriteResult.serverInfo());
             })
         );
         ci.cancel();

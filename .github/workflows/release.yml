@@ -31,11 +31,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Java 21
+      - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
 
       - name: Set up Gradle 9.4.0
         uses: gradle/actions/setup-gradle@v4
@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           cat > release-notes.md <<EOF
-          Safra ${{ env.SAFRA_VERSION }} for Minecraft 1.21.11
+          Safra ${{ env.SAFRA_VERSION }} for Minecraft 26.1
 
           Included artifacts:
           - Fabric

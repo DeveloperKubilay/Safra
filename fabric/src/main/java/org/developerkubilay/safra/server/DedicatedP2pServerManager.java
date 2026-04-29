@@ -17,15 +17,15 @@ public final class DedicatedP2pServerManager {
     }
 
     public static synchronized void serverStarted(MinecraftServer server) {
-        if (!server.isDedicated()) {
+        if (!server.isDedicatedServer()) {
             return;
         }
 
         stopHosting();
 
-        int tcpPort = server.getServerPort();
+        int tcpPort = server.getPort();
         try {
-            P2pHostSupport.HostStartResult hostStartResult = P2pHostSupport.startDedicatedHost(tcpPort, server.getServerIp(), LOGGER);
+            P2pHostSupport.HostStartResult hostStartResult = P2pHostSupport.startDedicatedHost(tcpPort, server.getLocalIp(), LOGGER);
             hostService = hostStartResult.service();
             LOGGER.info("Safra P2P dedicated server opened on local TCP port {}. Share code: {}", tcpPort, hostStartResult.shareCode().toDisplayCode());
             LOGGER.info("Players should use Direct Connect, enable P2P, and paste this code.");
@@ -35,7 +35,7 @@ public final class DedicatedP2pServerManager {
     }
 
     public static synchronized void serverStopping(MinecraftServer server) {
-        if (server.isDedicated()) {
+        if (server.isDedicatedServer()) {
             stopHosting();
         }
     }

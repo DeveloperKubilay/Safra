@@ -1,8 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[7.0.23,8.0)'
-    id 'net.minecraftforge.renamer' version '1.0.14'
+    id 'net.minecraftforge.gradle' version '[7.0.17,8)'
 }
 
 sourceSets {
@@ -18,7 +17,7 @@ base {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 
-def targetJavaVersion = 21
+def targetJavaVersion = 25
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
@@ -29,18 +28,7 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-renamer.enableMixinRefmaps {
-    config "${project.mod_id}.forge.mixins.json"
-}
-
-renamer.classes(tasks.named('jar', Jar)) {
-    archiveClassifier = 'srg'
-    mappings renamer.mixin.generatedMappings
-}
-
 minecraft {
-    mappings channel: 'official', version: project.minecraft_version
-
     runs {
         configureEach {
             workingDir.convention layout.projectDirectory.dir('run')
@@ -70,10 +58,7 @@ repositories {
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
-    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
-
-renamer.mappings(minecraft.dependency.toSrg)
 
 processResources {
     inputs.property 'minecraft_version', project.minecraft_version

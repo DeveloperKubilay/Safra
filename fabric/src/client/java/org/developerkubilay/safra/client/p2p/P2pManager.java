@@ -1,9 +1,5 @@
 package org.developerkubilay.safra.client.p2p;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ServerAddress;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.server.integrated.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -18,6 +14,10 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.client.server.IntegratedServer;
 
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
@@ -108,16 +108,16 @@ public final class P2pManager {
         }
     }
 
-    public synchronized RewriteResult createRewrite(ServerInfo originalServerInfo) throws IOException {
+    public synchronized RewriteResult createRewrite(ServerData originalServerInfo) throws IOException {
         long generation = ++rewriteGeneration;
         cancelPendingRewriteInternal();
         return createRewrite(originalServerInfo, generation);
     }
 
-    public CompletableFuture<RewriteResult> createRewriteAsync(ServerInfo originalServerInfo) {
+    public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        ServerInfo snapshot = new ServerInfo(originalServerInfo.name, originalServerInfo.address, originalServerInfo.getServerType());
-        snapshot.copyWithSettingsFrom(originalServerInfo);
+        ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.type());
+        snapshot.copyFrom(originalServerInfo);
 
         long generation;
         synchronized (this) {
@@ -144,9 +144,9 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
     }
 
-    private RewriteResult createRewrite(ServerInfo originalServerInfo, long generation) throws IOException {
+    private RewriteResult createRewrite(ServerData originalServerInfo, long generation) throws IOException {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.address);
+        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.ip);
 
         P2pClientProxy[] proxyRef = new P2pClientProxy[1];
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
@@ -190,10 +190,10 @@ public final class P2pManager {
             rewriteFuture = null;
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.getServerType());
-        rewritten.copyWithSettingsFrom(originalServerInfo);
-        rewritten.address = localAddress;
-        return new RewriteResult(ServerAddress.parse(rewritten.address), rewritten);
+        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.type());
+        rewritten.copyFrom(originalServerInfo);
+        rewritten.ip = localAddress;
+        return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
     }
 
     public synchronized void shutdown() {
@@ -201,19 +201,19 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
     }
 
-    public void tick(MinecraftClient client) {
+    public void tick(Minecraft client) {
         P2pHostService service = hostService;
         if (service == null) {
             return;
         }
 
-        IntegratedServer server = client.getServer();
+        IntegratedServer server = client.getSingleplayerServer();
         if (server == null) {
             stopHosting();
             return;
         }
 
-        int currentPort = server.getServerPort();
+        int currentPort = server.getPort();
         if (currentPort != service.tcpPort()) {
             LOGGER.info("Safra P2P host service stopping because LAN port changed from {} to {}", service.tcpPort(), currentPort);
             stopHosting();
@@ -260,6 +260,6 @@ public final class P2pManager {
         }
     }
 
-    public record RewriteResult(ServerAddress serverAddress, ServerInfo serverInfo) {
+    public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
     }
 }

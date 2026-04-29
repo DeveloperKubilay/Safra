@@ -17,7 +17,7 @@ base {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 
-def targetJavaVersion = 21
+def targetJavaVersion = 25
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

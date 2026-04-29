@@ -9,7 +9,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `1.21.11`
+- Current base version: `26.1`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout
@@ -246,6 +246,7 @@ Modern surumler:
 - mevcut coklu-loader mimariye daha yakin
 - `common` katmaninin buyuk kismi korunabilir
 - mapping ve toolchain guncellemesi ana maliyettir
+- `26.1+` icin Fabric tarafi da resmi Mojang isimlerine gecmistir; Yarn bagimliligi beklenmez
 
 Legacy surumler:
 
@@ -278,6 +279,7 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
 
 1. Java matrix
   - CI ve local build JVM degeri branch gereksinimiyle uyumlu olmali
+  - `26.1` icin build JVM ve compile target `25` olmali
   - `1.20.1` icin pratikte build JVM `21`, compile target `17` tutulur
 
 2. Mixin uyumlulugu

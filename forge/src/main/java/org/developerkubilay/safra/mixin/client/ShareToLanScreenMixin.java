@@ -1,6 +1,6 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -82,9 +82,9 @@ abstract class ShareToLanScreenMixin extends Screen {
         this.safra$p2pInitialized = true;
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        guiGraphics.drawCenteredString(
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void safra$renderHint(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        guiGraphics.centeredText(
             this.font,
             Component.translatable("safra.p2p.open_hint"),
             this.width / 2,
