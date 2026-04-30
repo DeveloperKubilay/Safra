@@ -354,7 +354,23 @@ final class P2pStunClient {
         return endpoints;
     }
 
-    record DiscoveredEndpoint(InetSocketAddress publicAddress, InetSocketAddress stunServer) {
+    static final class DiscoveredEndpoint {
+        private final InetSocketAddress publicAddress;
+        private final InetSocketAddress stunServer;
+
+        DiscoveredEndpoint(InetSocketAddress publicAddress, InetSocketAddress stunServer) {
+            this.publicAddress = publicAddress;
+            this.stunServer = stunServer;
+        }
+
+        InetSocketAddress publicAddress() {
+            return publicAddress;
+        }
+
+        InetSocketAddress stunServer() {
+            return stunServer;
+        }
+
         DiscoveredEndpoint withServer(InetSocketAddress server) {
             return new DiscoveredEndpoint(publicAddress, server);
         }
@@ -364,8 +380,11 @@ final class P2pStunClient {
         }
 
         boolean matches(SocketAddress remote) {
-            return remote instanceof InetSocketAddress socketAddress
-                && stunServer != null
+            if (!(remote instanceof InetSocketAddress)) {
+                return false;
+            }
+            InetSocketAddress socketAddress = (InetSocketAddress) remote;
+            return stunServer != null
                 && socketAddress.getAddress() != null
                 && stunServer.getAddress() != null
                 && socketAddress.getAddress().equals(stunServer.getAddress())
@@ -373,10 +392,29 @@ final class P2pStunClient {
         }
     }
 
-    record PendingRequest(InetSocketAddress server, byte[] transactionId) {
+    static final class PendingRequest {
+        private final InetSocketAddress server;
+        private final byte[] transactionId;
+
+        PendingRequest(InetSocketAddress server, byte[] transactionId) {
+            this.server = server;
+            this.transactionId = transactionId;
+        }
+
+        InetSocketAddress server() {
+            return server;
+        }
+
+        byte[] transactionId() {
+            return transactionId;
+        }
+
         boolean matches(SocketAddress remote) {
-            return remote instanceof InetSocketAddress socketAddress
-                && server != null
+            if (!(remote instanceof InetSocketAddress)) {
+                return false;
+            }
+            InetSocketAddress socketAddress = (InetSocketAddress) remote;
+            return server != null
                 && socketAddress.getAddress() != null
                 && server.getAddress() != null
                 && socketAddress.getAddress().equals(server.getAddress())

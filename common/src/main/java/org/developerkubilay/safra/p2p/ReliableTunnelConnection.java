@@ -95,16 +95,16 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         lastPacketReceivedAt = System.currentTimeMillis();
-        switch (packet.type()) {
-            case OPEN_ACK -> markOpened();
-            case DATA -> handleData(packet);
-            case ACK -> processAcknowledgement(packet.acknowledgement());
-            case CLOSE -> closeWithoutNotify("remote closed");
-            case OPEN -> {
-                if (!initiator) {
-                    sendOpenAck();
-                }
-            }
+        if (packet.type() == P2pPacket.Type.OPEN_ACK) {
+            markOpened();
+        } else if (packet.type() == P2pPacket.Type.DATA) {
+            handleData(packet);
+        } else if (packet.type() == P2pPacket.Type.ACK) {
+            processAcknowledgement(packet.acknowledgement());
+        } else if (packet.type() == P2pPacket.Type.CLOSE) {
+            closeWithoutNotify("remote closed");
+        } else if (packet.type() == P2pPacket.Type.OPEN && !initiator) {
+            sendOpenAck();
         }
     }
 

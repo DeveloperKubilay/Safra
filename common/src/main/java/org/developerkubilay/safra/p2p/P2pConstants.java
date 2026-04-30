@@ -37,17 +37,17 @@ public final class P2pConstants {
 
     static String rendezvousUrl() {
         String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
+        if (!P2pCompat.isBlank(property)) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
+        if (!P2pCompat.isBlank(environment)) {
             return environment.trim();
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
+        if (!P2pCompat.isBlank(legacyEnvironment)) {
             return legacyEnvironment.trim();
         }
 
@@ -56,17 +56,17 @@ public final class P2pConstants {
 
     static String rendezvousToken() {
         String property = System.getProperty("safra.rendezvousToken");
-        if (property != null && !property.isBlank()) {
+        if (!P2pCompat.isBlank(property)) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_TOKEN");
-        if (environment != null && !environment.isBlank()) {
+        if (!P2pCompat.isBlank(environment)) {
             return environment.trim();
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_TOKEN");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
+        if (!P2pCompat.isBlank(legacyEnvironment)) {
             return legacyEnvironment.trim();
         }
 

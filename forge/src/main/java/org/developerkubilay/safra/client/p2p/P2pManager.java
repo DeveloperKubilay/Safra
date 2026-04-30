@@ -2,8 +2,8 @@ package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
-import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.client.multiplayer.ServerAddress;
+import net.minecraft.server.integrated.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -22,10 +22,13 @@ import java.util.concurrent.Executor;
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
     private static final P2pManager INSTANCE = new P2pManager();
-    private static final Executor BACKGROUND_EXECUTOR = command -> {
-        Thread thread = new Thread(command, "safra-p2p-background");
-        thread.setDaemon(true);
-        thread.start();
+    private static final Executor BACKGROUND_EXECUTOR = new Executor() {
+        @Override
+        public void execute(Runnable command) {
+            Thread thread = new Thread(command, "safra-p2p-background");
+            thread.setDaemon(true);
+            thread.start();
+        }
     };
 
     private volatile P2pHostService hostService;
@@ -46,10 +49,9 @@ public final class P2pManager {
 
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
         stopHosting();
-
-        int token = P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token);
-        long generation = ++hostStartGeneration;
+        final int token = P2pHostSupport.createShareToken();
+        final P2pHostService service = new P2pHostService(tcpPort, token);
+        final long generation = ++hostStartGeneration;
         startingHostService = service;
 
         CompletableFuture<P2pShareCode> future = CompletableFuture.supplyAsync(() -> {
@@ -60,7 +62,6 @@ public final class P2pManager {
                         service.close();
                         throw new CancellationException("Safra P2P host start was replaced");
                     }
-
                     startingHostService = null;
                     hostService = service;
                     return shareCode;
@@ -73,14 +74,6 @@ public final class P2pManager {
                     }
                 }
                 throw new CompletionException(exception);
-            } catch (RuntimeException exception) {
-                service.close();
-                synchronized (P2pManager.this) {
-                    if (startingHostService == service) {
-                        startingHostService = null;
-                    }
-                }
-                throw exception;
             }
         }, BACKGROUND_EXECUTOR);
 
@@ -93,7 +86,6 @@ public final class P2pManager {
         P2pHostService starting = startingHostService;
         startingHostService = null;
         if (starting != null) {
-            LOGGER.info("Safra P2P pending host service stopping");
             starting.close();
         }
 
@@ -104,7 +96,6 @@ public final class P2pManager {
         }
 
         if (hostService != null) {
-            LOGGER.info("Safra P2P host service stopping");
             hostService.close();
             hostService = null;
         }
@@ -113,15 +104,15 @@ public final class P2pManager {
     public synchronized RewriteResult createRewrite(ServerData originalServerInfo) throws IOException {
         long generation = ++rewriteGeneration;
         cancelPendingRewriteInternal();
-        return createRewrite(originalServerInfo, generation);
+        return createRewriteInternal(originalServerInfo, generation);
     }
 
-    public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
+    public CompletableFuture<RewriteResult> createRewriteAsync(final ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.isLan());
+        final ServerData snapshot = new ServerData(originalServerInfo.serverName, originalServerInfo.serverIP, originalServerInfo.isOnLAN());
         snapshot.copyFrom(originalServerInfo);
 
-        long generation;
+        final long generation;
         synchronized (this) {
             generation = ++rewriteGeneration;
             cancelPendingRewriteInternal();
@@ -129,7 +120,7 @@ public final class P2pManager {
 
         CompletableFuture<RewriteResult> future = CompletableFuture.supplyAsync(() -> {
             try {
-                return createRewrite(snapshot, generation);
+                return createRewriteInternal(snapshot, generation);
             } catch (IOException exception) {
                 throw new CompletionException(exception);
             }
@@ -139,63 +130,6 @@ public final class P2pManager {
             rewriteFuture = future;
         }
         return future;
-    }
-
-    public synchronized void cancelPendingRewrite() {
-        rewriteGeneration++;
-        cancelPendingRewriteInternal();
-    }
-
-    private RewriteResult createRewrite(ServerData originalServerInfo, long generation) throws IOException {
-        Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.ip);
-
-        P2pClientProxy[] proxyRef = new P2pClientProxy[1];
-        P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
-            synchronized (P2pManager.this) {
-                if (activeClientProxy == proxyRef[0]) {
-                    activeClientProxy = null;
-                }
-                if (startingClientProxy == proxyRef[0]) {
-                    startingClientProxy = null;
-                }
-            }
-        });
-        proxyRef[0] = proxy;
-        synchronized (this) {
-            if (rewriteGeneration != generation) {
-                throw new CancellationException("Safra P2P connection prepare was canceled");
-            }
-            startingClientProxy = proxy;
-        }
-        int localPort;
-        try {
-            localPort = proxy.start();
-        } catch (IOException exception) {
-            proxy.close();
-            synchronized (this) {
-                if (startingClientProxy == proxy) {
-                    startingClientProxy = null;
-                }
-            }
-            throw exception;
-        }
-
-        synchronized (this) {
-            if (rewriteGeneration != generation || startingClientProxy != proxy) {
-                proxy.close();
-                throw new CancellationException("Safra P2P connection prepare was canceled");
-            }
-
-            startingClientProxy = null;
-            activeClientProxy = proxy;
-            rewriteFuture = null;
-        }
-        String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
-        rewritten.copyFrom(originalServerInfo);
-        rewritten.ip = localAddress;
-        return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
     }
 
     public synchronized void shutdown() {
@@ -209,13 +143,13 @@ public final class P2pManager {
             return;
         }
 
-        IntegratedServer server = client.getSingleplayerServer();
+        IntegratedServer server = client.getIntegratedServer();
         if (server == null) {
             stopHosting();
             return;
         }
 
-        int currentPort = server.getPort();
+        int currentPort = server.getServerPort();
         if (currentPort != service.tcpPort()) {
             LOGGER.info("Safra P2P host service stopping because LAN port changed from {} to {}", service.tcpPort(), currentPort);
             stopHosting();
@@ -243,6 +177,63 @@ public final class P2pManager {
         return P2pShareCode.parse(address).toDisplayCode();
     }
 
+    private RewriteResult createRewriteInternal(ServerData originalServerInfo, long generation) throws IOException {
+        Objects.requireNonNull(originalServerInfo, "originalServerInfo");
+        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.serverIP);
+
+        final P2pClientProxy[] proxyRef = new P2pClientProxy[1];
+        P2pClientProxy proxy = new P2pClientProxy(shareCode, new Runnable() {
+            @Override
+            public void run() {
+                synchronized (P2pManager.this) {
+                    if (activeClientProxy == proxyRef[0]) {
+                        activeClientProxy = null;
+                    }
+                    if (startingClientProxy == proxyRef[0]) {
+                        startingClientProxy = null;
+                    }
+                }
+            }
+        });
+        proxyRef[0] = proxy;
+
+        synchronized (this) {
+            if (rewriteGeneration != generation) {
+                throw new CancellationException("Safra P2P connection prepare was canceled");
+            }
+            startingClientProxy = proxy;
+        }
+
+        int localPort;
+        try {
+            localPort = proxy.start();
+        } catch (IOException exception) {
+            proxy.close();
+            synchronized (this) {
+                if (startingClientProxy == proxy) {
+                    startingClientProxy = null;
+                }
+            }
+            throw exception;
+        }
+
+        synchronized (this) {
+            if (rewriteGeneration != generation || startingClientProxy != proxy) {
+                proxy.close();
+                throw new CancellationException("Safra P2P connection prepare was canceled");
+            }
+            startingClientProxy = null;
+            activeClientProxy = proxy;
+            rewriteFuture = null;
+        }
+
+        String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
+        ServerData rewritten = new ServerData(originalServerInfo.serverName, localAddress, originalServerInfo.isOnLAN());
+        rewritten.copyFrom(originalServerInfo);
+        rewritten.serverIP = localAddress;
+        return new RewriteResult(ServerAddress.fromString(rewritten.serverIP), rewritten);
+    }
+
     private void cancelPendingRewriteInternal() {
         P2pClientProxy starting = startingClientProxy;
         startingClientProxy = null;
@@ -262,6 +253,21 @@ public final class P2pManager {
         }
     }
 
-    public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
+    public static final class RewriteResult {
+        private final ServerAddress serverAddress;
+        private final ServerData serverInfo;
+
+        public RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
+            this.serverAddress = serverAddress;
+            this.serverInfo = serverInfo;
+        }
+
+        public ServerAddress serverAddress() {
+            return serverAddress;
+        }
+
+        public ServerData serverInfo() {
+            return serverInfo;
+        }
     }
 }

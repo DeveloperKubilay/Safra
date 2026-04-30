@@ -41,7 +41,6 @@ public final class P2pClientProxy implements AutoCloseable {
         udpSocket = P2pSockets.datagramSocket();
         if (shareCode.isRendezvous()) {
             resolveRendezvousShareCode();
-            SafraVoiceTransportManager.getInstance().setJoinSession(rendezvousSession);
         } else {
             InetAddress remoteInetAddress = InetAddress.getByName(shareCode.host());
             remoteAddress = new InetSocketAddress(remoteInetAddress, shareCode.port());
@@ -76,7 +75,6 @@ public final class P2pClientProxy implements AutoCloseable {
             udpSocket.close();
         }
         if (rendezvousSession != null) {
-            SafraVoiceTransportManager.getInstance().clearJoinSession(rendezvousSession);
             rendezvousSession.close();
             rendezvousSession = null;
         }

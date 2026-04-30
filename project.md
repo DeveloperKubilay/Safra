@@ -9,12 +9,12 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `1.21.11`
+- Current base version: `1.12.2`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout
 
-Proje dort ana modulden olusur:
+Bu branch Forge only tutulur ve iki aktif kaynak alani kullanir:
 
 - `common`
   - loader bagimsiz cekirdek mantik
@@ -22,17 +22,13 @@ Proje dort ana modulden olusur:
   - STUN
   - rendezvous istemcisi
   - reliable UDP tunnel
-  - Simple Voice Chat ortak compat mantigi
 - `fabric`
-  - Fabric entrypoint
-  - Fabric client mixin
-  - Fabric config path ve loader bagli adapter'lar
-  - Fabric ekran entegrasyonu
+  - bu branch'te yok
 - `forge`
   - Forge entrypoint
   - Forge event kayitlari
-  - Forge client mixin
   - Forge config path ve loader bagli adapter'lar
+  - legacy GUI entegrasyonu
 
 ## Architecture Rule
 
@@ -40,7 +36,7 @@ Ana kural:
 
 - genel mantik `common` icinde kalir
 - loader API'sine bagli kod platform modulunde kalir
-- `fabric` ve `forge` katmanlari adapter/donusturucu gibi davranir
+- bu branch'te aktif platform katmani sadece `forge`'dur
 
 Bir sey `common` icine alinacaksa su 3 kosulu saglamali:
 
@@ -90,13 +86,10 @@ Senaryolar:
 
 ## Voice Chat
 
-Simple Voice Chat desteklenir.
+Bu branch'te Simple Voice Chat kapatilidir.
 
-- ayri ikinci share code yoktur
-- ayni Safra session altinda opsiyonel `voice` kanali vardir
-- voice verisi reliable tunnel ustunden gitmez
-- voice kendi UDP yolunu kullanir
-- SVC yoksa bu katman hic devreye girmez
+- ana hedef legacy Forge 1.12.2 P2P/LAN akisini ayaga kaldirmaktir
+- voice entegrasyonu sonraki legacy uyarlamaya birakilmistir
 
 ## Worker and STUN
 
@@ -129,38 +122,26 @@ Ortak network cekirdegi:
 - `common/src/main/java/org/developerkubilay/safra/p2p/P2pConstants.java`
 - `common/src/main/java/org/developerkubilay/safra/p2p/P2pShareCode.java`
 
-Ortak voice compat:
-
-- `common/src/main/java/org/developerkubilay/safra/p2p/SafraVoiceServerSocket.java`
-- `common/src/main/java/org/developerkubilay/safra/p2p/SafraVoiceClientSocket.java`
-- `common/src/main/java/org/developerkubilay/safra/p2p/SafraVoiceTransportManager.java`
-- `common/src/main/java/org/developerkubilay/safra/voicechat/SafraVoicechatPluginBase.java`
+Voice alanlari bu branch'te devre disidir.
 
 ## Important Platform Files
 
 Platform glue:
 
-- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 
 Dedicated server adapter'lari:
 
-- `fabric/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
 - `forge/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
 
 LAN settings:
 
-- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/FabricLanSessionState.java`
-- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/FabricLanGameRules.java`
-- `fabric/src/client/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/ForgeLanSessionState.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/ForgeLanGameRules.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
-
-Mixin alanlari:
-
-- `fabric/src/client/java/org/developerkubilay/safra/mixin/client/`
-- `forge/src/main/java/org/developerkubilay/safra/mixin/client/`
+- `forge/src/main/java/org/developerkubilay/safra/client/p2p/SafraGuiMultiplayer.java`
+- `forge/src/main/java/org/developerkubilay/safra/client/p2p/SafraDirectConnectScreen.java`
+- `forge/src/main/java/org/developerkubilay/safra/client/p2p/SafraGuiShareToLan.java`
 
 ## Build and Release
 
@@ -168,12 +149,10 @@ Ana komutlar:
 
 - `gradlew build`
 - `gradlew runClient`
-- `gradlew :forge:runClient`
 
-Root artifact'lar:
+Root artifact:
 
-- `build/libs/Safra-fabric-<version>.jar`
-- `build/libs/Safra-forge-<version>.jar`
+- `build/libs/Safra-<version>.jar`
 
 GitHub Actions:
 
@@ -211,10 +190,10 @@ Kurallar:
 - loader adapter kodu platform modulunde kalir
 - genel mantik firsat bulundukca `common` icine cekilir
 
-Onerilen branch mantigi:
+Bu branch:
 
-- `main` = `1.21.11`
-- sonra ihtiyaca gore `mc/<version>`
+- `1.12.2`
+- Forge only
 
 ## Planned Version Roadmap
 
@@ -251,7 +230,7 @@ Legacy surumler:
 
 - daha fazla loader-ozel uyarlama ister
 - ekran, mixin ve lifecycle glue tarafinda daha cok fark cikar
-- ozellikle `1.12.2` icin ilk hedef `Forge only` olmali
+- `1.12.2` icin bu branch Forge only tutulur
 
 ## Porting Checklist
 

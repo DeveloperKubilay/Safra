@@ -81,9 +81,9 @@ public final class P2pHostService implements AutoCloseable {
                 token,
                 P2pStunClient.publicEndpoints(discoveredEndpoints),
                 this::punchRemoteEndpoint,
-                SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint
+                remoteAddress -> {
+                }
             );
-            SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
             LOGGER.info("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
@@ -106,7 +106,6 @@ public final class P2pHostService implements AutoCloseable {
         connections.clear();
         scheduler.shutdownNow();
         if (rendezvousSession != null) {
-            SafraVoiceTransportManager.getInstance().clearHostSession(rendezvousSession);
             rendezvousSession.close();
             rendezvousSession = null;
         }

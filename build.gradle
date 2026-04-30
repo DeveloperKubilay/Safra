@@ -1,73 +1,118 @@
 plugins {
-    id 'base'
+    id 'java'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '5.1.+'
 }
 
 group = project.maven_group
 version = "${project.minecraft_version}-${project.mod_version}"
-def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
-ext.devRunUsername = { Project targetProject ->
-    def override = gradle.startParameter.projectProperties['devUsername']
-    if (override != null && !override.isBlank()) {
-        return override
-    }
-
-    def baseByProject = [
-        fabric  : 100,
-        forge   : 700
-    ]
-    int base = baseByProject.get(targetProject.name, 100)
-    long seed = System.currentTimeMillis() ^ (targetProject.path.hashCode() * 31L)
-    int offset = Math.floorMod((int) seed, 300)
-    return "Player${base + offset}"
+base {
+    archivesName = project.archives_base_name
 }
 
-allprojects {
-    group = rootProject.group
-    version = rootProject.version
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
 }
 
-subprojects {
-    repositories {
-        mavenCentral()
-        maven {
-            name = 'Fabric'
-            url = 'https://maven.fabricmc.net/'
+sourceSets {
+    main {
+        java {
+            srcDirs = [
+                'common/src/main/java',
+                'forge/src/main/java'
+            ]
+            exclude 'org/developerkubilay/safra/mixin/**'
+            exclude 'org/developerkubilay/safra/voicechat/**'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoice*.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraPassthroughVoiceClientSocket.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraRawUdpPacket.java'
         }
-        maven {
-            name = 'Forge'
-            url = 'https://maven.minecraftforge.net/'
-        }
-        maven {
-            name = 'MaxHenkel'
-            url = 'https://maven.maxhenkel.de/repository/public'
+        resources {
+            srcDirs = [
+                'common/src/main/resources',
+                'forge/src/main/resources'
+            ]
+            exclude 'safra.forge.mixins.json'
+            exclude 'META-INF/mods.toml'
         }
     }
 }
 
-project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
+configurations {
+    embed
+    implementation.extendsFrom(embed)
 }
 
-tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':forge:build')
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':forge').layout.buildDirectory.dir('libs'))
-    into(layout.buildDirectory.dir('libs'))
-    include("*-${project.version}.jar", "*-${project.version}-sources.jar")
-
-    doFirst {
-        delete(layout.buildDirectory.dir('libs').get().asFile)
+minecraft {
+    mappings channel: project.mcp_mappings_channel, version: "${project.mcp_mappings_version}-1.12"
+    runs {
+        client {
+            workingDirectory project.file('run')
+            args '--username', 'SafraDev'
+        }
+        server {
+            workingDirectory project.file('run')
+        }
     }
 }
 
-tasks.register('runClient') {
-    group = 'application'
-    description = 'Runs the Fabric client from the root project.'
-    dependsOn(':fabric:runClient')
+repositories {
+    mavenCentral()
 }
 
-tasks.named('build') {
-    dependsOn(tasks.named('collectBuildLibs'))
+dependencies {
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+    embed("org.java-websocket:Java-WebSocket:${project.java_websocket_version}") {
+        transitive = false
+    }
+    embed("org.slf4j:slf4j-api:1.7.25") {
+        transitive = false
+    }
+}
+
+processResources {
+    inputs.property 'mod_id', project.mod_id
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'mod_description', project.mod_description
+
+    filesMatching(['mcmod.info', 'pack.mcmeta']) {
+        expand(
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_version: project.mod_version,
+            mod_description: project.mod_description,
+            minecraft_version: project.minecraft_version
+        )
+    }
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    manifest {
+        attributes(
+            'Implementation-Title': project.mod_name,
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+tasks.withType(JavaExec).configureEach {
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(8)
+    })
 }

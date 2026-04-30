@@ -1,13 +1,15 @@
 package org.developerkubilay.safra.client.config;
 
-import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.fml.common.Loader;
 
+import java.io.File;
 import java.nio.file.Path;
 
 public final class SafraClientConfig extends BaseSafraClientConfig {
     private static final String FILE_NAME = "safra-client.json";
 
     private static SafraClientConfig instance;
+
     private SafraClientConfig() {
     }
 
@@ -20,6 +22,6 @@ public final class SafraClientConfig extends BaseSafraClientConfig {
 
     @Override
     protected Path configPath() {
-        return FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
+        return new File(Loader.instance().getConfigDir(), FILE_NAME).toPath();
     }
 }

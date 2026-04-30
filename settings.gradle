@@ -1,23 +1,11 @@
 pluginManagement {
     repositories {
-        maven {
-            name = 'Fabric'
-            url = 'https://maven.fabricmc.net/'
-        }
+        gradlePluginPortal()
         maven {
             name = 'Forge'
             url = 'https://maven.minecraftforge.net/'
         }
-        gradlePluginPortal()
     }
 }
 
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
-}
-
 rootProject.name = 'Safra'
-
-include 'common'
-include 'fabric'
-include 'forge'
