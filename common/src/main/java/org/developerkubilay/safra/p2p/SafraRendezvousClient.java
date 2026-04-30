@@ -292,7 +292,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             buffer.append(data);
             if (last) {
                 try {
-                    JsonObject message = JsonParser.parseString(buffer.toString()).getAsJsonObject();
+                    JsonObject message = new JsonParser().parse(buffer.toString()).getAsJsonObject();
                     handle(message);
                 } catch (RuntimeException exception) {
                     fail(exception);

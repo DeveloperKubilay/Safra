@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.16-SNAPSHOT'
+    id 'fabric-loom' version '1.14.4'
     id 'maven-publish'
 }
 
@@ -7,6 +7,8 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        java.srcDir(file('src/client/java'))
+        resources.srcDir(file('src/client/resources'))
     }
 }
 
@@ -17,12 +19,9 @@ base {
 def devUsername = rootProject.ext.devRunUsername(project)
 
 loom {
-    splitEnvironmentSourceSets()
-
     mods {
         "${project.mod_id}" {
             sourceSet sourceSets.main
-            sourceSet sourceSets.client
         }
     }
 
@@ -34,18 +33,13 @@ loom {
     }
 }
 
-fabricApi {
-    configureDataGeneration {
-        client = true
-    }
-}
-
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
+    implementation "org.slf4j:slf4j-api:1.7.36"
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 

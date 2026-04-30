@@ -9,7 +9,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `1.21.11`
+- Current base version: `1.14.4`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout
@@ -252,6 +252,17 @@ Legacy surumler:
 - daha fazla loader-ozel uyarlama ister
 - ekran, mixin ve lifecycle glue tarafinda daha cok fark cikar
 - ozellikle `1.12.2` icin ilk hedef `Forge only` olmali
+
+### 1.14.4 branch notu
+
+- bu branch `1.20.1` tabanindan kopyalanip `1.14.4` icin port edilmeye baslandi
+- build metadata, wrapper ve kaynak yerlesimi `1.14.4` icin ayarlandi
+- Fabric tarafi eski surum merged jar yapisina cekildi
+- `settings.gradle` icinde `-PfabricOnly` ve `-PforgeOnly` ile tek loader debug akisi eklendi
+- kalan ana isler:
+  - Fabric ekran/API uyarlari (`Text`, `ButtonWidget`, `ServerAddress`, `GameRules`, render imzalari)
+  - ortak utility bagimliliklari (`slf4j`, eski gson parse yolu)
+  - Forge `1.14.4` userdev/mavenizer zincirinin stabil hale getirilmesi
 
 ## Porting Checklist
 

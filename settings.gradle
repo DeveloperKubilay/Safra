@@ -12,12 +12,12 @@ pluginManagement {
     }
 }
 
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
-}
-
 rootProject.name = 'Safra'
 
 include 'common'
-include 'fabric'
-include 'forge'
+if (!gradle.startParameter.projectProperties.containsKey('forgeOnly')) {
+    include 'fabric'
+}
+if (!gradle.startParameter.projectProperties.containsKey('fabricOnly')) {
+    include 'forge'
+}

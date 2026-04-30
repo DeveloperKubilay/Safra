@@ -45,15 +45,25 @@ subprojects {
     }
 }
 
-project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
+def fabricProject = findProject(':fabric')
+def forgeProject = findProject(':forge')
+
+if (forgeProject != null) {
+    project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
+        onlyIf { !rootRunClientRequested }
+    }
 }
 
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':forge:build')
+    if (fabricProject != null) {
+        dependsOn(':fabric:build')
+        from(project(':fabric').layout.buildDirectory.dir('libs'))
+    }
+    if (forgeProject != null) {
+        dependsOn(':forge:build')
+        from(project(':forge').layout.buildDirectory.dir('libs'))
+    }
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
     include("*-${project.version}.jar", "*-${project.version}-sources.jar")
 
@@ -64,8 +74,10 @@ tasks.register('collectBuildLibs', Copy) {
 
 tasks.register('runClient') {
     group = 'application'
-    description = 'Runs the Fabric client from the root project.'
-    dependsOn(':fabric:runClient')
+    description = 'Runs the Fabric client from the root project when Fabric is included.'
+    if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    }
 }
 
 tasks.named('build') {
