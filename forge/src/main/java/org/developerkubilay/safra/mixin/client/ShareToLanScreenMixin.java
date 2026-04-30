@@ -70,11 +70,6 @@ abstract class ShareToLanScreenMixin extends Screen {
         this.safra$p2pInitialized = true;
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(PoseStack poseStack, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        drawCenteredString(poseStack, this.font, Component.translatable("safra.p2p.open_hint"), this.width / 2, 176, 0xA0A0A0);
-    }
-
     @Unique
     private Component safra$getToggleText() {
         return Component.translatable(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");

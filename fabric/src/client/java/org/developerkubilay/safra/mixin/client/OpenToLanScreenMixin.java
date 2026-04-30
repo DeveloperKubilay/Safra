@@ -3,7 +3,7 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.ClickEvent;
@@ -35,19 +35,13 @@ abstract class OpenToLanScreenMixin extends Screen {
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
 
     @Shadow
-    private int port;
-
-    @Shadow
-    private TextFieldWidget portField;
-
-    @Shadow
     private boolean allowCommands;
 
     @Unique
-    private ButtonWidget safra$p2pButton;
+    private CyclingButtonWidget<Boolean> safra$p2pButton;
 
     @Unique
-    private ButtonWidget safra$onlineModeButton;
+    private CyclingButtonWidget<Boolean> safra$onlineModeButton;
 
     @Unique
     private ButtonWidget safra$serverSettingsButton;
@@ -82,25 +76,26 @@ abstract class OpenToLanScreenMixin extends Screen {
             FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
 
-        this.portField.setWidth(70);
-        this.portField.setX(this.width / 2 - 80);
-        this.portField.y = 156;
         this.safra$p2pButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 - 5, 156, 85, 20, this.safra$getToggleText(), button -> {
-                this.safra$p2pEnabled = !this.safra$p2pEnabled;
-                SafraClientConfig.get().setOpenToLanP2pEnabled(this.safra$p2pEnabled);
-                button.setMessage(this.safra$getToggleText());
-            })
+            CyclingButtonWidget.onOffBuilder(this.safra$p2pEnabled)
+                .build(this.width / 2 - 100, 180, 98, 20,
+                    Text.translatable("safra.p2p.toggle"),
+                    (button, value) -> {
+                        this.safra$p2pEnabled = value;
+                        SafraClientConfig.get().setOpenToLanP2pEnabled(this.safra$p2pEnabled);
+                    })
         );
         this.safra$onlineModeButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 - 100, 180, 98, 20, this.safra$getOnlineModeText(), button -> {
-                this.safra$onlineModeEnabled = !this.safra$onlineModeEnabled;
-                SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
-                button.setMessage(this.safra$getOnlineModeText());
-            })
+            CyclingButtonWidget.onOffBuilder(this.safra$onlineModeEnabled)
+                .build(this.width / 2 + 2, 180, 98, 20,
+                    Text.translatable("safra.p2p.online_mode.short"),
+                    (button, value) -> {
+                        this.safra$onlineModeEnabled = value;
+                        SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
+                    })
         );
         this.safra$serverSettingsButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 + 2, 180, 98, 20, Text.translatable("safra.p2p.server_settings.short"), button ->
+            new ButtonWidget(this.width / 2 - 100, 204, 200, 20, Text.translatable("safra.p2p.server_settings.short"), button ->
                 this.client.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             )
         );
@@ -108,7 +103,8 @@ abstract class OpenToLanScreenMixin extends Screen {
     }
 
     @Inject(method = "method_19851", at = @At("HEAD"))
-    private void safra$applyOnlineMode(IntegratedServer server, ButtonWidget button, CallbackInfo ci) {
+    private void safra$applyOnlineMode(ButtonWidget button, CallbackInfo ci) {
+        IntegratedServer server = this.client == null ? null : this.client.getServer();
         if (server != null) {
             this.allowCommands = FabricLanSessionState.isAllowCommandsEnabled();
             server.setOnlineMode(this.safra$onlineModeEnabled);
@@ -116,17 +112,17 @@ abstract class OpenToLanScreenMixin extends Screen {
                 server.setPreventProxyConnections(false);
             }
             SAFRA_LOGGER.debug(
-                "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}, enforceSecureProfile={}",
+                "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
                 server.isOnlineMode(),
-                server.shouldPreventProxyConnections(),
-                server.shouldEnforceSecureProfile()
+                server.shouldPreventProxyConnections()
             );
         }
     }
 
     @Inject(method = "method_19851", at = @At("TAIL"))
-    private void safra$startP2pHost(IntegratedServer server, ButtonWidget button, CallbackInfo ci) {
-        if (server == null || server.getServerPort() != this.port) {
+    private void safra$startP2pHost(ButtonWidget button, CallbackInfo ci) {
+        IntegratedServer server = this.client == null ? null : this.client.getServer();
+        if (server == null || server.getServerPort() <= 0) {
             return;
         }
 
@@ -137,7 +133,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             return;
         }
 
-        int tcpPort = this.port;
+        int tcpPort = server.getServerPort();
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.starting"));
         P2pManager.getInstance().startHostingAsync(tcpPort).whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
@@ -153,21 +149,6 @@ abstract class OpenToLanScreenMixin extends Screen {
                 safra$publishShareCode(tcpPort, shareCode);
             });
         });
-    }
-
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        drawCenteredText(matrices, this.textRenderer, Text.translatable("safra.p2p.open_hint"), this.width / 2, 232, 0xA0A0A0);
-    }
-
-    @Unique
-    private MutableText safra$getToggleText() {
-        return Text.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
-    }
-
-    @Unique
-    private MutableText safra$getOnlineModeText() {
-        return Text.translatable(this.safra$onlineModeEnabled ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off");
     }
 
     @Unique
@@ -187,6 +168,11 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.copied"));
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.instructions"));
         this.client.getNarratorManager().narrate(Text.translatable("safra.p2p.host.narration", shareCodeText));
+    }
+
+    @Inject(method = "render", at = @At("TAIL"))
+    private void safra$renderHint(MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        drawCenteredText(matrices, this.textRenderer, Text.translatable("safra.p2p.open_hint"), this.width / 2, 228, 0xA0A0A0);
     }
 
     @Unique
