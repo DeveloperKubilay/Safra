@@ -1,8 +1,8 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.screen.DirectConnectScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.DirectConnectScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -59,12 +59,8 @@ abstract class DirectConnectScreenMixin extends Screen {
 
         ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
         if (cancelButton != null) {
-            this.selectServerButton.setWidth(98);
-            this.selectServerButton.setX(this.width / 2 - 100);
-            this.selectServerButton.setY(this.height / 4 + 108);
-            cancelButton.setWidth(98);
-            cancelButton.setX(this.width / 2 + 2);
-            cancelButton.setY(this.height / 4 + 108);
+            this.selectServerButton.setDimensionsAndPosition(98, 20, this.width / 2 - 100, this.height / 4 + 108);
+            cancelButton.setDimensionsAndPosition(98, 20, this.width / 2 + 2, this.height / 4 + 108);
         }
 
         this.safra$p2pToggle = this.addDrawableChild(

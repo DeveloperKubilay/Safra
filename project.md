@@ -9,7 +9,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `1.21.11`
+- Current base version: `1.20.4`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout
@@ -221,7 +221,7 @@ Onerilen branch mantigi:
 Onerilen sira:
 
 1. `mc/26.1`
-2. `mc/1.20.1`
+2. `mc/1.20.4`
 3. `mc/1.19.2`
 4. `mc/1.18.2`
 5. `mc/1.16.5`
@@ -232,7 +232,7 @@ Uzun vadeli hedef ailesi:
 
 - `26.1`
 - `1.21.11`
-- `1.20.1`
+- `1.20.4`
 - `1.19.2`
 - `1.18.2`
 - `1.16.5`
@@ -278,7 +278,7 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
 
 1. Java matrix
   - CI ve local build JVM degeri branch gereksinimiyle uyumlu olmali
-  - `1.20.1` icin pratikte build JVM `21`, compile target `17` tutulur
+  - `1.20.4` icin pratikte build JVM `21`, compile target `17` tutulur
 
 2. Mixin uyumlulugu
   - tum mixin json dosyalarinda `compatibilityLevel` ilgili branch runtime'ina uygun olmali

@@ -118,7 +118,7 @@ public final class P2pManager {
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.isLan());
+        ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.type());
         snapshot.copyFrom(originalServerInfo);
 
         long generation;
@@ -192,7 +192,7 @@ public final class P2pManager {
             rewriteFuture = null;
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
+        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.type());
         rewritten.copyFrom(originalServerInfo);
         rewritten.ip = localAddress;
         return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
