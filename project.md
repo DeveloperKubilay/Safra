@@ -9,7 +9,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `1.21.11`
+- Current base version: `1.16.5`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout

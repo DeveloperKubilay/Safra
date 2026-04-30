@@ -7,7 +7,7 @@ import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.text.Text;
+import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,10 +31,10 @@ abstract class MultiplayerScreenMixin {
             return;
         }
 
-        ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.setTitle(Text.translatable("connect.connecting"));
-        progressScreen.setTask(Text.translatable("safra.p2p.prepare_message"));
-        MinecraftClient.getInstance().setScreen(progressScreen);
+        ProgressScreen progressScreen = new ProgressScreen();
+        progressScreen.method_15412(new TranslatableText("connect.connecting"));
+        progressScreen.method_15413(new TranslatableText("safra.p2p.prepare_message"));
+        MinecraftClient.getInstance().openScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             MinecraftClient.getInstance().execute(() -> {
                 if (throwable != null) {
@@ -46,15 +46,15 @@ abstract class MultiplayerScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    MinecraftClient.getInstance().setScreen(new DisconnectedScreen(
+                    MinecraftClient.getInstance().openScreen(new DisconnectedScreen(
                         this.parent,
-                        Text.translatable("connect.failed"),
-                        Text.translatable("safra.p2p.prepare_failed", message)
+                        new TranslatableText("connect.failed"),
+                        new TranslatableText("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }
 
-                ConnectScreen.connect(this.parent, MinecraftClient.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                MinecraftClient.getInstance().openScreen(new ConnectScreen(this.parent, MinecraftClient.getInstance(), rewriteResult.serverInfo()));
             })
         );
         ci.cancel();

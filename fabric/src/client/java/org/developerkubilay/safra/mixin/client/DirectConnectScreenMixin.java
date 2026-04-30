@@ -4,11 +4,12 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.DirectConnectScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
+import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
@@ -32,7 +33,7 @@ abstract class DirectConnectScreenMixin extends Screen {
     private ServerInfo serverEntry;
 
     @Unique
-    private CyclingButtonWidget<Boolean> safra$p2pToggle;
+    private ButtonWidget safra$p2pToggle;
 
     @Unique
     private boolean safra$p2pEnabled;
@@ -60,23 +61,28 @@ abstract class DirectConnectScreenMixin extends Screen {
         ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
         if (cancelButton != null) {
             this.selectServerButton.setWidth(98);
-            this.selectServerButton.setX(this.width / 2 - 100);
-            this.selectServerButton.setY(this.height / 4 + 108);
+            this.selectServerButton.x = this.width / 2 - 100;
+            this.selectServerButton.y = this.height / 4 + 108;
             cancelButton.setWidth(98);
-            cancelButton.setX(this.width / 2 + 2);
-            cancelButton.setY(this.height / 4 + 108);
+            cancelButton.x = this.width / 2 + 2;
+            cancelButton.y = this.height / 4 + 108;
         }
 
-        this.safra$p2pToggle = this.addDrawableChild(
-            CyclingButtonWidget.onOffBuilder(this.safra$p2pEnabled)
-                .build(this.width / 2 - 100, this.height / 4 + 84, 200, 20,
-                    Text.translatable("safra.p2p.toggle"),
-                    (button, value) -> {
-                        this.safra$p2pEnabled = value;
-                        SafraClientConfig.get().setDirectConnectP2pEnabled(value);
-                        this.safra$refreshAddressField();
-                        this.safra$updateValidation();
-                    })
+        this.safra$p2pToggle = this.addButton(
+            new ButtonWidget(
+                this.width / 2 - 100,
+                this.height / 4 + 84,
+                200,
+                20,
+                this.safra$getToggleText(),
+                button -> {
+                    this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                    SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+                    button.setMessage(this.safra$getToggleText());
+                    this.safra$refreshAddressField();
+                    this.safra$updateValidation();
+                }
+            )
         );
 
         this.safra$p2pInitialized = true;
@@ -115,9 +121,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setPlaceholder(this.safra$p2pEnabled
-            ? Text.translatable("safra.p2p.placeholder")
-            : Text.empty());
+        this.addressField.setSuggestion(this.safra$p2pEnabled ? "ABC123" : null);
     }
 
     @Unique
@@ -129,7 +133,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         String address = this.addressField.getText();
         this.selectServerButton.active = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
-            : ServerAddress.isValid(address);
+            : ServerAddress.parse(address) != null;
     }
 
     @Unique
@@ -141,5 +145,10 @@ abstract class DirectConnectScreenMixin extends Screen {
             }
         }
         return candidate;
+    }
+
+    @Unique
+    private TranslatableText safra$getToggleText() {
+        return new TranslatableText(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 }

@@ -1,8 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[7.0.23,8.0)'
-    id 'net.minecraftforge.renamer' version '1.0.14'
+    id 'net.minecraftforge.gradle' version '5.1.+'
 }
 
 sourceSets {
@@ -29,51 +28,28 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-renamer.enableMixinRefmaps {
-    config "${project.mod_id}.forge.mixins.json"
-}
-
-renamer.classes(tasks.named('jar', Jar)) {
-    archiveClassifier = 'srg'
-    mappings renamer.mixin.generatedMappings
-}
-
 minecraft {
-    mappings channel: 'official', version: project.minecraft_version
-
-    runs {
-        configureEach {
-            workingDir.convention layout.projectDirectory.dir('run')
-            args "--mixin.config=${project.mod_id}.forge.mixins.json"
-        }
-
-        register('client') {
-            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-            systemProperty 'io.netty.transport.noNative', 'true'
-            systemProperty 'java.net.preferIPv4Stack', 'false'
-            args '--username', devUsername
-        }
-
-        register('server') {
-            args '--nogui'
-        }
-    }
+    mappings channel: 'snapshot', version: '20210309-1.16.5'
 }
 
 repositories {
-    minecraft.mavenizer(it)
-    maven fg.forgeMaven
-    maven fg.minecraftLibsMaven
     mavenCentral()
+    maven {
+        name = 'Forge'
+        url = 'https://maven.minecraftforge.net/'
+    }
+    maven {
+        name = 'Minecraft Libraries'
+        url = 'https://libraries.minecraft.net/'
+    }
 }
 
 dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+    compileOnly 'org.slf4j:slf4j-api:1.7.36'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
-
-renamer.mappings(minecraft.dependency.toSrg)
 
 processResources {
     inputs.property 'minecraft_version', project.minecraft_version

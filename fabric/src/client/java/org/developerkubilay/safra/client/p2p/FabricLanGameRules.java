@@ -6,10 +6,13 @@ import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.GameRules;
 
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class FabricLanGameRules {
+    private static final Method INT_RULE_DESERIALIZE = findIntRuleDeserialize();
+
     private FabricLanGameRules() {
     }
 
@@ -66,12 +69,29 @@ public final class FabricLanGameRules {
                 if (rule instanceof GameRules.BooleanRule booleanRule) {
                     booleanRule.set(Boolean.parseBoolean(serializedValue), server);
                 } else if (rule instanceof GameRules.IntRule intRule) {
-                    try {
-                        intRule.set(Integer.parseInt(serializedValue), server);
-                    } catch (NumberFormatException ignored) {
-                    }
+                    applyIntRule(intRule, serializedValue);
                 }
             }
         });
+    }
+
+    private static void applyIntRule(GameRules.IntRule intRule, String serializedValue) {
+        if (INT_RULE_DESERIALIZE == null) {
+            return;
+        }
+        try {
+            INT_RULE_DESERIALIZE.invoke(intRule, serializedValue);
+        } catch (ReflectiveOperationException ignored) {
+        }
+    }
+
+    private static Method findIntRuleDeserialize() {
+        try {
+            Method method = GameRules.IntRule.class.getDeclaredMethod("deserialize", String.class);
+            method.setAccessible(true);
+            return method;
+        } catch (ReflectiveOperationException exception) {
+            return null;
+        }
     }
 }
