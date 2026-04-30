@@ -14,7 +14,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 
 ## Module Layout
 
-Proje dort ana modulden olusur:
+Proje bes ana modulden olusur:
 
 - `common`
   - loader bagimsiz cekirdek mantik
@@ -28,6 +28,11 @@ Proje dort ana modulden olusur:
   - Fabric client mixin
   - Fabric config path ve loader bagli adapter'lar
   - Fabric ekran entegrasyonu
+- `neoforge`
+  - NeoForge entrypoint
+  - NeoForge event kayitlari
+  - NeoForge client mixin
+  - NeoForge config path ve loader bagli adapter'lar
 - `forge`
   - Forge entrypoint
   - Forge event kayitlari
@@ -40,7 +45,7 @@ Ana kural:
 
 - genel mantik `common` icinde kalir
 - loader API'sine bagli kod platform modulunde kalir
-- `fabric` ve `forge` katmanlari adapter/donusturucu gibi davranir
+- `fabric`, `neoforge` ve `forge` katmanlari adapter/donusturucu gibi davranir
 
 Bir sey `common` icine alinacaksa su 3 kosulu saglamali:
 
@@ -141,11 +146,13 @@ Ortak voice compat:
 Platform glue:
 
 - `fabric/src/client/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
+- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/P2pManager.java`
 
 Dedicated server adapter'lari:
 
 - `fabric/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
+- `neoforge/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
 - `forge/src/main/java/org/developerkubilay/safra/server/DedicatedP2pServerManager.java`
 
 LAN settings:
@@ -153,6 +160,9 @@ LAN settings:
 - `fabric/src/client/java/org/developerkubilay/safra/client/p2p/FabricLanSessionState.java`
 - `fabric/src/client/java/org/developerkubilay/safra/client/p2p/FabricLanGameRules.java`
 - `fabric/src/client/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
+- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/NeoForgeLanSessionState.java`
+- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/NeoForgeLanGameRules.java`
+- `neoforge/src/main/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/ForgeLanSessionState.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/ForgeLanGameRules.java`
 - `forge/src/main/java/org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java`
@@ -160,6 +170,7 @@ LAN settings:
 Mixin alanlari:
 
 - `fabric/src/client/java/org/developerkubilay/safra/mixin/client/`
+- `neoforge/src/main/java/org/developerkubilay/safra/mixin/client/`
 - `forge/src/main/java/org/developerkubilay/safra/mixin/client/`
 
 ## Build and Release
@@ -168,11 +179,13 @@ Ana komutlar:
 
 - `gradlew build`
 - `gradlew runClient`
+- `gradlew :neoforge:runClient`
 - `gradlew :forge:runClient`
 
 Root artifact'lar:
 
 - `build/libs/Safra-fabric-<version>.jar`
+- `build/libs/Safra-neoforge-<version>.jar`
 - `build/libs/Safra-forge-<version>.jar`
 
 GitHub Actions:
@@ -260,8 +273,10 @@ Yeni bir surume gecerken ilk bakilacak yerler:
 - `gradle.properties`
 - root `build.gradle`
 - `fabric/build.gradle`
+- `neoforge/build.gradle`
 - `forge/build.gradle`
 - `fabric.mod.json`
+- `META-INF/neoforge.mods.toml`
 - `META-INF/mods.toml`
 - `common/src/main/java/org/developerkubilay/safra/p2p/`
 - `common/src/main/java/org/developerkubilay/safra/voicechat/`
@@ -290,5 +305,6 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
 
 4. Release smoke test
   - `gradlew runClient`
+  - `gradlew :neoforge:runClient`
   - `gradlew :forge:runClient`
   - loglarda mixin apply veya resource pack metadata hatasi kalmadigi dogrulanmali

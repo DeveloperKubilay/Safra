@@ -8,6 +8,14 @@ pluginManagement {
             name = 'Forge'
             url = 'https://maven.minecraftforge.net/'
         }
+        maven {
+            name = 'NeoForged'
+            url = 'https://maven.neoforged.net/releases/'
+            content {
+                includeGroupByRegex 'net\\.neoforged(\\..+)?'
+                includeGroup 'cpw.mods'
+            }
+        }
         gradlePluginPortal()
     }
 }
@@ -20,4 +28,5 @@ rootProject.name = 'Safra'
 
 include 'common'
 include 'fabric'
+include 'neoforge'
 include 'forge'
