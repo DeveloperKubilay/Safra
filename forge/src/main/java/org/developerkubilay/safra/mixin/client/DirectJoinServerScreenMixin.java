@@ -114,7 +114,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.ipEdit == null) {
             return;
         }
-        this.ipEdit.setSuggestion(this.safra$p2pEnabled ? "safra://..." : null);
+        this.ipEdit.setSuggestion(null);
     }
 
     @Unique

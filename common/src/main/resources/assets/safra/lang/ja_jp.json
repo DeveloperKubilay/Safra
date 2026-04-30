@@ -1,4 +1,4 @@
-{
+﻿{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "例: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P プロキシを準備できませんでした: %s",
@@ -6,7 +6,6 @@
   "safra.p2p.button.off": "P2P: オフ",
   "safra.p2p.online_mode.on": "オンラインモード: オン",
   "safra.p2p.online_mode.off": "オンラインモード: オフ",
-  "safra.p2p.open_hint": "有効にすると、Safra P2P は LAN ワールドを UDP 経由で接続可能な状態に保ちます。",
   "safra.p2p.host.starting": "Safra P2P が共有コードをバックグラウンドで準備しています...",
   "safra.p2p.host.started": "Safra P2P 共有コード: %s",
   "safra.p2p.host.copied": "共有コードをクリップボードにコピーしました。もう一度コピーするにはチャット内のコードをクリックしてください。",

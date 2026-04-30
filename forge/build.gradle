@@ -45,6 +45,7 @@ minecraft {
         configureEach {
             workingDir.convention layout.projectDirectory.dir('run')
             args "--mixin.config=${project.mod_id}.forge.mixins.json"
+            jvmArgs '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED'
         }
 
         register('client') {

@@ -1,6 +1,5 @@
 package org.developerkubilay.safra.mixin.client;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.screens.Screen;
@@ -59,25 +58,23 @@ abstract class ShareToLanScreenMixin extends Screen {
         );
         this.safra$onlineModeButton = this.addRenderableWidget(
             CycleButton.onOffBuilder(ForgeLanSessionState.isOnlineModeEnabled())
-                .create(this.width / 2 + 2, 180, 98, 20, new TranslatableComponent("safra.p2p.online_mode.short"), (button, value) ->
-                    ForgeLanSessionState.setOnlineModeEnabled(value))
+                .create(this.width / 2 + 2, 180, 98, 20, safra$getOnlineModeText(), (button, value) -> {
+                    ForgeLanSessionState.setOnlineModeEnabled(value);
+                    button.setMessage(safra$getOnlineModeText());
+                })
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
             new Button(this.width / 2 - 100, 204, 200, 20, new TranslatableComponent("safra.p2p.server_settings.short"), button ->
                 this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
+        this.safra$onlineModeButton.setMessage(safra$getOnlineModeText());
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(PoseStack poseStack, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        drawCenteredString(
-            poseStack,
-            this.font,
-            new TranslatableComponent("safra.p2p.open_hint"),
-            this.width / 2,
-            228,
-            0xA0A0A0
+    @Unique
+    private Component safra$getOnlineModeText() {
+        return new TranslatableComponent(
+            ForgeLanSessionState.isOnlineModeEnabled() ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off"
         );
     }
 }

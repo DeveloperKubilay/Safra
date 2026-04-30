@@ -1,4 +1,4 @@
-{
+﻿{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Exemple : ABC123",
   "safra.p2p.prepare_failed": "Le proxy P2P de Safra n'a pas pu être préparé : %s",
@@ -6,7 +6,6 @@
   "safra.p2p.button.off": "P2P : DÉSACTIVÉ",
   "safra.p2p.online_mode.on": "Mode en ligne : ACTIVÉ",
   "safra.p2p.online_mode.off": "Mode en ligne : DÉSACTIVÉ",
-  "safra.p2p.open_hint": "Lorsqu'il est activé, Safra P2P maintient le monde LAN accessible via UDP.",
   "safra.p2p.host.starting": "Safra P2P prépare le code de partage en arrière-plan...",
   "safra.p2p.host.started": "Code de partage Safra P2P : %s",
   "safra.p2p.host.copied": "Code copié dans le presse-papiers. Cliquez à nouveau sur le code dans le chat pour le recopier.",
