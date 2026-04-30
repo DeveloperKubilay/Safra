@@ -1,8 +1,8 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.GameRules;
 
@@ -14,31 +14,23 @@ public final class FabricLanGameRules {
     }
 
     public static GameRules createEditableGameRules(MinecraftClient client, Map<String, String> snapshot) {
-        IntegratedServer server = client.getServer();
-        if (server == null || client.world == null) {
-            throw new IllegalStateException("Integrated server is not available");
-        }
-
-        GameRules copy = server.getOverworld().getGameRules().copy();
+        GameRules copy = new GameRules();
         if (!snapshot.isEmpty()) {
-            apply(copy, snapshot, null);
+            apply(copy, snapshot);
         }
         return copy;
     }
 
     public static Map<String, String> createDefaultSnapshot(MinecraftClient client) {
-        if (client.world == null) {
-            throw new IllegalStateException("Client world is not available");
-        }
         return serialize(new GameRules());
     }
 
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
-        GameRules.accept(new GameRules.Visitor() {
+        GameRules.forEachType(new GameRules.RuleConsumer() {
             @Override
-            public <T extends GameRules.Rule<T>> void visit(GameRules.Key<T> key, GameRules.Type<T> type) {
-                values.put(key.getName(), rules.get(key).serialize());
+            public <T extends GameRules.Rule<T>> void accept(GameRules.RuleKey<T> key, GameRules.RuleType<T> type) {
+                values.put(key.getName(), rules.get(key).toString());
             }
         });
         return values;
@@ -49,29 +41,15 @@ public final class FabricLanGameRules {
             return;
         }
         for (ServerWorld world : server.getWorlds()) {
-            apply(world.getGameRules(), snapshot, server);
+            apply(world.getGameRules(), snapshot);
         }
     }
 
-    private static void apply(GameRules rules, Map<String, String> snapshot, MinecraftServer server) {
-        GameRules.accept(new GameRules.Visitor() {
-            @Override
-            public <T extends GameRules.Rule<T>> void visit(GameRules.Key<T> key, GameRules.Type<T> type) {
-                String serializedValue = snapshot.get(key.getName());
-                if (serializedValue == null) {
-                    return;
-                }
-
-                GameRules.Rule<?> rule = rules.get(key);
-                if (rule instanceof GameRules.BooleanRule booleanRule) {
-                    booleanRule.set(Boolean.parseBoolean(serializedValue), server);
-                } else if (rule instanceof GameRules.IntRule intRule) {
-                    try {
-                        intRule.set(Integer.parseInt(serializedValue), server);
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-            }
-        });
+    private static void apply(GameRules rules, Map<String, String> snapshot) {
+        CompoundTag tag = new CompoundTag();
+        for (Map.Entry<String, String> entry : snapshot.entrySet()) {
+            tag.putString(entry.getKey(), entry.getValue());
+        }
+        rules.load(tag);
     }
 }

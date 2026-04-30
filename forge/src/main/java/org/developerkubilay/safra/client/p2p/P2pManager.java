@@ -1,9 +1,9 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerAddress;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
-import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.server.integrated.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -118,7 +118,11 @@ public final class P2pManager {
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.isLan());
+        ServerData snapshot = new ServerData(
+            originalServerInfo.name,
+            originalServerInfo.ip,
+            originalServerInfo.isLan()
+        );
         snapshot.copyFrom(originalServerInfo);
 
         long generation;
@@ -192,7 +196,11 @@ public final class P2pManager {
             rewriteFuture = null;
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
+        ServerData rewritten = new ServerData(
+            originalServerInfo.name,
+            localAddress,
+            originalServerInfo.isLan()
+        );
         rewritten.copyFrom(originalServerInfo);
         rewritten.ip = localAddress;
         return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
@@ -262,6 +270,21 @@ public final class P2pManager {
         }
     }
 
-    public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
+    public static final class RewriteResult {
+        private final ServerAddress serverAddress;
+        private final ServerData serverInfo;
+
+        public RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
+            this.serverAddress = serverAddress;
+            this.serverInfo = serverInfo;
+        }
+
+        public ServerAddress serverAddress() {
+            return this.serverAddress;
+        }
+
+        public ServerData serverInfo() {
+            return this.serverInfo;
+        }
     }
 }

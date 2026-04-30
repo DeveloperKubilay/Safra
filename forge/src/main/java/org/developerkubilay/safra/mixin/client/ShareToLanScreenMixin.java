@@ -1,12 +1,11 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.ShareToLanScreen;
-import net.minecraft.network.chat.Component;
-import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ShareToLanScreen;
+import net.minecraft.client.gui.widget.button.Button;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,10 +18,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ShareToLanScreen.class)
 abstract class ShareToLanScreenMixin extends Screen {
     @Shadow
-    private EditBox portEdit;
+    private Button commandsButton;
 
     @Shadow
     private boolean commands;
+
+    @Shadow
+    private void updateSelectionStrings() {
+    }
 
     @Unique
     private Button safra$p2pButton;
@@ -34,9 +37,15 @@ abstract class ShareToLanScreenMixin extends Screen {
     private Button safra$serverSettingsButton;
 
     @Unique
+    private boolean safra$p2pEnabled;
+
+    @Unique
+    private boolean safra$onlineModeEnabled;
+
+    @Unique
     private boolean safra$p2pInitialized;
 
-    protected ShareToLanScreenMixin(Component title) {
+    protected ShareToLanScreenMixin(ITextComponent title) {
         super(title);
     }
 
@@ -49,59 +58,75 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         if (!this.safra$p2pInitialized) {
-            ForgeLanSessionState.loadFromConfig();
+            SafraClientConfig config = SafraClientConfig.get();
+            this.safra$p2pEnabled = config.isOpenToLanP2pEnabled();
+            this.safra$onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         }
-        if (this.minecraft != null && this.minecraft.getSingleplayerServer() != null) {
+        if (this.minecraft != null) {
             ForgeLanSessionState.initializeGameRules(this.minecraft);
         }
 
-        this.portEdit.setPosition(this.width / 2 - 80, 156);
-        this.portEdit.setWidth(70);
-        this.safra$p2pButton = this.addRenderableWidget(
-            Button.builder(this.safra$getToggleText(), button -> {
-                    ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
-                    button.setMessage(this.safra$getToggleText());
-                })
-                .bounds(this.width / 2 - 5, 156, 85, 20)
-                .build()
-        );
-        this.safra$onlineModeButton = this.addRenderableWidget(
-            Button.builder(this.safra$getOnlineModeText(), button -> {
-                    ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
-                    button.setMessage(this.safra$getOnlineModeText());
-                })
-                .bounds(this.width / 2 - 100, 180, 98, 20)
-                .build()
-        );
-        this.safra$serverSettingsButton = this.addRenderableWidget(
-            Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                    this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
-                .bounds(this.width / 2 + 2, 180, 98, 20)
-                .build()
-        );
+        this.safra$p2pButton = this.addButton(new Button(
+            this.width / 2 - 100,
+            this.height / 4 + 72,
+            98,
+            20,
+            this.safra$getToggleText(),
+            button -> {
+                this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                ForgeLanSessionState.setP2pEnabled(this.safra$p2pEnabled);
+                button.setMessage(this.safra$getToggleText());
+            }
+        ));
+        this.safra$onlineModeButton = this.addButton(new Button(
+            this.width / 2 + 2,
+            this.height / 4 + 72,
+            98,
+            20,
+            this.safra$getOnlineModeText(),
+            button -> {
+                this.safra$onlineModeEnabled = !this.safra$onlineModeEnabled;
+                ForgeLanSessionState.setOnlineModeEnabled(this.safra$onlineModeEnabled);
+                button.setMessage(this.safra$getOnlineModeText());
+            }
+        ));
+        this.safra$serverSettingsButton = this.addButton(new Button(
+            this.width / 2 - 100,
+            this.height / 4 + 96,
+            200,
+            20,
+            new TranslationTextComponent("safra.p2p.server_settings.short").getString(),
+            button -> {
+                if (this.minecraft != null) {
+                    this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this));
+                }
+            }
+        ));
         this.safra$p2pInitialized = true;
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        guiGraphics.drawCenteredString(
-            this.font,
-            Component.translatable("safra.p2p.open_hint"),
-            this.width / 2,
-            232,
-            0xA0A0A0
-        );
+    @Inject(method = "render", at = @At("HEAD"))
+    private void safra$syncAllowCommands(int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        boolean allowCommands = ForgeLanSessionState.isAllowCommandsEnabled();
+        if (this.commands != allowCommands) {
+            this.commands = allowCommands;
+            if (this.commandsButton != null) {
+                this.updateSelectionStrings();
+            }
+        }
     }
 
     @Unique
-    private Component safra$getToggleText() {
-        return Component.translatable(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
+    private String safra$getToggleText() {
+        return new TranslationTextComponent(
+            this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off"
+        ).getString();
     }
 
     @Unique
-    private Component safra$getOnlineModeText() {
-        return Component.translatable(ForgeLanSessionState.isOnlineModeEnabled()
-            ? "safra.p2p.online_mode.short.on"
-            : "safra.p2p.online_mode.short.off");
+    private String safra$getOnlineModeText() {
+        return new TranslationTextComponent(
+            this.safra$onlineModeEnabled ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off"
+        ).getString();
     }
 }

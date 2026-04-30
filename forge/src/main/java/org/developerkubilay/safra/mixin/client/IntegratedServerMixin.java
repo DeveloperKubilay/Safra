@@ -1,10 +1,12 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.server.IntegratedServer;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.GameType;
+import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.GameType;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -27,9 +29,7 @@ abstract class IntegratedServerMixin {
     private void safra$applyOnlineMode(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         IntegratedServer server = (IntegratedServer) (Object) this;
         server.setUsesAuthentication(ForgeLanSessionState.isOnlineModeEnabled());
-        if (ForgeLanSessionState.isP2pEnabled()) {
-            server.setPreventProxyConnections(false);
-        }
+        server.setPreventProxyConnections(!ForgeLanSessionState.isP2pEnabled());
         SAFRA_LOGGER.debug(
             "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
             server.usesAuthentication(),
@@ -44,16 +44,17 @@ abstract class IntegratedServerMixin {
             return;
         }
 
+        IntegratedServer server = (IntegratedServer) (Object) this;
+        ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+
         if (!ForgeLanSessionState.isP2pEnabled()) {
             P2pManager.getInstance().stopHosting();
             return;
         }
 
-        IntegratedServer server = (IntegratedServer) (Object) this;
-        ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));
+        client.gui.getChat().addMessage(new TranslationTextComponent("safra.p2p.host.starting"));
         P2pManager.getInstance().startHostingAsync(tcpPort).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
@@ -71,10 +72,10 @@ abstract class IntegratedServerMixin {
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
         client.keyboardHandler.setClipboard(shareCodeText);
 
-        Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.started", shareText));
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.instructions"));
+        ITextComponent shareText = new StringTextComponent(shareCodeText).withStyle(TextFormatting.AQUA);
+        client.gui.getChat().addMessage(new TranslationTextComponent("safra.p2p.host.started", shareText));
+        client.gui.getChat().addMessage(new TranslationTextComponent("safra.p2p.host.copied"));
+        client.gui.getChat().addMessage(new TranslationTextComponent("safra.p2p.host.instructions"));
     }
 
     private static void safra$publishStartFailure(Minecraft client, int tcpPort, Throwable throwable) {
@@ -88,7 +89,7 @@ abstract class IntegratedServerMixin {
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
         client.gui.getChat().addMessage(
-            Component.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED)
+            new TranslationTextComponent("safra.p2p.host.failed", message).withStyle(TextFormatting.RED)
         );
     }
 }

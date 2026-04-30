@@ -1,8 +1,8 @@
 package org.developerkubilay.safra.server;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.fml.event.server.FMLServerStartedEvent;
+import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.slf4j.Logger;
@@ -18,7 +18,7 @@ public final class DedicatedP2pServerManager {
     private DedicatedP2pServerManager() {
     }
 
-    public static synchronized void serverStarted(ServerStartedEvent event) {
+    public static synchronized void serverStarted(FMLServerStartedEvent event) {
         MinecraftServer server = event.getServer();
         if (!server.isDedicatedServer()) {
             return;
@@ -37,7 +37,7 @@ public final class DedicatedP2pServerManager {
         }
     }
 
-    public static synchronized void serverStopping(ServerStoppingEvent event) {
+    public static synchronized void serverStopping(FMLServerStoppingEvent event) {
         if (event.getServer().isDedicatedServer()) {
             stopHosting();
         }

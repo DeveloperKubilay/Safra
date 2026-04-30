@@ -1,13 +1,14 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.screens.DirectJoinServerScreen;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.IGuiEventListener;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ServerListScreen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.widget.button.Button;
+import net.minecraft.client.multiplayer.ServerAddress;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
-import net.minecraft.network.chat.Component;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
@@ -18,13 +19,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(DirectJoinServerScreen.class)
+@Mixin(ServerListScreen.class)
 abstract class DirectJoinServerScreenMixin extends Screen {
     @Shadow
     private Button selectButton;
 
     @Shadow
-    private EditBox ipEdit;
+    private TextFieldWidget ipEdit;
 
     @Shadow
     @Final
@@ -39,7 +40,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private boolean safra$p2pInitialized;
 
-    protected DirectJoinServerScreenMixin(Component title) {
+    protected DirectJoinServerScreenMixin(ITextComponent title) {
         super(title);
     }
 
@@ -62,24 +63,27 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             this.safra$moveButton(cancelButton, this.width / 2 + 2, this.height / 4 + 108, 98);
         }
 
-        this.safra$p2pButton = this.addRenderableWidget(
-            Button.builder(this.safra$getToggleText(), button -> {
-                    this.safra$p2pEnabled = !this.safra$p2pEnabled;
-                    SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-                    button.setMessage(this.safra$getToggleText());
-                    this.safra$refreshAddressField();
-                    this.safra$updateValidation();
-                })
-                .bounds(this.width / 2 - 100, this.height / 4 + 132, 200, 20)
-                .build()
-        );
+        this.safra$p2pButton = this.addButton(new Button(
+            this.width / 2 - 100,
+            this.height / 4 + 84,
+            200,
+            20,
+            this.safra$getToggleText(),
+            button -> {
+                this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+                button.setMessage(this.safra$getToggleText());
+                this.safra$refreshAddressField();
+                this.safra$updateValidation();
+            }
+        ));
 
         this.safra$p2pInitialized = true;
         this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
-    @Inject(method = "updateSelectButtonStatus", at = @At("TAIL"))
+    @Inject(method = "tick", at = @At("TAIL"))
     private void safra$overrideValidation(CallbackInfo ci) {
         this.safra$updateValidation();
     }
@@ -106,18 +110,13 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     }
 
     @Unique
-    private Component safra$getToggleText() {
-        return Component.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
-    }
-
-    @Unique
     private void safra$refreshAddressField() {
         if (this.ipEdit == null) {
             return;
         }
-        this.ipEdit.setHint(this.safra$p2pEnabled
-            ? Component.translatable("safra.p2p.placeholder")
-            : Component.empty());
+        this.ipEdit.setSuggestion(this.safra$p2pEnabled
+            ? new TranslationTextComponent("safra.p2p.placeholder").getString()
+            : null);
     }
 
     @Unique
@@ -129,15 +128,15 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         String address = this.ipEdit.getValue();
         this.selectButton.active = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
-            : ServerAddress.isValidAddress(address);
+            : this.safra$isValidVanillaAddress(address);
     }
 
     @Unique
     private Button safra$findSecondaryButton(Button primaryButton) {
         Button candidate = null;
-        for (GuiEventListener element : this.children()) {
-            if (element instanceof Button button && button != primaryButton) {
-                candidate = button;
+        for (IGuiEventListener element : this.children()) {
+            if (element instanceof Button && element != primaryButton) {
+                candidate = (Button) element;
             }
         }
         return candidate;
@@ -146,6 +145,28 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private void safra$moveButton(Button button, int x, int y, int width) {
         button.setWidth(width);
-        button.setPosition(x, y);
+        button.x = x;
+        button.y = y;
+    }
+
+    @Unique
+    private String safra$getToggleText() {
+        return new TranslationTextComponent(
+            this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off"
+        ).getString();
+    }
+
+    @Unique
+    private boolean safra$isValidVanillaAddress(String address) {
+        if (address == null || address.isEmpty()) {
+            return false;
+        }
+
+        try {
+            ServerAddress parsed = ServerAddress.parseString(address);
+            return parsed.getHost() != null && !parsed.getHost().isEmpty() && parsed.getPort() > 0;
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 }
