@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,14 +24,14 @@ import java.util.concurrent.TimeUnit;
 abstract class ConnectScreenMixin {
     @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
-                                                   ServerData serverInfo, boolean quickPlay, CallbackInfo ci) {
+                                                   ServerData serverInfo, CallbackInfo ci) {
         if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.ip)) {
             return;
         }
 
         ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStart(Component.translatable("connect.connecting"));
-        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        progressScreen.progressStart(new TranslatableComponent("connect.connecting"));
+        progressScreen.progressStage(new TranslatableComponent("safra.p2p.prepare_message"));
         client.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
@@ -45,15 +46,15 @@ abstract class ConnectScreenMixin {
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     client.setScreen(new DisconnectedScreen(
                         parent,
-                        Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        new TranslatableComponent("connect.failed"),
+                        new TranslatableComponent("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }
 
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
                     client.execute(() ->
-                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay)
+                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo())
                     )
                 );
             })

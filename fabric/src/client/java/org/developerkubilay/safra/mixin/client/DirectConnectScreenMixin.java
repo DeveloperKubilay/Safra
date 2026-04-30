@@ -6,9 +6,11 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
+import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
@@ -60,17 +62,17 @@ abstract class DirectConnectScreenMixin extends Screen {
         ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
         if (cancelButton != null) {
             this.selectServerButton.setWidth(98);
-            this.selectServerButton.setX(this.width / 2 - 100);
-            this.selectServerButton.setY(this.height / 4 + 108);
+            this.selectServerButton.x = this.width / 2 - 100;
+            this.selectServerButton.y = this.height / 4 + 108;
             cancelButton.setWidth(98);
-            cancelButton.setX(this.width / 2 + 2);
-            cancelButton.setY(this.height / 4 + 108);
+            cancelButton.x = this.width / 2 + 2;
+            cancelButton.y = this.height / 4 + 108;
         }
 
         this.safra$p2pToggle = this.addDrawableChild(
             CyclingButtonWidget.onOffBuilder(this.safra$p2pEnabled)
                 .build(this.width / 2 - 100, this.height / 4 + 84, 200, 20,
-                    Text.translatable("safra.p2p.toggle"),
+                    new TranslatableText("safra.p2p.toggle"),
                     (button, value) -> {
                         this.safra$p2pEnabled = value;
                         SafraClientConfig.get().setDirectConnectP2pEnabled(value);
@@ -115,9 +117,9 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setPlaceholder(this.safra$p2pEnabled
-            ? Text.translatable("safra.p2p.placeholder")
-            : Text.empty());
+        this.addressField.setSuggestion(this.safra$p2pEnabled
+            ? I18n.translate("safra.p2p.placeholder")
+            : null);
     }
 
     @Unique

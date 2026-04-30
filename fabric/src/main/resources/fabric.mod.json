@@ -10,9 +10,6 @@
   "icon": "assets/safra/icon.png",
   "environment": "*",
   "entrypoints": {
-    "fabric-datagen": [
-      "org.developerkubilay.safra.client.SafraDataGenerator"
-    ],
     "client": [
       "org.developerkubilay.safra.client.SafraClient"
     ],

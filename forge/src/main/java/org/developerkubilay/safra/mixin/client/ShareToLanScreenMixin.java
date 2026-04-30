@@ -1,12 +1,12 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
-import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
+import net.minecraft.network.chat.TranslatableComponent;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,16 +19,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ShareToLanScreen.class)
 abstract class ShareToLanScreenMixin extends Screen {
     @Shadow
-    private EditBox portEdit;
-
-    @Shadow
     private boolean commands;
 
     @Unique
-    private Button safra$p2pButton;
+    private CycleButton<Boolean> safra$p2pButton;
 
     @Unique
-    private Button safra$onlineModeButton;
+    private CycleButton<Boolean> safra$onlineModeButton;
 
     @Unique
     private Button safra$serverSettingsButton;
@@ -55,53 +52,32 @@ abstract class ShareToLanScreenMixin extends Screen {
             ForgeLanSessionState.initializeGameRules(this.minecraft);
         }
 
-        this.portEdit.setPosition(this.width / 2 - 80, 156);
-        this.portEdit.setWidth(70);
         this.safra$p2pButton = this.addRenderableWidget(
-            Button.builder(this.safra$getToggleText(), button -> {
-                    ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
-                    button.setMessage(this.safra$getToggleText());
-                })
-                .bounds(this.width / 2 - 5, 156, 85, 20)
-                .build()
+            CycleButton.onOffBuilder(ForgeLanSessionState.isP2pEnabled())
+                .create(this.width / 2 - 100, 180, 98, 20, new TranslatableComponent("safra.p2p.toggle"), (button, value) ->
+                    ForgeLanSessionState.setP2pEnabled(value))
         );
         this.safra$onlineModeButton = this.addRenderableWidget(
-            Button.builder(this.safra$getOnlineModeText(), button -> {
-                    ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
-                    button.setMessage(this.safra$getOnlineModeText());
-                })
-                .bounds(this.width / 2 - 100, 180, 98, 20)
-                .build()
+            CycleButton.onOffBuilder(ForgeLanSessionState.isOnlineModeEnabled())
+                .create(this.width / 2 + 2, 180, 98, 20, new TranslatableComponent("safra.p2p.online_mode.short"), (button, value) ->
+                    ForgeLanSessionState.setOnlineModeEnabled(value))
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                    this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
-                .bounds(this.width / 2 + 2, 180, 98, 20)
-                .build()
+            new Button(this.width / 2 - 100, 204, 200, 20, new TranslatableComponent("safra.p2p.server_settings.short"), button ->
+                this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
     }
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        guiGraphics.drawCenteredString(
+    private void safra$renderHint(PoseStack poseStack, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        drawCenteredString(
+            poseStack,
             this.font,
-            Component.translatable("safra.p2p.open_hint"),
+            new TranslatableComponent("safra.p2p.open_hint"),
             this.width / 2,
-            232,
+            228,
             0xA0A0A0
         );
-    }
-
-    @Unique
-    private Component safra$getToggleText() {
-        return Component.translatable(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
-    }
-
-    @Unique
-    private Component safra$getOnlineModeText() {
-        return Component.translatable(ForgeLanSessionState.isOnlineModeEnabled()
-            ? "safra.p2p.online_mode.short.on"
-            : "safra.p2p.online_mode.short.off");
     }
 }

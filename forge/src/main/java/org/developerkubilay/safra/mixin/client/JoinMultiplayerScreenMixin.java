@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,8 +31,8 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
         }
 
         ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStart(Component.translatable("connect.connecting"));
-        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        progressScreen.progressStart(new TranslatableComponent("connect.connecting"));
+        progressScreen.progressStage(new TranslatableComponent("safra.p2p.prepare_message"));
         Minecraft.getInstance().setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             Minecraft.getInstance().execute(() -> {
@@ -46,13 +47,13 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     Minecraft.getInstance().setScreen(new DisconnectedScreen(
                         (Screen) (Object) this,
-                        Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        new TranslatableComponent("connect.failed"),
+                        new TranslatableComponent("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }
 
-                ConnectScreen.startConnecting((Screen) (Object) this, Minecraft.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                ConnectScreen.startConnecting((Screen) (Object) this, Minecraft.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo());
             })
         );
         ci.cancel();

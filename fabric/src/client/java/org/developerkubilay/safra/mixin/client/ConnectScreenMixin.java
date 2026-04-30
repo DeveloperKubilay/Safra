@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
+import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,14 +22,14 @@ import java.util.concurrent.CompletionException;
 abstract class ConnectScreenMixin {
     @Inject(method = "connect", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, MinecraftClient client, ServerAddress serverAddress,
-                                                   ServerInfo serverInfo, boolean quickPlay, CallbackInfo ci) {
+                                                   ServerInfo serverInfo, CallbackInfo ci) {
         if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.address)) {
             return;
         }
 
         ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.setTitle(Text.translatable("connect.connecting"));
-        progressScreen.setTask(Text.translatable("safra.p2p.prepare_message"));
+        progressScreen.setTitle(new TranslatableText("connect.connecting"));
+        progressScreen.setTask(new TranslatableText("safra.p2p.prepare_message"));
         client.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
@@ -43,13 +44,13 @@ abstract class ConnectScreenMixin {
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     client.setScreen(new DisconnectedScreen(
                         parent,
-                        Text.translatable("connect.failed"),
-                        Text.translatable("safra.p2p.prepare_failed", message)
+                        new TranslatableText("connect.failed"),
+                        new TranslatableText("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }
 
-                ConnectScreen.connect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay);
+                ConnectScreen.connect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo());
             })
         );
         ci.cancel();
