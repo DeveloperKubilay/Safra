@@ -49,7 +49,7 @@ abstract class ConnectScreenMixin {
                     return;
                 }
 
-                ConnectScreen.connect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay);
+                ConnectScreen.connect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo());
             })
         );
         ci.cancel();

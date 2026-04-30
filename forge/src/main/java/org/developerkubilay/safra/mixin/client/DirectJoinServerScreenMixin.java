@@ -63,15 +63,13 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         }
 
         this.safra$p2pButton = this.addRenderableWidget(
-            Button.builder(this.safra$getToggleText(), button -> {
+            new Button(this.width / 2 - 100, this.height / 4 + 132, 200, 20, this.safra$getToggleText(), button -> {
                     this.safra$p2pEnabled = !this.safra$p2pEnabled;
                     SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
                     button.setMessage(this.safra$getToggleText());
                     this.safra$refreshAddressField();
                     this.safra$updateValidation();
                 })
-                .bounds(this.width / 2 - 100, this.height / 4 + 132, 200, 20)
-                .build()
         );
 
         this.safra$p2pInitialized = true;
@@ -115,9 +113,9 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.ipEdit == null) {
             return;
         }
-        this.ipEdit.setHint(this.safra$p2pEnabled
-            ? Component.translatable("safra.p2p.placeholder")
-            : Component.empty());
+        this.ipEdit.setSuggestion(this.safra$p2pEnabled
+            ? Component.translatable("safra.p2p.placeholder").getString()
+            : null);
     }
 
     @Unique
@@ -146,6 +144,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private void safra$moveButton(Button button, int x, int y, int width) {
         button.setWidth(width);
-        button.setPosition(x, y);
+        button.x = x;
+        button.y = y;
     }
 }

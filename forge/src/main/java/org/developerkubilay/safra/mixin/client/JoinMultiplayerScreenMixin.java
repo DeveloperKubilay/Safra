@@ -52,7 +52,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     return;
                 }
 
-                ConnectScreen.startConnecting((Screen) (Object) this, Minecraft.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                ConnectScreen.startConnecting((Screen) (Object) this, Minecraft.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo());
             })
         );
         ci.cancel();

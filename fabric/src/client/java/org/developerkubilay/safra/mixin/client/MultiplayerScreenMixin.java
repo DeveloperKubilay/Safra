@@ -54,7 +54,7 @@ abstract class MultiplayerScreenMixin {
                     return;
                 }
 
-                ConnectScreen.connect(this.parent, MinecraftClient.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                ConnectScreen.connect(this.parent, MinecraftClient.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo());
             })
         );
         ci.cancel();

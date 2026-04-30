@@ -60,11 +60,11 @@ abstract class DirectConnectScreenMixin extends Screen {
         ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
         if (cancelButton != null) {
             this.selectServerButton.setWidth(98);
-            this.selectServerButton.setX(this.width / 2 - 100);
-            this.selectServerButton.setY(this.height / 4 + 108);
+            this.selectServerButton.x = this.width / 2 - 100;
+            this.selectServerButton.y = this.height / 4 + 108;
             cancelButton.setWidth(98);
-            cancelButton.setX(this.width / 2 + 2);
-            cancelButton.setY(this.height / 4 + 108);
+            cancelButton.x = this.width / 2 + 2;
+            cancelButton.y = this.height / 4 + 108;
         }
 
         this.safra$p2pToggle = this.addDrawableChild(
@@ -115,9 +115,9 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setPlaceholder(this.safra$p2pEnabled
-            ? Text.translatable("safra.p2p.placeholder")
-            : Text.empty());
+        this.addressField.setSuggestion(this.safra$p2pEnabled
+            ? Text.translatable("safra.p2p.placeholder").getString()
+            : null);
     }
 
     @Unique
