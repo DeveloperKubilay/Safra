@@ -56,12 +56,12 @@ repositories {
 }
 
 dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.forge_minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
 processResources {
-    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'minecraft_version', project.forge_minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
     inputs.property 'forge_loader_version_range', project.forge_loader_version_range
     inputs.property 'forge_version_range', project.forge_version_range
@@ -74,7 +74,7 @@ processResources {
 
     filesMatching('META-INF/mods.toml') {
         expand(
-            minecraft_version: project.minecraft_version,
+            minecraft_version: project.forge_minecraft_version,
             forge_minecraft_version_range: project.forge_minecraft_version_range,
             forge_loader_version_range: project.forge_loader_version_range,
             forge_version_range: project.forge_version_range,

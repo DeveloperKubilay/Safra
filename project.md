@@ -9,7 +9,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `26.1`
+- Current base version: `26.2`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout
@@ -33,6 +33,13 @@ Proje dort ana modulden olusur:
   - Forge event kayitlari
   - Forge client mixin
   - Forge config path ve loader bagli adapter'lar
+
+## Current Port State
+
+- branch hedefi `26.2` bazli porttur
+- Fabric `26.2` hattinin guncel snapshot artifact'i ustunde calisir
+- resmi Forge ve NeoForge artifact'lari henuz `26.2` olarak yayinlanmadigi icin bu branch'te onlar son mevcut `26.1.2` release'leri ustunden tasinir
+- bu nedenle build script'lerinde loader bazli Minecraft surumu property'leri ayridir
 
 ## Architecture Rule
 
@@ -220,7 +227,7 @@ Onerilen branch mantigi:
 
 Onerilen sira:
 
-1. `mc/26.1`
+1. `mc/26.2`
 2. `mc/1.20.1`
 3. `mc/1.19.2`
 4. `mc/1.18.2`
@@ -230,6 +237,7 @@ Onerilen sira:
 
 Uzun vadeli hedef ailesi:
 
+- `26.2`
 - `26.1`
 - `1.21.11`
 - `1.20.1`
@@ -247,6 +255,7 @@ Modern surumler:
 - `common` katmaninin buyuk kismi korunabilir
 - mapping ve toolchain guncellemesi ana maliyettir
 - `26.1+` icin Fabric tarafi da resmi Mojang isimlerine gecmistir; Yarn bagimliligi beklenmez
+- `26.2` branch'inde Forge ve NeoForge tarafinda resmi release gecikirse loader'lar son mevcut `26.1.2` artifact'lariyla kopru kurularak ilerlenir
 
 Legacy surumler:
 
@@ -262,6 +271,7 @@ Yeni bir surume gecerken ilk bakilacak yerler:
 - root `build.gradle`
 - `fabric/build.gradle`
 - `forge/build.gradle`
+- `neoforge/build.gradle`
 - `fabric.mod.json`
 - `META-INF/mods.toml`
 - `common/src/main/java/org/developerkubilay/safra/p2p/`
@@ -279,7 +289,8 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
 
 1. Java matrix
   - CI ve local build JVM degeri branch gereksinimiyle uyumlu olmali
-  - `26.1` icin build JVM ve compile target `25` olmali
+  - `26.2` icin build JVM ve compile target `25` olmali
+  - loader'lar ayni anda ayni Minecraft artifact'ina cikmayabilir; ozellikle modern snapshot benzeri gecislerde loader bazli surum property'leri kontrol edilmeli
   - `1.20.1` icin pratikte build JVM `21`, compile target `17` tutulur
 
 2. Mixin uyumlulugu

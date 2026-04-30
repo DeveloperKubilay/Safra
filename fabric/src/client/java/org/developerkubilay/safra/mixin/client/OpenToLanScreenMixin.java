@@ -99,7 +99,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
             Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                this.minecraft.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
+                this.minecraft.setScreenAndShow(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             ).bounds(this.width / 2 + 2, 180, 98, 20).build()
         );
         this.safra$p2pInitialized = true;
@@ -211,6 +211,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Unique
     private void safra$addClientSystemMessage(Component message) {
-        this.minecraft.gui.getChat().addClientSystemMessage(message);
+        this.minecraft.gui.hud.getChat().addClientSystemMessage(message);
     }
 }

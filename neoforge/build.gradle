@@ -56,8 +56,8 @@ dependencies {
 }
 
 processResources {
-    inputs.property 'minecraft_version', project.minecraft_version
-    inputs.property 'minecraft_version_range', project.minecraft_version_range
+    inputs.property 'minecraft_version', project.neoforge_minecraft_version
+    inputs.property 'minecraft_version_range', project.neoforge_minecraft_version_range
     inputs.property 'neo_version', project.neo_version
     inputs.property 'neo_version_range', project.neo_version_range
     inputs.property 'loader_version_range', project.loader_version_range
@@ -70,8 +70,8 @@ processResources {
 
     filesMatching('META-INF/neoforge.mods.toml') {
         expand(
-            minecraft_version: project.minecraft_version,
-            minecraft_version_range: project.minecraft_version_range,
+            minecraft_version: project.neoforge_minecraft_version,
+            minecraft_version_range: project.neoforge_minecraft_version_range,
             neo_version: project.neo_version,
             neo_version_range: project.neo_version_range,
             loader_version_range: project.loader_version_range,

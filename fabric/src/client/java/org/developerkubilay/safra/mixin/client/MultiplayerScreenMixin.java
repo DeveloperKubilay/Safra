@@ -34,7 +34,7 @@ abstract class MultiplayerScreenMixin {
         ProgressScreen progressScreen = new ProgressScreen(false);
         progressScreen.progressStartNoAbort(Component.translatable("connect.connecting"));
         progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
-        Minecraft.getInstance().setScreen(progressScreen);
+        Minecraft.getInstance().setScreenAndShow(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             Minecraft.getInstance().execute(() -> {
                 if (throwable != null) {
@@ -46,7 +46,7 @@ abstract class MultiplayerScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    Minecraft.getInstance().setScreen(new DisconnectedScreen(
+                    Minecraft.getInstance().setScreenAndShow(new DisconnectedScreen(
                         this.lastScreen,
                         Component.translatable("connect.failed"),
                         Component.translatable("safra.p2p.prepare_failed", message)

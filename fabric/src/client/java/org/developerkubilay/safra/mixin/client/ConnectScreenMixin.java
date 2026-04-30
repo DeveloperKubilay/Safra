@@ -31,7 +31,7 @@ abstract class ConnectScreenMixin {
         ProgressScreen progressScreen = new ProgressScreen(false);
         progressScreen.progressStartNoAbort(Component.translatable("connect.connecting"));
         progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
-        client.setScreen(progressScreen);
+        client.setScreenAndShow(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
@@ -43,7 +43,7 @@ abstract class ConnectScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    client.setScreen(new DisconnectedScreen(
+                    client.setScreenAndShow(new DisconnectedScreen(
                         parent,
                         Component.translatable("connect.failed"),
                         Component.translatable("safra.p2p.prepare_failed", message)
