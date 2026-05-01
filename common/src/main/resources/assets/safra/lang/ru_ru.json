@@ -1,4 +1,4 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Пример: ABC123",
   "safra.p2p.prepare_failed": "Не удалось подготовить прокси Safra P2P: %s",

@@ -1,4 +1,4 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Exemple : ABC123",
   "safra.p2p.prepare_failed": "Le proxy P2P de Safra n'a pas pu être préparé : %s",

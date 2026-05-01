@@ -1,4 +1,4 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "示例：ABC123",
   "safra.p2p.prepare_failed": "无法准备 Safra P2P 代理：%s",

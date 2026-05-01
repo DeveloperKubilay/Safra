@@ -1,4 +1,4 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "예시: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P 프록시를 준비하지 못했습니다: %s",

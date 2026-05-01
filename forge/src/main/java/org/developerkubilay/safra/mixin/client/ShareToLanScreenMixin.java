@@ -1,7 +1,6 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
@@ -21,10 +20,10 @@ abstract class ShareToLanScreenMixin extends Screen {
     private boolean commands;
 
     @Unique
-    private CycleButton<Boolean> safra$p2pButton;
+    private Button safra$p2pButton;
 
     @Unique
-    private CycleButton<Boolean> safra$onlineModeButton;
+    private Button safra$onlineModeButton;
 
     @Unique
     private Button safra$serverSettingsButton;
@@ -52,23 +51,22 @@ abstract class ShareToLanScreenMixin extends Screen {
         }
 
         this.safra$p2pButton = this.addRenderableWidget(
-            CycleButton.onOffBuilder(ForgeLanSessionState.isP2pEnabled())
-                .create(this.width / 2 - 100, 180, 98, 20, new TranslatableComponent("safra.p2p.toggle"), (button, value) ->
-                    ForgeLanSessionState.setP2pEnabled(value))
+            new Button(this.width / 2 - 100, 148, 98, 20, this.safra$getToggleText(), button -> {
+                ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
+                button.setMessage(this.safra$getToggleText());
+            })
         );
         this.safra$onlineModeButton = this.addRenderableWidget(
-            CycleButton.onOffBuilder(ForgeLanSessionState.isOnlineModeEnabled())
-                .create(this.width / 2 + 2, 180, 98, 20, safra$getOnlineModeText(), (button, value) -> {
-                    ForgeLanSessionState.setOnlineModeEnabled(value);
+            new Button(this.width / 2 + 2, 148, 98, 20, this.safra$getOnlineModeText(), button -> {
+                    ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
                     button.setMessage(safra$getOnlineModeText());
                 })
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            new Button(this.width / 2 - 100, 204, 200, 20, new TranslatableComponent("safra.p2p.server_settings.short"), button ->
+            new Button(this.width / 2 - 49, 172, 98, 20, new net.minecraft.network.chat.TranslatableComponent("safra.p2p.server_settings.short"), button ->
                 this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
-        this.safra$onlineModeButton.setMessage(safra$getOnlineModeText());
     }
 
     @Unique
@@ -76,5 +74,10 @@ abstract class ShareToLanScreenMixin extends Screen {
         return new TranslatableComponent(
             ForgeLanSessionState.isOnlineModeEnabled() ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off"
         );
+    }
+
+    @Unique
+    private Component safra$getToggleText() {
+        return new TranslatableComponent(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 }

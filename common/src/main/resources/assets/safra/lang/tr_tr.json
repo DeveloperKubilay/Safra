@@ -1,4 +1,4 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Ornek: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P ara proxy'si hazirlanamadi: %s",

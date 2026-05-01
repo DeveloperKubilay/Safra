@@ -3,7 +3,6 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.util.NarratorManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.server.integrated.IntegratedServer;
@@ -41,10 +40,10 @@ abstract class OpenToLanScreenMixin extends Screen {
     private boolean allowCommands;
 
     @Unique
-    private CyclingButtonWidget<Boolean> safra$p2pButton;
+    private ButtonWidget safra$p2pButton;
 
     @Unique
-    private CyclingButtonWidget<Boolean> safra$onlineModeButton;
+    private ButtonWidget safra$onlineModeButton;
 
     @Unique
     private ButtonWidget safra$serverSettingsButton;
@@ -79,32 +78,38 @@ abstract class OpenToLanScreenMixin extends Screen {
             FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
 
-        this.safra$p2pButton = this.addDrawableChild(
-            CyclingButtonWidget.onOffBuilder(this.safra$p2pEnabled)
-                .build(this.width / 2 - 100, 180, 98, 20,
-                    new TranslatableText("safra.p2p.toggle"),
-                    (button, value) -> {
-                        this.safra$p2pEnabled = value;
-                        SafraClientConfig.get().setOpenToLanP2pEnabled(this.safra$p2pEnabled);
-                    })
-        );
+        this.safra$p2pButton = this.addDrawableChild(new ButtonWidget(
+            this.width / 2 - 100,
+            148,
+            98,
+            20,
+            this.safra$getToggleText(),
+            button -> {
+                this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                SafraClientConfig.get().setOpenToLanP2pEnabled(this.safra$p2pEnabled);
+                button.setMessage(this.safra$getToggleText());
+            }
+        ));
         this.safra$onlineModeButton = this.addDrawableChild(
-            CyclingButtonWidget.onOffBuilder(this.safra$onlineModeEnabled)
-                .build(this.width / 2 + 2, 180, 98, 20,
-                    this.safra$getOnlineModeText(),
-                    (button, value) -> {
-                        this.safra$onlineModeEnabled = value;
-                        SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
-                        button.setMessage(this.safra$getOnlineModeText());
-                    })
+            new ButtonWidget(
+                this.width / 2 + 2,
+                148,
+                98,
+                20,
+                this.safra$getOnlineModeText(),
+                button -> {
+                    this.safra$onlineModeEnabled = !this.safra$onlineModeEnabled;
+                    SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
+                    button.setMessage(this.safra$getOnlineModeText());
+                }
+            )
         );
         this.safra$serverSettingsButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 - 100, 204, 200, 20, new TranslatableText("safra.p2p.server_settings.short"), button ->
+            new ButtonWidget(this.width / 2 - 49, 172, 98, 20, new TranslatableText("safra.p2p.server_settings.short"), button ->
                 this.client.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             )
         );
         this.safra$p2pInitialized = true;
-        this.safra$onlineModeButton.setMessage(this.safra$getOnlineModeText());
     }
 
     @Inject(method = "method_19851", at = @At("HEAD"))

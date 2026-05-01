@@ -1,4 +1,4 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "例: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P プロキシを準備できませんでした: %s",
