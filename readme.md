@@ -5,24 +5,26 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/parca4.png" alt="parca4" width="24%" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
+</p>
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
 
 ## Safra 🚀
 
-Don't waste time dealing with server setup or useless extra steps.  
-Launch your Minecraft server in **2 clicks** and jump straight into the game 😎
+Don't waste time dealing with server setup 🛠️ or useless extra steps 🗑️  
+Launch your Minecraft server in **2 clicks** and jump straight into the game 🎮😎
 
-✅ No complicated interface  
-✅ No unnecessary systems  
-✅ Lightweight and optimized  
-✅ Only about **250 KB** in size
+✅ No complicated interface 😌  
+✅ No unnecessary systems 🚫  
+✅ Lightweight and optimized ⚡  
+✅ Only about **250 KB** in size 📦
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> **TLauncher** is used in the preview. (crack supported)  
-> Includes **voice chat** support 🎤 (mod support)
+> **TLauncher** is used in the preview (crack supported 🔓)  
+> Includes **voice chat** support 🎤🗣️ (mod support ⚙️)
 
 ## Mod Support 🔥
 
@@ -37,5 +39,16 @@ Supports **Fabric**, **Forge**, and **NeoForge** ✅
 
 ## FAQ 🤔
 
-You can submit feature requests, version suggestions, or bug reports on GitHub 🛠️  
-Open-source project here: [DeveloperKubilay/Safra](https://github.com/DeveloperKubilay/Safra)
+<table>
+  <tr>
+    <td width="30%" align="center">
+      <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/emoji1.png" alt="faq emoji" width="100%" />
+    </td>
+    <td width="70%" align="left">
+      Need a feature ✨, got a version idea 🚀, or found a bug 🐛?<br />
+      You can open an issue on GitHub anytime 🛠️💬<br /><br />
+      Open-source project lives here ❤️<br />
+      <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a>
+    </td>
+  </tr>
+</table>
