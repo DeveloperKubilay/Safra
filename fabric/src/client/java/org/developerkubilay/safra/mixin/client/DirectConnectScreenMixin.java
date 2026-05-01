@@ -86,6 +86,7 @@ abstract class DirectConnectScreenMixin extends Screen {
 
     @Inject(method = "onAddressFieldChanged", at = @At("TAIL"))
     private void safra$overrideValidation(CallbackInfo ci) {
+        this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
@@ -115,7 +116,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setSuggestion(this.safra$p2pEnabled
+        this.addressField.setSuggestion(this.safra$p2pEnabled && this.addressField.getText().isEmpty()
             ? Text.translatable("safra.p2p.placeholder").getString()
             : null);
     }

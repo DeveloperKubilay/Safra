@@ -79,6 +79,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Inject(method = "updateSelectButtonStatus", at = @At("TAIL"))
     private void safra$overrideValidation(CallbackInfo ci) {
+        this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
@@ -113,7 +114,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.ipEdit == null) {
             return;
         }
-        this.ipEdit.setSuggestion(this.safra$p2pEnabled
+        this.ipEdit.setSuggestion(this.safra$p2pEnabled && this.ipEdit.getValue().isEmpty()
             ? Component.translatable("safra.p2p.placeholder").getString()
             : null);
     }

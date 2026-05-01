@@ -21,7 +21,7 @@ import java.util.concurrent.CompletionException;
 abstract class ConnectScreenMixin {
     @Inject(method = "connect", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, MinecraftClient client, ServerAddress serverAddress,
-                                                   ServerInfo serverInfo, boolean quickPlay, CallbackInfo ci) {
+                                                   ServerInfo serverInfo, CallbackInfo ci) {
         if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.address)) {
             return;
         }
