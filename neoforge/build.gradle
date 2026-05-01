@@ -35,6 +35,7 @@ neoForge {
     runs {
         client {
             client()
+            gameDirectory = project.file('run')
             programArgument '--username'
             programArgument devUsername
         }
@@ -49,6 +50,13 @@ neoForge {
             sourceSet sourceSets.main
         }
     }
+}
+
+configurations.configureEach {
+    resolutionStrategy.force(
+        'org.apache.logging.log4j:log4j-api:2.19.0',
+        'org.apache.logging.log4j:log4j-core:2.19.0'
+    )
 }
 
 dependencies {
@@ -68,7 +76,7 @@ processResources {
     inputs.property 'mod_description', project.mod_description
     filteringCharset = 'UTF-8'
 
-    filesMatching('META-INF/neoforge.mods.toml') {
+    filesMatching('META-INF/mods.toml') {
         expand(
             minecraft_version: project.minecraft_version,
             minecraft_version_range: project.minecraft_version_range,
