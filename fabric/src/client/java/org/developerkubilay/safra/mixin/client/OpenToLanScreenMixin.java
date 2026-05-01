@@ -153,17 +153,6 @@ abstract class OpenToLanScreenMixin extends Screen {
         });
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        context.drawCenteredTextWithShadow(
-            this.textRenderer,
-            Text.translatable("safra.p2p.open_hint"),
-            this.width / 2,
-            232,
-            0xA0A0A0
-        );
-    }
-
     @Unique
     private MutableText safra$getToggleText() {
         return Text.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
