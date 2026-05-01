@@ -1,21 +1,47 @@
-MIT License
+All Rights Reserved
 
 Copyright (c) 2026 DeveloperKubilay
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+----------------------------------------
+ENGLISH (LEGAL VERSION)
+----------------------------------------
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This project is source-available software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+PERMISSIONS
+- View and study the source code
+- Fork the repository
+- Modify the code and build it for personal use
+- Use GitHub Actions or similar tools to create your own builds
+- Contribute via pull requests
+- Use in private or personal environments
+
+RESTRICTIONS
+- No public distribution of this project, modified versions, or derived builds without prior written permission
+- No uploading compiled versions to public platforms (Modrinth, CurseForge, personal GitHub Releases, mirror sites, file hosts, or similar services)
+- No public mirrors or download links
+- No rebranding or claiming ownership
+- No use of project name, logo, or assets without permission
+
+DISTRIBUTION
+This project is intended for personal use and development only.
+Forking and modification are allowed, but public distribution is prohibited unless explicitly permitted by the original author.
+
+OFFICIAL BUILDS
+Only releases published by the original author are considered official.
+
+DISCLAIMER
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+----------------------------------------
+TURKISH (INFORMATIONAL TRANSLATION)
+----------------------------------------
+
+(Bu bolum yalnizca aciklama amaclidir, hukuki gecerlilik Ingilizce metne aittir.)
+
+- Kod incelenebilir ve forklanabilir
+- Kisisel kullanim icin degistirilebilir
+- Build almak serbesttir
+- Ama kamuya acik sekilde paylasmak yasaktir
+- Modrinth / CurseForge gibi yerlere yuklenemez
+- Proje sahiplenilemez veya yeniden markalanamaz

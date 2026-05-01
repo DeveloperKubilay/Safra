@@ -82,17 +82,6 @@ abstract class ShareToLanScreenMixin extends Screen {
         this.safra$p2pInitialized = true;
     }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void safra$renderHint(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        guiGraphics.centeredText(
-            this.font,
-            Component.translatable("safra.p2p.open_hint"),
-            this.width / 2,
-            232,
-            0xA0A0A0
-        );
-    }
-
     @Unique
     private Component safra$getToggleText() {
         return Component.translatable(NeoForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");

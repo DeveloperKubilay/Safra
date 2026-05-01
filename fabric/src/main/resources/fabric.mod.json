@@ -5,7 +5,10 @@
   "name": "${mod_name}",
   "description": "${mod_description}",
   "authors": [],
-  "contact": {},
+  "contact": {
+    "homepage": "https://github.com/DeveloperKubilay/Safra",
+    "sources": "https://github.com/DeveloperKubilay/Safra"
+  },
   "license": "${mod_license}",
   "icon": "assets/safra/icon.png",
   "environment": "*",
