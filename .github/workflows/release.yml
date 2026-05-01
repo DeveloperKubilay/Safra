@@ -51,14 +51,21 @@ jobs:
       - name: Resolve release version
         shell: bash
         run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          minecraft_version="${repo_name#Safra-}"
           version_number="${{ github.event.inputs.version_number }}"
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
             exit 1
           fi
+          if [[ "$repo_name" == "$minecraft_version" || -z "$minecraft_version" ]]; then
+            echo "Could not resolve Minecraft version from repository name: $repo_name"
+            exit 1
+          fi
 
+          echo "SAFRA_MINECRAFT_VERSION=$minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
-          echo "SAFRA_TAG=v$version_number" >> "$GITHUB_ENV"
+          echo "SAFRA_TAG=Safra-$minecraft_version" >> "$GITHUB_ENV"
 
       - name: Build release artifacts
         run: ./gradlew build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
@@ -67,7 +74,7 @@ jobs:
         shell: bash
         run: |
           cat > release-notes.md <<EOF
-          Safra ${{ env.SAFRA_VERSION }}
+          Safra ${{ env.SAFRA_VERSION }} for Minecraft ${{ env.SAFRA_MINECRAFT_VERSION }}
 
           Included artifacts:
           - Fabric
@@ -98,6 +105,6 @@ jobs:
 
           gh release create "${{ env.SAFRA_TAG }}" build/libs/* \
             --target "${GITHUB_SHA}" \
-            --title "Safra ${{ env.SAFRA_VERSION }}" \
+            --title "Safra ${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}" \
             --notes-file release-notes.md \
             $prerelease_flag
