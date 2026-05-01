@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="png/parca1.png" alt="parca1" width="24%" />
-  <img src="png/parca2.png" alt="parca2" width="24%" />
-  <img src="png/parca3.png" alt="parca3" width="24%" />
-  <img src="png/parca4.png" alt="parca4" width="24%" />
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/parca1.png" alt="parca1" width="24%" />
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/parca2.png" alt="parca2" width="24%" />
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/parca3.png" alt="parca3" width="24%" />
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/parca4.png" alt="parca4" width="24%" />
 </p>
 
-![alt text](png/readme.gif)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif)
 
-![alt text](png/image1.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
 
 ## Safra 🚀
 
@@ -19,7 +19,7 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game �
 ✅ Lightweight and optimized  
 ✅ Only about **250 KB** in size
 
-![alt text](png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
 > **TLauncher** is used in the preview. (crack supported)  
 > Includes **voice chat** support 🎤 (mod support)
@@ -28,6 +28,12 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game �
 
 You can easily play with the mods you and your friends install 🫂  
 Supports **Fabric**, **Forge**, and **NeoForge** ✅
+
+## Note ⚠️
+
+> TLauncher or cracked players should set `online-mode=false` before sharing the game so they can join.
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
 ## FAQ 🤔
 
