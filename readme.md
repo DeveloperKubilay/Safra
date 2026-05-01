@@ -11,7 +11,7 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
 
-## Safra 🚀
+# Safra 🚀
 
 Don't waste time dealing with server setup 🛠️ or useless extra steps 🗑️  
 Launch your Minecraft server in **2 clicks** and jump straight into the game 🎮😎

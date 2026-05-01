@@ -11,7 +11,7 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
 
-## Safra 🚀
+# Safra 🚀
 
 Sunucu kurma derdiyle 🛠️ ya da gereksiz ayarlarla 🗑️ uğraşma.  
 Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir 🎮😎
@@ -37,7 +37,7 @@ Arkadaşlarınla yüklediğiniz modları rahatça oynayabilirsiniz 🫂
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
-## FAQ 🤔
+## SSS 🤔
 
 <table>
   <tr>
