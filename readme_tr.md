@@ -11,31 +11,31 @@
 
 ## Safra 🚀
 
-Don't waste time dealing with server setup or useless extra steps.  
-Launch your Minecraft server in **2 clicks** and jump straight into the game 😎
+Sunucu kurma derdiyle ya da gereksiz ayarlarla uğraşma.  
+Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir 😎
 
-✅ No complicated interface  
-✅ No unnecessary systems  
-✅ Lightweight and optimized  
-✅ Only about **250 KB** in size
+✅ Karmaşık arayüz yok  
+✅ Saçma sapan sistemler yok  
+✅ Hafif ve optimize yapı  
+✅ Yaklaşık **250 KB** boyut
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> **TLauncher** is used in the preview. (crack supported)  
-> Includes **voice chat** support 🎤 (mod support)
+> Görselde **TLauncher** kullanılmıştır. (crack destekli)  
+> **Voice chat** desteği vardır 🎤 (mod desteği)
 
-## Mod Support 🔥
+## Mod Desteği 🔥
 
-You can easily play with the mods you and your friends install 🫂  
-Supports **Fabric**, **Forge**, and **NeoForge** ✅
+Arkadaşlarınla yüklediğiniz modları rahatça oynayabilirsiniz 🫂  
+**Fabric**, **Forge** ve **NeoForge** desteklenir ✅
 
-## Note ⚠️
+## Not ⚠️
 
-> TLauncher or cracked players should set `online-mode=false` before sharing the game so they can join.
+> TLauncher veya crack oyuncuları, oyunu paylaşmadan önce girebilmeleri için `online-mode=false` yapsınlar.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
 ## FAQ 🤔
 
-You can submit feature requests, version suggestions, or bug reports on GitHub 🛠️  
-Open-source project here: [DeveloperKubilay/Safra](https://github.com/DeveloperKubilay/Safra)
+İstek, sürüm önerisi ya da hata bildirimi için GitHub’dan yazabilirsin 🛠️  
+Açık kaynak kodlu proje burada: [DeveloperKubilay/Safra](https://github.com/DeveloperKubilay/Safra)
