@@ -7,11 +7,14 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.GameShuttingDownEvent;
 import org.developerkubilay.safra.SafraNeoForge;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 
 @Mod(value = SafraNeoForge.MOD_ID, dist = Dist.CLIENT)
 public final class SafraNeoForgeClient {
     public SafraNeoForgeClient() {
+        RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
         NeoForge.EVENT_BUS.addListener(SafraNeoForgeClient::clientTick);
         NeoForge.EVENT_BUS.addListener(SafraNeoForgeClient::clientStopping);
     }
