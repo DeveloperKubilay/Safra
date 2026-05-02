@@ -18,7 +18,6 @@ public final class P2pConstants {
     static final long STUN_REFRESH_MS = 20_000L;
     static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
     static final long RENDEZVOUS_PING_MS = 10 * 60 * 1000L;
-    static final String DEFAULT_RENDEZVOUS_URL = "https://safra.developerkubilay.workers.dev";
     static final String ADDRESS_SCHEME = "p2p://";
     static final String[][] STUN_SERVER_GROUPS = {
         {
@@ -32,7 +31,33 @@ public final class P2pConstants {
         }
     };
 
+    private static volatile String runtimeRendezvousUrl;
+
     private P2pConstants() {
+    }
+
+    public static void setRuntimeRendezvousUrl(String url) {
+        runtimeRendezvousUrl = isValidRendezvousUrl(url) ? url.trim() : null;
+    }
+
+    public static boolean hasRendezvousUrl() {
+        return !rendezvousUrl().isBlank();
+    }
+
+    public static boolean isValidRendezvousUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+
+        try {
+            String scheme = java.net.URI.create(url.trim()).getScheme();
+            return "http".equalsIgnoreCase(scheme)
+                || "https".equalsIgnoreCase(scheme)
+                || "ws".equalsIgnoreCase(scheme)
+                || "wss".equalsIgnoreCase(scheme);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     static String rendezvousUrl() {
@@ -51,7 +76,12 @@ public final class P2pConstants {
             return legacyEnvironment.trim();
         }
 
-        return DEFAULT_RENDEZVOUS_URL;
+        String runtime = runtimeRendezvousUrl;
+        if (runtime != null && !runtime.isBlank()) {
+            return runtime.trim();
+        }
+
+        return "";
     }
 
     static String rendezvousToken() {
@@ -72,4 +102,5 @@ public final class P2pConstants {
 
         return "";
     }
+
 }

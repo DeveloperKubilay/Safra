@@ -109,7 +109,10 @@ Simple Voice Chat desteklenir.
 
 Rendezvous worker:
 
-- `https://safra.developerkubilay.workers.dev`
+- worker URL'si artik kodda sabit tutulmaz
+- istemci acilista remote config dosyasini arka planda yoklar
+- gecerli son URL local config icinde cache olarak saklanir
+- remote taraf bozuksa veya erisilemezse eldeki cache ile devam edilir
 
 Local worker repo:
 
@@ -200,6 +203,15 @@ Tutulan tercihler:
 - Open to LAN `Allow Commands`
 - Open to LAN `Game Rules` snapshot
 - Direct Connect `P2P`
+- cached `rendezvousUrl`
+- remote key secimi icin `siteApiVersion`
+
+Remote URL guncelleme mantigi:
+
+- kaynak dosya `https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json`
+- istemci acilisini bloklamaz, request arka planda atilir
+- local `siteApiVersion` degeri icin remote'da `api-<version>` anahtari okunur
+- gecerli URL gelirse local config guncellenir
 
 ## Metadata and Assets
 
