@@ -214,6 +214,9 @@ final class SafraRendezvousClient implements AutoCloseable {
 
     private static URI webSocketUri(String path, String peerId) {
         String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
+        if (base.isBlank()) {
+            throw new IllegalStateException("rendezvous URL is not configured");
+        }
         URI baseUri = URI.create(base);
         String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
             case "http" -> "ws";
@@ -227,6 +230,9 @@ final class SafraRendezvousClient implements AutoCloseable {
 
     private static URI httpUri(String path) {
         String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
+        if (base.isBlank()) {
+            throw new IllegalStateException("rendezvous URL is not configured");
+        }
         URI baseUri = URI.create(base);
         String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
             case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
@@ -292,7 +298,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             buffer.append(data);
             if (last) {
                 try {
-                    JsonObject message = JsonParser.parseString(buffer.toString()).getAsJsonObject();
+                    JsonObject message = new JsonParser().parse(buffer.toString()).getAsJsonObject();
                     handle(message);
                 } catch (RuntimeException exception) {
                     fail(exception);
