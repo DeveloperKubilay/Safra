@@ -84,7 +84,7 @@ public final class P2pHostService implements AutoCloseable {
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint
             );
             SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
-            LOGGER.info("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
+            LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);

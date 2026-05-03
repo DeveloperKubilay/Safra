@@ -33,6 +33,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 if (this.allowCommandsButton != null) {
                     this.allowCommandsButton.setMessage(this.getAllowCommandsText());
                 }
+                this.clearWidgetFocus();
             })
             .dimensions(this.width / 2 - 100, this.height / 4 + 48, 200, 20)
             .build());
@@ -75,6 +76,10 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
         );
+    }
+
+    private void clearWidgetFocus() {
+        this.setFocused(null);
     }
 
     private void handleGameRulesClose(Optional<GameRules> rules) {
