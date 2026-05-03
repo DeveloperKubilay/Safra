@@ -9,7 +9,7 @@ Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutul
 - Mod id: `safra`
 - Maven group: `org.developerkubilay`
 - Java package: `org.developerkubilay.safra`
-- Current base version: `26.1`
+- Current base version: `1.21.11`
 - Current mod version: `1.0-SNAPSHOT`
 
 ## Module Layout
@@ -258,7 +258,6 @@ Modern surumler:
 - mevcut coklu-loader mimariye daha yakin
 - `common` katmaninin buyuk kismi korunabilir
 - mapping ve toolchain guncellemesi ana maliyettir
-- `26.1+` icin Fabric tarafi da resmi Mojang isimlerine gecmistir; Yarn bagimliligi beklenmez
 
 Legacy surumler:
 
@@ -291,7 +290,6 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
 
 1. Java matrix
   - CI ve local build JVM degeri branch gereksinimiyle uyumlu olmali
-  - `26.1` icin build JVM ve compile target `25` olmali
   - `1.20.1` icin pratikte build JVM `21`, compile target `17` tutulur
 
 2. Mixin uyumlulugu
@@ -311,25 +309,39 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
 
 Bu repo'da local manuel test sirasinda su akis kullanilir:
 
-1. Test loader'lari ayni anda degil, teker teker denenir
+1. Test loader sirasi sabittir
   - once `fabric`
   - sonra `forge`
   - sonra `neoforge`
 
-2. Dedicated server + client testi yapilacaksa sira sabittir
-  - once `runServer`
-  - yaklasik `5` saniye bekle
-  - sonra ayni loader icin `runClient`
+2. Bir loader bitmeden diger loader'a gecilmez
+  - `fabric` bitmeden `forge` acilmaz
+  - `forge` bitmeden `neoforge` acilmaz
+  - kullanici acikca `siradaki` demeden sonraki loader'a gecilmez
 
-3. Dev test sirasinda dedicated server auth ayarlari kapali olmali
+3. Dedicated server + client testi ayni tur icinde birlikte acilir
+  - iki ayri terminal veya iki ayri PowerShell penceresi kullan
+  - `spawn: <loader>:runServer`
+  - `spawn: <loader>:runClient`
+  - ikisini ayni anda ayri process olarak calistir
+  - ayni loader turu boyunca baska loader acma
+
+4. Bu manuel testte agent oyunu kullanarak test yapmaz
+  - agent sadece process'leri baslatir
+  - kullanici oyunun icinden manuel kontrol yapar
+  - agent kullanici geri donmeden test sonucu uydurmaz
+
+5. Dev test sirasinda dedicated server auth ayarlari her tur oncesi dogrulanir
   - `online-mode=false`
   - `enforce-secure-profile=false`
+  - gerekirse ilgili `server.properties` dosyasi editlenir, varsayim yapilmaz
 
-4. Her testten sonra server logu kontrol edilir
-  - share code olustu mu
-  - oyuncu baglandi mi
-  - disconnect, auth, tunnel veya rendezvous hatasi var mi
+6. Log kontrol zamani sabittir
+  - once kullanici manuel test eder
+  - kullanici `siradaki` dedikten sonra log kontrol edilir
+  - logda share code, join, disconnect, auth, tunnel ve rendezvous hatalari taranir
+  - log temizse bir sonraki loader'a gecilir
 
-5. Ayni turda birden fazla loader acip sonucu karistirma
-  - `fabric` sonucu netlesmeden `forge`e gecme
-  - `forge` sonucu netlesmeden `neoforge`a gecme
+7. Kullanici istemeden coklu yorum veya otomatik ilerleme yapilmaz
+  - sonraki loader otomatik acilmaz
+  - kullanici geri bildirimi beklenir
