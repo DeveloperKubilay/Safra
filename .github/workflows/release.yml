@@ -65,7 +65,7 @@ jobs:
 
           echo "SAFRA_MINECRAFT_VERSION=$minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
-          echo "SAFRA_TAG=Safra-$minecraft_version" >> "$GITHUB_ENV"
+          echo "SAFRA_TAG=Safra-$minecraft_version-$version_number" >> "$GITHUB_ENV"
 
       - name: Build release artifacts
         run: ./gradlew build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
