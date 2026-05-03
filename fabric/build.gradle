@@ -28,8 +28,13 @@ loom {
 
     runs {
         client {
+            runDir 'run'
             programArg '--username'
             programArg devUsername
+        }
+
+        server {
+            runDir 'run'
         }
     }
 }
