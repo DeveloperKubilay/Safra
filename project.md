@@ -304,3 +304,30 @@ Yeni branch ya da yeni release oncesi hizli kontrol:
   - `gradlew runClient`
   - `gradlew :forge:runClient`
   - loglarda mixin apply veya resource pack metadata hatasi kalmadigi dogrulanmali
+
+## Manual Test Flow
+
+Bu repo'da local manuel test sirasinda su akis kullanilir:
+
+1. Test loader'lari ayni anda degil, teker teker denenir
+  - once `fabric`
+  - sonra `forge`
+  - varsa sonra `neoforge`
+
+2. Dedicated server + client testi yapilacaksa sira sabittir
+  - once `runServer`
+  - yaklasik `5` saniye bekle
+  - sonra ayni loader icin `runClient`
+
+3. Dev test sirasinda dedicated server auth ayarlari kapali olmali
+  - `online-mode=false`
+  - `enforce-secure-profile=false`
+
+4. Her testten sonra server logu kontrol edilir
+  - share code olustu mu
+  - oyuncu baglandi mi
+  - disconnect, auth, tunnel veya rendezvous hatasi var mi
+
+5. Ayni turda birden fazla loader acip sonucu karistirma
+  - `fabric` sonucu netlesmeden `forge`e gecme
+  - `forge` sonucu netlesmeden `neoforge`a gecme
