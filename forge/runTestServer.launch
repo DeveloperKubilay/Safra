@@ -3,10 +3,10 @@
   <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="forge"/>
   <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="net.minecraftforge.launcher.Main"/>
   <stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Djava.net.preferIPv6Addresses=system -XX:+UseCompactObjectHeaders -Dforge.enableGameTest=true"/>
-  <stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="--main net.minecraftforge.bootstrap.ForgeBootstrap --cache C:\Users\kubil\.gradle\caches\minecraftforge\forgegradle\slime-launcher\cache\net\minecraftforge\forge\26.1-62.0.9 --metadata C:\Users\kubil\IdeaProjects\Safra-26.1\.gradle\mavenizer\repo\net\minecraftforge\forge\26.1-62.0.9\forge-26.1-62.0.9-metadata.zip -- --launchTarget forge_userdev_server --gameDir . --mixin.config=safra.forge.mixins.json --nogui"/>
-  <stringAttribute key="org.eclipse.jdt.launching.WORKING_DIRECTORY" value="C:\Users\kubil\IdeaProjects\Safra-26.1\forge\run"/>
+  <stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="--main net.minecraftforge.bootstrap.ForgeBootstrap --cache C:\Users\kubil\.gradle\caches\minecraftforge\forgegradle\slime-launcher\cache\net\minecraftforge\forge\26.1.2-64.0.6 --metadata C:\Users\kubil\IdeaProjects\Safra-26.2\.gradle\mavenizer\repo\net\minecraftforge\forge\26.1.2-64.0.6\forge-26.1.2-64.0.6-metadata.zip -- --launchTarget forge_userdev_server --gameDir . --mixin.config=safra.forge.mixins.json --nogui"/>
+  <stringAttribute key="org.eclipse.jdt.launching.WORKING_DIRECTORY" value="C:\Users\kubil\IdeaProjects\Safra-26.2\forge\run"/>
   <mapAttribute key="org.eclipse.debug.core.environmentVariables">
-    <mapEntry key="MCP_MAPPINGS" value="official_26.1"/>
+    <mapEntry key="MCP_MAPPINGS" value="official_26.1.2"/>
   </mapAttribute>
   <listAttribute key="org.eclipse.jdt.launching.CLASSPATH">
     <listEntry value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&lt;runtimeClasspathEntry projectName=&quot;forge&quot; type=&quot;1&quot; path=&quot;5&quot; /&gt;"/>
