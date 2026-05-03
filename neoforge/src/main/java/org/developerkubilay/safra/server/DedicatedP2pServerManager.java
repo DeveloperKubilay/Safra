@@ -5,6 +5,7 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
+import org.developerkubilay.safra.p2p.RemoteRendezvousBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +26,7 @@ public final class DedicatedP2pServerManager {
         }
 
         stopHosting();
+        RemoteRendezvousBootstrap.initialize();
 
         int tcpPort = server.getPort();
         try {
