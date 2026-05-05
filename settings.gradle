@@ -1,3 +1,5 @@
+import java.util.Locale
+
 pluginManagement {
     repositories {
         maven {
@@ -23,6 +25,39 @@ plugins {
 rootProject.name = 'Safra'
 
 include 'common'
-include 'fabric'
-include 'neoforge'
-include 'forge'
+
+def taskNames = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
+def currentDirName = gradle.startParameter.currentDir?.name?.toLowerCase(Locale.ROOT)
+def touchesOnly = { List<String> prefixes ->
+    !taskNames.isEmpty() && taskNames.every { name ->
+        prefixes.any { prefix ->
+            name == prefix || name == ":${prefix}" || name.startsWith("${prefix}:") || name.startsWith(":${prefix}:")
+        } || name == 'runclient' || name == ':runclient'
+    }
+}
+
+def autoFabricOnly = touchesOnly(['fabric', 'common'])
+def autoNeoForgeOnly = !autoFabricOnly && touchesOnly(['neoforge', 'common'])
+def autoForgeOnly = !(autoFabricOnly || autoNeoForgeOnly) && touchesOnly(['forge', 'common'])
+
+def currentDirFabricOnly = currentDirName == 'fabric'
+def currentDirNeoForgeOnly = currentDirName == 'neoforge'
+def currentDirForgeOnly = currentDirName == 'forge'
+
+def forceFabricOnly = gradle.startParameter.projectProperties.containsKey('fabricOnly')
+def forceNeoForgeOnly = gradle.startParameter.projectProperties.containsKey('neoforgeOnly')
+def forceForgeOnly = gradle.startParameter.projectProperties.containsKey('forgeOnly')
+
+def includeFabric = !(forceNeoForgeOnly || forceForgeOnly || autoNeoForgeOnly || autoForgeOnly || currentDirNeoForgeOnly || currentDirForgeOnly)
+def includeNeoForge = !(forceFabricOnly || forceForgeOnly || autoFabricOnly || autoForgeOnly || currentDirFabricOnly || currentDirForgeOnly)
+def includeForge = !(forceFabricOnly || forceNeoForgeOnly || autoFabricOnly || autoNeoForgeOnly || currentDirFabricOnly || currentDirNeoForgeOnly)
+
+if (includeFabric) {
+    include 'fabric'
+}
+if (includeNeoForge) {
+    include 'neoforge'
+}
+if (includeForge) {
+    include 'forge'
+}

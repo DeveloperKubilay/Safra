@@ -4,7 +4,6 @@ plugins {
 
 group = project.maven_group
 version = "${project.minecraft_version}-${project.mod_version}"
-def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -50,22 +49,35 @@ subprojects {
     }
 }
 
-project(':neoforge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
+def fabricProject = findProject(':fabric')
+def neoforgeProject = findProject(':neoforge')
+def forgeProject = findProject(':forge')
+
+neoforgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
 }
 
-project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !rootRunClientRequested }
+forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
 }
 
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':neoforge:build', ':forge:build')
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':neoforge').layout.buildDirectory.dir('libs'))
-    from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
     include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+
+    if (fabricProject != null) {
+        dependsOn(':fabric:build')
+        from(fabricProject.layout.buildDirectory.dir('libs'))
+    }
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:build')
+        from(neoforgeProject.layout.buildDirectory.dir('libs'))
+    }
+    if (forgeProject != null) {
+        dependsOn(':forge:build')
+        from(forgeProject.layout.buildDirectory.dir('libs'))
+    }
 
     doFirst {
         delete(layout.buildDirectory.dir('libs').get().asFile)
@@ -75,7 +87,9 @@ tasks.register('collectBuildLibs', Copy) {
 tasks.register('runClient') {
     group = 'application'
     description = 'Runs the Fabric client from the root project.'
-    dependsOn(':fabric:runClient')
+    if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    }
 }
 
 tasks.named('build') {
