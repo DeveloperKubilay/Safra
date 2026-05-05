@@ -58,7 +58,7 @@ public final class RemoteRendezvousBootstrap {
             return "";
         }
 
-        JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+        JsonObject json = new JsonParser().parse(body).getAsJsonObject();
         JsonElement urlElement = json.get("api-" + siteApiVersion);
         if (urlElement == null || urlElement.isJsonNull()) {
             return "";
