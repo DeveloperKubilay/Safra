@@ -16,6 +16,7 @@ public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousBootstrap.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final String DEFAULT_SITE_API_VERSION = "1.0";
+    private static final String DEFAULT_API_1_URL = "https://safra.developerkubilay.workers.dev";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -30,6 +31,7 @@ public final class RemoteRendezvousBootstrap {
             return;
         }
 
+        String siteApiVersion = siteApiVersion();
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
                 .timeout(REQUEST_TIMEOUT)
@@ -38,18 +40,21 @@ public final class RemoteRendezvousBootstrap {
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 LOGGER.debug("Safra remote rendezvous config request returned HTTP {}", response.statusCode());
+                applyEmbeddedFallback(siteApiVersion);
                 return;
             }
 
-            String remoteUrl = parseRemoteUrl(response.body(), siteApiVersion());
+            String remoteUrl = parseRemoteUrl(response.body(), siteApiVersion);
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
-                LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion());
+                LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion);
+                applyEmbeddedFallback(siteApiVersion);
                 return;
             }
 
             P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
         } catch (Exception exception) {
             LOGGER.debug("Safra remote rendezvous bootstrap skipped: {}", exception.toString());
+            applyEmbeddedFallback(siteApiVersion);
         }
     }
 
@@ -58,7 +63,7 @@ public final class RemoteRendezvousBootstrap {
             return "";
         }
 
-        JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+        JsonObject json = new JsonParser().parse(body).getAsJsonObject();
         JsonElement urlElement = json.get("api-" + siteApiVersion);
         if (urlElement == null || urlElement.isJsonNull()) {
             return "";
@@ -79,5 +84,23 @@ public final class RemoteRendezvousBootstrap {
         }
 
         return DEFAULT_SITE_API_VERSION;
+    }
+
+    private static void applyEmbeddedFallback(String siteApiVersion) {
+        String fallbackUrl = embeddedFallbackUrl(siteApiVersion);
+        if (!P2pConstants.isValidRendezvousUrl(fallbackUrl)) {
+            return;
+        }
+
+        LOGGER.debug("Safra remote rendezvous bootstrap is using embedded fallback for api-{}", siteApiVersion);
+        P2pConstants.setRuntimeRendezvousUrl(fallbackUrl);
+    }
+
+    private static String embeddedFallbackUrl(String siteApiVersion) {
+        if (DEFAULT_SITE_API_VERSION.equals(siteApiVersion)) {
+            return DEFAULT_API_1_URL;
+        }
+
+        return "";
     }
 }
