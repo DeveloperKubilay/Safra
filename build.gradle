@@ -3,7 +3,7 @@ plugins {
 }
 
 group = project.maven_group
-version = "${project.minecraft_version}-${project.mod_version}"
+version = "${project.base_minecraft_version}-${project.mod_version}"
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
