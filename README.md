@@ -23,7 +23,7 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game �
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> **TLauncher** is used in the preview (crack supported 🔓)  
+> **TLauncher** is used in the preview (alternative launchers are supported 🔓)  
 > Includes **voice chat** support 🎤🗣️ (mod support ⚙️)
 
 ## Mod Support 🔥
@@ -33,7 +33,7 @@ Supports **Fabric**, **Forge**, and **NeoForge** ✅
 
 ## Note ⚠️
 
-> TLauncher or cracked players should set `online-mode=false` before sharing the game so they can join.
+> If TLauncher or other launcher players will join, it's enough for the person starting the server to set `online-mode=false` before sharing the game.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
