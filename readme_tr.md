@@ -23,7 +23,7 @@ Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir 🎮😎
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> Görselde **TLauncher** kullanılmıştır (crack destekli 🔓)  
+> Görselde **TLauncher** kullanılmıştır (Alternatif başlatıcıları destekliyor 🔓)  
 > **Voice chat** desteği vardır 🎤🗣️ (mod desteği ⚙️)
 
 ## Mod Desteği 🔥
@@ -33,7 +33,7 @@ Arkadaşlarınla yüklediğiniz modları rahatça oynayabilirsiniz 🫂
 
 ## Not ⚠️
 
-> TLauncher veya crack oyuncuları, oyunu paylaşmadan önce girebilmeleri için `online-mode=false` yapsınlar.
+> TLauncher veya diğer başlatıcılarla girilecekse, oyunu paylaşmadan önce sunucuyu başlatan kişinin `online-mode=false` yapması yeterlidir.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
