@@ -44,7 +44,7 @@ jobs:
           build-mode: manual
 
       - name: Build project
-        run: ./gradlew build --stacktrace
+        run: ./gradlew clean build --stacktrace
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3

@@ -75,6 +75,59 @@ dependencies {
 
 renamer.mappings(minecraft.dependency.toSrg)
 
+def forgeRuntimeJarName = "${project.archives_base_name}-forge-${project.version}.jar"
+def forgeDevJarName = "${project.archives_base_name}-forge-${project.version}-dev.jar"
+def forgeRemappedJarName = "${project.archives_base_name}-forge-${project.version}-srg.jar"
+
+tasks.register('prepareForgeRuntimeJar') {
+    dependsOn(tasks.named('renameJar'))
+    inputs.file(layout.buildDirectory.file("libs/${forgeRemappedJarName}"))
+    outputs.file(layout.buildDirectory.file("libs/${forgeRuntimeJarName}"))
+    outputs.file(layout.buildDirectory.file("libs/${forgeDevJarName}"))
+
+    doLast {
+        def libsDir = layout.buildDirectory.dir('libs').get().asFile
+        def runtimeJar = new File(libsDir, forgeRuntimeJarName)
+        def devJar = new File(libsDir, forgeDevJarName)
+        def remappedJar = new File(libsDir, forgeRemappedJarName)
+
+        if (!remappedJar.isFile()) {
+            throw new GradleException("Missing remapped Forge jar: ${remappedJar}")
+        }
+
+        if (devJar.exists() && !devJar.delete()) {
+            throw new GradleException("Could not delete stale Forge dev jar: ${devJar}")
+        }
+
+        if (runtimeJar.isFile()) {
+            if (!runtimeJar.renameTo(devJar)) {
+                copy {
+                    from(runtimeJar)
+                    into(libsDir)
+                    rename { forgeDevJarName }
+                }
+                if (!runtimeJar.delete()) {
+                    throw new GradleException("Could not replace Forge runtime jar: ${runtimeJar}")
+                }
+            }
+        }
+
+        copy {
+            from(remappedJar)
+            into(libsDir)
+            rename { forgeRuntimeJarName }
+        }
+    }
+}
+
+tasks.named('assemble') {
+    dependsOn(tasks.named('prepareForgeRuntimeJar'))
+}
+
+tasks.named('build') {
+    dependsOn(tasks.named('prepareForgeRuntimeJar'))
+}
+
 processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
