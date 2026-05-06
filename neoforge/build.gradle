@@ -4,6 +4,30 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.141'
 }
 
+abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineArgumentProvider {
+    @org.gradle.api.tasks.InputFile
+    @org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.NONE)
+    abstract org.gradle.api.file.RegularFileProperty getInMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getOutMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getRefmap()
+
+    @Override
+    Iterable<String> asArguments() {
+        [
+            "-AreobfTsrgFile=${getInMappings().get().asFile.absolutePath}",
+            "-AoutTsrgFile=${getOutMappings().get().asFile.absolutePath}",
+            "-AoutRefMapFile=${getRefmap().get().asFile.absolutePath}",
+            '-AmappingTypes=tsrg',
+            '-ApluginVersion=0.7',
+            '-AdefaultObfuscationEnv=searge'
+        ]
+    }
+}
+
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
@@ -18,10 +42,25 @@ base {
 def devUsername = rootProject.ext.devRunUsername(project)
 
 def targetJavaVersion = 25
+def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
+def mixinMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
+def neoFormMappingsFile = project(':forge').layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
+def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
+mixinCompilerArgs.inMappings.set(neoFormMappingsFile)
+mixinCompilerArgs.outMappings.set(mixinMappingsFile)
+mixinCompilerArgs.refmap.set(mixinRefmapFile)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release.set(targetJavaVersion)
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    dependsOn project(':forge').tasks.named('formatMixinMappings')
+    dependsOn tasks.named('createMinecraftArtifacts')
+    options.compilerArgumentProviders.add(mixinCompilerArgs)
+    outputs.file(mixinRefmapFile)
+    outputs.file(mixinMappingsFile)
 }
 
 java {
@@ -53,6 +92,7 @@ neoForge {
 
 dependencies {
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
 processResources {
@@ -86,6 +126,7 @@ processResources {
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }

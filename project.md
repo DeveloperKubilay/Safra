@@ -3,6 +3,13 @@
 Bu dosya, projenin kalici yapisini ve surum port rehberini anlatir.
 Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutulmaz.
 
+## Degisiklik Ozeti (2026-05-07)
+
+- GitHub Actions: `release.yml` / `codeql.yml` update
+- Gradle: `build.gradle`, `forge/build.gradle`, `neoforge/build.gradle` update
+- Mixins: `safra.forge.mixins.json` ve `safra.neoforge.mixins.json` update
+- Forge: `SafraForge.java` update
+
 ## Project Identity
 
 - Mod name: `Safra`
