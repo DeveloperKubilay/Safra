@@ -1,3 +1,6 @@
+import groovy.json.JsonSlurper
+import java.util.jar.JarFile
+
 plugins {
     id 'base'
 }
@@ -80,4 +83,60 @@ tasks.register('runClient') {
 
 tasks.named('build') {
     dependsOn(tasks.named('collectBuildLibs'))
+}
+
+tasks.register('verifyMixinArtifacts') {
+    dependsOn(tasks.named('collectBuildLibs'))
+
+    doLast {
+        def jars = layout.buildDirectory.dir('libs').get().asFile.listFiles()?.findAll {
+            it.name.endsWith('.jar') && !it.name.endsWith('-sources.jar')
+        } ?: []
+        if (jars.isEmpty()) {
+            throw new GradleException('No built jars were found for mixin verification.')
+        }
+
+        def slurper = new JsonSlurper()
+        def requiredConfigs = ['safra.forge.mixins.json']
+
+        jars.findAll { jarFile ->
+            jarFile.name.contains('-forge-')
+        }.each { jarFile ->
+            JarFile jar = new JarFile(jarFile)
+            try {
+                requiredConfigs.each { configName ->
+                    def configEntry = jar.getJarEntry(configName)
+                    if (configEntry == null) {
+                        return
+                    }
+
+                    def config = slurper.parse(jar.getInputStream(configEntry))
+                    def refmapName = config.refmap
+                    if (!(refmapName instanceof String) || refmapName.isBlank()) {
+                        throw new GradleException("Missing refmap in ${jarFile.name}:${configName}")
+                    }
+
+                    def refmapEntry = jar.getJarEntry(refmapName)
+                    if (refmapEntry == null) {
+                        throw new GradleException("Missing refmap resource ${refmapName} in ${jarFile.name}")
+                    }
+
+                    def refmap = slurper.parse(jar.getInputStream(refmapEntry))
+                    def hasMappings = refmap instanceof Map && (
+                        (refmap.mappings instanceof Map && !refmap.mappings.isEmpty()) ||
+                        (refmap.data instanceof Map && refmap.data.values().any { it instanceof Map && !it.isEmpty() })
+                    )
+                    if (!hasMappings) {
+                        throw new GradleException("Empty refmap ${refmapName} in ${jarFile.name}")
+                    }
+                }
+            } finally {
+                jar.close()
+            }
+        }
+    }
+}
+
+tasks.named('build') {
+    dependsOn(tasks.named('verifyMixinArtifacts'))
 }
