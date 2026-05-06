@@ -3,6 +3,11 @@
 Bu dosya, projenin kalici yapisini ve surum port rehberini anlatir.
 Gecici hata hikayeleri, tek seferlik notlar ve anlik release durumu burada tutulmaz.
 
+## Degisiklik Ozeti (2026-05-07)
+
+- Gradle: `build.gradle` update
+- Forge: `SafraForge.java` update
+
 ## Project Identity
 
 - Mod name: `Safra`

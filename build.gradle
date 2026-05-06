@@ -98,6 +98,103 @@ tasks.register('verifyMixinArtifacts') {
 
         def slurper = new JsonSlurper()
         def requiredConfigs = ['safra.forge.mixins.json']
+        def modEntryClassName = 'org.developerkubilay.safra.SafraForge'
+        def modEntryClassPath = 'org/developerkubilay/safra/SafraForge.class'
+        def hasPublicNoArgConstructor = { byte[] classBytes ->
+            def input = new DataInputStream(new ByteArrayInputStream(classBytes))
+            try {
+                if ((input.readInt() & 0xFFFFFFFFL) != 0xCAFEBABEL) {
+                    throw new GradleException("Invalid class file for ${modEntryClassName}")
+                }
+
+                input.readUnsignedShort()
+                input.readUnsignedShort()
+
+                int constantPoolCount = input.readUnsignedShort()
+                def constantPool = new Object[constantPoolCount]
+                for (int index = 1; index < constantPoolCount; index++) {
+                    switch (input.readUnsignedByte()) {
+                        case 1:
+                            constantPool[index] = input.readUTF()
+                            break
+                        case 3:
+                        case 4:
+                            input.readInt()
+                            break
+                        case 5:
+                        case 6:
+                            input.readLong()
+                            index++
+                            break
+                        case 7:
+                        case 8:
+                        case 16:
+                        case 19:
+                        case 20:
+                            input.readUnsignedShort()
+                            break
+                        case 9:
+                        case 10:
+                        case 11:
+                        case 12:
+                        case 17:
+                        case 18:
+                            input.readUnsignedShort()
+                            input.readUnsignedShort()
+                            break
+                        case 15:
+                            input.readUnsignedByte()
+                            input.readUnsignedShort()
+                            break
+                        default:
+                            throw new GradleException("Unsupported class file constant pool tag while checking ${modEntryClassName}")
+                    }
+                }
+
+                input.readUnsignedShort()
+                input.readUnsignedShort()
+                input.readUnsignedShort()
+
+                input.readUnsignedShort().times {
+                    input.readUnsignedShort()
+                }
+
+                def skipMember = {
+                    input.readUnsignedShort()
+                    input.readUnsignedShort()
+                    input.readUnsignedShort()
+                    input.readUnsignedShort().times {
+                        input.readUnsignedShort()
+                        input.skipNBytes(input.readInt() as long)
+                    }
+                }
+
+                input.readUnsignedShort().times {
+                    skipMember()
+                }
+
+                int methodCount = input.readUnsignedShort()
+                for (int methodIndex = 0; methodIndex < methodCount; methodIndex++) {
+                    int accessFlags = input.readUnsignedShort()
+                    int nameIndex = input.readUnsignedShort()
+                    int descriptorIndex = input.readUnsignedShort()
+                    String methodName = constantPool[nameIndex] as String
+                    String descriptor = constantPool[descriptorIndex] as String
+                    input.readUnsignedShort().times {
+                        input.readUnsignedShort()
+                        input.skipNBytes(input.readInt() as long)
+                    }
+
+                    if (methodName == '<init>' && descriptor == '()V' && (accessFlags & 0x0001) != 0) {
+                        return true
+                    }
+                }
+
+                return false
+            } finally {
+                input.close()
+            }
+        }
 
         jars.findAll { jarFile ->
             jarFile.name.contains('-forge-')
@@ -129,6 +226,13 @@ tasks.register('verifyMixinArtifacts') {
                     if (!hasMappings) {
                         throw new GradleException("Empty refmap ${refmapName} in ${jarFile.name}")
                     }
+                }
+                def modEntryClass = jar.getJarEntry(modEntryClassPath)
+                if (modEntryClass == null) {
+                    throw new GradleException("Missing mod entrypoint class ${modEntryClassName} in ${jarFile.name}")
+                }
+                if (!hasPublicNoArgConstructor(jar.getInputStream(modEntryClass).bytes)) {
+                    throw new GradleException("Missing public no-arg mod entrypoint constructor in ${jarFile.name}:${modEntryClassName}")
                 }
             } finally {
                 jar.close()
