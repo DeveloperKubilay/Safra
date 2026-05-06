@@ -4,6 +4,30 @@ plugins {
     id 'net.minecraftforge.gradle' version '[7.0.17,8)'
 }
 
+abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineArgumentProvider {
+    @org.gradle.api.tasks.InputFile
+    @org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.NONE)
+    abstract org.gradle.api.file.RegularFileProperty getInMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getOutMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getRefmap()
+
+    @Override
+    Iterable<String> asArguments() {
+        [
+            "-AreobfTsrgFile=${getInMappings().get().asFile.absolutePath}",
+            "-AoutTsrgFile=${getOutMappings().get().asFile.absolutePath}",
+            "-AoutRefMapFile=${getRefmap().get().asFile.absolutePath}",
+            '-AmappingTypes=tsrg',
+            '-ApluginVersion=0.7',
+            '-AdefaultObfuscationEnv=searge'
+        ]
+    }
+}
+
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
@@ -18,6 +42,17 @@ base {
 def devUsername = rootProject.ext.devRunUsername(project)
 
 def targetJavaVersion = 25
+def mixinMinecraftVersion = (project.findProperty('minecraft_version') ?: project.findProperty('forge_minecraft_version'))?.toString()
+if (mixinMinecraftVersion == null) {
+    throw new GradleException("Could not determine the Forge Minecraft version for mixin mappings")
+}
+def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
+def generatedMixinMappingsFile = layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
+def mixinCompositeMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
+def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
+mixinCompilerArgs.inMappings.set(generatedMixinMappingsFile)
+mixinCompilerArgs.outMappings.set(mixinCompositeMappingsFile)
+mixinCompilerArgs.refmap.set(mixinRefmapFile)
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
@@ -28,7 +63,104 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+tasks.register('formatMixinMappings') {
+    dependsOn project(':neoforge').tasks.named('createMinecraftArtifacts')
+    inputs.files(project.fileTree('src/main/java') {
+        include '**/*Mixin.java'
+    })
+    inputs.property('minecraft_version', mixinMinecraftVersion)
+    outputs.file(generatedMixinMappingsFile)
+
+    doLast {
+        def output = generatedMixinMappingsFile.get().asFile
+        def artifactsDir = new File(gradle.gradleUserHomeDir, 'caches/neoformruntime/artifacts')
+        def clientJar = new File(artifactsDir, "minecraft_${mixinMinecraftVersion}_client.jar")
+        if (!clientJar.isFile()) {
+            throw new GradleException("Could not locate vanilla client jar for ${mixinMinecraftVersion} at ${clientJar}")
+        }
+
+        def targetClasses = new LinkedHashSet<String>()
+        project.fileTree('src/main/java') {
+            include '**/*Mixin.java'
+        }.files.each { sourceFile ->
+            def imports = [:]
+            sourceFile.eachLine('UTF-8') { line ->
+                def trimmed = line.trim()
+                def importMatcher = trimmed =~ /^import\s+([A-Za-z0-9_$.]+);$/
+                if (importMatcher.matches()) {
+                    def fqcn = importMatcher[0][1]
+                    imports[fqcn.tokenize('.').last()] = fqcn
+                }
+
+                def mixinMatcher = trimmed =~ /^@Mixin\((?:value\s*=\s*)?([A-Za-z0-9_$.]+)\.class\)$/
+                if (mixinMatcher.matches()) {
+                    def reference = mixinMatcher[0][1]
+                    def segments = reference.tokenize('.')
+                    def resolved = imports[segments[0]]
+                    targetClasses << (resolved ? ([resolved] + segments.tail()).join('.') : reference)
+                }
+            }
+        }
+        if (targetClasses.isEmpty()) {
+            throw new GradleException("Could not resolve any mixin target classes from ${project.file('src/main/java')}")
+        }
+
+        def formattedLines = []
+        targetClasses.each { targetClass ->
+            def process = new ProcessBuilder('javap', '-classpath', clientJar.absolutePath, '-p', '-s', targetClass)
+            process.redirectErrorStream(true)
+            def javapProcess = process.start()
+            def javapOutput = javapProcess.inputStream.getText('UTF-8')
+            if (javapProcess.waitFor() != 0) {
+                throw new GradleException("javap failed for ${targetClass}:${System.lineSeparator()}${javapOutput}")
+            }
+
+            def targetSimpleName = targetClass.tokenize('.').last()
+            def targetInternalName = targetClass.replace('.', '/')
+            formattedLines << "${targetInternalName} ${targetInternalName}"
+
+            def javapLines = javapOutput.readLines()
+            for (int index = 0; index < javapLines.size() - 1; index++) {
+                def memberLine = javapLines[index].trim()
+                if (!memberLine ||
+                    memberLine == '}' ||
+                    memberLine.startsWith('Compiled from') ||
+                    memberLine.contains(' class ') ||
+                    memberLine.contains(' interface ') ||
+                    memberLine.contains(' enum ') ||
+                    memberLine.contains(' record ') ||
+                    memberLine.startsWith('static {') ||
+                    memberLine.startsWith('descriptor:')) {
+                    continue
+                }
+
+                def descriptorLine = javapLines[index + 1].trim()
+                if (!descriptorLine.startsWith('descriptor: ')) {
+                    continue
+                }
+
+                def descriptor = descriptorLine.substring('descriptor: '.length())
+                if (memberLine.contains('(')) {
+                    def memberName = memberLine.substring(0, memberLine.indexOf('(')).tokenize(' ').last()
+                    if (memberName == targetSimpleName || memberName == '<init>' || memberName == '<clinit>') {
+                        continue
+                    }
+                    formattedLines << "\t${memberName} ${descriptor} ${memberName}"
+                } else if (memberLine.endsWith(';')) {
+                    def fieldName = memberLine.substring(0, memberLine.length() - 1).tokenize(' ').last()
+                    formattedLines << "\t${fieldName} ${fieldName}"
+                }
+            }
+        }
+
+        output.parentFile.mkdirs()
+        output.text = formattedLines.join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
+
 minecraft {
+    mappings channel: 'official', version: project.minecraft_version
+
     runs {
         configureEach {
             workingDir.convention layout.projectDirectory.dir('run')
@@ -58,6 +190,14 @@ repositories {
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    dependsOn tasks.named('formatMixinMappings')
+    options.compilerArgumentProviders.add(mixinCompilerArgs)
+    outputs.file(mixinRefmapFile)
+    outputs.file(mixinCompositeMappingsFile)
 }
 
 processResources {
@@ -89,6 +229,7 @@ processResources {
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
