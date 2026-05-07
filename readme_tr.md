@@ -13,8 +13,8 @@
 
 # Safra 🚀
 
-Sunucu kurma derdiyle 🛠️ ya da gereksiz ayarlarla 🗑️ uğraşma.  
-Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir 🎮😎
+Sunucu kurma derdiyle ya da gereksiz ekstra adimlarla ugrasma  
+Minecraft sunucunu **2 tikla** ac, direkt oyuna gir
 
 ✅ Karmaşık arayüz yok 😌  
 ✅ Saçma sapan sistemler yok 🚫  
@@ -23,13 +23,13 @@ Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir 🎮😎
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> Görselde **TLauncher** kullanılmıştır (Alternatif başlatıcıları destekliyor 🔓)  
-> **Voice chat** desteği vardır 🎤🗣️ (mod desteği ⚙️)
+> On izleme gorselinde **TLauncher** kullanilmistir (alternatif baslaticilar desteklenir)  
+> **Voice chat** destegi vardir (mod destegi)
 
-## Mod Desteği 🔥
+## Mod Destegi
 
-Arkadaşlarınla yüklediğiniz modları rahatça oynayabilirsiniz 🫂  
-**Fabric**, **Forge** ve **NeoForge** desteklenir ✅
+Senin ve arkadaslarinin kurdugu modlarla rahatca oynayabilirsin  
+**Fabric**, **Forge** ve **NeoForge** desteklenir
 
 ## Not ⚠️
 
@@ -45,10 +45,11 @@ Arkadaşlarınla yüklediğiniz modları rahatça oynayabilirsiniz 🫂
       <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/emoji1.png" alt="faq emoji" width="100%" />
     </td>
     <td width="70%" align="left">
-      Özellik isteğin varsa ✨, sürüm fikrin varsa 🚀 ya da bug bulduysan 🐛<br />
-      GitHub'dan issue açıp yazabilirsin knk 🛠️💬<br /><br />
-      Açık kaynak proje burada ❤️<br />
-      <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a>
+      ✨ Ozellik istiyorsan, surum fikrin varsa ya da bug bulduysan<br />
+      GitHub'da istedigin zaman issue acabilirsin<br /><br />
+      ❤️ Acik kaynak proje burada<br />
+      <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
+      👀 Nasil calisiyor ogrenmek ister misin? 
     </td>
   </tr>
 </table>
