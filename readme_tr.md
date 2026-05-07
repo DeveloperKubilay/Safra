@@ -49,7 +49,7 @@ Senin ve arkadaslarinin kurdugu modlarla rahatca oynayabilirsin
       GitHub'da istedigin zaman issue acabilirsin<br /><br />
       ❤️ Acik kaynak proje burada<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      👀 Nasil calisiyor ogrenmek ister misin? 
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works_tr.md">👀 Nasil calisiyor ogrenmek ister misin?</a>
     </td>
   </tr>
 </table>

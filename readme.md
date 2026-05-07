@@ -49,7 +49,7 @@ Supports **Fabric**, **Forge**, and **NeoForge**
       You can open an issue on GitHub anytime<br /><br />
       ❤️ Open-source project lives here<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      👀 Want to learn how it works?
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works_tr.md">👀 Want to learn how it works?</a>
     </td>
   </tr>
 </table>
