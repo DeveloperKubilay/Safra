@@ -51,6 +51,7 @@ def forceForgeOnly = gradle.startParameter.projectProperties.containsKey('forgeO
 def includeFabric = !(forceNeoForgeOnly || forceForgeOnly || autoNeoForgeOnly || autoForgeOnly || currentDirNeoForgeOnly || currentDirForgeOnly)
 def includeNeoForge = !(forceFabricOnly || forceForgeOnly || autoFabricOnly || autoForgeOnly || currentDirFabricOnly || currentDirForgeOnly)
 def includeForge = !(forceFabricOnly || forceNeoForgeOnly || autoFabricOnly || autoNeoForgeOnly || currentDirFabricOnly || currentDirNeoForgeOnly)
+def includeForgeSupport = includeNeoForge
 
 if (includeFabric) {
     include 'fabric'
@@ -58,6 +59,6 @@ if (includeFabric) {
 if (includeNeoForge) {
     include 'neoforge'
 }
-if (includeForge) {
+if (includeForge || includeForgeSupport) {
     include 'forge'
 }
