@@ -51,7 +51,6 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             return null;
         }
 
-        // Resolve STUN/public candidates before Simple Voice Chat starts its auth loop on this socket.
         if (stunMappings.discoverPublicEndpoints(discoverySocket).isEmpty()) {
             throw new IOException("Safra voice joiner genel UDP ucu bulunamadi");
         }
