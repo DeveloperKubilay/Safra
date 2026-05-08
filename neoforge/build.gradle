@@ -40,13 +40,13 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-
 def targetJavaVersion = 21
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
 def mixinMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
-def neoFormMappingsFile = project(':forge').layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
+def neoForgeMixinMappingsFile = layout.buildDirectory.file('mappings/identityMixinMappings.tsrg')
+def forgeMixinMappingsFile = project(':forge').layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
 def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
-mixinCompilerArgs.inMappings.set(neoFormMappingsFile)
+mixinCompilerArgs.inMappings.set(neoForgeMixinMappingsFile)
 mixinCompilerArgs.outMappings.set(mixinMappingsFile)
 mixinCompilerArgs.refmap.set(mixinRefmapFile)
 
@@ -55,9 +55,41 @@ tasks.withType(JavaCompile).configureEach {
     options.release.set(targetJavaVersion)
 }
 
-tasks.named('compileJava', JavaCompile).configure {
+tasks.register('generateNeoForgeMixinMappings') {
     dependsOn project(':forge').tasks.named('formatMixinMappings')
+    inputs.file(forgeMixinMappingsFile)
+    outputs.file(neoForgeMixinMappingsFile)
+
+    doLast {
+        def sourceFile = forgeMixinMappingsFile.get().asFile
+        def outputFile = neoForgeMixinMappingsFile.get().asFile
+        outputFile.parentFile.mkdirs()
+
+        outputFile.setText(sourceFile.readLines('UTF-8').collect { line ->
+            if (line.isBlank()) {
+                return line
+            }
+
+            if (!line.startsWith('\t')) {
+                def parts = line.split(' ')
+                return parts.length == 2 ? "${parts[0]} ${parts[0]}" : line
+            }
+
+            def parts = line.trim().split(' ')
+            if (parts.length == 2) {
+                return "\t${parts[0]} ${parts[0]}"
+            }
+            if (parts.length == 3) {
+                return "\t${parts[0]} ${parts[1]} ${parts[0]}"
+            }
+            return line
+        }.join(System.lineSeparator()), 'UTF-8')
+    }
+}
+
+tasks.named('compileJava', JavaCompile).configure {
     dependsOn tasks.named('createMinecraftArtifacts')
+    dependsOn tasks.named('generateNeoForgeMixinMappings')
     options.compilerArgumentProviders.add(mixinCompilerArgs)
     outputs.file(mixinRefmapFile)
     outputs.file(mixinMappingsFile)
