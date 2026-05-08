@@ -96,9 +96,9 @@ tasks.register('verifyMixinArtifacts') {
         }
 
         def slurper = new JsonSlurper()
-        def requiredConfigs = [
-            'safra.forge.mixins.json',
-            'safra.neoforge.mixins.json'
+        def mixinConfigRequirements = [
+            'safra.forge.mixins.json'   : 'forge',
+            'safra.neoforge.mixins.json': 'neoforge'
         ]
         def modEntryClassName = 'org.developerkubilay.safra.SafraForge'
         def modEntryClassPath = 'org/developerkubilay/safra/SafraForge.class'
@@ -203,7 +203,7 @@ tasks.register('verifyMixinArtifacts') {
         }.each { jarFile ->
             JarFile jar = new JarFile(jarFile)
             try {
-                requiredConfigs.each { configName ->
+                mixinConfigRequirements.each { configName, loader ->
                     def configEntry = jar.getJarEntry(configName)
                     if (configEntry == null) {
                         return
@@ -227,6 +227,13 @@ tasks.register('verifyMixinArtifacts') {
                     )
                     if (!hasMappings) {
                         throw new GradleException("Empty refmap ${refmapName} in ${jarFile.name}")
+                    }
+
+                    if (loader == 'neoforge') {
+                        def serializedRefmap = groovy.json.JsonOutput.toJson(refmap)
+                        if (serializedRefmap.contains(';m_') || serializedRefmap.contains(' f_')) {
+                            throw new GradleException("NeoForge refmap ${refmapName} in ${jarFile.name} still contains obfuscated member names.")
+                        }
                     }
                 }
                 if (jarFile.name.contains('-forge-')) {
