@@ -69,6 +69,7 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             JsonObject metadata = new JsonObject();
             metadata.addProperty("minecraftTcpPort", tcpPort);
+            metadata.add("safra", safraMetadata("host"));
             ready.add("metadata", metadata);
 
             client.send(ready);
@@ -97,6 +98,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             ready.addProperty("type", "join:ready");
             ready.add("udp", UdpEndpoint.from(primaryEndpoint).toJson());
             ready.add("udpCandidates", UdpEndpoint.toJsonArray(publicEndpoints));
+            ready.add("metadata", joinMetadata());
             client.send(ready);
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -283,6 +285,21 @@ final class SafraRendezvousClient implements AutoCloseable {
             return new IOException(message + ": timeout", cause);
         }
         return new IOException(message + ": " + cause.getMessage(), cause);
+    }
+
+    private static JsonObject joinMetadata() {
+        JsonObject metadata = new JsonObject();
+        metadata.add("safra", safraMetadata("join"));
+        return metadata;
+    }
+
+    private static JsonObject safraMetadata(String role) {
+        JsonObject safra = new JsonObject();
+        safra.addProperty("role", role);
+        safra.addProperty("minecraftVersion", SafraBuildInfo.minecraftVersion());
+        safra.addProperty("modVersion", SafraBuildInfo.modVersion());
+        safra.addProperty("protocolVersion", Byte.toUnsignedInt(P2pConstants.PROTOCOL_VERSION));
+        return safra;
     }
 
     private abstract static class JsonListener implements WebSocket.Listener {

@@ -9,7 +9,8 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
         OPEN_ACK(2),
         DATA(3),
         ACK(4),
-        CLOSE(5);
+        CLOSE(5),
+        NACK(6);
 
         private final int id;
 
@@ -40,7 +41,15 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
     }
 
     static P2pPacket ack(int token, int connectionId, int acknowledgement) {
-        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, new byte[0]);
+        return ack(token, connectionId, acknowledgement, 0);
+    }
+
+    static P2pPacket ack(int token, int connectionId, int acknowledgement, int acknowledgementMask) {
+        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, controlPayload(acknowledgementMask));
+    }
+
+    static P2pPacket nack(int token, int connectionId, int missingSequence, int acknowledgement, int acknowledgementMask) {
+        return new P2pPacket(Type.NACK, token, connectionId, missingSequence, acknowledgement, controlPayload(acknowledgementMask));
     }
 
     static P2pPacket close(int token, int connectionId) {
@@ -49,6 +58,14 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
 
     P2pPacket {
         payload = payload == null ? new byte[0] : payload;
+    }
+
+    int acknowledgementMask() {
+        if ((type != Type.ACK && type != Type.NACK) || payload.length < Integer.BYTES) {
+            return 0;
+        }
+
+        return ByteBuffer.wrap(payload, 0, Integer.BYTES).getInt();
     }
 
     byte[] encode() {
@@ -85,5 +102,15 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
         int acknowledgement = byteBuffer.getInt();
         byte[] payload = Arrays.copyOfRange(buffer, P2pConstants.HEADER_SIZE, length);
         return new P2pPacket(type, token, connectionId, sequence, acknowledgement, payload);
+    }
+
+    private static byte[] controlPayload(int acknowledgementMask) {
+        if (acknowledgementMask == 0) {
+            return new byte[0];
+        }
+
+        return ByteBuffer.allocate(Integer.BYTES)
+            .putInt(acknowledgementMask)
+            .array();
     }
 }
