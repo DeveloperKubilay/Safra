@@ -106,6 +106,7 @@ neoForge {
 
     runs {
         client {
+            systemProperty 'safra.p2p.diagnostics', 'true'
             client()
             programArgument '--username'
             programArgument devUsername

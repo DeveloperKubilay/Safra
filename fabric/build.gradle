@@ -28,6 +28,7 @@ loom {
 
     runs {
         client {
+            property 'safra.p2p.diagnostics', 'true'
             programArg '--username'
             programArg devUsername
         }
