@@ -19,7 +19,7 @@ Minecraft sunucunu **2 tikla** ac, direkt oyuna gir
 ✅ Karmaşık arayüz yok 😌  
 ✅ Saçma sapan sistemler yok 🚫  
 ✅ Hafif ve optimize yapı ⚡  
-✅ Yaklaşık **250 KB** boyut 📦
+✅ **500 KB'dan bile az** yer kaplar 📦
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
@@ -36,6 +36,10 @@ Senin ve arkadaslarinin kurdugu modlarla rahatca oynayabilirsin
 > TLauncher veya diğer başlatıcılarla girilecekse, oyunu paylaşmadan önce sunucuyu başlatan kişinin `online-mode=false` yapması yeterlidir.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
+
+> Eğer oluşturulan kodu sabit yapmak istiyorsanız, Ayarlardan `Use Fixed Code=on` yapmanız yeterlidir.
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
 
 ## SSS 🤔
 

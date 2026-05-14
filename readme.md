@@ -19,7 +19,7 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game
 ✅ No complicated interface 😌  
 ✅ No unnecessary systems 🚫  
 ✅ Lightweight and optimized ⚡  
-✅ Only about **250 KB** in size 📦
+✅ Less than **500 KB** in size 📦
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
@@ -36,6 +36,10 @@ Supports **Fabric**, **Forge**, and **NeoForge**
 > If TLauncher or other launcher players will join, it's enough for the person starting the server to set `online-mode=false` before sharing the game.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
+
+> If you want the generated code to stay fixed, just set `Use Fixed Code=on` in Settings.
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
 
 ## FAQ 🤔
 
