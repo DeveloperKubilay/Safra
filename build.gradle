@@ -6,7 +6,7 @@ plugins {
 }
 
 group = project.maven_group
-version = "${project.base_minecraft_version}-${project.mod_version}"
+version = "${project.minecraft_version}-${project.mod_version}"
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -23,6 +23,28 @@ ext.devRunUsername = { Project targetProject ->
     long seed = System.currentTimeMillis() ^ (targetProject.path.hashCode() * 31L)
     int offset = Math.floorMod((int) seed, 300)
     return "Player${base + offset}"
+}
+
+ext.devBooleanProperty = { String name ->
+    def value = gradle.startParameter.projectProperties[name]
+    return value != null && Boolean.parseBoolean(value)
+}
+
+ext.quicNettyVersion = '4.2.7.Final'
+ext.quicNativeClassifier = {
+    String osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+    String osArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+    boolean aarch64 = osArch.contains('aarch64') || osArch.contains('arm64')
+    if (osName.contains('win')) {
+        return 'windows-x86_64'
+    }
+    if (osName.contains('mac')) {
+        return aarch64 ? 'osx-aarch_64' : 'osx-x86_64'
+    }
+    if (osName.contains('linux')) {
+        return aarch64 ? 'linux-aarch_64' : 'linux-x86_64'
+    }
+    return null
 }
 
 allprojects {
@@ -52,22 +74,35 @@ subprojects {
     }
 }
 
-project(':neoforge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
+def fabricProject = findProject(':fabric')
+def neoforgeProject = findProject(':neoforge')
+def forgeProject = findProject(':forge')
+def rootRunClientRequested = gradle.startParameter.taskNames.any {
+    it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
 }
+def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
 
-project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
+forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !(rootRunClientRequested && runningFromRootDir) }
 }
 
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':neoforge:build', ':forge:build')
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':neoforge').layout.buildDirectory.dir('libs'))
-    from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
     include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+
+    if (fabricProject != null) {
+        dependsOn(':fabric:build')
+        from(fabricProject.layout.buildDirectory.dir('libs'))
+    }
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:build')
+        from(neoforgeProject.layout.buildDirectory.dir('libs'))
+    }
+    if (forgeProject != null) {
+        dependsOn(':forge:build')
+        from(forgeProject.layout.buildDirectory.dir('libs'))
+    }
 
     doFirst {
         delete(layout.buildDirectory.dir('libs').get().asFile)
@@ -76,8 +111,36 @@ tasks.register('collectBuildLibs', Copy) {
 
 tasks.register('runClient') {
     group = 'application'
+    description = 'Runs the NeoForge client from the root project.'
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:runClient')
+    } else if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    }
+}
+
+tasks.register('runFabricClient') {
+    group = 'application'
     description = 'Runs the Fabric client from the root project.'
-    dependsOn(':fabric:runClient')
+    if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    }
+}
+
+tasks.register('runNeoForgeClient') {
+    group = 'application'
+    description = 'Runs the NeoForge client from the root project.'
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:runClient')
+    }
+}
+
+tasks.register('runForgeClient') {
+    group = 'application'
+    description = 'Runs the Forge client from the root project.'
+    if (forgeProject != null) {
+        dependsOn(':forge:runClient')
+    }
 }
 
 tasks.named('build') {
@@ -229,10 +292,10 @@ tasks.register('verifyMixinArtifacts') {
                         throw new GradleException("Empty refmap ${refmapName} in ${jarFile.name}")
                     }
 
-                    if (loader == 'neoforge') {
+                    if (loader == 'forge' || loader == 'neoforge') {
                         def serializedRefmap = groovy.json.JsonOutput.toJson(refmap)
                         if (serializedRefmap.contains(';m_') || serializedRefmap.contains(' f_')) {
-                            throw new GradleException("NeoForge refmap ${refmapName} in ${jarFile.name} still contains obfuscated member names.")
+                            throw new GradleException("${loader.capitalize()} refmap ${refmapName} in ${jarFile.name} still contains obfuscated member names.")
                         }
                     }
                 }

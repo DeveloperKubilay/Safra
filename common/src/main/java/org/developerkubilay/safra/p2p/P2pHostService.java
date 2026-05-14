@@ -1,16 +1,17 @@
 package org.developerkubilay.safra.p2p;
 
+import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
+import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.BindException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,20 +26,32 @@ public final class P2pHostService implements AutoCloseable {
     private final int tcpPort;
     private final int token;
     private final InetAddress targetAddress;
+    private final String preferredRendezvousCode;
 
-    private DatagramSocket socket;
+    private P2pDatagramTransport transport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
+    private P2pQuicHostSession quicHostSession;
+    private volatile boolean relayTransport;
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
-        this(tcpPort, token, P2pSockets.loopbackAddress());
+        this(tcpPort, token, P2pSockets.loopbackAddress(), null);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress) {
+        this(tcpPort, token, targetAddress, null);
+    }
+
+    public P2pHostService(int tcpPort, int token, String preferredRendezvousCode) {
+        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode);
+    }
+
+    public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode) {
         this.tcpPort = tcpPort;
         this.token = token;
         this.targetAddress = targetAddress;
+        this.preferredRendezvousCode = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
     }
 
     public P2pShareCode start() throws IOException {
@@ -46,40 +59,63 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        socket = bindSocket(tcpPort);
+        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort);
+        transport = binding.transport();
+        relayTransport = binding.relay();
         if (closed) {
-            socket.close();
+            binding.close();
             throw new IOException("Safra P2P host service was stopped");
         }
 
         discoveredEndpoints.clear();
-        discoveredEndpoints.putAll(stunClient.discoverCandidates(socket));
+        discoveredEndpoints.putAll(binding.stunEndpoints());
         if (closed) {
-            socket.close();
+            binding.close();
             throw new IOException("Safra P2P host service was stopped");
         }
-
-        P2pStunClient.DiscoveredEndpoint preferredEndpoint = P2pStunClient.preferredCandidate(discoveredEndpoints);
-        InetSocketAddress publishedEndpoint = preferredEndpoint != null ? preferredEndpoint.publicAddress() : null;
+        InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
         if (publishedEndpoint == null) {
-            socket.close();
-            throw new IOException("STUN ile genel UDP ucu bulunamadi");
+            binding.close();
+            throw new IOException("genel UDP ucu bulunamadi");
         }
 
         P2pRuntime.start("safra-p2p-host-recv", this::receiveLoop);
-        scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
-            P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        if (!relayTransport && !discoveredEndpoints.isEmpty()) {
+            scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
+                P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        }
 
         InetAddress address = publishedEndpoint.getAddress();
         String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
-        LOGGER.debug("Safra P2P host UDP socket bound on local port {}, published endpoint {}:{}", socket.getLocalPort(), host, publishedEndpoint.getPort());
+        LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
+            relayTransport ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
         P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
+
+        int publicQuicPort = 0;
+        if (!relayTransport && P2pQuicSupport.enabled()) {
+            try {
+                publicQuicPort = startQuicHost(publishedEndpoint);
+                if (quicHostSession != null) {
+                    LOGGER.info("Safra QUIC host enabled on local UDP {} and published UDP {}",
+                        quicHostSession.port(), publicQuicPort);
+                }
+            } catch (IOException exception) {
+                if (quicHostSession != null) {
+                    quicHostSession.close();
+                    quicHostSession = null;
+                }
+                LOGGER.warn("Safra QUIC host devreye giremedi, klasik UDP tunnel ile devam edilecek: {}", exception.toString());
+            }
+        }
 
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
                 tcpPort,
                 token,
-                P2pStunClient.publicEndpoints(discoveredEndpoints),
+                preferredRendezvousCode,
+                binding.publicEndpoints(),
+                publicQuicPort,
+                quicHostSession,
                 this::punchRemoteEndpoint,
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint
             );
@@ -87,6 +123,18 @@ public final class P2pHostService implements AutoCloseable {
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
+            if (relayTransport) {
+                if (quicHostSession != null) {
+                    quicHostSession.close();
+                    quicHostSession = null;
+                }
+                LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
+                throw exception;
+            }
+            if (quicHostSession != null) {
+                quicHostSession.close();
+                quicHostSession = null;
+            }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
             return directShareCode;
         }
@@ -110,10 +158,14 @@ public final class P2pHostService implements AutoCloseable {
             rendezvousSession.close();
             rendezvousSession = null;
         }
-        if (socket != null && !socket.isClosed()) {
-            socket.close();
+        if (transport != null && !transport.isClosed()) {
+            transport.close();
         }
-        LOGGER.debug("Safra P2P host UDP socket closed for local Minecraft TCP port {}", tcpPort);
+        if (quicHostSession != null) {
+            quicHostSession.close();
+            quicHostSession = null;
+        }
+        LOGGER.debug("Safra P2P host UDP transport closed for local Minecraft TCP port {}", tcpPort);
     }
 
     private void punchRemoteEndpoint(InetSocketAddress remoteAddress) {
@@ -132,10 +184,27 @@ public final class P2pHostService implements AutoCloseable {
                 }
             }
         }
+
+        P2pQuicHostSession session = quicHostSession;
+        if (session == null) {
+            return;
+        }
+
+        session.punch(remoteAddress);
+        scheduler.schedule(() -> {
+            if (!closed && quicHostSession == session) {
+                session.punch(remoteAddress);
+            }
+        }, 150L, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> {
+            if (!closed && quicHostSession == session) {
+                session.punch(remoteAddress);
+            }
+        }, 400L, TimeUnit.MILLISECONDS);
     }
 
     private void refreshStunMapping() {
-        if (closed || socket == null || socket.isClosed() || discoveredEndpoints.isEmpty()) {
+        if (closed || relayTransport || discoveredEndpoints.isEmpty()) {
             return;
         }
 
@@ -144,7 +213,9 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             }
             try {
-                stunClient.sendKeepAlive(socket, endpoint.stunServer());
+                if (transport instanceof P2pDirectDatagramTransport directTransport) {
+                    stunClient.sendKeepAlive(directTransport.socket(), endpoint.stunServer());
+                }
             } catch (IOException exception) {
                 LOGGER.debug("STUN keepalive failed: {}", exception.toString());
             }
@@ -156,7 +227,7 @@ public final class P2pHostService implements AutoCloseable {
         while (!closed) {
             DatagramPacket datagramPacket = new DatagramPacket(buffer, buffer.length);
             try {
-                socket.receive(datagramPacket);
+                transport.receive(datagramPacket);
             } catch (SocketTimeoutException ignored) {
                 continue;
             } catch (IOException exception) {
@@ -166,8 +237,8 @@ public final class P2pHostService implements AutoCloseable {
                 return;
             }
 
-            P2pStunClient.DiscoveredEndpoint stunEndpoint = matchingStunEndpoint(datagramPacket.getSocketAddress());
-            if (stunEndpoint != null) {
+            P2pStunClient.DiscoveredEndpoint stunEndpoint = relayTransport ? null : matchingStunEndpoint(datagramPacket.getSocketAddress());
+            if (!relayTransport && stunEndpoint != null) {
                 P2pStunClient.DiscoveredEndpoint refreshed = stunClient.tryParseResponse(datagramPacket);
                 if (refreshed != null) {
                     discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
@@ -198,6 +269,15 @@ public final class P2pHostService implements AutoCloseable {
                 connection.handlePacket(packet);
             }
         }
+    }
+
+    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {
+        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
+            if (endpoint.matches(remoteAddress)) {
+                return endpoint;
+            }
+        }
+        return null;
     }
 
     private void handleOpen(P2pPacket packet, InetSocketAddress remoteAddress) {
@@ -239,34 +319,74 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
-        if (closed || socket == null || socket.isClosed()) {
+        if (closed || transport == null || transport.isClosed()) {
             return;
         }
 
         byte[] encoded = packet.encode();
-        synchronized (socket) {
-            try {
-                socket.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
-            } catch (IOException exception) {
-                LOGGER.debug("Host UDP send failed: {}", exception.toString());
+        try {
+            transport.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
+        } catch (IOException exception) {
+            LOGGER.debug("Host UDP send failed: {}", exception.toString());
+        }
+    }
+
+    private int startQuicHost(InetSocketAddress publishedEndpoint) throws IOException {
+        java.net.DatagramSocket quicProbeSocket = bindSocket(P2pConstants.quicHostPort(tcpPort));
+        boolean success = false;
+        try {
+            int quicBindPort = quicProbeSocket.getLocalPort();
+            Map<String, P2pStunClient.DiscoveredEndpoint> quicEndpoints = stunClient.discoverCandidates(quicProbeSocket);
+            if (quicEndpoints.isEmpty()) {
+                throw new IOException("QUIC icin genel UDP ucu bulunamadi");
+            }
+
+            P2pStunClient.DiscoveredEndpoint preferredQuicEndpoint = quicEndpoints.get(P2pSockets.addressFamily(publishedEndpoint));
+            if (preferredQuicEndpoint == null) {
+                preferredQuicEndpoint = P2pStunClient.preferredCandidate(quicEndpoints);
+            }
+            if (preferredQuicEndpoint == null) {
+                throw new IOException("QUIC public endpoint secilemedi");
+            }
+
+            quicProbeSocket.close();
+            quicHostSession = P2pQuicSupport.startHost(LOGGER, targetAddress, tcpPort, quicBindPort, token);
+            success = true;
+            return preferredQuicEndpoint.publicAddress().getPort();
+        } finally {
+            if (!success) {
+                quicProbeSocket.close();
             }
         }
     }
 
-    private DatagramSocket bindSocket(int preferredPort) throws IOException {
+    private java.net.DatagramSocket bindSocket(int preferredPort) throws IOException {
         try {
             return P2pSockets.datagramSocket(preferredPort);
-        } catch (BindException ignored) {
+        } catch (java.net.BindException ignored) {
             return P2pSockets.datagramSocket();
         }
     }
 
-    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {
-        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
-            if (endpoint.matches(remoteAddress)) {
-                return endpoint;
+    private InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {
+        if (endpoints == null) {
+            return null;
+        }
+
+        InetSocketAddress ipv4 = null;
+        InetSocketAddress fallback = null;
+        for (InetSocketAddress endpoint : endpoints) {
+            if (endpoint == null || endpoint.getAddress() == null) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = endpoint;
+            }
+            if ("ipv4".equals(P2pSockets.addressFamily(endpoint))) {
+                ipv4 = endpoint;
+                break;
             }
         }
-        return null;
+        return ipv4 != null ? ipv4 : fallback;
     }
 }

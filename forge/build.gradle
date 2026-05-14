@@ -40,6 +40,8 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
+def quicNettyVersion = rootProject.ext.quicNettyVersion
+def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
 
 def targetJavaVersion = 25
 def mixinMinecraftVersion = (project.findProperty('minecraft_version') ?: project.findProperty('forge_minecraft_version'))?.toString()
@@ -169,6 +171,7 @@ minecraft {
 
         register('client') {
             systemProperty 'safra.p2p.diagnostics', 'true'
+            systemProperty 'safra.p2p.experimentalQuic', 'true'
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'io.netty.transport.noNative', 'true'
             systemProperty 'java.net.preferIPv4Stack', 'false'
@@ -190,6 +193,11 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
+    compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
+    runtimeOnly "io.netty:netty-pkitesting:${quicNettyVersion}"
+    if (quicNativeClassifier != null) {
+        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
+    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -224,6 +232,15 @@ processResources {
             mod_license: project.mod_license,
             mod_version: project.mod_version,
             mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
         )
     }
 }

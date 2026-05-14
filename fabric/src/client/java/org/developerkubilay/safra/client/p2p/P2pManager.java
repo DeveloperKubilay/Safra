@@ -1,5 +1,9 @@
 package org.developerkubilay.safra.client.p2p;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.client.server.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -14,10 +18,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
-import net.minecraft.client.server.IntegratedServer;
 
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
@@ -43,10 +43,14 @@ public final class P2pManager {
     }
 
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
+        return startHostingAsync(tcpPort, null);
+    }
+
+    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode) {
         stopHosting();
 
         int token = P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token);
+        P2pHostService service = new P2pHostService(tcpPort, token, P2pShareCode.normalizeRendezvousCode(fixedCode));
         long generation = ++hostStartGeneration;
         startingHostService = service;
 

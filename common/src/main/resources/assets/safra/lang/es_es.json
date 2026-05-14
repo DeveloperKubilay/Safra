@@ -19,7 +19,11 @@
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.online_mode.short.off": "Online: NO",
-  "safra.p2p.server_settings.reset": "Restablecer ajustes del servidor",
+  "safra.p2p.game_rules.reset": "Restablecer reglas del juego",
+  "safra.p2p.fixed_code.on": "Usar codigo fijo: Activado",
+  "safra.p2p.fixed_code.off": "Usar codigo fijo: Desactivado",
+  "safra.p2p.fixed_code.refresh": "Renovar codigo fijo",
+  "safra.p2p.server_settings.reset": "Restablecer reglas del juego",
   "safra.p2p.online_mode.short.on": "Online: SI",
   "safra.p2p.server_settings.short": "Ajustes"
 }

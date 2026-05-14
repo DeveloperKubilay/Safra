@@ -3,22 +3,54 @@ package org.developerkubilay.safra.p2p;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
-final class P2pRuntime {
-    private static final ThreadFactory VIRTUAL_THREAD_FACTORY = Thread.ofVirtual().factory();
+public final class P2pRuntime {
+    private static final AtomicInteger THREAD_COUNTER = new AtomicInteger();
+    private static final ThreadFactory THREAD_FACTORY = createThreadFactory();
 
     private P2pRuntime() {
     }
 
-    static ScheduledExecutorService singleScheduler() {
-        return Executors.newSingleThreadScheduledExecutor(VIRTUAL_THREAD_FACTORY);
+    public static ScheduledExecutorService singleScheduler() {
+        return Executors.newSingleThreadScheduledExecutor(THREAD_FACTORY);
     }
 
-    static ScheduledExecutorService schedulerPool(int size) {
-        return Executors.newScheduledThreadPool(size, VIRTUAL_THREAD_FACTORY);
+    public static ScheduledExecutorService schedulerPool(int size) {
+        return Executors.newScheduledThreadPool(size, THREAD_FACTORY);
     }
 
-    static Thread start(String name, Runnable runnable) {
-        return Thread.ofVirtual().name(name).start(runnable);
+    public static Thread start(String name, Runnable runnable) {
+        try {
+            Object builder = Thread.class.getMethod("ofVirtual").invoke(null);
+            Object namedBuilder = builder.getClass().getMethod("name", String.class).invoke(builder, name);
+            Object thread = namedBuilder.getClass().getMethod("start", Runnable.class).invoke(namedBuilder, runnable);
+            if (thread instanceof Thread) {
+                return (Thread) thread;
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+
+        Thread thread = new Thread(runnable, name);
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    private static ThreadFactory createThreadFactory() {
+        try {
+            Object builder = Thread.class.getMethod("ofVirtual").invoke(null);
+            Object factory = builder.getClass().getMethod("factory").invoke(builder);
+            if (factory instanceof ThreadFactory) {
+                return (ThreadFactory) factory;
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+
+        return runnable -> {
+            Thread thread = new Thread(runnable, "safra-p2p-" + THREAD_COUNTER.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        };
     }
 }

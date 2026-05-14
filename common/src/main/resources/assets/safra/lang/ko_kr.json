@@ -19,7 +19,11 @@
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.online_mode.short.off": "온라인: 꺼짐",
-  "safra.p2p.server_settings.reset": "서버 설정 초기화",
+  "safra.p2p.game_rules.reset": "게임 규칙 초기화",
+  "safra.p2p.fixed_code.on": "고정 코드 사용: 켜짐",
+  "safra.p2p.fixed_code.off": "고정 코드 사용: 꺼짐",
+  "safra.p2p.fixed_code.refresh": "고정 코드 새로 만들기",
+  "safra.p2p.server_settings.reset": "게임 규칙 초기화",
   "safra.p2p.online_mode.short.on": "온라인: 켜짐",
   "safra.p2p.server_settings.short": "설정"
 }

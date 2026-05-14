@@ -2,6 +2,8 @@ plugins {
     id 'java-library'
 }
 
+def quicNettyVersion = rootProject.ext.quicNettyVersion
+
 base {
     archivesName = "${project.archives_base_name}-common"
 }
@@ -22,18 +24,23 @@ dependencies {
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
+    compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
 processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'loader_name', 'common'
+    inputs.property 'loader_version', 'unknown'
     filteringCharset = 'UTF-8'
 
     filesMatching('safra-build.properties') {
         expand(
             mod_version: project.mod_version,
-            minecraft_version: project.minecraft_version
+            minecraft_version: project.minecraft_version,
+            loader_name: 'common',
+            loader_version: 'unknown'
         )
     }
 }

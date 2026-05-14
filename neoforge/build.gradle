@@ -40,6 +40,9 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+def quicNettyVersion = rootProject.ext.quicNettyVersion
+def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
 
 def targetJavaVersion = 25
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
@@ -106,8 +109,12 @@ neoForge {
 
     runs {
         client {
-            systemProperty 'safra.p2p.diagnostics', 'true'
             client()
+            systemProperty 'safra.p2p.diagnostics', 'true'
+            systemProperty 'safra.p2p.experimentalQuic', 'true'
+            if (forceTurn) {
+                systemProperty 'safra.p2p.forceTurn', 'true'
+            }
             programArgument '--username'
             programArgument devUsername
         }
@@ -125,6 +132,11 @@ neoForge {
 }
 
 dependencies {
+    compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
+    runtimeOnly "io.netty:netty-pkitesting:${quicNettyVersion}"
+    if (quicNativeClassifier != null) {
+        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
+    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -135,6 +147,7 @@ processResources {
     inputs.property 'neo_version', project.neo_version
     inputs.property 'neo_version_range', project.neo_version_range
     inputs.property 'loader_version_range', project.loader_version_range
+    inputs.property 'loader_name', 'neoforge'
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -154,6 +167,15 @@ processResources {
             mod_license: project.mod_license,
             mod_version: project.mod_version,
             mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'neoforge',
+            loader_version: project.neo_version
         )
     }
 }

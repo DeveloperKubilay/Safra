@@ -71,6 +71,11 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private final AtomicLong pacingWaitNanos = new AtomicLong();
     private final AtomicLong dataPacketsSent = new AtomicLong();
     private final AtomicLong dataBytesSent = new AtomicLong();
+    private final AtomicLong microBatchHits = new AtomicLong();
+    private final AtomicLong microBatchStartBytes = new AtomicLong();
+    private final AtomicLong microBatchEndBytes = new AtomicLong();
+    private final AtomicLong microBatchDeadlineExits = new AtomicLong();
+    private final AtomicLong microBatchThresholdExits = new AtomicLong();
 
     private volatile boolean opened;
     private volatile long lastPacketReceivedAt = System.currentTimeMillis();
@@ -106,6 +111,10 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile ScheduledFuture<?> maintenanceTask;
     private volatile ScheduledFuture<?> delayedAcknowledgementTask;
     private volatile ScheduledFuture<?> acknowledgementReinforcementTask;
+    private volatile int adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
+    private volatile long adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_WAIT_NANOS;
+    private volatile int microBatchWarmupSamples;
+    private volatile long microBatchWarmupBytes;
 
     ReliableTunnelConnection(Logger logger, String side, int token, int connectionId, InetSocketAddress remoteAddress,
                              Socket tcpSocket, PacketSender packetSender, RemovalCallback removalCallback,
@@ -691,7 +700,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         lastDiagnosticsLogAt = now;
         lastDiagnosticsCounterTotal = counterTotal;
-        logger.info("{} connection {} diag={} remote={} pending={} window={} ssthresh={} expected={} buffered={} inboundQueue={} rto={}ms srtt={}ms rttvar={}ms ackPkts={} ackReinforce={} delAck={} dataPkts={} avgPayload={} outOfOrder={} dupData={} sack={} dupAck={} nackSent={} nackRecv={} retTimeout={} retDupAck={} retNack={} windowBlocks={} winGrow={} winLoss={} idleRestart={} paceWaits={} paceMs={}",
+        logger.info("{} connection {} diag={} remote={} pending={} window={} ssthresh={} expected={} buffered={} inboundQueue={} rto={}ms srtt={}ms rttvar={}ms ackPkts={} ackReinforce={} delAck={} dataPkts={} avgPayload={} outOfOrder={} dupData={} sack={} dupAck={} nackSent={} nackRecv={} retTimeout={} retDupAck={} retNack={} windowBlocks={} winGrow={} winLoss={} idleRestart={} paceWaits={} paceMs={} mbHits={} mbAvgStart={} mbAvgEnd={} mbDeadline={} mbThreshold={}",
             side, connectionId, trigger, remoteAddress, pendingSegments.size(), sendWindowSize, slowStartThreshold,
             nextExpectedSequence.get(), bufferedRange(), inboundQueue.size(), retransmitTimeoutMs, roundTripMetric(smoothedRoundTripTimeMs),
             roundTripMetric(roundTripVariationMs), acknowledgementPacketsSent.get(), acknowledgementReinforcementsSent.get(),
@@ -699,7 +708,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
             selectiveAcknowledgements.get(), duplicateAcknowledgements.get(), negativeAcknowledgementsSent.get(),
             negativeAcknowledgementsReceived.get(), timeoutRetransmissions.get(), duplicateAckRetransmissions.get(),
             negativeAcknowledgementRetransmissions.get(), sendWindowBlocks.get(), sendWindowGrowthEvents.get(),
-            sendWindowLossEvents.get(), idleRestartEvents.get(), pacingWaitEvents.get(), pacingWaitNanos.get() / 1_000_000L);
+            sendWindowLossEvents.get(), idleRestartEvents.get(), pacingWaitEvents.get(), pacingWaitNanos.get() / 1_000_000L,
+            microBatchHits.get(), microBatchAverageStartBytes(), microBatchAverageEndBytes(),
+            microBatchDeadlineExits.get(), microBatchThresholdExits.get());
     }
 
     private long diagnosticsCounterTotal() {
@@ -871,9 +882,14 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
     private int coalesceTcpPayload(InputStream inputStream, byte[] buffer, int read) throws IOException {
         int totalRead = read;
-        if (totalRead > 0 && totalRead < P2pConstants.MICRO_BATCH_THRESHOLD_BYTES) {
-            long deadline = System.nanoTime() + P2pConstants.MICRO_BATCH_WAIT_NANOS;
-            while (totalRead < P2pConstants.MICRO_BATCH_THRESHOLD_BYTES && System.nanoTime() < deadline) {
+        observeMicroBatchWarmup(read);
+        int thresholdBytes = adaptiveMicroBatchThresholdBytes;
+        long waitNanos = adaptiveMicroBatchWaitNanos;
+        if (totalRead > 0 && totalRead < thresholdBytes) {
+            incrementDiagnosticCounter(microBatchHits);
+            addDiagnosticCounter(microBatchStartBytes, totalRead);
+            long deadline = System.nanoTime() + waitNanos;
+            while (totalRead < thresholdBytes && System.nanoTime() < deadline) {
                 int available = inputStream.available();
                 if (available > 0) {
                     int chunk = inputStream.read(buffer, totalRead,
@@ -886,6 +902,13 @@ final class ReliableTunnelConnection implements AutoCloseable {
                 }
 
                 LockSupport.parkNanos(P2pConstants.MICRO_BATCH_POLL_NANOS);
+            }
+
+            addDiagnosticCounter(microBatchEndBytes, totalRead);
+            if (totalRead >= thresholdBytes) {
+                incrementDiagnosticCounter(microBatchThresholdExits);
+            } else {
+                incrementDiagnosticCounter(microBatchDeadlineExits);
             }
         }
 
@@ -903,6 +926,37 @@ final class ReliableTunnelConnection implements AutoCloseable {
             totalRead += chunk;
         }
         return totalRead;
+    }
+
+    private void observeMicroBatchWarmup(int read) {
+        if (read <= 0) {
+            return;
+        }
+
+        int samples = microBatchWarmupSamples;
+        if (samples >= P2pConstants.MICRO_BATCH_WARMUP_SAMPLES) {
+            return;
+        }
+
+        microBatchWarmupBytes += read;
+        samples++;
+        microBatchWarmupSamples = samples;
+
+        long averageBytes = Math.max(1L, microBatchWarmupBytes / samples);
+        if (averageBytes <= 20L) {
+            adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_MAX_THRESHOLD_BYTES;
+            adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_MAX_WAIT_NANOS;
+            return;
+        }
+
+        if (averageBytes <= 40L) {
+            adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
+            adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_WAIT_NANOS;
+            return;
+        }
+
+        adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_MIN_THRESHOLD_BYTES;
+        adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_MIN_WAIT_NANOS;
     }
 
     private void sendAcknowledgementPacket(int acknowledgement, int acknowledgementMask) {
@@ -1000,6 +1054,24 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         return dataBytesSent.get() / packets;
+    }
+
+    private long microBatchAverageStartBytes() {
+        long hits = microBatchHits.get();
+        if (hits <= 0L) {
+            return 0L;
+        }
+
+        return microBatchStartBytes.get() / hits;
+    }
+
+    private long microBatchAverageEndBytes() {
+        long hits = microBatchHits.get();
+        if (hits <= 0L) {
+            return 0L;
+        }
+
+        return microBatchEndBytes.get() / hits;
     }
 
     private String roundTripMetric(double metric) {
