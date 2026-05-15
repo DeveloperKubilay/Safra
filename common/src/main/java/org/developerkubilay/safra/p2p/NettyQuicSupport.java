@@ -59,7 +59,6 @@ final class NettyQuicSupport {
 
         SelfSignedCertificate certificate = createCertificate();
         String encodedCertificate = encodeCertificate(certificate.cert());
-        P2pQuicTokenHandler tokenHandler = P2pQuicTokenHandler.create();
         QuicSslContext sslContext = QuicSslContextBuilder.forServer(certificate.key(), null, certificate.cert())
             .applicationProtocols(P2pConstants.QUIC_APPLICATION_PROTOCOL)
             .build();
@@ -69,7 +68,7 @@ final class NettyQuicSupport {
         try {
             ChannelHandler codec = applyCommonQuicLimits(new QuicServerCodecBuilder())
                 .sslContext(sslContext)
-                .tokenHandler(tokenHandler)
+                .tokenHandler(null)
                 .handler(new ChannelInboundHandlerAdapter())
                 .streamHandler(new ChannelInitializer<QuicStreamChannel>() {
                     @Override
@@ -151,9 +150,10 @@ final class NettyQuicSupport {
             ClientHandshakeAckHandler handshakeHandler = new ClientHandshakeAckHandler();
             streamChannel.pipeline().addLast(handshakeHandler);
             awaitChannelFuture(streamChannel.writeAndFlush(handshakePayload(tunnelToken)), "Safra experimental QUIC auth send failed");
+            NettyQuicTcpBridge bridge = NettyQuicTcpBridge.attach(logger, streamChannel, localSocket);
             handshakeHandler.await();
-            logger.info("Safra experimental QUIC client connected to {}", quicAddress);
-            NettyQuicTcpBridge.attach(logger, streamChannel, localSocket).await();
+            logger.info("Safra QUIC client connected to {}", quicAddress);
+            bridge.await();
         } finally {
             closeQuietly(quicChannel);
             closeQuietly(udpChannel);
@@ -380,11 +380,11 @@ final class NettyQuicSupport {
                 return;
             }
 
+            context.pipeline().remove(this);
+            context.writeAndFlush(Unpooled.wrappedBuffer(HANDSHAKE_ACK));
             Socket tcpSocket = openTcpSocket(targetAddress, tcpPort);
             P2pSockets.tune(tcpSocket);
             NettyQuicTcpBridge.attach(logger, channel, tcpSocket);
-            context.pipeline().remove(this);
-            context.writeAndFlush(Unpooled.wrappedBuffer(HANDSHAKE_ACK));
             if (message.isReadable()) {
                 context.fireChannelRead(message.readRetainedSlice(message.readableBytes()));
             }

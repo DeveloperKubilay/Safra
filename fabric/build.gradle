@@ -35,6 +35,11 @@ loom {
             programArg '--username'
             programArg devUsername
         }
+        server {
+            server()
+            property 'safra.p2p.diagnostics', 'true'
+            property 'safra.p2p.experimentalQuic', 'true'
+        }
     }
 }
 

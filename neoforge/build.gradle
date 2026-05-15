@@ -120,6 +120,8 @@ neoForge {
         }
         server {
             server()
+            systemProperty 'safra.p2p.diagnostics', 'true'
+            systemProperty 'safra.p2p.experimentalQuic', 'true'
             programArgument '--nogui'
         }
     }

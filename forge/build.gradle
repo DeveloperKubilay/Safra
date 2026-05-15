@@ -173,12 +173,13 @@ minecraft {
             systemProperty 'safra.p2p.diagnostics', 'true'
             systemProperty 'safra.p2p.experimentalQuic', 'true'
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-            systemProperty 'io.netty.transport.noNative', 'true'
             systemProperty 'java.net.preferIPv4Stack', 'false'
             args '--username', devUsername
         }
 
         register('server') {
+            systemProperty 'safra.p2p.diagnostics', 'true'
+            systemProperty 'safra.p2p.experimentalQuic', 'true'
             args '--nogui'
         }
     }

@@ -144,6 +144,9 @@ tasks.register('runForgeClient') {
 }
 
 tasks.named('build') {
+    doFirst {
+        delete(layout.buildDirectory.file('reports/problems/problems-report.html').get().asFile)
+    }
     dependsOn(tasks.named('collectBuildLibs'))
 }
 
