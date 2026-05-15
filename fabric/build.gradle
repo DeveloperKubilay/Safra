@@ -30,15 +30,19 @@ loom {
 
     runs {
         client {
+            property 'io.netty.tryReflectionSetAccessible', 'true'
             property 'safra.p2p.diagnostics', 'true'
             property 'safra.p2p.experimentalQuic', 'true'
+            vmArg '--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED'
             programArg '--username'
             programArg devUsername
         }
         server {
             server()
+            property 'io.netty.tryReflectionSetAccessible', 'true'
             property 'safra.p2p.diagnostics', 'true'
             property 'safra.p2p.experimentalQuic', 'true'
+            vmArg '--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED'
         }
     }
 }

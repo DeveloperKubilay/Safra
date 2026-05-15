@@ -190,17 +190,14 @@ public final class P2pHostService implements AutoCloseable {
             return;
         }
 
-        session.punch(remoteAddress);
-        scheduler.schedule(() -> {
-            if (!closed && quicHostSession == session) {
-                session.punch(remoteAddress);
-            }
-        }, 150L, TimeUnit.MILLISECONDS);
-        scheduler.schedule(() -> {
-            if (!closed && quicHostSession == session) {
-                session.punch(remoteAddress);
-            }
-        }, 400L, TimeUnit.MILLISECONDS);
+        long[] quicPunchDelays = {0L, 150L, 400L, 800L, 1_500L};
+        for (long delay : quicPunchDelays) {
+            scheduler.schedule(() -> {
+                if (!closed && quicHostSession == session) {
+                    session.punch(remoteAddress);
+                }
+            }, delay, TimeUnit.MILLISECONDS);
+        }
     }
 
     private void refreshStunMapping() {

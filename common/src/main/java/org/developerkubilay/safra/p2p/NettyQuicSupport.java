@@ -40,8 +40,10 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -450,6 +452,7 @@ final class NettyQuicSupport {
         private final Socket socket;
         private final CountDownLatch closedLatch = new CountDownLatch(1);
         private final AtomicBoolean closed = new AtomicBoolean();
+        private final BlockingQueue<byte[]> inboundQueue = new LinkedBlockingQueue<>(P2pConstants.QUIC_BRIDGE_QUEUE_CAPACITY);
 
         private NettyQuicTcpBridge(Logger logger, QuicStreamChannel streamChannel, Socket socket) {
             this.logger = logger;
@@ -460,6 +463,7 @@ final class NettyQuicSupport {
         static NettyQuicTcpBridge attach(Logger logger, QuicStreamChannel streamChannel, Socket socket) {
             NettyQuicTcpBridge bridge = new NettyQuicTcpBridge(logger, streamChannel, socket);
             streamChannel.pipeline().addLast(bridge);
+            bridge.startInboundPump();
             bridge.startOutboundPump();
             return bridge;
         }
@@ -477,9 +481,10 @@ final class NettyQuicSupport {
         protected void channelRead0(ChannelHandlerContext context, ByteBuf message) throws Exception {
             byte[] bytes = new byte[message.readableBytes()];
             message.readBytes(bytes);
-            OutputStream output = socket.getOutputStream();
-            output.write(bytes);
-            output.flush();
+            if (!inboundQueue.offer(bytes)) {
+                logger.warn("Safra QUIC bridge inbound queue overflow for {}", streamChannel.remoteAddress());
+                context.close();
+            }
         }
 
         @Override
@@ -521,6 +526,29 @@ final class NettyQuicSupport {
             });
         }
 
+        private void startInboundPump() {
+            P2pRuntime.start("safra-quic-bridge-inbound", () -> {
+                try (OutputStream output = socket.getOutputStream()) {
+                    while (!closed.get()) {
+                        byte[] bytes = inboundQueue.poll(500L, TimeUnit.MILLISECONDS);
+                        if (bytes == null) {
+                            continue;
+                        }
+                        output.write(bytes);
+                        output.flush();
+                    }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException exception) {
+                    if (!closed.get()) {
+                        logger.debug("Safra experimental QUIC inbound pump stopped: {}", exception.toString());
+                    }
+                } finally {
+                    close();
+                }
+            });
+        }
+
         private void close() {
             if (!closed.compareAndSet(false, true)) {
                 return;
@@ -530,6 +558,7 @@ final class NettyQuicSupport {
                 socket.close();
             } catch (IOException ignored) {
             }
+            inboundQueue.clear();
             if (streamChannel.isOpen()) {
                 streamChannel.close().syncUninterruptibly();
             }

@@ -70,6 +70,9 @@ subprojects {
         maven {
             name = 'MaxHenkel'
             url = 'https://maven.maxhenkel.de/repository/public'
+            content {
+                includeGroup 'de.maxhenkel.voicechat'
+            }
         }
     }
 }

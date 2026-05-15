@@ -110,8 +110,11 @@ neoForge {
     runs {
         client {
             client()
+            systemProperty 'io.netty.tryReflectionSetAccessible', 'true'
             systemProperty 'safra.p2p.diagnostics', 'true'
             systemProperty 'safra.p2p.experimentalQuic', 'true'
+            jvmArgument '--enable-native-access=ALL-UNNAMED'
+            jvmArgument '--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED'
             if (forceTurn) {
                 systemProperty 'safra.p2p.forceTurn', 'true'
             }
@@ -120,8 +123,11 @@ neoForge {
         }
         server {
             server()
+            systemProperty 'io.netty.tryReflectionSetAccessible', 'true'
             systemProperty 'safra.p2p.diagnostics', 'true'
             systemProperty 'safra.p2p.experimentalQuic', 'true'
+            jvmArgument '--enable-native-access=ALL-UNNAMED'
+            jvmArgument '--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED'
             programArgument '--nogui'
         }
     }

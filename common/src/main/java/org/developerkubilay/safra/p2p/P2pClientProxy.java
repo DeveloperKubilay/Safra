@@ -212,15 +212,28 @@ public final class P2pClientProxy implements AutoCloseable {
             transport = null;
         }
         InetSocketAddress quicAddress = new InetSocketAddress(remoteAddress.getAddress(), remoteQuicPort);
-        try {
-            LOGGER.info("Safra QUIC client dialing {}", quicAddress);
-            P2pQuicSupport.bridgeClient(LOGGER, localSocket, remoteAddress, remoteQuicPort, quicLocalPort, tunnelToken, remoteQuicCertificate);
-            if (!closed) {
-                close();
+        int[] localPorts = {quicLocalPort, quicLocalPort, 0};
+        long[] retryDelaysMs = {0L, 120L, 300L};
+        IOException lastException = null;
+        for (int attempt = 0; attempt < localPorts.length; attempt++) {
+            if (retryDelaysMs[attempt] > 0L) {
+                sleepQuietly(retryDelaysMs[attempt]);
             }
-        } catch (IOException exception) {
-            throw new IOException("Safra QUIC connect to " + quicAddress + " failed", exception);
+            try {
+                LOGGER.info("Safra QUIC client dialing {}", quicAddress);
+                P2pQuicSupport.bridgeClient(LOGGER, localSocket, remoteAddress, remoteQuicPort, localPorts[attempt], tunnelToken, remoteQuicCertificate);
+                if (!closed) {
+                    close();
+                }
+                return;
+            } catch (IOException exception) {
+                lastException = exception;
+                if (attempt + 1 < localPorts.length) {
+                    LOGGER.debug("Safra QUIC retry {} for {} after {}", attempt + 1, quicAddress, exception.toString());
+                }
+            }
         }
+        throw new IOException("Safra QUIC connect to " + quicAddress + " failed", lastException);
     }
 
     private void restoreDirectTransportAfterQuicFailure() throws IOException {
@@ -300,6 +313,15 @@ public final class P2pClientProxy implements AutoCloseable {
     private void closeIfIdle() {
         if (!closed && connections.isEmpty()) {
             close();
+        }
+    }
+
+    private void sleepQuietly(long delayMs) throws IOException {
+        try {
+            TimeUnit.MILLISECONDS.sleep(delayMs);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Safra QUIC retry interrupted", exception);
         }
     }
 
