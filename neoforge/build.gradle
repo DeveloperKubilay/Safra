@@ -42,7 +42,6 @@ base {
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 def quicNettyVersion = rootProject.ext.quicNettyVersion
-def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
 
 def targetJavaVersion = 25
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
@@ -139,11 +138,18 @@ neoForge {
     }
 }
 
+configurations {
+    quicBundle {
+        transitive = false
+    }
+}
+
 dependencies {
+    quicBundle "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
     compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
-    runtimeOnly "io.netty:netty-pkitesting:${quicNettyVersion}"
-    if (quicNativeClassifier != null) {
-        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
+    def devNativeClassifier = rootProject.ext.quicNativeClassifier()
+    if (devNativeClassifier != null) {
+        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${devNativeClassifier}"
     }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
@@ -155,6 +161,7 @@ processResources {
     inputs.property 'neo_version', project.neo_version
     inputs.property 'neo_version_range', project.neo_version_range
     inputs.property 'loader_version_range', project.loader_version_range
+    inputs.property 'quic_netty_version', quicNettyVersion
     inputs.property 'loader_name', 'neoforge'
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
@@ -183,7 +190,8 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
-            loader_version: project.neo_version
+            loader_version: project.neo_version,
+            quic_netty_version: quicNettyVersion
         )
     }
 }
@@ -193,6 +201,15 @@ jar {
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
+    }
+    from(configurations.quicBundle.collect { it.isDirectory() ? it : zipTree(it) }) {
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        exclude 'META-INF/versions/*/module-info.class'
+        exclude 'META-INF/module-info.class'
+        exclude 'module-info.class'
     }
 }
 

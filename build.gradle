@@ -31,19 +31,21 @@ ext.devBooleanProperty = { String name ->
 }
 
 ext.quicNettyVersion = '4.2.7.Final'
+ext.quicAllNativeClassifiers = [
+    'windows-x86_64',
+    'linux-x86_64',
+    'linux-aarch_64',
+    'osx-x86_64',
+    'osx-aarch_64'
+]
+
 ext.quicNativeClassifier = {
     String osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
     String osArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
     boolean aarch64 = osArch.contains('aarch64') || osArch.contains('arm64')
-    if (osName.contains('win')) {
-        return 'windows-x86_64'
-    }
-    if (osName.contains('mac')) {
-        return aarch64 ? 'osx-aarch_64' : 'osx-x86_64'
-    }
-    if (osName.contains('linux')) {
-        return aarch64 ? 'linux-aarch_64' : 'linux-x86_64'
-    }
+    if (osName.contains('win')) return 'windows-x86_64'
+    if (osName.contains('mac')) return aarch64 ? 'osx-aarch_64' : 'osx-x86_64'
+    if (osName.contains('linux')) return aarch64 ? 'linux-aarch_64' : 'linux-x86_64'
     return null
 }
 
@@ -84,9 +86,20 @@ def rootRunClientRequested = gradle.startParameter.taskNames.any {
     it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
 }
 def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
+def rootTaskSelectorRunClient = rootRunClientRequested && runningFromRootDir
+def wrapperExecutable = System.getProperty('os.name', '').toLowerCase(Locale.ROOT).contains('win') ? 'gradlew.bat' : './gradlew'
+def forwardedProjectProperties = gradle.startParameter.projectProperties.collect { key, value ->
+    value == null || value.isBlank() ? "-P${key}" : "-P${key}=${value}"
+}
 
+fabricProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+neoforgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
 forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
-    onlyIf { !(rootRunClientRequested && runningFromRootDir) }
+    onlyIf { !rootTaskSelectorRunClient }
 }
 
 tasks.register('collectBuildLibs', Copy) {
@@ -112,13 +125,14 @@ tasks.register('collectBuildLibs', Copy) {
     }
 }
 
-tasks.register('runClient') {
+tasks.register('runClient', Exec) {
     group = 'application'
     description = 'Runs the NeoForge client from the root project.'
+    workingDir rootProject.projectDir
     if (neoforgeProject != null) {
-        dependsOn(':neoforge:runClient')
+        commandLine([wrapperExecutable, ':neoforge:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     } else if (fabricProject != null) {
-        dependsOn(':fabric:runClient')
+        commandLine([wrapperExecutable, ':fabric:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     }
 }
 

@@ -92,19 +92,23 @@ public final class P2pHostService implements AutoCloseable {
         P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
 
         int publicQuicPort = 0;
-        if (!relayTransport && P2pQuicSupport.enabled()) {
-            try {
-                publicQuicPort = startQuicHost(publishedEndpoint);
-                if (quicHostSession != null) {
-                    LOGGER.info("Safra QUIC host enabled on local UDP {} and published UDP {}",
-                        quicHostSession.port(), publicQuicPort);
+        if (!relayTransport && P2pConstants.quicEnabled()) {
+            if (P2pQuicSupport.enabled()) {
+                try {
+                    publicQuicPort = startQuicHost(publishedEndpoint);
+                    if (quicHostSession != null) {
+                        LOGGER.info("Safra QUIC host enabled on local UDP {} and published UDP {}",
+                            quicHostSession.port(), publicQuicPort);
+                    }
+                } catch (IOException exception) {
+                    if (quicHostSession != null) {
+                        quicHostSession.close();
+                        quicHostSession = null;
+                    }
+                    LOGGER.warn("Safra QUIC host devreye giremedi, klasik UDP tunnel ile devam edilecek: {}", exception.toString());
                 }
-            } catch (IOException exception) {
-                if (quicHostSession != null) {
-                    quicHostSession.close();
-                    quicHostSession = null;
-                }
-                LOGGER.warn("Safra QUIC host devreye giremedi, klasik UDP tunnel ile devam edilecek: {}", exception.toString());
+            } else {
+                LOGGER.warn("Safra QUIC guvenli probe kontrolunden gecemedi, UDP tunnel fallback aktif: {}", P2pQuicSupport.unavailableReason());
             }
         }
 
@@ -190,7 +194,7 @@ public final class P2pHostService implements AutoCloseable {
             return;
         }
 
-        long[] quicPunchDelays = {0L, 150L, 400L, 800L, 1_500L};
+        long[] quicPunchDelays = {0L, 200L, 500L, 1_000L, 2_000L, 3_000L};
         for (long delay : quicPunchDelays) {
             scheduler.schedule(() -> {
                 if (!closed && quicHostSession == session) {

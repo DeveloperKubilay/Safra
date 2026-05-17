@@ -23,8 +23,8 @@ import io.netty.handler.codec.quic.QuicSslContext;
 import io.netty.handler.codec.quic.QuicSslContextBuilder;
 import io.netty.handler.codec.quic.QuicStreamChannel;
 import io.netty.handler.codec.quic.QuicStreamType;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.concurrent.Future;
+import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
@@ -33,13 +33,20 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -51,17 +58,103 @@ final class NettyQuicSupport {
     private static final byte[] QUIC_PUNCH_PAYLOAD = "safra-quic-punch".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] HANDSHAKE_MAGIC = "safra-quic-auth".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] HANDSHAKE_ACK = "safra-quic-ok".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] PROBE_PAYLOAD = "safra-quic-probe".getBytes(StandardCharsets.US_ASCII);
     private static final int HANDSHAKE_SIZE = HANDSHAKE_MAGIC.length + 1 + Integer.BYTES;
 
     private NettyQuicSupport() {
     }
 
+    static void probeRuntimeAvailability() throws IOException {
+        ServerSocket targetServer = null;
+        ServerSocket localProxyServer = null;
+        Socket localPeer = null;
+        Socket bridgeSocket = null;
+        P2pQuicHostSession session = null;
+        CompletableFuture<byte[]> targetReadFuture = new CompletableFuture<>();
+        CompletableFuture<Void> bridgeFuture = new CompletableFuture<>();
+        try {
+            targetServer = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+            ServerSocket finalTargetServer = targetServer;
+            Thread targetAcceptThread = new Thread(() -> {
+                try (Socket targetSocket = finalTargetServer.accept()) {
+                    byte[] payload = targetSocket.getInputStream().readNBytes(PROBE_PAYLOAD.length);
+                    targetReadFuture.complete(payload);
+                } catch (Throwable throwable) {
+                    targetReadFuture.completeExceptionally(throwable);
+                }
+            }, "safra-quic-probe-target");
+            targetAcceptThread.setDaemon(true);
+            targetAcceptThread.start();
+
+            session = startHost(
+                LoggerFactory.getLogger(P2pQuicProbeMain.class),
+                P2pSockets.loopbackAddress(),
+                targetServer.getLocalPort(),
+                0,
+                1
+            );
+
+            localProxyServer = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+            localPeer = new Socket(P2pSockets.loopbackAddress(), localProxyServer.getLocalPort());
+            bridgeSocket = localProxyServer.accept();
+
+            Socket finalBridgeSocket = bridgeSocket;
+            P2pQuicHostSession finalSession = session;
+            InetSocketAddress remoteAddress = new InetSocketAddress(P2pSockets.loopbackAddress(), finalSession.port());
+            Thread bridgeThread = new Thread(() -> {
+                try {
+                    bridgeClient(
+                        LoggerFactory.getLogger(P2pQuicProbeMain.class),
+                        finalBridgeSocket,
+                        remoteAddress,
+                        finalSession.port(),
+                        0,
+                        1,
+                        finalSession.certificate()
+                    );
+                    bridgeFuture.complete(null);
+                } catch (Throwable throwable) {
+                    bridgeFuture.completeExceptionally(throwable);
+                }
+            }, "safra-quic-probe-bridge");
+            bridgeThread.setDaemon(true);
+            bridgeThread.start();
+
+            OutputStream output = localPeer.getOutputStream();
+            output.write(PROBE_PAYLOAD);
+            output.flush();
+            localPeer.shutdownOutput();
+
+            byte[] received = targetReadFuture.get(P2pConstants.QUIC_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            if (!Arrays.equals(PROBE_PAYLOAD, received)) {
+                throw new IOException("Safra QUIC probe veri dogrulamasi basarisiz");
+            }
+
+            localPeer.close();
+            bridgeFuture.get(P2pConstants.QUIC_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (IOException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IOException("Safra QUIC derin probe basarisiz", exception);
+        } finally {
+            if (session != null) {
+                session.close();
+            }
+            closeSocketQuietly(bridgeSocket);
+            closeSocketQuietly(localPeer);
+            closeServerSocketQuietly(localProxyServer);
+            closeServerSocketQuietly(targetServer);
+        }
+    }
+
     static P2pQuicHostSession startHost(Logger logger, InetAddress targetAddress, int tcpPort, int bindPort, int tunnelToken) throws IOException {
         ensureAvailable();
 
-        SelfSignedCertificate certificate = createCertificate();
-        String encodedCertificate = encodeCertificate(certificate.cert());
-        QuicSslContext sslContext = QuicSslContextBuilder.forServer(certificate.key(), null, certificate.cert())
+        X509Certificate cert = loadEmbeddedCertificate();
+        java.security.PrivateKey key = loadEmbeddedPrivateKey();
+        String encodedCertificate = encodeCertificate(cert);
+        
+        QuicSslContext sslContext = QuicSslContextBuilder.forServer(key, null, cert)
             .applicationProtocols(P2pConstants.QUIC_APPLICATION_PROTOCOL)
             .build();
         NioEventLoopGroup group = new NioEventLoopGroup(1);
@@ -93,24 +186,29 @@ final class NettyQuicSupport {
             channel = awaitChannel(bootstrap.bind(bindPort), "Safra experimental QUIC host UDP bind failed");
             int localPort = ((InetSocketAddress) channel.localAddress()).getPort();
             logger.info("Safra experimental QUIC host listening on UDP {}", localPort);
-            return new NettyQuicHostSession(logger, group, channel, certificate, encodedCertificate, localPort);
+            return new NettyQuicHostSession(logger, group, channel, encodedCertificate, localPort);
         } catch (IOException exception) {
             closeQuietly(channel);
             group.shutdownGracefully().syncUninterruptibly();
-            certificate.delete();
             throw exception;
         } catch (RuntimeException exception) {
             closeQuietly(channel);
             group.shutdownGracefully().syncUninterruptibly();
-            certificate.delete();
             throw exception;
         }
     }
 
     static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
                              int quicPort, int localPort, int tunnelToken, String encodedCertificate) throws IOException {
+        bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, null);
+    }
+
+    static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
+                             int quicPort, int localPort, int tunnelToken, String encodedCertificate,
+                             Runnable onConnected) throws IOException {
         ensureAvailable();
         P2pSockets.tune(localSocket);
+        long connectStartedAt = System.nanoTime();
 
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         Channel udpChannel = null;
@@ -154,7 +252,11 @@ final class NettyQuicSupport {
             awaitChannelFuture(streamChannel.writeAndFlush(handshakePayload(tunnelToken)), "Safra experimental QUIC auth send failed");
             NettyQuicTcpBridge bridge = NettyQuicTcpBridge.attach(logger, streamChannel, localSocket);
             handshakeHandler.await();
-            logger.info("Safra QUIC client connected to {}", quicAddress);
+            long connectElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - connectStartedAt);
+            logger.info("Safra QUIC client connected to {} in {} ms", quicAddress, connectElapsedMs);
+            if (onConnected != null) {
+                onConnected.run();
+            }
             bridge.await();
         } finally {
             closeQuietly(quicChannel);
@@ -163,23 +265,73 @@ final class NettyQuicSupport {
         }
     }
 
+    private static volatile boolean nativeLoadAttempted = false;
+
     private static void ensureAvailable() throws IOException {
-        if (Quic.isAvailable()) {
+        if (!nativeLoadAttempted) {
+            synchronized (NettyQuicSupport.class) {
+                if (!nativeLoadAttempted) {
+                    nativeLoadAttempted = true;
+                    tryLoadExternalNative();
+                    boolean enableBundledNativeLoad = Boolean.getBoolean("safra.p2p.enableBundledQuicNativeLoad");
+                    boolean disableBundledNativeLoad = Boolean.getBoolean("safra.p2p.disableBundledQuicNativeLoad");
+                    if (enableBundledNativeLoad && !disableBundledNativeLoad) {
+                        tryLoadBundledNative();
+                    }
+                }
+            }
+        }
+
+        if (Quic.isAvailable()) return;
+
+        Throwable cause = Quic.unavailabilityCause();
+        throw new IOException("Netty QUIC is unavailable" + (cause != null ? ": " + cause.getMessage() : ""), cause);
+    }
+
+    private static void tryLoadExternalNative() {
+        try {
+            Path nativeLibrary = P2pQuicNativeManager.ensureExternalNativeAvailable();
+            System.load(nativeLibrary.toAbsolutePath().toString());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void tryLoadBundledNative() {
+        String libName = P2pQuicNativeManager.nativeLibraryFileName();
+        if (libName == null) {
             return;
         }
 
-        Throwable cause = Quic.unavailabilityCause();
-        if (cause == null) {
-            throw new IOException("Netty QUIC is unavailable");
-        }
-        throw new IOException("Netty QUIC is unavailable: " + cause.getMessage(), cause);
+        try (InputStream stream = NettyQuicSupport.class.getResourceAsStream("/META-INF/native/" + libName)) {
+            if (stream == null) return;
+            Path tempFile = Files.createTempFile("safra-quic-", "-" + libName);
+            tempFile.toFile().deleteOnExit();
+            Files.copy(stream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+            System.load(tempFile.toAbsolutePath().toString());
+        } catch (Throwable ignored) {}
     }
 
-    private static SelfSignedCertificate createCertificate() throws IOException {
-        try {
-            return new SelfSignedCertificate("safra-p2p");
+    private static X509Certificate loadEmbeddedCertificate() throws IOException {
+        try (InputStream stream = NettyQuicSupport.class.getResourceAsStream("/assets/safra/safra-quic.crt")) {
+            if (stream == null) throw new IOException("Embedded QUIC certificate not found");
+            return (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(stream);
         } catch (CertificateException exception) {
-            throw new IOException("Could not create QUIC test certificate", exception);
+            throw new IOException("Could not load embedded QUIC certificate", exception);
+        }
+    }
+
+    private static java.security.PrivateKey loadEmbeddedPrivateKey() throws IOException {
+        try (InputStream stream = NettyQuicSupport.class.getResourceAsStream("/assets/safra/safra-quic.key")) {
+            if (stream == null) throw new IOException("Embedded QUIC private key not found");
+            String keyPem = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            keyPem = keyPem.replace("-----BEGIN PRIVATE KEY-----", "")
+                           .replace("-----END PRIVATE KEY-----", "")
+                           .replaceAll("\\s", "");
+            byte[] keyBytes = java.util.Base64.getDecoder().decode(keyPem);
+            java.security.KeyFactory kf = java.security.KeyFactory.getInstance("RSA");
+            return kf.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(keyBytes));
+        } catch (java.security.GeneralSecurityException exception) {
+            throw new IOException("Could not load embedded QUIC private key", exception);
         }
     }
 
@@ -254,6 +406,26 @@ final class NettyQuicSupport {
         }
     }
 
+    private static void closeSocketQuietly(Socket socket) {
+        if (socket == null) {
+            return;
+        }
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static void closeServerSocketQuietly(ServerSocket serverSocket) {
+        if (serverSocket == null) {
+            return;
+        }
+        try {
+            serverSocket.close();
+        } catch (IOException ignored) {
+        }
+    }
+
     private static ByteBuf handshakePayload(int tunnelToken) {
         ByteBuf payload = Unpooled.buffer(HANDSHAKE_SIZE);
         payload.writeBytes(HANDSHAKE_MAGIC);
@@ -299,16 +471,14 @@ final class NettyQuicSupport {
         private final Logger logger;
         private final NioEventLoopGroup group;
         private final Channel channel;
-        private final SelfSignedCertificate certificate;
         private final String encodedCertificate;
         private final int port;
 
         private NettyQuicHostSession(Logger logger, NioEventLoopGroup group, Channel channel,
-                                     SelfSignedCertificate certificate, String encodedCertificate, int port) {
+                                     String encodedCertificate, int port) {
             this.logger = logger;
             this.group = group;
             this.channel = channel;
-            this.certificate = certificate;
             this.encodedCertificate = encodedCertificate;
             this.port = port;
         }
@@ -347,7 +517,6 @@ final class NettyQuicSupport {
         public void close() {
             closeQuietly(channel);
             group.shutdownGracefully().syncUninterruptibly();
-            certificate.delete();
         }
     }
 

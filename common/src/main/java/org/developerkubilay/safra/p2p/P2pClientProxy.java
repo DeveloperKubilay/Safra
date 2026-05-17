@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -25,6 +26,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final Runnable onClose;
+    private final Consumer<String> statusMessageSink;
 
     private P2pDatagramTransport transport;
     private ServerSocket proxyServer;
@@ -37,9 +39,10 @@ public final class P2pClientProxy implements AutoCloseable {
     private int quicLocalPort;
     private volatile boolean closed;
 
-    public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
+    public P2pClientProxy(P2pShareCode shareCode, Runnable onClose, Consumer<String> statusMessageSink) {
         this.shareCode = shareCode;
         this.onClose = onClose;
+        this.statusMessageSink = statusMessageSink;
     }
 
     public int start() throws IOException {
@@ -175,12 +178,17 @@ public final class P2pClientProxy implements AutoCloseable {
     private void acceptLoop() {
         try (ServerSocket ignored = proxyServer) {
             Socket localSocket = proxyServer.accept();
+            if (quicAdvertisedByHost() && !P2pQuicSupport.enabled()) {
+                publishStatusMessage("Safra P2P QUIC kullanilamadi, UDP fallback kullaniliyor.");
+                LOGGER.warn("Safra QUIC probe basarisiz; UDP fallback aktif: {}", P2pQuicSupport.unavailableReason());
+            }
             if (canUseQuic()) {
                 try {
                     startQuicBridge(localSocket);
                     return;
                 } catch (IOException exception) {
                     LOGGER.warn("Safra QUIC connect basarisiz, reliable UDP tunnel fallback denenecek: {}", exception.toString());
+                    publishStatusMessage("Safra P2P QUIC baglantisi kurulamadi, UDP fallback kullaniliyor.");
                     restoreDirectTransportAfterQuicFailure();
                 }
             }
@@ -194,12 +202,16 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private boolean canUseQuic() {
+        return quicAdvertisedByHost()
+            && P2pQuicSupport.enabled();
+    }
+
+    private boolean quicAdvertisedByHost() {
         return shareCode.isRendezvous()
             && remoteQuicPort > 0
             && remoteQuicCertificate != null
             && !remoteQuicCertificate.isBlank()
-            && transport instanceof P2pDirectDatagramTransport
-            && P2pQuicSupport.enabled();
+            && transport instanceof P2pDirectDatagramTransport;
     }
 
     private void startQuicBridge(Socket localSocket) throws IOException {
@@ -213,7 +225,7 @@ public final class P2pClientProxy implements AutoCloseable {
         }
         InetSocketAddress quicAddress = new InetSocketAddress(remoteAddress.getAddress(), remoteQuicPort);
         int[] localPorts = {quicLocalPort, quicLocalPort, 0};
-        long[] retryDelaysMs = {0L, 120L, 300L};
+        long[] retryDelaysMs = {0L, 500L, 1000L};
         IOException lastException = null;
         for (int attempt = 0; attempt < localPorts.length; attempt++) {
             if (retryDelaysMs[attempt] > 0L) {
@@ -331,5 +343,16 @@ public final class P2pClientProxy implements AutoCloseable {
         }
         rendezvousSession.close();
         rendezvousSession = null;
+    }
+
+    private void publishStatusMessage(String message) {
+        if (statusMessageSink == null || message == null || message.isBlank()) {
+            return;
+        }
+        try {
+            statusMessageSink.accept(message);
+        } catch (RuntimeException exception) {
+            LOGGER.debug("Safra P2P status mesaji yayinlanamadi: {}", exception.toString());
+        }
     }
 }

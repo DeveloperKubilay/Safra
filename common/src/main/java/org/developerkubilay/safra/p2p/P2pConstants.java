@@ -54,7 +54,7 @@ public final class P2pConstants {
     static final int DIRECT_TCP_COPY_BUFFER_SIZE = 16 * 1024;
     static final String QUIC_APPLICATION_PROTOCOL = "safra-p2p";
     static final long QUIC_IDLE_TIMEOUT_MS = 30_000L;
-    static final int QUIC_CONNECT_TIMEOUT_MS = 4_000;
+    static final int QUIC_CONNECT_TIMEOUT_MS = 10_000;
     static final int QUIC_BRIDGE_BUFFER_SIZE = 16 * 1024;
     static final int QUIC_BRIDGE_QUEUE_CAPACITY = 4096;
     static final String ADDRESS_SCHEME = "p2p://";
