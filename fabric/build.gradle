@@ -1,0 +1,152 @@
+plugins {
+    id 'fabric-loom' version '1.16-SNAPSHOT'
+    id 'maven-publish'
+}
+
+sourceSets {
+    main {
+        java.srcDir(project(':common').file('src/main/java'))
+        resources.srcDir(project(':common').file('src/main/resources'))
+        resources.srcDir(project(':common').layout.buildDirectory.dir('generated/quicResources/main'))
+    }
+}
+
+base {
+    archivesName = "${project.archives_base_name}-fabric"
+}
+
+def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+def quicNettyVersion = rootProject.ext.quicNettyVersion
+def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+
+    runs {
+        client {
+            property 'safra.p2p.diagnostics', 'true'
+            property 'safra.p2p.experimentalQuic', 'true'
+            if (forceTurn) {
+                property 'safra.p2p.forceTurn', 'true'
+            }
+            programArg '--username'
+            programArg devUsername
+        }
+    }
+}
+
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+
+configurations {
+    quicBundle {
+        transitive = false
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    quicBundle "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
+    compileOnly("io.netty:netty-codec-classes-quic:${quicNettyVersion}") { transitive = false }
+    modRuntimeOnly "io.netty:netty-pkitesting:${quicNettyVersion}"
+    if (quicNativeClassifier != null) {
+        modRuntimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
+    }
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+}
+
+processResources {
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'loader_version', project.loader_version
+    inputs.property 'loader_name', 'fabric'
+    inputs.property 'quic_netty_version', quicNettyVersion
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_license', project.mod_license
+    inputs.property 'mod_description', project.mod_description
+    filteringCharset = 'UTF-8'
+
+    filesMatching('fabric.mod.json') {
+        expand(
+            version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_version: project.loader_version,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'fabric',
+            loader_version: project.loader_version,
+            quic_netty_version: quicNettyVersion
+        )
+    }
+}
+
+def targetJavaVersion = 21
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+    from({
+        configurations.quicBundle.collect { it.isDirectory() ? it : zipTree(it) }
+    }) {
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        exclude 'META-INF/versions/*/module-info.class'
+        exclude 'META-INF/module-info.class'
+        exclude 'module-info.class'
+    }
+}
+
+tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            artifactId = "${project.archives_base_name}-fabric"
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}
