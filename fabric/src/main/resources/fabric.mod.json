@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "safra",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [],
+  "contact": {
+    "homepage": "https://github.com/DeveloperKubilay/Safra",
+    "sources": "https://github.com/DeveloperKubilay/Safra"
+  },
+  "license": "${mod_license}",
+  "icon": "assets/safra/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "org.developerkubilay.safra.client.SafraDataGenerator"
+    ],
+    "client": [
+      "org.developerkubilay.safra.client.SafraClient"
+    ],
+    "main": [
+      "org.developerkubilay.safra.Safra"
+    ],
+    "voicechat": [
+      "org.developerkubilay.safra.voicechat.SafraFabricVoicechatPlugin"
+    ]
+  },
+  "mixins": [
+    "safra.mixins.json",
+    {
+      "config": "safra.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "java": ">=17",
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

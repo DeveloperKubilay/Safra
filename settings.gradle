@@ -1,0 +1,52 @@
+import java.util.Locale
+
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        maven {
+            name = 'Forge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'Safra'
+
+include 'common'
+
+def taskNames = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
+def currentDirName = gradle.startParameter.currentDir?.name?.toLowerCase(Locale.ROOT)
+def touchesOnly = { List<String> prefixes ->
+    !taskNames.isEmpty() && taskNames.every { name ->
+        prefixes.any { prefix ->
+            name == prefix || name == ":${prefix}" || name.startsWith("${prefix}:") || name.startsWith(":${prefix}:")
+        } || name == 'runclient' || name == ':runclient'
+    }
+}
+
+def autoFabricOnly = touchesOnly(['fabric', 'common'])
+def autoForgeOnly = !autoFabricOnly && touchesOnly(['forge', 'common'])
+
+def currentDirFabricOnly = currentDirName == 'fabric'
+def currentDirForgeOnly = currentDirName == 'forge'
+
+def forceFabricOnly = gradle.startParameter.projectProperties.containsKey('fabricOnly')
+def forceForgeOnly = gradle.startParameter.projectProperties.containsKey('forgeOnly')
+
+def includeFabric = !(forceForgeOnly || autoForgeOnly || currentDirForgeOnly)
+def includeForge = !(forceFabricOnly || autoFabricOnly || currentDirFabricOnly)
+
+if (includeFabric) {
+    include 'fabric'
+}
+if (includeForge) {
+    include 'forge'
+}
