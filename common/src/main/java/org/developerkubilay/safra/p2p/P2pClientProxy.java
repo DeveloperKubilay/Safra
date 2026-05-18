@@ -12,7 +12,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -26,7 +25,6 @@ public final class P2pClientProxy implements AutoCloseable {
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final Runnable onClose;
-    private final Consumer<String> statusMessageSink;
 
     private P2pDatagramTransport transport;
     private ServerSocket proxyServer;
@@ -39,10 +37,9 @@ public final class P2pClientProxy implements AutoCloseable {
     private int quicLocalPort;
     private volatile boolean closed;
 
-    public P2pClientProxy(P2pShareCode shareCode, Runnable onClose, Consumer<String> statusMessageSink) {
+    public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
         this.shareCode = shareCode;
         this.onClose = onClose;
-        this.statusMessageSink = statusMessageSink;
     }
 
     public int start() throws IOException {
@@ -179,7 +176,6 @@ public final class P2pClientProxy implements AutoCloseable {
         try (ServerSocket ignored = proxyServer) {
             Socket localSocket = proxyServer.accept();
             if (quicAdvertisedByHost() && !P2pQuicSupport.enabled()) {
-                publishStatusMessage("Safra P2P QUIC kullanilamadi, UDP fallback kullaniliyor.");
                 LOGGER.warn("Safra QUIC probe basarisiz; UDP fallback aktif: {}", P2pQuicSupport.unavailableReason());
             }
             if (canUseQuic()) {
@@ -188,7 +184,6 @@ public final class P2pClientProxy implements AutoCloseable {
                     return;
                 } catch (IOException exception) {
                     LOGGER.warn("Safra QUIC connect basarisiz, reliable UDP tunnel fallback denenecek: {}", exception.toString());
-                    publishStatusMessage("Safra P2P QUIC baglantisi kurulamadi, UDP fallback kullaniliyor.");
                     restoreDirectTransportAfterQuicFailure();
                 }
             }
@@ -345,14 +340,4 @@ public final class P2pClientProxy implements AutoCloseable {
         rendezvousSession = null;
     }
 
-    private void publishStatusMessage(String message) {
-        if (statusMessageSink == null || message == null || message.isBlank()) {
-            return;
-        }
-        try {
-            statusMessageSink.accept(message);
-        } catch (RuntimeException exception) {
-            LOGGER.debug("Safra P2P status mesaji yayinlanamadi: {}", exception.toString());
-        }
-    }
 }

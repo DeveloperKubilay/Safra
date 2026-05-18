@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
-import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -15,11 +14,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 
 public final class P2pManager {
@@ -37,7 +34,6 @@ public final class P2pManager {
     private volatile CompletableFuture<RewriteResult> rewriteFuture;
     private long hostStartGeneration;
     private long rewriteGeneration;
-    private final Queue<String> pendingStatusMessages = new ConcurrentLinkedQueue<>();
 
     private P2pManager() {
     }
@@ -166,7 +162,7 @@ public final class P2pManager {
                     startingClientProxy = null;
                 }
             }
-        }, this::enqueueStatusMessage);
+        });
         proxyRef[0] = proxy;
         synchronized (this) {
             if (rewriteGeneration != generation) {
@@ -210,8 +206,6 @@ public final class P2pManager {
     }
 
     public void tick(Minecraft client) {
-        flushStatusMessages(client);
-
         P2pHostService service = hostService;
         if (service == null) {
             return;
@@ -267,23 +261,6 @@ public final class P2pManager {
         if (activeClientProxy != null) {
             activeClientProxy.close();
             activeClientProxy = null;
-        }
-    }
-
-    private void enqueueStatusMessage(String message) {
-        if (message != null && !message.isBlank()) {
-            pendingStatusMessages.add(message);
-        }
-    }
-
-    private void flushStatusMessages(Minecraft client) {
-        if (client.player == null) {
-            return;
-        }
-
-        String message;
-        while ((message = pendingStatusMessages.poll()) != null) {
-            client.player.sendSystemMessage(Component.literal(message));
         }
     }
 

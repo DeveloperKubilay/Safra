@@ -568,7 +568,10 @@ final class P2pQuicSupport {
         private String outputSummary() {
             String summary;
             synchronized (history) {
-                summary = String.join(" | ", history);
+                summary = history.stream()
+                    .map(P2pQuicSupport::sanitizeOutputLine)
+                    .reduce((left, right) -> left + " | " + right)
+                    .orElse("");
             }
             if (summary.isBlank()) {
                 if (!process.isAlive()) {
@@ -620,6 +623,17 @@ final class P2pQuicSupport {
             }
             deleteDirectoryQuietly(workDir);
         }
+    }
+
+    private static String sanitizeOutputLine(String line) {
+        if (line == null || line.isBlank()) {
+            return "";
+        }
+
+        String sanitized = line.replaceAll("MIIC[0-9A-Za-z+/=]+", "<cert>");
+        sanitized = sanitized.replaceAll("MII[0-9A-Za-z+/=]{32,}", "<cert>");
+        sanitized = sanitized.replaceAll("\\[(client|host),\\s*[^\\]]+\\]", "[$1, ...]");
+        return sanitized;
     }
 
     private record ProbeResult(boolean available, String reason) {
