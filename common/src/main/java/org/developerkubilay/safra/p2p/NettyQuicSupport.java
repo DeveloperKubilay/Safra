@@ -64,86 +64,20 @@ final class NettyQuicSupport {
     private NettyQuicSupport() {
     }
 
+    static void verifyRuntimeAvailability() throws IOException {
+        ensureAvailable();
+        X509Certificate certificate = loadEmbeddedCertificate();
+        loadEmbeddedPrivateKey();
+        decodeCertificate(encodeCertificate(certificate));
+    }
+
     static void probeRuntimeAvailability() throws IOException {
-        ServerSocket targetServer = null;
-        ServerSocket localProxyServer = null;
-        Socket localPeer = null;
-        Socket bridgeSocket = null;
-        P2pQuicHostSession session = null;
-        CompletableFuture<byte[]> targetReadFuture = new CompletableFuture<>();
-        CompletableFuture<Void> bridgeFuture = new CompletableFuture<>();
         try {
-            targetServer = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
-            ServerSocket finalTargetServer = targetServer;
-            Thread targetAcceptThread = new Thread(() -> {
-                try (Socket targetSocket = finalTargetServer.accept()) {
-                    byte[] payload = targetSocket.getInputStream().readNBytes(PROBE_PAYLOAD.length);
-                    targetReadFuture.complete(payload);
-                } catch (Throwable throwable) {
-                    targetReadFuture.completeExceptionally(throwable);
-                }
-            }, "safra-quic-probe-target");
-            targetAcceptThread.setDaemon(true);
-            targetAcceptThread.start();
-
-            session = startHost(
-                LoggerFactory.getLogger(P2pQuicProbeMain.class),
-                P2pSockets.loopbackAddress(),
-                targetServer.getLocalPort(),
-                0,
-                1
-            );
-
-            localProxyServer = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
-            localPeer = new Socket(P2pSockets.loopbackAddress(), localProxyServer.getLocalPort());
-            bridgeSocket = localProxyServer.accept();
-
-            Socket finalBridgeSocket = bridgeSocket;
-            P2pQuicHostSession finalSession = session;
-            InetSocketAddress remoteAddress = new InetSocketAddress(P2pSockets.loopbackAddress(), finalSession.port());
-            Thread bridgeThread = new Thread(() -> {
-                try {
-                    bridgeClient(
-                        LoggerFactory.getLogger(P2pQuicProbeMain.class),
-                        finalBridgeSocket,
-                        remoteAddress,
-                        finalSession.port(),
-                        0,
-                        1,
-                        finalSession.certificate()
-                    );
-                    bridgeFuture.complete(null);
-                } catch (Throwable throwable) {
-                    bridgeFuture.completeExceptionally(throwable);
-                }
-            }, "safra-quic-probe-bridge");
-            bridgeThread.setDaemon(true);
-            bridgeThread.start();
-
-            OutputStream output = localPeer.getOutputStream();
-            output.write(PROBE_PAYLOAD);
-            output.flush();
-            localPeer.shutdownOutput();
-
-            byte[] received = targetReadFuture.get(P2pConstants.QUIC_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            if (!Arrays.equals(PROBE_PAYLOAD, received)) {
-                throw new IOException("Safra QUIC probe veri dogrulamasi basarisiz");
-            }
-
-            localPeer.close();
-            bridgeFuture.get(P2pConstants.QUIC_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            verifyRuntimeAvailability();
         } catch (IOException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new IOException("Safra QUIC derin probe basarisiz", exception);
-        } finally {
-            if (session != null) {
-                session.close();
-            }
-            closeSocketQuietly(bridgeSocket);
-            closeSocketQuietly(localPeer);
-            closeServerSocketQuietly(localProxyServer);
-            closeServerSocketQuietly(targetServer);
+            throw new IOException("Safra QUIC probe basarisiz", exception);
         }
     }
 
@@ -183,9 +117,9 @@ final class NettyQuicSupport {
                     }
                 });
 
-            channel = awaitChannel(bootstrap.bind(bindPort), "Safra experimental QUIC host UDP bind failed");
+            channel = awaitChannel(bootstrap.bind(bindPort), "Safra QUIC host UDP bind failed");
             int localPort = ((InetSocketAddress) channel.localAddress()).getPort();
-            logger.info("Safra experimental QUIC host listening on UDP {}", localPort);
+            logger.info("Safra QUIC host listening on UDP {}", localPort);
             return new NettyQuicHostSession(logger, group, channel, encodedCertificate, localPort);
         } catch (IOException exception) {
             closeQuietly(channel);
@@ -234,22 +168,22 @@ final class NettyQuicSupport {
                     }
                 });
 
-            udpChannel = awaitChannel(bootstrap.bind(localPort > 0 ? localPort : 0), "Safra experimental QUIC client UDP bind failed");
+            udpChannel = awaitChannel(bootstrap.bind(localPort > 0 ? localPort : 0), "Safra QUIC client UDP bind failed");
             InetSocketAddress quicAddress = new InetSocketAddress(remoteAddress.getAddress(), quicPort);
             quicChannel = awaitFuture(
                 QuicChannel.newBootstrap(udpChannel)
                     .handler(new ChannelInboundHandlerAdapter())
                     .remoteAddress(quicAddress)
                     .connect(),
-                "Safra experimental QUIC connect failed"
+                "Safra QUIC connect failed"
             );
             QuicStreamChannel streamChannel = awaitFuture(
                 quicChannel.createStream(QuicStreamType.BIDIRECTIONAL, null),
-                "Safra experimental QUIC stream open failed"
+                "Safra QUIC stream open failed"
             );
             ClientHandshakeAckHandler handshakeHandler = new ClientHandshakeAckHandler();
             streamChannel.pipeline().addLast(handshakeHandler);
-            awaitChannelFuture(streamChannel.writeAndFlush(handshakePayload(tunnelToken)), "Safra experimental QUIC auth send failed");
+            awaitChannelFuture(streamChannel.writeAndFlush(handshakePayload(tunnelToken)), "Safra QUIC auth send failed");
             NettyQuicTcpBridge bridge = NettyQuicTcpBridge.attach(logger, streamChannel, localSocket);
             handshakeHandler.await();
             long connectElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - connectStartedAt);
@@ -324,9 +258,10 @@ final class NettyQuicSupport {
         try (InputStream stream = NettyQuicSupport.class.getResourceAsStream("/assets/safra/safra-quic.key")) {
             if (stream == null) throw new IOException("Embedded QUIC private key not found");
             String keyPem = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-            keyPem = keyPem.replace("-----BEGIN PRIVATE KEY-----", "")
-                           .replace("-----END PRIVATE KEY-----", "")
-                           .replaceAll("\\s", "");
+            keyPem = keyPem
+                .replaceAll("-----BEGIN [A-Z ]+-----", "")
+                .replaceAll("-----END [A-Z ]+-----", "")
+                .replaceAll("\\s", "");
             byte[] keyBytes = java.util.Base64.getDecoder().decode(keyPem);
             java.security.KeyFactory kf = java.security.KeyFactory.getInstance("RSA");
             return kf.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(keyBytes));
@@ -546,7 +481,7 @@ final class NettyQuicSupport {
             }
 
             if (!validHandshake(handshakeBuffer, expectedToken)) {
-                logger.warn("Safra experimental QUIC auth rejected for {}", channel.remoteAddress());
+                logger.warn("Safra QUIC auth rejected for {}", channel.remoteAddress());
                 context.close();
                 return;
             }
@@ -568,7 +503,7 @@ final class NettyQuicSupport {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext context, Throwable cause) {
-            logger.debug("Safra experimental QUIC host auth failed: {}", cause.toString());
+            logger.debug("Safra QUIC host auth failed: {}", cause.toString());
             context.close();
         }
     }
@@ -587,7 +522,7 @@ final class NettyQuicSupport {
             }
 
             if (!matchesAck(ackBuffer)) {
-                readyFuture.completeExceptionally(new IOException("Safra experimental QUIC auth ack is invalid"));
+                readyFuture.completeExceptionally(new IOException("Safra QUIC auth ack gecersiz"));
                 context.close();
                 return;
             }
@@ -611,7 +546,7 @@ final class NettyQuicSupport {
         }
 
         private void await() throws IOException {
-            awaitFuture(readyFuture, "Safra experimental QUIC auth failed");
+            awaitFuture(readyFuture, "Safra QUIC auth failed");
         }
     }
 
@@ -642,7 +577,7 @@ final class NettyQuicSupport {
                 closedLatch.await();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IOException("Safra experimental QUIC bridge interrupted", exception);
+                throw new IOException("Safra QUIC bridge interrupted", exception);
             }
         }
 
@@ -664,7 +599,7 @@ final class NettyQuicSupport {
         @Override
         public void exceptionCaught(ChannelHandlerContext context, Throwable cause) {
             if (!closed.get()) {
-                logger.debug("Safra experimental QUIC stream failed: {}", cause.toString());
+                logger.debug("Safra QUIC stream failed: {}", cause.toString());
             }
             close();
         }
@@ -683,7 +618,7 @@ final class NettyQuicSupport {
                     }
                 } catch (IOException exception) {
                     if (!closed.get()) {
-                        logger.debug("Safra experimental QUIC outbound pump stopped: {}", exception.toString());
+                        logger.debug("Safra QUIC outbound pump stopped: {}", exception.toString());
                     }
                 } finally {
                     if (streamChannel.isActive()) {
@@ -710,7 +645,7 @@ final class NettyQuicSupport {
                     Thread.currentThread().interrupt();
                 } catch (IOException exception) {
                     if (!closed.get()) {
-                        logger.debug("Safra experimental QUIC inbound pump stopped: {}", exception.toString());
+                        logger.debug("Safra QUIC inbound pump stopped: {}", exception.toString());
                     }
                 } finally {
                     close();

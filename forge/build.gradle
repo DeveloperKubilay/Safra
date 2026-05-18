@@ -32,6 +32,7 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        resources.srcDir(project(':common').layout.buildDirectory.dir('generated/quicResources/main'))
     }
 }
 
@@ -221,6 +222,7 @@ tasks.named('compileJava', JavaCompile).configure {
 }
 
 processResources {
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
     inputs.property 'forge_loader_version_range', project.forge_loader_version_range
@@ -280,6 +282,7 @@ tasks.named('jar', Jar) {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
 }
 
 publishing {

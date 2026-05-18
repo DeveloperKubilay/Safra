@@ -32,6 +32,7 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        resources.srcDir(project(':common').layout.buildDirectory.dir('generated/quicResources/main'))
     }
 }
 
@@ -156,6 +157,7 @@ dependencies {
 }
 
 processResources {
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'minecraft_version_range', project.minecraft_version_range
     inputs.property 'neo_version', project.neo_version
@@ -215,6 +217,7 @@ jar {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
 }
 
 publishing {

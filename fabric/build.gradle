@@ -7,6 +7,7 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        resources.srcDir(project(':common').layout.buildDirectory.dir('generated/quicResources/main'))
     }
 }
 
@@ -75,6 +76,7 @@ dependencies {
 }
 
 processResources {
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.fabric_mod_minecraft_version
     inputs.property 'loader_version', project.loader_version
@@ -136,6 +138,7 @@ jar {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn project(':common').tasks.named('generateQuicCertificate')
 }
 
 publishing {

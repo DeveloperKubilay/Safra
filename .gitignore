@@ -11,6 +11,8 @@ out/
 .classpath
 .project
 .eclipse/
+common/src/main/resources/assets/safra/safra-quic.crt
+common/src/main/resources/assets/safra/safra-quic.key
 
 # OS files
 Thumbs.db

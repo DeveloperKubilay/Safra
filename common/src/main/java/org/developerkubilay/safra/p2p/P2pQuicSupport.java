@@ -1,7 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
 import org.slf4j.Logger;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -38,6 +37,7 @@ final class P2pQuicSupport {
     private static final String READY_MARKER = "SAFRA_QUIC_READY";
 
     private static volatile ProbeResult cachedProbeResult;
+    private static volatile Thread nativeDownloadThread;
 
     private P2pQuicSupport() {
     }
@@ -71,9 +71,40 @@ final class P2pQuicSupport {
         return probeResult.reason();
     }
 
+    static void downloadNativeAsync() {
+        if (!P2pConstants.quicEnabled()) {
+            return;
+        }
+
+        Thread runningThread = nativeDownloadThread;
+        if (runningThread != null && runningThread.isAlive()) {
+            return;
+        }
+
+        synchronized (P2pQuicSupport.class) {
+            runningThread = nativeDownloadThread;
+            if (runningThread != null && runningThread.isAlive()) {
+                return;
+            }
+
+            Thread thread = new Thread(() -> {
+                try {
+                    P2pQuicNativeManager.ensureExternalNativeJarAvailable();
+                    P2pQuicNativeManager.ensureExternalNativeAvailable();
+                } catch (IOException ignored) {
+                } finally {
+                    nativeDownloadThread = null;
+                }
+            }, "safra-quic-download");
+            thread.setDaemon(true);
+            nativeDownloadThread = thread;
+            thread.start();
+        }
+    }
+
     static P2pQuicHostSession startHost(Logger logger, InetAddress targetAddress, int tcpPort, int bindPort, int tunnelToken) throws IOException {
         if (!enabled()) {
-            throw new IOException("Safra experimental QUIC is disabled");
+            throw new IOException("Safra QUIC is disabled");
         }
 
         if (isBrokerChildProcess()) {
@@ -106,20 +137,20 @@ final class P2pQuicSupport {
             if (throwable instanceof IOException exception) {
                 throw exception;
             }
-            throw new IOException("Safra experimental QUIC host helper baslatilamadi: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC host helper baslatilamadi: " + summarize(throwable), throwable);
         }
     }
 
     static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
                              int quicPort, int localPort, int tunnelToken, String encodedCertificate) throws IOException {
         if (!enabled()) {
-            throw new IOException("Safra experimental QUIC is disabled");
+            throw new IOException("Safra QUIC is disabled");
         }
         if (remoteAddress == null || quicPort < 1) {
-            throw new IOException("Safra experimental QUIC target is missing");
+            throw new IOException("Safra QUIC target is missing");
         }
         if (encodedCertificate == null || encodedCertificate.isBlank()) {
-            throw new IOException("Safra experimental QUIC session certificate is missing");
+            throw new IOException("Safra QUIC session certificate is missing");
         }
 
         if (isBrokerChildProcess()) {
@@ -156,7 +187,7 @@ final class P2pQuicSupport {
         } catch (IOException exception) {
             throw exception;
         } catch (Throwable throwable) {
-            throw new IOException("Safra experimental QUIC client bridge failed: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC client bridge failed: " + summarize(throwable), throwable);
         } finally {
             closeSocketQuietly(helperSocket);
             closeServerSocketQuietly(bridgeServer);
@@ -170,7 +201,7 @@ final class P2pQuicSupport {
         try {
             return NettyQuicSupport.startHost(logger, targetAddress, tcpPort, bindPort, tunnelToken);
         } catch (Throwable throwable) {
-            throw new IOException("Safra experimental QUIC host is unavailable: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC host kullanilamiyor: " + summarize(throwable), throwable);
         }
     }
 
@@ -182,7 +213,7 @@ final class P2pQuicSupport {
         } catch (IOException exception) {
             throw exception;
         } catch (Throwable throwable) {
-            throw new IOException("Safra experimental QUIC client bridge failed: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC client bridge failed: " + summarize(throwable), throwable);
         }
     }
 
@@ -220,10 +251,8 @@ final class P2pQuicSupport {
     private static BrokerProcess startBrokerProcess(List<String> arguments) throws IOException {
         Path javaExecutable = resolveJavaExecutable();
         Path nativeJar = null;
-        Path nativeDirectory = null;
         try {
             nativeJar = P2pQuicNativeManager.ensureExternalNativeJarAvailable();
-            nativeDirectory = P2pQuicNativeManager.resolveNativeDirectory();
         } catch (IOException ignored) {
         }
         String classPath = buildRuntimeClassPath(nativeJar);
@@ -241,14 +270,10 @@ final class P2pQuicSupport {
             argLines.add("--enable-native-access=ALL-UNNAMED");
             argLines.add("--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED");
             argLines.add("-Dio.netty.tryReflectionSetAccessible=true");
-            argLines.add("-Dio.netty.native.deleteLibAfterLoading=false");
             argLines.add("-D" + BROKER_CHILD_PROPERTY + "=true");
             argLines.add("-D" + READY_FILE_PROPERTY + "=" + quoteArgFileValue(readyFile.toString()));
             argLines.add("-D" + P2pQuicNativeManager.NATIVE_HOME_PROPERTY + "=" + quoteArgFileValue(nativeHome.toString()));
             argLines.add("-D" + P2pQuicNativeManager.NATIVE_BASE_URL_PROPERTY + "=" + quoteArgFileValue(nativeBaseUrl));
-            if (nativeDirectory != null) {
-                argLines.add("-Dio.netty.native.workdir=" + quoteArgFileValue(nativeDirectory.toString()));
-            }
             argLines.add("-Duser.dir=" + quoteArgFileValue(workDir.toString()));
             argLines.add("-cp");
             argLines.add(quoteArgFileValue(classPath));
