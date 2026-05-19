@@ -24,6 +24,7 @@ public final class P2pConstants {
     static final int MICRO_BATCH_MIN_THRESHOLD_BYTES = 96;
     static final int MICRO_BATCH_THRESHOLD_BYTES = 256;
     static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 384;
+    static final int CLIENT_MICRO_BATCH_THRESHOLD_BYTES = 96;
     static final int FAST_RETRANSMIT_DUP_ACKS = 3;
     static final long FAST_RETRANSMIT_GUARD_MS = 60L;
     static final long NEGATIVE_ACK_REPEAT_MS = 30L;
@@ -33,6 +34,7 @@ public final class P2pConstants {
     static final long MICRO_BATCH_MIN_WAIT_NANOS = 400_000L;
     static final long MICRO_BATCH_WAIT_NANOS = 1_200_000L;
     static final long MICRO_BATCH_MAX_WAIT_NANOS = 2_000_000L;
+    static final long CLIENT_MICRO_BATCH_WAIT_NANOS = 200_000L;
     static final long MICRO_BATCH_POLL_NANOS = 100_000L;
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;

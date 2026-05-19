@@ -1083,8 +1083,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private int coalesceTcpPayload(InputStream inputStream, byte[] buffer, int read) throws IOException {
         int totalRead = read;
         observeMicroBatchWarmup(read);
-        int thresholdBytes = adaptiveMicroBatchThresholdBytes;
-        long waitNanos = adaptiveMicroBatchWaitNanos;
+        int thresholdBytes = initiator
+            ? Math.min(adaptiveMicroBatchThresholdBytes, P2pConstants.CLIENT_MICRO_BATCH_THRESHOLD_BYTES)
+            : adaptiveMicroBatchThresholdBytes;
+        long waitNanos = initiator
+            ? Math.min(adaptiveMicroBatchWaitNanos, P2pConstants.CLIENT_MICRO_BATCH_WAIT_NANOS)
+            : adaptiveMicroBatchWaitNanos;
         if (totalRead > 0 && totalRead < thresholdBytes) {
             int availableBeforeWait = inputStream.available();
             if (availableBeforeWait <= 0 && totalRead <= (P2pConstants.MICRO_BATCH_MIN_THRESHOLD_BYTES / 4)) {
