@@ -106,7 +106,7 @@ final class P2pQuicSupport {
             throw new IOException("Safra QUIC is disabled");
         }
 
-        if (isBrokerChildProcess()) {
+        if (!useBrokerProcess()) {
             return startHostInProcess(logger, targetAddress, tcpPort, bindPort, tunnelToken);
         }
 
@@ -152,7 +152,7 @@ final class P2pQuicSupport {
             throw new IOException("Safra QUIC session certificate is missing");
         }
 
-        if (isBrokerChildProcess()) {
+        if (!useBrokerProcess()) {
             bridgeClientInProcess(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, null);
             return;
         }
@@ -220,6 +220,10 @@ final class P2pQuicSupport {
         return Boolean.getBoolean(BROKER_CHILD_PROPERTY);
     }
 
+    private static boolean useBrokerProcess() {
+        return !isBrokerChildProcess() && P2pConstants.quicOutOfProcessEnabled();
+    }
+
     private static String summarize(Throwable throwable) {
         Throwable cause = throwable;
         while (cause.getCause() != null) {
@@ -233,6 +237,15 @@ final class P2pQuicSupport {
     }
 
     private static ProbeResult probeRuntimeAvailability() {
+        if (!useBrokerProcess()) {
+            try {
+                NettyQuicSupport.probeRuntimeAvailability();
+                return ProbeResult.availableResult();
+            } catch (Throwable throwable) {
+                return ProbeResult.unavailableResult(summarize(throwable));
+            }
+        }
+
         BrokerProcess broker = null;
         try {
             broker = startBrokerProcess(List.of("probe"));

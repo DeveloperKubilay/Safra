@@ -1,5 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
+import java.io.BufferedOutputStream;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -57,15 +58,25 @@ final class DirectTcpBridge implements AutoCloseable {
 
     private void pump(Socket sourceSocket, Socket targetSocket) {
         byte[] buffer = new byte[P2pConstants.DIRECT_TCP_COPY_BUFFER_SIZE];
-        try (InputStream input = sourceSocket.getInputStream(); OutputStream output = targetSocket.getOutputStream()) {
+        try (InputStream input = sourceSocket.getInputStream();
+             OutputStream output = new BufferedOutputStream(
+                 targetSocket.getOutputStream(),
+                 P2pConstants.DIRECT_TCP_COPY_BUFFER_SIZE
+             )) {
+            int pendingBytes = 0;
             while (!closed.get()) {
                 int read = input.read(buffer);
                 if (read < 0) {
                     break;
                 }
                 output.write(buffer, 0, read);
-                output.flush();
+                pendingBytes += read;
+                if (pendingBytes >= P2pConstants.DIRECT_TCP_FLUSH_THRESHOLD_BYTES || input.available() == 0) {
+                    output.flush();
+                    pendingBytes = 0;
+                }
             }
+            output.flush();
         } catch (IOException exception) {
             if (!closed.get()) {
                 logger.debug("Direct TCP bridge pump stopped: {}", exception.toString());

@@ -52,16 +52,19 @@ public final class P2pConstants {
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
     static final int DIRECT_TCP_CONNECT_TIMEOUT_MS = 1_500;
     static final int DIRECT_TCP_COPY_BUFFER_SIZE = 16 * 1024;
+    static final int DIRECT_TCP_FLUSH_THRESHOLD_BYTES = 64 * 1024;
     static final String QUIC_APPLICATION_PROTOCOL = "safra-p2p";
     static final long QUIC_IDLE_TIMEOUT_MS = 30_000L;
     static final int QUIC_CONNECT_TIMEOUT_MS = 10_000;
     static final int QUIC_BRIDGE_BUFFER_SIZE = 16 * 1024;
+    static final int QUIC_BRIDGE_FLUSH_THRESHOLD_BYTES = 64 * 1024;
     static final int QUIC_BRIDGE_QUEUE_CAPACITY = 4096;
     static final String ADDRESS_SCHEME = "p2p://";
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
     private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
     private static final String EXPERIMENTAL_QUIC_PROPERTY = "safra.p2p.experimentalQuic";
+    private static final String QUIC_OUT_OF_PROCESS_PROPERTY = "safra.p2p.quicOutOfProcess";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -190,6 +193,20 @@ public final class P2pConstants {
         }
 
         String environment = System.getenv("SAFRA_P2P_EXPERIMENTAL_QUIC");
+        if (environment != null && !environment.isBlank()) {
+            return Boolean.parseBoolean(environment.trim());
+        }
+
+        return true;
+    }
+
+    static boolean quicOutOfProcessEnabled() {
+        String property = System.getProperty(QUIC_OUT_OF_PROCESS_PROPERTY);
+        if (property != null && !property.isBlank()) {
+            return Boolean.parseBoolean(property.trim());
+        }
+
+        String environment = System.getenv("SAFRA_P2P_QUIC_OUT_OF_PROCESS");
         if (environment != null && !environment.isBlank()) {
             return Boolean.parseBoolean(environment.trim());
         }

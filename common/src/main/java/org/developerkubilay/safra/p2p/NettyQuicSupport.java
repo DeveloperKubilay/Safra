@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -588,13 +589,27 @@ final class NettyQuicSupport {
             P2pRuntime.start("safra-quic-bridge-outbound", () -> {
                 byte[] buffer = new byte[P2pConstants.QUIC_BRIDGE_BUFFER_SIZE];
                 try (InputStream input = socket.getInputStream()) {
+                    int pendingBytes = 0;
+                    ChannelFuture lastWrite = null;
                     while (!closed.get()) {
                         int read = input.read(buffer);
                         if (read < 0) {
                             break;
                         }
                         ByteBuf byteBuf = Unpooled.copiedBuffer(buffer, 0, read);
-                        streamChannel.writeAndFlush(byteBuf).syncUninterruptibly();
+                        lastWrite = streamChannel.write(byteBuf);
+                        pendingBytes += read;
+                        if (pendingBytes >= P2pConstants.QUIC_BRIDGE_FLUSH_THRESHOLD_BYTES || input.available() == 0) {
+                            streamChannel.flush();
+                            if (lastWrite != null) {
+                                lastWrite.syncUninterruptibly();
+                            }
+                            pendingBytes = 0;
+                        }
+                    }
+                    if (lastWrite != null && pendingBytes > 0) {
+                        streamChannel.flush();
+                        lastWrite.syncUninterruptibly();
                     }
                 } catch (IOException exception) {
                     if (!closed.get()) {
@@ -612,15 +627,28 @@ final class NettyQuicSupport {
 
         private void startInboundPump() {
             P2pRuntime.start("safra-quic-bridge-inbound", () -> {
-                try (OutputStream output = socket.getOutputStream()) {
+                try (OutputStream output = new BufferedOutputStream(
+                    socket.getOutputStream(),
+                    P2pConstants.QUIC_BRIDGE_BUFFER_SIZE
+                )) {
+                    int pendingBytes = 0;
                     while (!closed.get()) {
                         byte[] bytes = inboundQueue.poll(500L, TimeUnit.MILLISECONDS);
                         if (bytes == null) {
+                            if (pendingBytes > 0) {
+                                output.flush();
+                                pendingBytes = 0;
+                            }
                             continue;
                         }
                         output.write(bytes);
-                        output.flush();
+                        pendingBytes += bytes.length;
+                        if (pendingBytes >= P2pConstants.QUIC_BRIDGE_FLUSH_THRESHOLD_BYTES || inboundQueue.isEmpty()) {
+                            output.flush();
+                            pendingBytes = 0;
+                        }
                     }
+                    output.flush();
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();
                 } catch (IOException exception) {
