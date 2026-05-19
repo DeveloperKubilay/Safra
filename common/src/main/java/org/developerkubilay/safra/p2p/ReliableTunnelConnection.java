@@ -1117,7 +1117,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         int pending = pendingSegments.size();
-        int backlogThreshold = Math.max(P2pConstants.PACING_BURST_PACKETS * 4, sendWindowSize / 6);
+        int backlogThreshold = Math.max(P2pConstants.PACING_BURST_PACKETS * 8, sendWindowSize / 2);
         if (pending >= backlogThreshold) {
             return true;
         }
@@ -1136,53 +1136,14 @@ final class ReliableTunnelConnection implements AutoCloseable {
         int thresholdBytes = initiator
             ? Math.min(adaptiveMicroBatchThresholdBytes, P2pConstants.CLIENT_MICRO_BATCH_THRESHOLD_BYTES)
             : adaptiveMicroBatchThresholdBytes;
-        long waitNanos = initiator
-            ? Math.min(adaptiveMicroBatchWaitNanos, P2pConstants.CLIENT_MICRO_BATCH_WAIT_NANOS)
-            : adaptiveMicroBatchWaitNanos;
         if (totalRead > 0 && totalRead < thresholdBytes) {
             int availableBeforeWait = inputStream.available();
-            if (availableBeforeWait <= 0 && totalRead <= (P2pConstants.MICRO_BATCH_MIN_THRESHOLD_BYTES / 4)) {
-                return totalRead;
+            if (availableBeforeWait > 0) {
+                incrementDiagnosticCounter(microBatchHits);
+                addDiagnosticCounter(microBatchStartBytes, totalRead);
             }
-
-            if (availableBeforeWait <= 0) {
-                waitNanos = Math.min(waitNanos, P2pConstants.MICRO_BATCH_MIN_WAIT_NANOS);
-            }
-
-            incrementDiagnosticCounter(microBatchHits);
-            addDiagnosticCounter(microBatchStartBytes, totalRead);
-            long deadline = System.nanoTime() + waitNanos;
-            int stallIterations = 0;
-            while (totalRead < thresholdBytes && System.nanoTime() < deadline) {
-                int available = inputStream.available();
-                if (available > 0) {
-                    int chunk = inputStream.read(buffer, totalRead,
-                        Math.min(buffer.length - totalRead, available));
-                    if (chunk <= 0) {
-                        break;
-                    }
-                    totalRead += chunk;
-                    stallIterations = 0;
-                    continue;
-                }
-
-                stallIterations++;
-                if (stallIterations < 4) {
-                    Thread.onSpinWait();
-                } else if (stallIterations < 10) {
-                    Thread.yield();
-                } else {
-                    long remaining = deadline - System.nanoTime();
-                    if (remaining > 0L) {
-                        LockSupport.parkNanos(Math.min(remaining, P2pConstants.MICRO_BATCH_POLL_NANOS));
-                    }
-                }
-            }
-
             addDiagnosticCounter(microBatchEndBytes, totalRead);
-            if (totalRead >= thresholdBytes) {
-                incrementDiagnosticCounter(microBatchThresholdExits);
-            } else {
+            if (availableBeforeWait > 0) {
                 incrementDiagnosticCounter(microBatchDeadlineExits);
             }
         }
