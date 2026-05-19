@@ -22,7 +22,7 @@ public final class P2pConstants {
     static final int SELECTIVE_ACK_BITS = 32;
     static final int MICRO_BATCH_WARMUP_SAMPLES = 24;
     static final int MICRO_BATCH_MIN_THRESHOLD_BYTES = 96;
-    static final int MICRO_BATCH_THRESHOLD_BYTES = 256;
+    static final int MICRO_BATCH_THRESHOLD_BYTES = 192;
     static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 384;
     static final int CLIENT_MICRO_BATCH_THRESHOLD_BYTES = 96;
     static final int FAST_RETRANSMIT_DUP_ACKS = 3;
@@ -32,14 +32,14 @@ public final class P2pConstants {
     static final long DELAYED_ACK_MS = 2L;
     static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
     static final long MICRO_BATCH_MIN_WAIT_NANOS = 400_000L;
-    static final long MICRO_BATCH_WAIT_NANOS = 1_200_000L;
+    static final long MICRO_BATCH_WAIT_NANOS = 900_000L;
     static final long MICRO_BATCH_MAX_WAIT_NANOS = 2_000_000L;
     static final long CLIENT_MICRO_BATCH_WAIT_NANOS = 200_000L;
     static final long MICRO_BATCH_POLL_NANOS = 100_000L;
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;
     static final long WINDOW_STALL_WARN_MS = 150L;
-    static final long IDLE_RESTART_MIN_MS = 250L;
+    static final long IDLE_RESTART_MIN_MS = 500L;
     static final int PACING_BURST_PACKETS = 2;
     static final long MIN_PACING_INTERVAL_NANOS = 250_000L;
     static final long MAX_PACING_INTERVAL_NANOS = 2_000_000L;

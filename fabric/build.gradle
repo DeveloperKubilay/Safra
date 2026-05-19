@@ -34,7 +34,7 @@ loom {
         }
         server {
             server()
-            property 'safra.p2p.diagnostics', 'true'
+            property 'safra.p2p.diagnostics', 'false'
         }
     }
 }

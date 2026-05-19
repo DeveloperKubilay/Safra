@@ -117,7 +117,7 @@ neoForge {
         }
         server {
             server()
-            systemProperty 'safra.p2p.diagnostics', 'true'
+            systemProperty 'safra.p2p.diagnostics', 'false'
             programArgument '--nogui'
         }
     }

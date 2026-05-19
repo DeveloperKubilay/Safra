@@ -175,7 +175,7 @@ minecraft {
         }
 
         register('server') {
-            systemProperty 'safra.p2p.diagnostics', 'true'
+            systemProperty 'safra.p2p.diagnostics', 'false'
             args '--nogui'
         }
     }
