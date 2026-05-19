@@ -147,6 +147,9 @@ configurations {
 
 dependencies {
     quicBundle "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
+    rootProject.ext.quicAllNativeClassifiers.each { classifier ->
+        quicBundle "io.netty:netty-codec-native-quic:${quicNettyVersion}:${classifier}"
+    }
     compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
     def devNativeClassifier = rootProject.ext.quicNativeClassifier()
     if (devNativeClassifier != null) {

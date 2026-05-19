@@ -66,7 +66,7 @@ final class P2pQuicSupport {
     static String unavailableReason() {
         ProbeResult probeResult = cachedProbeResult;
         if (probeResult == null || probeResult.available) {
-            return "bilinmiyor";
+            return "unknown";
         }
         return probeResult.reason();
     }
@@ -89,13 +89,12 @@ final class P2pQuicSupport {
 
             Thread thread = new Thread(() -> {
                 try {
-                    P2pQuicNativeManager.ensureExternalNativeJarAvailable();
-                    P2pQuicNativeManager.ensureExternalNativeAvailable();
+                    P2pQuicNativeManager.ensureBundledNativeAvailable();
                 } catch (IOException ignored) {
                 } finally {
                     nativeDownloadThread = null;
                 }
-            }, "safra-quic-download");
+            }, "safra-quic-prepare");
             thread.setDaemon(true);
             nativeDownloadThread = thread;
             thread.start();
@@ -123,13 +122,13 @@ final class P2pQuicSupport {
             String ready = broker.awaitReady(CHILD_START_TIMEOUT);
             int firstSpace = ready.indexOf(' ');
             if (firstSpace < 0) {
-                throw new IOException("Safra QUIC host helper hazirlik cevabi bozuk");
+                throw new IOException("Safra QUIC host helper returned an invalid readiness response");
             }
 
             int port = Integer.parseInt(ready.substring(0, firstSpace).trim());
             String certificate = ready.substring(firstSpace + 1).trim();
             if (certificate.isBlank()) {
-                throw new IOException("Safra QUIC host helper sertifika dondurmedi");
+                throw new IOException("Safra QUIC host helper did not return a certificate");
             }
             return new OutOfProcessQuicHostSession(logger, broker, port, certificate);
         } catch (Throwable throwable) {
@@ -137,7 +136,7 @@ final class P2pQuicSupport {
             if (throwable instanceof IOException exception) {
                 throw exception;
             }
-            throw new IOException("Safra QUIC host helper baslatilamadi: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC host helper failed to start: " + summarize(throwable), throwable);
         }
     }
 
@@ -178,12 +177,12 @@ final class P2pQuicSupport {
             helperSocket = bridgeServer.accept();
             String ready = broker.awaitReady(CHILD_START_TIMEOUT);
             if (!"client".equals(ready)) {
-                throw new IOException("Safra QUIC client helper hazirlik cevabi bozuk: " + ready);
+                throw new IOException("Safra QUIC client helper returned an invalid readiness response: " + ready);
             }
 
             new DirectTcpBridge(logger, localSocket, helperSocket).run();
         } catch (SocketTimeoutException exception) {
-            throw new IOException("Safra QUIC client helper loopback baglantisi zaman asimina ugradi", exception);
+            throw new IOException("Safra QUIC client helper loopback connection timed out", exception);
         } catch (IOException exception) {
             throw exception;
         } catch (Throwable throwable) {
@@ -201,7 +200,7 @@ final class P2pQuicSupport {
         try {
             return NettyQuicSupport.startHost(logger, targetAddress, tcpPort, bindPort, tunnelToken);
         } catch (Throwable throwable) {
-            throw new IOException("Safra QUIC host kullanilamiyor: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC host is unavailable: " + summarize(throwable), throwable);
         }
     }
 
@@ -250,21 +249,14 @@ final class P2pQuicSupport {
 
     private static BrokerProcess startBrokerProcess(List<String> arguments) throws IOException {
         Path javaExecutable = resolveJavaExecutable();
-        Path nativeJar = null;
-        try {
-            nativeJar = P2pQuicNativeManager.ensureExternalNativeJarAvailable();
-        } catch (IOException ignored) {
-        }
-        String classPath = buildRuntimeClassPath(nativeJar);
+        String classPath = buildRuntimeClassPath();
         if (javaExecutable == null || classPath.isBlank()) {
-            throw new IOException("Safra QUIC helper process classpath'i hazir degil");
+            throw new IOException("Safra QUIC helper process classpath is not ready");
         }
 
         Path argFile = Files.createTempFile("safra-quic-broker-", ".args");
         Path workDir = Files.createTempDirectory("safra-quic-broker-work-");
         Path readyFile = workDir.resolve("ready.txt");
-        Path nativeHome = P2pQuicNativeManager.resolvePreferredNativeHome();
-        String nativeBaseUrl = P2pQuicNativeManager.configuredBaseUrl();
         try {
             List<String> argLines = new ArrayList<>();
             argLines.add("--enable-native-access=ALL-UNNAMED");
@@ -272,8 +264,6 @@ final class P2pQuicSupport {
             argLines.add("-Dio.netty.tryReflectionSetAccessible=true");
             argLines.add("-D" + BROKER_CHILD_PROPERTY + "=true");
             argLines.add("-D" + READY_FILE_PROPERTY + "=" + quoteArgFileValue(readyFile.toString()));
-            argLines.add("-D" + P2pQuicNativeManager.NATIVE_HOME_PROPERTY + "=" + quoteArgFileValue(nativeHome.toString()));
-            argLines.add("-D" + P2pQuicNativeManager.NATIVE_BASE_URL_PROPERTY + "=" + quoteArgFileValue(nativeBaseUrl));
             argLines.add("-Duser.dir=" + quoteArgFileValue(workDir.toString()));
             argLines.add("-cp");
             argLines.add(quoteArgFileValue(classPath));
@@ -294,7 +284,7 @@ final class P2pQuicSupport {
             if (throwable instanceof IOException exception) {
                 throw exception;
             }
-            throw new IOException("Safra QUIC helper process baslatilamadi: " + summarize(throwable), throwable);
+            throw new IOException("Safra QUIC helper process failed to start: " + summarize(throwable), throwable);
         }
     }
 
@@ -309,7 +299,7 @@ final class P2pQuicSupport {
         return Files.isRegularFile(executable) ? executable : null;
     }
 
-    private static String buildRuntimeClassPath(Path nativeJar) {
+    private static String buildRuntimeClassPath() {
         LinkedHashSet<String> entries = new LinkedHashSet<>();
 
         String runtimeClassPath = System.getProperty("java.class.path", "");
@@ -353,10 +343,6 @@ final class P2pQuicSupport {
                 }
             }
         } catch (Throwable ignored) {
-        }
-
-        if (nativeJar != null && Files.isRegularFile(nativeJar)) {
-            entries.add(nativeJar.toString());
         }
 
         return String.join(File.pathSeparator, entries);
@@ -456,7 +442,7 @@ final class P2pQuicSupport {
             try {
                 broker.sendCommand("PUNCH " + remoteAddress.getAddress().getHostAddress() + " " + remoteAddress.getPort());
             } catch (IOException exception) {
-                logger.debug("Safra QUIC helper punch gonderilemedi: {}", exception.toString());
+                logger.debug("Safra QUIC helper punch could not be sent: {}", exception.toString());
             }
         }
 
@@ -526,7 +512,7 @@ final class P2pQuicSupport {
                     line = outputQueue.poll(waitMillis, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();
-                    throw new IOException("Safra QUIC helper beklenirken is parcacigi bolundu", exception);
+                    throw new IOException("Thread interrupted while waiting for the Safra QUIC helper", exception);
                 }
 
                 String readyPayload = tryExtractReadyPayload(line);
@@ -544,7 +530,7 @@ final class P2pQuicSupport {
                 return readyFromFile;
             }
 
-            throw new IOException("Safra QUIC helper hazir olamadi: " + outputSummary());
+            throw new IOException("Safra QUIC helper did not become ready: " + outputSummary());
         }
 
         private String readReadyFile() {
@@ -575,9 +561,9 @@ final class P2pQuicSupport {
             }
             if (summary.isBlank()) {
                 if (!process.isAlive()) {
-                    return "helper cikis kodu " + process.exitValue();
+                    return "helper exit code " + process.exitValue();
                 }
-                return "helper cevap vermedi";
+                return "helper did not respond";
             }
             return summary.length() > 400 ? summary.substring(0, 400) + "..." : summary;
         }
@@ -642,7 +628,7 @@ final class P2pQuicSupport {
         }
 
         private static ProbeResult unavailableResult(String reason) {
-            return new ProbeResult(false, reason == null || reason.isBlank() ? "bilinmeyen hata" : reason);
+            return new ProbeResult(false, reason == null || reason.isBlank() ? "unknown error" : reason);
         }
     }
 }

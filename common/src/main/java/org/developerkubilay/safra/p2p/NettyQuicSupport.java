@@ -77,7 +77,7 @@ final class NettyQuicSupport {
         } catch (IOException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new IOException("Safra QUIC probe basarisiz", exception);
+            throw new IOException("Safra QUIC probe failed", exception);
         }
     }
 
@@ -206,12 +206,7 @@ final class NettyQuicSupport {
             synchronized (NettyQuicSupport.class) {
                 if (!nativeLoadAttempted) {
                     nativeLoadAttempted = true;
-                    tryLoadExternalNative();
-                    boolean enableBundledNativeLoad = Boolean.getBoolean("safra.p2p.enableBundledQuicNativeLoad");
-                    boolean disableBundledNativeLoad = Boolean.getBoolean("safra.p2p.disableBundledQuicNativeLoad");
-                    if (enableBundledNativeLoad && !disableBundledNativeLoad) {
-                        tryLoadBundledNative();
-                    }
+                    tryLoadBundledNative();
                 }
             }
         }
@@ -222,27 +217,12 @@ final class NettyQuicSupport {
         throw new IOException("Netty QUIC is unavailable" + (cause != null ? ": " + cause.getMessage() : ""), cause);
     }
 
-    private static void tryLoadExternalNative() {
+    private static void tryLoadBundledNative() {
         try {
-            Path nativeLibrary = P2pQuicNativeManager.ensureExternalNativeAvailable();
+            Path nativeLibrary = P2pQuicNativeManager.ensureBundledNativeAvailable();
             System.load(nativeLibrary.toAbsolutePath().toString());
         } catch (Throwable ignored) {
         }
-    }
-
-    private static void tryLoadBundledNative() {
-        String libName = P2pQuicNativeManager.nativeLibraryFileName();
-        if (libName == null) {
-            return;
-        }
-
-        try (InputStream stream = NettyQuicSupport.class.getResourceAsStream("/META-INF/native/" + libName)) {
-            if (stream == null) return;
-            Path tempFile = Files.createTempFile("safra-quic-", "-" + libName);
-            tempFile.toFile().deleteOnExit();
-            Files.copy(stream, tempFile, StandardCopyOption.REPLACE_EXISTING);
-            System.load(tempFile.toAbsolutePath().toString());
-        } catch (Throwable ignored) {}
     }
 
     private static X509Certificate loadEmbeddedCertificate() throws IOException {
@@ -522,7 +502,7 @@ final class NettyQuicSupport {
             }
 
             if (!matchesAck(ackBuffer)) {
-                readyFuture.completeExceptionally(new IOException("Safra QUIC auth ack gecersiz"));
+                readyFuture.completeExceptionally(new IOException("Safra QUIC auth ack is invalid"));
                 context.close();
                 return;
             }
