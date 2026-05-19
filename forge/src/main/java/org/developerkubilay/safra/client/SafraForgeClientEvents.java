@@ -10,13 +10,11 @@ import org.developerkubilay.safra.SafraForge;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
-import org.developerkubilay.safra.p2p.P2pQuicBootstrap;
 
 @Mod.EventBusSubscriber(modid = SafraForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class SafraForgeClientEvents {
     static {
         RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
-        P2pQuicBootstrap.downloadNativeAsync();
     }
 
     private SafraForgeClientEvents() {

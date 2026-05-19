@@ -4,43 +4,43 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 1;
     static final int HEADER_SIZE = 18;
-    static final int MAX_PAYLOAD_SIZE = 1000;
+    static final int MAX_PAYLOAD_SIZE = 1100;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
     static final int SEND_WINDOW_SIZE = 32;
-    static final int INITIAL_SEND_WINDOW_SIZE = 48;
-    static final int MAX_SEND_WINDOW_SIZE = 128;
+    static final int INITIAL_SEND_WINDOW_SIZE = 32;
+    static final int MAX_SEND_WINDOW_SIZE = 96;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
-    static final long MAINTENANCE_TICK_MS = 100L;
+    static final long MAINTENANCE_TICK_MS = 25L;
     static final long OPEN_RESEND_MS = 500L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
-    static final long INITIAL_RESEND_MS = 240L;
-    static final long MIN_RESEND_MS = 180L;
-    static final long MAX_RESEND_MS = 1_200L;
+    static final long INITIAL_RESEND_MS = 160L;
+    static final long MIN_RESEND_MS = 90L;
+    static final long MAX_RESEND_MS = 450L;
     static final long KEEP_ALIVE_MS = 10_000L;
     static final long CONNECTION_TIMEOUT_MS = 30_000L;
     static final int SELECTIVE_ACK_BITS = 32;
     static final int MICRO_BATCH_WARMUP_SAMPLES = 24;
-    static final int MICRO_BATCH_MIN_THRESHOLD_BYTES = 64;
-    static final int MICRO_BATCH_THRESHOLD_BYTES = 192;
-    static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 256;
+    static final int MICRO_BATCH_MIN_THRESHOLD_BYTES = 96;
+    static final int MICRO_BATCH_THRESHOLD_BYTES = 256;
+    static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 384;
     static final int FAST_RETRANSMIT_DUP_ACKS = 3;
     static final long FAST_RETRANSMIT_GUARD_MS = 60L;
-    static final long NEGATIVE_ACK_REPEAT_MS = 80L;
-    static final long ACK_REINFORCE_DELAY_MS = 12L;
+    static final long NEGATIVE_ACK_REPEAT_MS = 30L;
+    static final long ACK_REINFORCE_DELAY_MS = 8L;
     static final long DELAYED_ACK_MS = 2L;
     static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
-    static final long MICRO_BATCH_MIN_WAIT_NANOS = 350_000L;
-    static final long MICRO_BATCH_WAIT_NANOS = 900_000L;
-    static final long MICRO_BATCH_MAX_WAIT_NANOS = 1_500_000L;
+    static final long MICRO_BATCH_MIN_WAIT_NANOS = 400_000L;
+    static final long MICRO_BATCH_WAIT_NANOS = 1_200_000L;
+    static final long MICRO_BATCH_MAX_WAIT_NANOS = 2_000_000L;
     static final long MICRO_BATCH_POLL_NANOS = 100_000L;
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;
     static final long WINDOW_STALL_WARN_MS = 150L;
-    static final long IDLE_RESTART_MIN_MS = 500L;
-    static final int PACING_BURST_PACKETS = 4;
-    static final long MIN_PACING_INTERVAL_NANOS = 100_000L;
-    static final long MAX_PACING_INTERVAL_NANOS = 4_000_000L;
+    static final long IDLE_RESTART_MIN_MS = 250L;
+    static final int PACING_BURST_PACKETS = 2;
+    static final long MIN_PACING_INTERVAL_NANOS = 250_000L;
+    static final long MAX_PACING_INTERVAL_NANOS = 2_000_000L;
     static final long STUN_REFRESH_MS = 20_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
     static final long RENDEZVOUS_PING_MS = 10 * 60 * 1000L;
@@ -50,21 +50,12 @@ public final class P2pConstants {
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;
     public static final int TURN_REFRESH_SAFETY_MARGIN_SECONDS = 60;
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
-    static final int DIRECT_TCP_CONNECT_TIMEOUT_MS = 1_500;
-    static final int DIRECT_TCP_COPY_BUFFER_SIZE = 16 * 1024;
-    static final int DIRECT_TCP_FLUSH_THRESHOLD_BYTES = 64 * 1024;
-    static final String QUIC_APPLICATION_PROTOCOL = "safra-p2p";
-    static final long QUIC_IDLE_TIMEOUT_MS = 30_000L;
-    static final int QUIC_CONNECT_TIMEOUT_MS = 10_000;
-    static final int QUIC_BRIDGE_BUFFER_SIZE = 16 * 1024;
-    static final int QUIC_BRIDGE_FLUSH_THRESHOLD_BYTES = 64 * 1024;
-    static final int QUIC_BRIDGE_QUEUE_CAPACITY = 4096;
+    static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
     static final String ADDRESS_SCHEME = "p2p://";
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
+    private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
+    private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
-    private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
-    private static final String EXPERIMENTAL_QUIC_PROPERTY = "safra.p2p.experimentalQuic";
-    private static final String QUIC_OUT_OF_PROCESS_PROPERTY = "safra.p2p.quicOutOfProcess";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -158,6 +149,14 @@ public final class P2pConstants {
         return false;
     }
 
+    static long diagnosticsSummaryMs() {
+        return longProperty(DIAGNOSTICS_INTERVAL_PROPERTY, DIAGNOSTIC_SUMMARY_MS);
+    }
+
+    static long diagnosticsTickDriftWarnMs() {
+        return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
+    }
+
     static boolean forceTurnRelay() {
         String property = System.getProperty(FORCE_TURN_PROPERTY);
         if (property != null && !property.isBlank()) {
@@ -172,62 +171,6 @@ public final class P2pConstants {
         return false;
     }
 
-    static boolean turnEnabled() {
-        String property = System.getProperty(TURN_ENABLED_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_TURN_ENABLED");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return true;
-    }
-
-    static boolean quicEnabled() {
-        String property = System.getProperty(EXPERIMENTAL_QUIC_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_P2P_EXPERIMENTAL_QUIC");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return true;
-    }
-
-    static boolean quicOutOfProcessEnabled() {
-        String property = System.getProperty(QUIC_OUT_OF_PROCESS_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_P2P_QUIC_OUT_OF_PROCESS");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return true;
-    }
-
-    static int quicHostPort(int tcpPort) {
-        String property = System.getProperty("safra.p2p.quicPort");
-        if (property != null && !property.isBlank()) {
-            return parsePort(property.trim(), tcpPort);
-        }
-
-        String environment = System.getenv("SAFRA_P2P_QUIC_PORT");
-        if (environment != null && !environment.isBlank()) {
-            return parsePort(environment.trim(), tcpPort);
-        }
-
-        return tcpPort >= 65_535 ? 0 : tcpPort + 1;
-    }
-
     public static int turnCredentialTtlSeconds() {
         return integerProperty("safra.p2p.turnCredentialTtlSeconds", TURN_DEFAULT_CREDENTIAL_TTL_SECONDS);
     }
@@ -240,15 +183,6 @@ public final class P2pConstants {
         return integerProperty("safra.p2p.turnPermissionLifetimeSeconds", TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS);
     }
 
-    private static int parsePort(String rawPort, int fallback) {
-        try {
-            int port = Integer.parseInt(rawPort);
-            return port >= 0 && port <= 65_535 ? port : fallback;
-        } catch (RuntimeException exception) {
-            return fallback;
-        }
-    }
-
     private static int integerProperty(String key, int fallback) {
         String property = System.getProperty(key);
         if (property == null || property.isBlank()) {
@@ -257,6 +191,19 @@ public final class P2pConstants {
 
         try {
             return Integer.parseInt(property.trim());
+        } catch (RuntimeException exception) {
+            return fallback;
+        }
+    }
+
+    private static long longProperty(String key, long fallback) {
+        String property = System.getProperty(key);
+        if (property == null || property.isBlank()) {
+            return fallback;
+        }
+
+        try {
+            return Long.parseLong(property.trim());
         } catch (RuntimeException exception) {
             return fallback;
         }

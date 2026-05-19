@@ -2,6 +2,7 @@ package org.developerkubilay.safra.p2p;
 
 import org.slf4j.Logger;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,6 +44,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
     private final boolean initiator;
     private final boolean diagnosticsLoggingEnabled;
+    private final long diagnosticsSummaryMs;
+    private final long diagnosticsTickDriftWarnMs;
     private final CountDownLatch openLatch = new CountDownLatch(1);
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger nextSendSequence = new AtomicInteger(1);
@@ -66,11 +69,28 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private final AtomicLong sendWindowBlocks = new AtomicLong();
     private final AtomicLong sendWindowGrowthEvents = new AtomicLong();
     private final AtomicLong sendWindowLossEvents = new AtomicLong();
+    private final AtomicLong maintenanceTickDrifts = new AtomicLong();
+    private final AtomicLong maintenanceTickLateMs = new AtomicLong();
     private final AtomicLong idleRestartEvents = new AtomicLong();
     private final AtomicLong pacingWaitEvents = new AtomicLong();
     private final AtomicLong pacingWaitNanos = new AtomicLong();
     private final AtomicLong dataPacketsSent = new AtomicLong();
     private final AtomicLong dataBytesSent = new AtomicLong();
+    private final AtomicLong dataPacketsReceived = new AtomicLong();
+    private final AtomicLong dataBytesReceived = new AtomicLong();
+    private final AtomicLong tcpReadBytes = new AtomicLong();
+    private final AtomicLong tcpWriteBytes = new AtomicLong();
+    private final AtomicLong tcpFlushes = new AtomicLong();
+    private final AtomicLong tcpFlushBytes = new AtomicLong();
+    private final AtomicLong inboundQueueBytes = new AtomicLong();
+    private final AtomicLong peakPendingSegments = new AtomicLong();
+    private final AtomicLong peakReceiveBuffer = new AtomicLong();
+    private final AtomicLong peakInboundQueueDepth = new AtomicLong();
+    private final AtomicLong peakInboundQueueBytes = new AtomicLong();
+    private final AtomicLong peakPacingWaitMs = new AtomicLong();
+    private final AtomicLong peakHeadOfLineBlockMs = new AtomicLong();
+    private final AtomicLong peakWindowBlockMs = new AtomicLong();
+    private final AtomicLong peakMaintenanceTickGapMs = new AtomicLong();
     private final AtomicLong microBatchHits = new AtomicLong();
     private final AtomicLong microBatchStartBytes = new AtomicLong();
     private final AtomicLong microBatchEndBytes = new AtomicLong();
@@ -82,6 +102,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile long lastPacketSentAt = System.currentTimeMillis();
     private volatile long lastOpenPacketAt = 0L;
     private volatile long openStartedAt = System.currentTimeMillis();
+    private volatile int openPacketsSent;
     private volatile long lastPayloadSentAt = System.currentTimeMillis();
     private volatile long lastAcknowledgementProgressAt = System.currentTimeMillis();
     private volatile long retransmitTimeoutMs = P2pConstants.INITIAL_RESEND_MS;
@@ -96,9 +117,23 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile long lastHeadOfLineWarningAt;
     private volatile long lastWindowBlockedSince;
     private volatile long lastWindowWarningAt;
+    private volatile long lastInboundQueueWarningAt;
     private volatile long lastDiagnosticsLogAt;
     private volatile long lastDiagnosticsCounterTotal;
+    private volatile long lastSummaryAt;
+    private volatile long lastSummaryDataPacketsSent;
+    private volatile long lastSummaryDataBytesSent;
+    private volatile long lastSummaryDataPacketsReceived;
+    private volatile long lastSummaryDataBytesReceived;
+    private volatile long lastSummaryTcpFlushes;
+    private volatile long lastSummaryTcpFlushBytes;
+    private volatile long lastSummaryTimeoutRetransmissions;
+    private volatile long lastSummaryDuplicateAckRetransmissions;
+    private volatile long lastSummaryNegativeAcknowledgementRetransmissions;
+    private volatile long lastSummaryAcknowledgementPacketsSent;
     private volatile long lastCongestionEventAt;
+    private volatile long lastMaintenanceTickAt;
+    private volatile long lastMaintenanceDriftWarningAt;
     private volatile int sendWindowSize = P2pConstants.INITIAL_SEND_WINDOW_SIZE;
     private volatile int slowStartThreshold = P2pConstants.MAX_SEND_WINDOW_SIZE;
     private volatile int acknowledgementsSinceWindowIncrease;
@@ -130,6 +165,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
         this.scheduler = scheduler;
         this.initiator = initiator;
         this.diagnosticsLoggingEnabled = P2pConstants.diagnosticsEnabled();
+        this.diagnosticsSummaryMs = diagnosticsLoggingEnabled ? P2pConstants.diagnosticsSummaryMs() : 0L;
+        this.diagnosticsTickDriftWarnMs = diagnosticsLoggingEnabled ? P2pConstants.diagnosticsTickDriftWarnMs() : 0L;
     }
 
     void start() throws IOException {
@@ -197,9 +234,11 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
                 read = coalesceTcpPayload(inputStream, buffer, read);
                 maybeRestartSendWindowAfterIdle(System.currentTimeMillis());
+                addDiagnosticCounter(tcpReadBytes, read);
                 byte[] payload = Arrays.copyOf(buffer, read);
                 int sequence = nextSendSequence.getAndIncrement();
                 pendingSegments.put(sequence, new PendingSegment(sequence, payload));
+                observePeak(peakPendingSegments, pendingSegments.size());
                 waitForPacingSlot();
                 sendData(sequence, payload);
             }
@@ -209,16 +248,30 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void tcpWriterLoop() {
-        try (OutputStream outputStream = tcpSocket.getOutputStream()) {
+        try (OutputStream outputStream = new BufferedOutputStream(
+            tcpSocket.getOutputStream(),
+            P2pConstants.RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES
+        )) {
+            int pendingBytes = 0;
             while (!closed.get()) {
                 byte[] payload = inboundQueue.poll(500L, TimeUnit.MILLISECONDS);
                 if (payload == null) {
+                    if (pendingBytes > 0) {
+                        outputStream.flush();
+                        pendingBytes = 0;
+                    }
                     continue;
                 }
 
                 outputStream.write(payload);
-                outputStream.flush();
+                addDiagnosticCounter(tcpWriteBytes, payload.length);
+                addDiagnosticCounter(inboundQueueBytes, -payload.length);
+                pendingBytes += payload.length;
+                if (pendingBytes >= P2pConstants.RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES || inboundQueue.isEmpty()) {
+                    pendingBytes = flushOutput(outputStream, pendingBytes);
+                }
             }
+            flushOutput(outputStream, pendingBytes);
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
             closeLocally("writer interrupted");
@@ -232,6 +285,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (!opened) {
             markOpened();
         }
+
+        incrementDiagnosticCounter(dataPacketsReceived);
+        addDiagnosticCounter(dataBytesReceived, packet.payload().length);
 
         int sequence = packet.sequence();
         if (sequence <= 0) {
@@ -252,6 +308,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         byte[] previous = receiveBuffer.putIfAbsent(sequence, packet.payload());
+        observePeak(peakReceiveBuffer, receiveBuffer.size());
         if (previous != null) {
             incrementDiagnosticCounter(duplicatePackets);
         }
@@ -279,16 +336,21 @@ final class ReliableTunnelConnection implements AutoCloseable {
             }
 
             inboundQueue.offer(payload);
+            addDiagnosticCounter(inboundQueueBytes, payload.length);
+            observePeak(peakInboundQueueDepth, inboundQueue.size());
+            observePeak(peakInboundQueueBytes, inboundQueueBytes.get());
             nextExpectedSequence.incrementAndGet();
         }
     }
 
     private void waitForWindow() {
+        long blockedStartedAt = 0L;
         synchronized (sendWindowMonitor) {
             while (!closed.get() && pendingSegments.size() >= sendWindowSize) {
                 long now = System.currentTimeMillis();
                 if (lastWindowBlockedSince == 0L) {
                     lastWindowBlockedSince = now;
+                    blockedStartedAt = now;
                     incrementDiagnosticCounter(sendWindowBlocks);
                 }
                 logWindowBlockIfNeeded(now);
@@ -300,6 +362,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
                 }
             }
         }
+        if (blockedStartedAt != 0L) {
+            observePeak(peakWindowBlockMs, Math.max(1L, System.currentTimeMillis() - blockedStartedAt));
+        }
         lastWindowBlockedSince = 0L;
     }
 
@@ -310,6 +375,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         long now = System.currentTimeMillis();
         boolean removed = removeAcknowledgedSegments(acknowledgement, acknowledgementMask, now);
+        PendingSegment missingSegment = acknowledgementMask == 0 ? null : pendingSegments.get(acknowledgement);
 
         if (removed) {
             lastAcknowledgementProgressAt = now;
@@ -321,6 +387,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (acknowledgement > lastProcessedAcknowledgement) {
             lastProcessedAcknowledgement = acknowledgement;
             duplicateAcknowledgementCount = 0;
+            if (missingSegment != null) {
+                fastRetransmit(missingSegment, now, false);
+            }
             return;
         }
 
@@ -328,7 +397,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
             return;
         }
 
-        PendingSegment missingSegment = pendingSegments.get(acknowledgement);
         if (missingSegment == null) {
             return;
         }
@@ -349,6 +417,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         long now = System.currentTimeMillis();
+        observeMaintenanceTickGap(now);
         if (initiator && !opened) {
             if (now - openStartedAt > P2pConstants.OPEN_TIMEOUT_MS) {
                 logger.debug("{} connection {} could not open UDP tunnel to {} within {} ms", side, connectionId, remoteAddress, P2pConstants.OPEN_TIMEOUT_MS);
@@ -393,6 +462,10 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void sendOpen() {
+        if (openPacketsSent == 0) {
+            openStartedAt = System.currentTimeMillis();
+        }
+        openPacketsSent++;
         lastOpenPacketAt = System.currentTimeMillis();
         sendPacket(P2pPacket.open(token, connectionId));
     }
@@ -431,7 +504,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (opened) {
             return;
         }
+        long now = System.currentTimeMillis();
         opened = true;
+        lastAcknowledgementProgressAt = now;
+        if (initiator && openPacketsSent == 1) {
+            updateRetransmitTimeout(now - openStartedAt);
+        }
         openLatch.countDown();
         logger.debug("{} connection {} UDP tunnel opened with {}", side, connectionId, remoteAddress);
     }
@@ -651,15 +729,20 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void logHeadOfLineBlockIfNeeded(long now) {
+        if (!diagnosticsLoggingEnabled) {
+            return;
+        }
+
         if (headOfLineBlockedSince == 0L || now - headOfLineBlockedSince < P2pConstants.HEAD_OF_LINE_WARN_MS) {
             return;
         }
 
-        if (now - lastHeadOfLineWarningAt < P2pConstants.DIAGNOSTIC_SUMMARY_MS) {
+        if (now - lastHeadOfLineWarningAt < diagnosticsSummaryMs) {
             return;
         }
 
         lastHeadOfLineWarningAt = now;
+        observePeak(peakHeadOfLineBlockMs, now - headOfLineBlockedSince);
         logger.warn("{} connection {} head-of-line block {} ms on seq {} buffered={} pending={} rto={}ms srtt={}ms remote={}",
             side, connectionId, now - headOfLineBlockedSince, headOfLineMissingSequence, bufferedRange(),
             pendingSegments.size(), retransmitTimeoutMs, roundTripMetric(smoothedRoundTripTimeMs), remoteAddress);
@@ -667,15 +750,20 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void logWindowBlockIfNeeded(long now) {
+        if (!diagnosticsLoggingEnabled) {
+            return;
+        }
+
         if (lastWindowBlockedSince == 0L || now - lastWindowBlockedSince < P2pConstants.WINDOW_STALL_WARN_MS) {
             return;
         }
 
-        if (now - lastWindowWarningAt < P2pConstants.DIAGNOSTIC_SUMMARY_MS) {
+        if (now - lastWindowWarningAt < diagnosticsSummaryMs) {
             return;
         }
 
         lastWindowWarningAt = now;
+        observePeak(peakWindowBlockMs, now - lastWindowBlockedSince);
         logger.warn("{} connection {} send window blocked {} ms pending={} window={} ssthresh={} firstPending={} nextExpected={} buffered={} rto={}ms remote={}",
             side, connectionId, now - lastWindowBlockedSince, pendingSegments.size(), sendWindowSize,
             slowStartThreshold, firstPendingSequence(), nextExpectedSequence.get(), bufferedRange(),
@@ -688,9 +776,11 @@ final class ReliableTunnelConnection implements AutoCloseable {
             return;
         }
 
+        logInboundQueueBacklogIfNeeded(now, forced);
         long counterTotal = diagnosticsCounterTotal();
+        long summaryIntervalMs = diagnosticsSummaryMs;
         if (!forced) {
-            if (now - lastDiagnosticsLogAt < P2pConstants.DIAGNOSTIC_SUMMARY_MS) {
+            if (now - lastDiagnosticsLogAt < summaryIntervalMs) {
                 return;
             }
             if (counterTotal == lastDiagnosticsCounterTotal && pendingSegments.isEmpty() && receiveBuffer.isEmpty()) {
@@ -698,19 +788,122 @@ final class ReliableTunnelConnection implements AutoCloseable {
             }
         }
 
+        long intervalMs = lastSummaryAt == 0L ? summaryIntervalMs : Math.max(1L, now - lastSummaryAt);
+        long totalDataPacketsSent = dataPacketsSent.get();
+        long totalDataBytesSent = dataBytesSent.get();
+        long totalDataPacketsReceived = dataPacketsReceived.get();
+        long totalDataBytesReceived = dataBytesReceived.get();
+        long totalTcpFlushes = tcpFlushes.get();
+        long totalTcpFlushBytes = tcpFlushBytes.get();
+        long totalTimeoutRetransmissions = timeoutRetransmissions.get();
+        long totalDuplicateAckRetransmissions = duplicateAckRetransmissions.get();
+        long totalNegativeAcknowledgementRetransmissions = negativeAcknowledgementRetransmissions.get();
+        long totalAcknowledgementPacketsSent = acknowledgementPacketsSent.get();
+        long txPacketsDelta = totalDataPacketsSent - lastSummaryDataPacketsSent;
+        long txBytesDelta = totalDataBytesSent - lastSummaryDataBytesSent;
+        long rxPacketsDelta = totalDataPacketsReceived - lastSummaryDataPacketsReceived;
+        long rxBytesDelta = totalDataBytesReceived - lastSummaryDataBytesReceived;
+        long flushesDelta = totalTcpFlushes - lastSummaryTcpFlushes;
+        long flushBytesDelta = totalTcpFlushBytes - lastSummaryTcpFlushBytes;
+        long timeoutRetransmissionsDelta = totalTimeoutRetransmissions - lastSummaryTimeoutRetransmissions;
+        long duplicateAckRetransmissionsDelta = totalDuplicateAckRetransmissions - lastSummaryDuplicateAckRetransmissions;
+        long negativeAcknowledgementRetransmissionsDelta =
+            totalNegativeAcknowledgementRetransmissions - lastSummaryNegativeAcknowledgementRetransmissions;
+        long acknowledgementPacketsSentDelta = totalAcknowledgementPacketsSent - lastSummaryAcknowledgementPacketsSent;
         lastDiagnosticsLogAt = now;
         lastDiagnosticsCounterTotal = counterTotal;
-        logger.info("{} connection {} diag={} remote={} pending={} window={} ssthresh={} expected={} buffered={} inboundQueue={} rto={}ms srtt={}ms rttvar={}ms ackPkts={} ackReinforce={} delAck={} dataPkts={} avgPayload={} outOfOrder={} dupData={} sack={} dupAck={} nackSent={} nackRecv={} retTimeout={} retDupAck={} retNack={} windowBlocks={} winGrow={} winLoss={} idleRestart={} paceWaits={} paceMs={} mbHits={} mbAvgStart={} mbAvgEnd={} mbDeadline={} mbThreshold={}",
-            side, connectionId, trigger, remoteAddress, pendingSegments.size(), sendWindowSize, slowStartThreshold,
-            nextExpectedSequence.get(), bufferedRange(), inboundQueue.size(), retransmitTimeoutMs, roundTripMetric(smoothedRoundTripTimeMs),
-            roundTripMetric(roundTripVariationMs), acknowledgementPacketsSent.get(), acknowledgementReinforcementsSent.get(),
-            delayedAcknowledgementsSent.get(), dataPacketsSent.get(), averagePayloadSize(), outOfOrderPackets.get(), duplicatePackets.get(),
-            selectiveAcknowledgements.get(), duplicateAcknowledgements.get(), negativeAcknowledgementsSent.get(),
-            negativeAcknowledgementsReceived.get(), timeoutRetransmissions.get(), duplicateAckRetransmissions.get(),
-            negativeAcknowledgementRetransmissions.get(), sendWindowBlocks.get(), sendWindowGrowthEvents.get(),
-            sendWindowLossEvents.get(), idleRestartEvents.get(), pacingWaitEvents.get(), pacingWaitNanos.get() / 1_000_000L,
-            microBatchHits.get(), microBatchAverageStartBytes(), microBatchAverageEndBytes(),
+        lastSummaryAt = now;
+        lastSummaryDataPacketsSent = totalDataPacketsSent;
+        lastSummaryDataBytesSent = totalDataBytesSent;
+        lastSummaryDataPacketsReceived = totalDataPacketsReceived;
+        lastSummaryDataBytesReceived = totalDataBytesReceived;
+        lastSummaryTcpFlushes = totalTcpFlushes;
+        lastSummaryTcpFlushBytes = totalTcpFlushBytes;
+        lastSummaryTimeoutRetransmissions = totalTimeoutRetransmissions;
+        lastSummaryDuplicateAckRetransmissions = totalDuplicateAckRetransmissions;
+        lastSummaryNegativeAcknowledgementRetransmissions = totalNegativeAcknowledgementRetransmissions;
+        lastSummaryAcknowledgementPacketsSent = totalAcknowledgementPacketsSent;
+        logger.info("{} connection {} diag={} remote={} pending={} pendingPeak={} window={} ssthresh={} expected={} buffered={} bufferedPeak={} inboundQueue={} inboundQueuePeak={} inboundBytes={} inboundBytesPeak={} rto={}ms srtt={}ms rttvar={}ms txKbps={} rxKbps={} txPps={} rxPps={} flushes={} flushKb={} ackPps={} retTimeout={} retDupAck={} retNack={} outOfOrder={} dupData={} sack={} dupAck={} nackSent={} nackRecv={} windowBlocks={} winGrow={} winLoss={} idleRestart={} paceWaits={} paceMs={} paceMaxMs={} holMaxMs={} winBlockMaxMs={} tickDrifts={} tickLateMs={} tickGapMaxMs={} tcpReadKb={} tcpWriteKb={} mbHits={} mbAvgStart={} mbAvgEnd={} mbDeadline={} mbThreshold={}",
+            side, connectionId, trigger, remoteAddress, pendingSegments.size(), peakPendingSegments.get(), sendWindowSize,
+            slowStartThreshold, nextExpectedSequence.get(), bufferedRange(), peakReceiveBuffer.get(), inboundQueue.size(),
+            peakInboundQueueDepth.get(), inboundQueueBytes.get(), peakInboundQueueBytes.get(), retransmitTimeoutMs,
+            roundTripMetric(smoothedRoundTripTimeMs), roundTripMetric(roundTripVariationMs),
+            kiloBitsPerSecond(txBytesDelta, intervalMs), kiloBitsPerSecond(rxBytesDelta, intervalMs),
+            eventsPerSecond(txPacketsDelta, intervalMs), eventsPerSecond(rxPacketsDelta, intervalMs),
+            flushesDelta, kiloBytes(flushBytesDelta), eventsPerSecond(acknowledgementPacketsSentDelta, intervalMs),
+            timeoutRetransmissionsDelta, duplicateAckRetransmissionsDelta, negativeAcknowledgementRetransmissionsDelta,
+            outOfOrderPackets.get(), duplicatePackets.get(), selectiveAcknowledgements.get(), duplicateAcknowledgements.get(),
+            negativeAcknowledgementsSent.get(), negativeAcknowledgementsReceived.get(), sendWindowBlocks.get(),
+            sendWindowGrowthEvents.get(), sendWindowLossEvents.get(), idleRestartEvents.get(), pacingWaitEvents.get(),
+            pacingWaitNanos.get() / 1_000_000L, peakPacingWaitMs.get(), peakHeadOfLineBlockMs.get(),
+            peakWindowBlockMs.get(), maintenanceTickDrifts.get(), maintenanceTickLateMs.get(), peakMaintenanceTickGapMs.get(),
+            kiloBytes(tcpReadBytes.get()), kiloBytes(tcpWriteBytes.get()), microBatchHits.get(), microBatchAverageStartBytes(),
+            microBatchAverageEndBytes(),
             microBatchDeadlineExits.get(), microBatchThresholdExits.get());
+    }
+
+    private int flushOutput(OutputStream outputStream, int pendingBytes) throws IOException {
+        if (pendingBytes <= 0) {
+            return 0;
+        }
+
+        outputStream.flush();
+        incrementDiagnosticCounter(tcpFlushes);
+        addDiagnosticCounter(tcpFlushBytes, pendingBytes);
+        return 0;
+    }
+
+    private void observeMaintenanceTickGap(long now) {
+        if (!diagnosticsLoggingEnabled) {
+            lastMaintenanceTickAt = now;
+            return;
+        }
+
+        long previous = lastMaintenanceTickAt;
+        lastMaintenanceTickAt = now;
+        if (previous == 0L) {
+            return;
+        }
+
+        long gapMs = Math.max(0L, now - previous);
+        observePeak(peakMaintenanceTickGapMs, gapMs);
+        long lateMs = Math.max(0L, gapMs - P2pConstants.MAINTENANCE_TICK_MS);
+        if (lateMs < Math.max(2L, P2pConstants.MAINTENANCE_TICK_MS / 2L)) {
+            return;
+        }
+
+        incrementDiagnosticCounter(maintenanceTickDrifts);
+        addDiagnosticCounter(maintenanceTickLateMs, lateMs);
+        long warnIntervalMs = diagnosticsSummaryMs;
+        if (gapMs < diagnosticsTickDriftWarnMs
+            || now - lastMaintenanceDriftWarningAt < warnIntervalMs) {
+            return;
+        }
+
+        lastMaintenanceDriftWarningAt = now;
+        logger.warn("{} connection {} maintenance tick drift {} ms pending={} buffered={} inboundQueue={} remote={}",
+            side, connectionId, gapMs, pendingSegments.size(), bufferedRange(), inboundQueue.size(), remoteAddress);
+        maybeLogDiagnostics("tick-drift", now, true);
+    }
+
+    private void logInboundQueueBacklogIfNeeded(long now, boolean forced) {
+        long backlogBytes = inboundQueueBytes.get();
+        long thresholdBytes = Math.max(P2pConstants.RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES * 4L,
+            P2pConstants.TCP_BUFFER_SIZE / 2L);
+        if (!forced && backlogBytes < thresholdBytes) {
+            return;
+        }
+
+        long summaryIntervalMs = diagnosticsSummaryMs;
+        if (!forced && now - lastInboundQueueWarningAt < summaryIntervalMs) {
+            return;
+        }
+
+        lastInboundQueueWarningAt = now;
+        if (backlogBytes > 0L) {
+            logger.warn("{} connection {} inbound TCP backlog {} bytes queue={} pending={} buffered={} remote={}",
+                side, connectionId, backlogBytes, inboundQueue.size(), pendingSegments.size(), bufferedRange(), remoteAddress);
+        }
     }
 
     private long diagnosticsCounterTotal() {
@@ -726,10 +919,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
             + sendWindowBlocks.get()
             + sendWindowGrowthEvents.get()
             + sendWindowLossEvents.get()
+            + maintenanceTickDrifts.get()
             + idleRestartEvents.get()
             + pacingWaitEvents.get()
             + acknowledgementPacketsSent.get()
             + delayedAcknowledgementsSent.get()
+            + dataPacketsReceived.get()
             + dataPacketsSent.get();
     }
 
@@ -840,6 +1035,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (waitNanos > 0L) {
             incrementDiagnosticCounter(pacingWaitEvents);
             addDiagnosticCounter(pacingWaitNanos, waitNanos);
+            observePeak(peakPacingWaitMs, TimeUnit.NANOSECONDS.toMillis(waitNanos));
             LockSupport.parkNanos(waitNanos);
             now = System.nanoTime();
         }
@@ -866,9 +1062,13 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private boolean shouldPacePayloads() {
+        if (!opened) {
+            return false;
+        }
+
         int pending = pendingSegments.size();
-        int backlogThreshold = Math.max(P2pConstants.PACING_BURST_PACKETS * 2, sendWindowSize / 8);
-        if (pending > backlogThreshold) {
+        int backlogThreshold = Math.max(P2pConstants.PACING_BURST_PACKETS * 4, sendWindowSize / 6);
+        if (pending >= backlogThreshold) {
             return true;
         }
 
@@ -886,6 +1086,15 @@ final class ReliableTunnelConnection implements AutoCloseable {
         int thresholdBytes = adaptiveMicroBatchThresholdBytes;
         long waitNanos = adaptiveMicroBatchWaitNanos;
         if (totalRead > 0 && totalRead < thresholdBytes) {
+            int availableBeforeWait = inputStream.available();
+            if (availableBeforeWait <= 0 && totalRead <= (P2pConstants.MICRO_BATCH_MIN_THRESHOLD_BYTES / 4)) {
+                return totalRead;
+            }
+
+            if (availableBeforeWait <= 0) {
+                waitNanos = Math.min(waitNanos, P2pConstants.MICRO_BATCH_MIN_WAIT_NANOS);
+            }
+
             incrementDiagnosticCounter(microBatchHits);
             addDiagnosticCounter(microBatchStartBytes, totalRead);
             long deadline = System.nanoTime() + waitNanos;
@@ -1045,6 +1254,41 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (diagnosticsLoggingEnabled) {
             counter.addAndGet(delta);
         }
+    }
+
+    private void observePeak(AtomicLong peak, long value) {
+        if (!diagnosticsLoggingEnabled || value <= 0L) {
+            return;
+        }
+
+        long current = peak.get();
+        while (value > current && !peak.compareAndSet(current, value)) {
+            current = peak.get();
+        }
+    }
+
+    private long kiloBitsPerSecond(long byteDelta, long intervalMs) {
+        if (byteDelta <= 0L || intervalMs <= 0L) {
+            return 0L;
+        }
+
+        return Math.round((byteDelta * 8_000D) / intervalMs) / 1_000L;
+    }
+
+    private long eventsPerSecond(long countDelta, long intervalMs) {
+        if (countDelta <= 0L || intervalMs <= 0L) {
+            return 0L;
+        }
+
+        return Math.round((countDelta * 1_000D) / intervalMs);
+    }
+
+    private long kiloBytes(long bytes) {
+        if (bytes <= 0L) {
+            return 0L;
+        }
+
+        return bytes / 1024L;
     }
 
     private long averagePayloadSize() {
