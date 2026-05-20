@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 final class SafraRendezvousClient implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
+    private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 350, 1000};
 
     private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -144,15 +145,35 @@ final class SafraRendezvousClient implements AutoCloseable {
     }
 
     private void connect(URI uri, WebSocket.Listener listener) throws Exception {
-        WebSocket.Builder builder = httpClient.newWebSocketBuilder();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
+        Exception lastException = null;
+        for (int attempt = 0; attempt < CONNECT_RETRY_DELAYS_MS.length; attempt++) {
+            if (CONNECT_RETRY_DELAYS_MS[attempt] > 0) {
+                sleepQuietly(CONNECT_RETRY_DELAYS_MS[attempt]);
+            }
+
+            try {
+                WebSocket.Builder builder = httpClient.newWebSocketBuilder();
+                String token = P2pConstants.rendezvousToken();
+                if (!token.isBlank()) {
+                    builder.header("Authorization", "Bearer " + token);
+                }
+
+                webSocket = builder
+                    .buildAsync(uri, listener)
+                    .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                return;
+            } catch (Exception exception) {
+                lastException = exception;
+                if (!isRetryableConnectFailure(exception) || attempt + 1 >= CONNECT_RETRY_DELAYS_MS.length) {
+                    throw exception;
+                }
+                LOGGER.warn("Safra rendezvous websocket connect retry {} for {} after {}", attempt + 1, uri, describeConnectFailure(exception));
+            }
         }
 
-        webSocket = builder
-            .buildAsync(uri, listener)
-            .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        if (lastException != null) {
+            throw lastException;
+        }
     }
 
     private void connectHost(String peerId, String preferredCode, WebSocket.Listener listener) throws Exception {
@@ -267,6 +288,10 @@ final class SafraRendezvousClient implements AutoCloseable {
         if (cause instanceof TimeoutException) {
             return new IOException(message + ": timeout", cause);
         }
+        if (cause instanceof WebSocketHandshakeException handshakeException) {
+            int status = handshakeException.getResponse().statusCode();
+            return new IOException(message + ": websocket handshake failed with HTTP " + status, cause);
+        }
         return new IOException(message + ": " + cause.getMessage(), cause);
     }
 
@@ -276,6 +301,39 @@ final class SafraRendezvousClient implements AutoCloseable {
             : exception;
         return cause instanceof WebSocketHandshakeException handshakeException
             && handshakeException.getResponse().statusCode() == 409;
+    }
+
+    private static boolean isRetryableConnectFailure(Exception exception) {
+        Throwable cause = exception instanceof java.util.concurrent.ExecutionException executionException
+            ? executionException.getCause()
+            : exception;
+        if (cause instanceof TimeoutException || cause instanceof IOException) {
+            return true;
+        }
+        if (cause instanceof WebSocketHandshakeException handshakeException) {
+            int status = handshakeException.getResponse().statusCode();
+            return status == 429 || status >= 500;
+        }
+        return false;
+    }
+
+    private static String describeConnectFailure(Exception exception) {
+        Throwable cause = exception instanceof java.util.concurrent.ExecutionException executionException
+            ? executionException.getCause()
+            : exception;
+        if (cause instanceof WebSocketHandshakeException handshakeException) {
+            return "HTTP " + handshakeException.getResponse().statusCode();
+        }
+        return cause == null ? "unknown" : cause.toString();
+    }
+
+    private static void sleepQuietly(long delayMs) throws Exception {
+        try {
+            TimeUnit.MILLISECONDS.sleep(delayMs);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw exception;
+        }
     }
 
     private static JsonObject joinMetadata() {

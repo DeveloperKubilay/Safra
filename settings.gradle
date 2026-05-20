@@ -28,5 +28,19 @@ rootProject.name = 'Safra'
 
 include 'common'
 include 'fabric'
-include 'neoforge'
 include 'forge'
+
+def localProperties = new Properties()
+def localPropertiesFile = file('gradle.properties')
+if (localPropertiesFile.isFile()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
+def enableNeoForgeValue = gradle.startParameter.projectProperties['enable_neoforge']
+if (enableNeoForgeValue == null) {
+    enableNeoForgeValue = localProperties.getProperty('enable_neoforge', 'true')
+}
+
+if (Boolean.parseBoolean(enableNeoForgeValue)) {
+    include 'neoforge'
+}
