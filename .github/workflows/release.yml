@@ -3,6 +3,14 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      minecraft_target:
+        description: Minecraft target
+        required: true
+        default: 1.19.2
+        type: choice
+        options:
+          - 1.18.2
+          - 1.19.2
       version_number:
         description: Version number
         required: true
@@ -17,7 +25,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.minecraft_target }}-${{ github.event.inputs.version_number }}
   cancel-in-progress: false
 
 jobs:
@@ -48,27 +56,156 @@ jobs:
         run: |
           echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
-      - name: Resolve release version
+      - name: Resolve release profile
         shell: bash
         run: |
-          branch_name="${GITHUB_REF_NAME}"
-          minecraft_version="${branch_name#Safra-}"
+          minecraft_target="${{ github.event.inputs.minecraft_target }}"
           version_number="${{ github.event.inputs.version_number }}"
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
             exit 1
           fi
-          if [[ -z "$minecraft_version" ]]; then
-            echo "Could not resolve Minecraft version from branch name: $branch_name"
+
+          case "$minecraft_target" in
+            1.18.2)
+              base_minecraft_version="1.18.2"
+              fabric_minecraft_version="1.18.2"
+              fabric_mod_minecraft_version="1.18.2"
+              minecraft_version="1.18.2"
+              yarn_mappings="1.18.2+build.4"
+              loader_version="0.16.10"
+              fabric_version="0.77.0+1.18.2"
+              minecraft_version_range="[1.18.2]"
+              forge_version="40.3.12"
+              forge_version_range="[40,)"
+              forge_loader_version_range="[40,)"
+              forge_minecraft_version_range="[1.18.2,1.19)"
+              loader_version_range="[1,)"
+              ;;
+            1.19.2)
+              base_minecraft_version="1.19.2"
+              fabric_minecraft_version="1.19.2"
+              fabric_mod_minecraft_version="1.19.2"
+              minecraft_version="1.19.2"
+              yarn_mappings="1.19.2+build.28"
+              loader_version="0.16.10"
+              fabric_version="0.77.0+1.19.2"
+              minecraft_version_range="[1.19.2]"
+              forge_version="43.5.2"
+              forge_version_range="[43,)"
+              forge_loader_version_range="[43,)"
+              forge_minecraft_version_range="[1.19.2,1.20)"
+              loader_version_range="[1,)"
+              ;;
+            *)
+              echo "Unsupported minecraft_target: $minecraft_target"
+              exit 1
+              ;;
+          esac
+
+          echo "SAFRA_MINECRAFT_VERSION=$minecraft_target" >> "$GITHUB_ENV"
+          echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
+          echo "SAFRA_TAG=Safra-$minecraft_target-$version_number" >> "$GITHUB_ENV"
+          echo "SAFRA_BASE_MINECRAFT_VERSION=$base_minecraft_version" >> "$GITHUB_ENV"
+          echo "SAFRA_FABRIC_MINECRAFT_VERSION=$fabric_minecraft_version" >> "$GITHUB_ENV"
+          echo "SAFRA_FABRIC_MOD_MINECRAFT_VERSION=$fabric_mod_minecraft_version" >> "$GITHUB_ENV"
+          echo "SAFRA_MC_VERSION=$minecraft_version" >> "$GITHUB_ENV"
+          echo "SAFRA_YARN_MAPPINGS=$yarn_mappings" >> "$GITHUB_ENV"
+          echo "SAFRA_LOADER_VERSION=$loader_version" >> "$GITHUB_ENV"
+          echo "SAFRA_FABRIC_VERSION=$fabric_version" >> "$GITHUB_ENV"
+          echo "SAFRA_MC_VERSION_RANGE=$minecraft_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_FORGE_VERSION=$forge_version" >> "$GITHUB_ENV"
+          echo "SAFRA_FORGE_VERSION_RANGE=$forge_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_FORGE_LOADER_VERSION_RANGE=$forge_loader_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_FORGE_MC_RANGE=$forge_minecraft_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_LOADER_VERSION_RANGE=$loader_version_range" >> "$GITHUB_ENV"
+
+      - name: Apply release profile to gradle.properties
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("gradle.properties")
+          values = {
+              "base_minecraft_version": "${{ env.SAFRA_BASE_MINECRAFT_VERSION }}",
+              "fabric_minecraft_version": "${{ env.SAFRA_FABRIC_MINECRAFT_VERSION }}",
+              "fabric_mod_minecraft_version": "${{ env.SAFRA_FABRIC_MOD_MINECRAFT_VERSION }}",
+              "minecraft_version": "${{ env.SAFRA_MC_VERSION }}",
+              "yarn_mappings": "${{ env.SAFRA_YARN_MAPPINGS }}",
+              "loader_version": "${{ env.SAFRA_LOADER_VERSION }}",
+              "fabric_version": "${{ env.SAFRA_FABRIC_VERSION }}",
+              "minecraft_version_range": "${{ env.SAFRA_MC_VERSION_RANGE }}",
+              "forge_version": "${{ env.SAFRA_FORGE_VERSION }}",
+              "forge_version_range": "${{ env.SAFRA_FORGE_VERSION_RANGE }}",
+              "forge_loader_version_range": "${{ env.SAFRA_FORGE_LOADER_VERSION_RANGE }}",
+              "forge_minecraft_version_range": "${{ env.SAFRA_FORGE_MC_RANGE }}",
+              "loader_version_range": "${{ env.SAFRA_LOADER_VERSION_RANGE }}",
+              "mod_version": "${{ env.SAFRA_VERSION }}",
+          }
+
+          lines = path.read_text(encoding="utf-8").splitlines()
+          updated = []
+          seen = set()
+          for line in lines:
+              if "=" not in line or line.lstrip().startswith("#"):
+                  updated.append(line)
+                  continue
+              key, _ = line.split("=", 1)
+              if key in values:
+                  updated.append(f"{key}={values[key]}")
+                  seen.add(key)
+              else:
+                  updated.append(line)
+
+          missing = [key for key in values if key not in seen]
+          if missing:
+              raise SystemExit(f"Missing gradle.properties keys: {', '.join(missing)}")
+
+          path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+          PY
+
+      - name: Show applied gradle.properties profile
+        shell: bash
+        run: |
+          grep -E '^(mod_version|base_minecraft_version|fabric_minecraft_version|fabric_mod_minecraft_version|minecraft_version|yarn_mappings|loader_version|fabric_version|minecraft_version_range|forge_version|forge_version_range|forge_loader_version_range|forge_minecraft_version_range|loader_version_range)=' gradle.properties
+
+      - name: Build release artifacts
+        shell: bash
+        run: |
+          ./gradlew clean build --stacktrace \
+            -Pmod_version="${{ env.SAFRA_VERSION }}"
+
+      - name: Verify effective Gradle release version
+        shell: bash
+        run: |
+          ./gradlew properties --no-daemon --console=plain \
+            -Pmod_version="${{ env.SAFRA_VERSION }}" | \
+            grep -E "^(version:|minecraft_version:|base_minecraft_version:|fabric_minecraft_version:|fabric_mod_minecraft_version:|yarn_mappings:|loader_version:|fabric_version:|forge_version:|forge_version_range:|forge_loader_version_range:)"
+
+      - name: Verify artifact names match selected Minecraft target
+        shell: bash
+        run: |
+          expected_suffix="-${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}.jar"
+          shopt -s nullglob
+          jars=(build/libs/*.jar)
+          if [ "${#jars[@]}" -eq 0 ]; then
+            echo "No jars found in build/libs"
             exit 1
           fi
 
-          echo "SAFRA_MINECRAFT_VERSION=$minecraft_version" >> "$GITHUB_ENV"
-          echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
-          echo "SAFRA_TAG=Safra-$minecraft_version-$version_number" >> "$GITHUB_ENV"
+          for jar in "${jars[@]}"; do
+            name="$(basename "$jar")"
+            if [[ "$name" == *-sources.jar ]]; then
+              continue
+            fi
+            if [[ "$name" != *"$expected_suffix" ]]; then
+              echo "Artifact version mismatch: $name does not end with $expected_suffix"
+              exit 1
+            fi
+          done
 
-      - name: Build release artifacts
-        run: ./gradlew clean build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
+          printf '%s\n' "${jars[@]}"
 
       - name: Prepare release notes
         shell: bash
