@@ -69,6 +69,7 @@ jobs:
 
           case "$minecraft_target" in
             26.1)
+              base_minecraft_version="26.1"
               fabric_minecraft_version="26.1"
               fabric_mod_minecraft_version="26.1"
               fabric_version="0.145.1+26.1"
@@ -76,21 +77,29 @@ jobs:
               forge_version="62.0.9"
               neo_version="26.1.0.19-beta"
               minecraft_version_range="[26.1,26.2)"
+              forge_version_range="[62,)"
+              forge_loader_version_range="[62,)"
               forge_minecraft_version_range="[26.1,26.2)"
               neo_version_range="[26.1.0.19-beta,)"
+              loader_version_range="[1,)"
               ;;
             26.1.1)
+              base_minecraft_version="26.1.1"
               fabric_minecraft_version="26.1.1"
               fabric_mod_minecraft_version="26.1.1"
-              fabric_version="0.145.4+26.1.1"
+              fabric_version="0.145.2+26.1.1"
               minecraft_version="26.1.1"
-              forge_version="63.0.1"
+              forge_version="63.0.2"
               neo_version="26.1.1.15-beta"
               minecraft_version_range="[26.1.1,26.2)"
+              forge_version_range="[63,)"
+              forge_loader_version_range="[63,)"
               forge_minecraft_version_range="[26.1.1,26.2)"
               neo_version_range="[26.1.1.15-beta,)"
+              loader_version_range="[1,)"
               ;;
             26.1.2)
+              base_minecraft_version="26.1.2"
               fabric_minecraft_version="26.1.2"
               fabric_mod_minecraft_version="26.1.2"
               fabric_version="0.149.0+26.1.2"
@@ -98,8 +107,11 @@ jobs:
               forge_version="64.0.6"
               neo_version="26.1.2.54-beta"
               minecraft_version_range="[26.1.2,26.2)"
+              forge_version_range="[64,)"
+              forge_loader_version_range="[64,)"
               forge_minecraft_version_range="[26.1.2,26.2)"
               neo_version_range="[26.1.2.54-beta,)"
+              loader_version_range="[1,)"
               ;;
             *)
               echo "Unsupported minecraft_target: $minecraft_target"
@@ -110,6 +122,7 @@ jobs:
           echo "SAFRA_MINECRAFT_VERSION=$minecraft_target" >> "$GITHUB_ENV"
           echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
           echo "SAFRA_TAG=Safra-$minecraft_target-$version_number" >> "$GITHUB_ENV"
+          echo "SAFRA_BASE_MINECRAFT_VERSION=$base_minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_FABRIC_MINECRAFT_VERSION=$fabric_minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_FABRIC_MOD_MINECRAFT_VERSION=$fabric_mod_minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_FABRIC_VERSION=$fabric_version" >> "$GITHUB_ENV"
@@ -117,23 +130,98 @@ jobs:
           echo "SAFRA_NEO_VERSION=$neo_version" >> "$GITHUB_ENV"
           echo "SAFRA_MC_VERSION=$minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_MC_VERSION_RANGE=$minecraft_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_FORGE_VERSION_RANGE=$forge_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_FORGE_LOADER_VERSION_RANGE=$forge_loader_version_range" >> "$GITHUB_ENV"
           echo "SAFRA_FORGE_MC_RANGE=$forge_minecraft_version_range" >> "$GITHUB_ENV"
           echo "SAFRA_NEO_VERSION_RANGE=$neo_version_range" >> "$GITHUB_ENV"
+          echo "SAFRA_LOADER_VERSION_RANGE=$loader_version_range" >> "$GITHUB_ENV"
+
+      - name: Apply release profile to gradle.properties
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("gradle.properties")
+          values = {
+              "base_minecraft_version": "${{ env.SAFRA_BASE_MINECRAFT_VERSION }}",
+              "fabric_minecraft_version": "${{ env.SAFRA_FABRIC_MINECRAFT_VERSION }}",
+              "fabric_mod_minecraft_version": "${{ env.SAFRA_FABRIC_MOD_MINECRAFT_VERSION }}",
+              "fabric_version": "${{ env.SAFRA_FABRIC_VERSION }}",
+              "minecraft_version": "${{ env.SAFRA_MC_VERSION }}",
+              "minecraft_version_range": "${{ env.SAFRA_MC_VERSION_RANGE }}",
+              "neo_version": "${{ env.SAFRA_NEO_VERSION }}",
+              "neo_version_range": "${{ env.SAFRA_NEO_VERSION_RANGE }}",
+              "forge_version": "${{ env.SAFRA_FORGE_VERSION }}",
+              "forge_version_range": "${{ env.SAFRA_FORGE_VERSION_RANGE }}",
+              "forge_loader_version_range": "${{ env.SAFRA_FORGE_LOADER_VERSION_RANGE }}",
+              "forge_minecraft_version_range": "${{ env.SAFRA_FORGE_MC_RANGE }}",
+              "loader_version_range": "${{ env.SAFRA_LOADER_VERSION_RANGE }}",
+              "mod_version": "${{ env.SAFRA_VERSION }}",
+          }
+
+          lines = path.read_text(encoding="utf-8").splitlines()
+          updated = []
+          seen = set()
+          for line in lines:
+              if "=" not in line or line.lstrip().startswith("#"):
+                  updated.append(line)
+                  continue
+              key, _ = line.split("=", 1)
+              if key in values:
+                  updated.append(f"{key}={values[key]}")
+                  seen.add(key)
+              else:
+                  updated.append(line)
+
+          missing = [key for key in values if key not in seen]
+          if missing:
+              raise SystemExit(f"Missing gradle.properties keys: {', '.join(missing)}")
+
+          path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+          PY
+
+      - name: Show applied gradle.properties profile
+        shell: bash
+        run: |
+          grep -E '^(mod_version|base_minecraft_version|fabric_minecraft_version|fabric_mod_minecraft_version|fabric_version|minecraft_version|minecraft_version_range|forge_version|forge_version_range|forge_loader_version_range|forge_minecraft_version_range|neo_version|neo_version_range|loader_version_range)=' gradle.properties
 
       - name: Build release artifacts
         shell: bash
         run: |
           ./gradlew clean build --stacktrace \
-            -Pmod_version="${{ env.SAFRA_VERSION }}" \
-            -Pfabric_minecraft_version="${{ env.SAFRA_FABRIC_MINECRAFT_VERSION }}" \
-            -Pfabric_mod_minecraft_version="${{ env.SAFRA_FABRIC_MOD_MINECRAFT_VERSION }}" \
-            -Pfabric_version="${{ env.SAFRA_FABRIC_VERSION }}" \
-            -Pminecraft_version="${{ env.SAFRA_MC_VERSION }}" \
-            -Pforge_version="${{ env.SAFRA_FORGE_VERSION }}" \
-            -Pneo_version="${{ env.SAFRA_NEO_VERSION }}" \
-            -Pminecraft_version_range="${{ env.SAFRA_MC_VERSION_RANGE }}" \
-            -Pforge_minecraft_version_range="${{ env.SAFRA_FORGE_MC_RANGE }}" \
-            -Pneo_version_range="${{ env.SAFRA_NEO_VERSION_RANGE }}"
+            -Pmod_version="${{ env.SAFRA_VERSION }}"
+
+      - name: Verify effective Gradle release version
+        shell: bash
+        run: |
+          ./gradlew properties --no-daemon --console=plain \
+            -Pmod_version="${{ env.SAFRA_VERSION }}" | \
+            grep -E "^(version:|minecraft_version:|base_minecraft_version:|fabric_minecraft_version:|fabric_mod_minecraft_version:|fabric_version:|forge_version:|forge_version_range:|forge_loader_version_range:|neo_version:)"
+
+      - name: Verify artifact names match selected Minecraft target
+        shell: bash
+        run: |
+          expected_suffix="-${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}.jar"
+          shopt -s nullglob
+          jars=(build/libs/*.jar)
+          if [ "${#jars[@]}" -eq 0 ]; then
+            echo "No jars found in build/libs"
+            exit 1
+          fi
+
+          for jar in "${jars[@]}"; do
+            name="$(basename "$jar")"
+            if [[ "$name" == *-sources.jar ]]; then
+              continue
+            fi
+            if [[ "$name" != *"$expected_suffix" ]]; then
+              echo "Artifact version mismatch: $name does not end with $expected_suffix"
+              exit 1
+            fi
+          done
+
+          printf '%s\n' "${jars[@]}"
 
       - name: Prepare release notes
         shell: bash
