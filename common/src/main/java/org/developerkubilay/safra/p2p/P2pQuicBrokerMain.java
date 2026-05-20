@@ -88,6 +88,9 @@ public final class P2pQuicBrokerMain {
         int tunnelToken = Integer.parseInt(args[4]);
         String certificate = args[5];
         int bridgePort = Integer.parseInt(args[6]);
+        int connectTimeoutMs = args.length >= 8
+            ? Integer.parseInt(args[7])
+            : P2pConstants.QUIC_CONNECT_TIMEOUT_MS;
 
         try (Socket bridgeSocket = new Socket(P2pSockets.loopbackAddress(), bridgePort)) {
             NettyQuicSupport.bridgeClient(
@@ -100,7 +103,8 @@ public final class P2pQuicBrokerMain {
                 certificate,
                 () -> {
                     signalReady("client");
-                }
+                },
+                connectTimeoutMs
             );
         }
     }

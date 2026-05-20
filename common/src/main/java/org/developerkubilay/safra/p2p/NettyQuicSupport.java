@@ -32,6 +32,7 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -136,12 +137,18 @@ final class NettyQuicSupport {
 
     static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
                              int quicPort, int localPort, int tunnelToken, String encodedCertificate) throws IOException {
-        bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, null);
+        bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, null, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
     }
 
     static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
                              int quicPort, int localPort, int tunnelToken, String encodedCertificate,
                              Runnable onConnected) throws IOException {
+        bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, onConnected, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+    }
+
+    static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
+                             int quicPort, int localPort, int tunnelToken, String encodedCertificate,
+                             Runnable onConnected, int connectTimeoutMs) throws IOException {
         ensureAvailable();
         P2pSockets.tune(localSocket);
         long connectStartedAt = System.nanoTime();
@@ -177,17 +184,19 @@ final class NettyQuicSupport {
                     .handler(new ChannelInboundHandlerAdapter())
                     .remoteAddress(quicAddress)
                     .connect(),
-                "Safra QUIC connect failed"
+                "Safra QUIC connect failed",
+                connectTimeoutMs
             );
             QuicStreamChannel streamChannel = awaitFuture(
                 quicChannel.createStream(QuicStreamType.BIDIRECTIONAL, null),
-                "Safra QUIC stream open failed"
+                "Safra QUIC stream open failed",
+                connectTimeoutMs
             );
             ClientHandshakeAckHandler handshakeHandler = new ClientHandshakeAckHandler();
             streamChannel.pipeline().addLast(handshakeHandler);
-            awaitChannelFuture(streamChannel.writeAndFlush(handshakePayload(tunnelToken)), "Safra QUIC auth send failed");
+            awaitChannelFuture(streamChannel.writeAndFlush(handshakePayload(tunnelToken)), "Safra QUIC auth send failed", connectTimeoutMs);
             NettyQuicTcpBridge bridge = NettyQuicTcpBridge.attach(logger, streamChannel, localSocket);
-            handshakeHandler.await();
+            handshakeHandler.await(connectTimeoutMs);
             long connectElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - connectStartedAt);
             logger.info("Safra QUIC client connected to {} in {} ms", quicAddress, connectElapsedMs);
             if (onConnected != null) {
@@ -198,6 +207,31 @@ final class NettyQuicSupport {
             closeQuietly(quicChannel);
             closeQuietly(udpChannel);
             group.shutdownGracefully().syncUninterruptibly();
+        }
+    }
+
+    static void prePunchClientPath(Logger logger, InetSocketAddress remoteAddress, int quicPort, int localPort) {
+        if (remoteAddress == null || remoteAddress.isUnresolved() || quicPort < 1 || localPort < 1) {
+            return;
+        }
+
+        InetSocketAddress quicAddress = new InetSocketAddress(remoteAddress.getAddress(), quicPort);
+        try (DatagramSocket socket = P2pSockets.datagramSocket(localPort)) {
+            long[] delaysMs = {0L, 80L, 180L, 350L};
+            for (int attempt = 0; attempt < delaysMs.length; attempt++) {
+                if (delaysMs[attempt] > 0L) {
+                    try {
+                        Thread.sleep(delaysMs[attempt] - delaysMs[attempt - 1]);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+                socket.send(new java.net.DatagramPacket(QUIC_PUNCH_PAYLOAD, QUIC_PUNCH_PAYLOAD.length, quicAddress));
+            }
+            logger.debug("Safra QUIC client pre-punched {} from local UDP {}", quicAddress, socket.getLocalPort());
+        } catch (IOException exception) {
+            logger.debug("Safra QUIC client pre-punch failed for {}: {}", quicAddress, exception.toString());
         }
     }
 
@@ -296,7 +330,11 @@ final class NettyQuicSupport {
     }
 
     private static Channel awaitChannel(ChannelFuture future, String message) throws IOException {
-        if (!future.awaitUninterruptibly(P2pConstants.QUIC_CONNECT_TIMEOUT_MS)) {
+        return awaitChannel(future, message, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+    }
+
+    private static Channel awaitChannel(ChannelFuture future, String message, int timeoutMs) throws IOException {
+        if (!future.awaitUninterruptibly(timeoutMs)) {
             future.cancel(false);
             throw new IOException(message + ": timeout");
         }
@@ -307,7 +345,11 @@ final class NettyQuicSupport {
     }
 
     private static void awaitChannelFuture(ChannelFuture future, String message) throws IOException {
-        if (!future.awaitUninterruptibly(P2pConstants.QUIC_CONNECT_TIMEOUT_MS)) {
+        awaitChannelFuture(future, message, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+    }
+
+    private static void awaitChannelFuture(ChannelFuture future, String message, int timeoutMs) throws IOException {
+        if (!future.awaitUninterruptibly(timeoutMs)) {
             future.cancel(false);
             throw new IOException(message + ": timeout");
         }
@@ -317,7 +359,11 @@ final class NettyQuicSupport {
     }
 
     private static <T> T awaitFuture(Future<T> future, String message) throws IOException {
-        if (!future.awaitUninterruptibly(P2pConstants.QUIC_CONNECT_TIMEOUT_MS)) {
+        return awaitFuture(future, message, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+    }
+
+    private static <T> T awaitFuture(Future<T> future, String message, int timeoutMs) throws IOException {
+        if (!future.awaitUninterruptibly(timeoutMs)) {
             future.cancel(false);
             throw new IOException(message + ": timeout");
         }
@@ -328,8 +374,12 @@ final class NettyQuicSupport {
     }
 
     private static void awaitFuture(CompletableFuture<Void> future, String message) throws IOException {
+        awaitFuture(future, message, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+    }
+
+    private static void awaitFuture(CompletableFuture<Void> future, String message, int timeoutMs) throws IOException {
         try {
-            future.get(P2pConstants.QUIC_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            future.get(timeoutMs, TimeUnit.MILLISECONDS);
         } catch (Exception exception) {
             throw new IOException(message, exception);
         }
@@ -545,8 +595,8 @@ final class NettyQuicSupport {
             context.close();
         }
 
-        private void await() throws IOException {
-            awaitFuture(readyFuture, "Safra QUIC auth failed");
+        private void await(int timeoutMs) throws IOException {
+            awaitFuture(readyFuture, "Safra QUIC auth failed", timeoutMs);
         }
     }
 

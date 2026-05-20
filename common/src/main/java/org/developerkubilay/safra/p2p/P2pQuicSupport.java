@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 final class P2pQuicSupport {
     private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration CHILD_START_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration CHILD_READY_GRACE_TIMEOUT = Duration.ofSeconds(2);
     private static final long CHILD_OUTPUT_POLL_SLICE_MS = 250L;
     private static final String BROKER_CHILD_PROPERTY = "safra.p2p.quicBrokerChild";
     private static final String READY_FILE_PROPERTY = "safra.p2p.quicReadyFile";
@@ -146,6 +147,12 @@ final class P2pQuicSupport {
 
     static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
                              int quicPort, int localPort, int tunnelToken, String encodedCertificate) throws IOException {
+        bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+    }
+
+    static void bridgeClient(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
+                             int quicPort, int localPort, int tunnelToken, String encodedCertificate,
+                             int connectTimeoutMs) throws IOException {
         if (!enabled()) {
             throw new IOException("Safra QUIC is disabled");
         }
@@ -157,7 +164,7 @@ final class P2pQuicSupport {
         }
 
         if (!useBrokerProcess()) {
-            bridgeClientInProcess(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, null);
+            bridgeClientInProcess(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, null, connectTimeoutMs);
             return;
         }
 
@@ -166,7 +173,7 @@ final class P2pQuicSupport {
         BrokerProcess broker = null;
         try {
             bridgeServer = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
-            bridgeServer.setSoTimeout(P2pConstants.QUIC_CONNECT_TIMEOUT_MS);
+            bridgeServer.setSoTimeout(connectTimeoutMs);
 
             broker = startBrokerProcess(List.of(
                 "client",
@@ -175,11 +182,13 @@ final class P2pQuicSupport {
                 Integer.toString(localPort),
                 Integer.toString(tunnelToken),
                 encodedCertificate,
-                Integer.toString(bridgeServer.getLocalPort())
+                Integer.toString(bridgeServer.getLocalPort()),
+                Integer.toString(connectTimeoutMs)
             ));
 
             helperSocket = bridgeServer.accept();
-            String ready = broker.awaitReady(CHILD_START_TIMEOUT);
+            Duration clientReadyTimeout = Duration.ofMillis(connectTimeoutMs).plus(CHILD_READY_GRACE_TIMEOUT);
+            String ready = broker.awaitReady(clientReadyTimeout);
             if (!"client".equals(ready)) {
                 throw new IOException("Safra QUIC client helper returned an invalid readiness response: " + ready);
             }
@@ -210,9 +219,9 @@ final class P2pQuicSupport {
 
     private static void bridgeClientInProcess(Logger logger, Socket localSocket, InetSocketAddress remoteAddress,
                                               int quicPort, int localPort, int tunnelToken, String encodedCertificate,
-                                              Runnable onConnected) throws IOException {
+                                              Runnable onConnected, int connectTimeoutMs) throws IOException {
         try {
-            NettyQuicSupport.bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, onConnected);
+            NettyQuicSupport.bridgeClient(logger, localSocket, remoteAddress, quicPort, localPort, tunnelToken, encodedCertificate, onConnected, connectTimeoutMs);
         } catch (IOException exception) {
             throw exception;
         } catch (Throwable throwable) {
