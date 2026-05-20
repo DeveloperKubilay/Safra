@@ -19,7 +19,6 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game
 ✅ No complicated interface 😌  
 ✅ No unnecessary systems 🚫  
 ✅ Lightweight and optimized ⚡  
-✅ Less than **500 KB** in size 📦
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
