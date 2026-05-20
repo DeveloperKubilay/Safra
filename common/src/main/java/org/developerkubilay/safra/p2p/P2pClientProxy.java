@@ -23,18 +23,14 @@ public final class P2pClientProxy implements AutoCloseable {
     private final P2pShareCode shareCode;
     private final P2pStunClient stunClient = new P2pStunClient();
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
+    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(4);
     private final Runnable onClose;
 
     private P2pDatagramTransport transport;
     private ServerSocket proxyServer;
     private InetSocketAddress remoteAddress;
     private SafraRendezvousClient.JoinSession rendezvousSession;
-    private DirectTcpBridge directTcpBridge;
-    private int remoteQuicPort;
-    private String remoteQuicCertificate = "";
     private int tunnelToken;
-    private int quicLocalPort;
     private volatile boolean closed;
 
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
@@ -56,9 +52,6 @@ public final class P2pClientProxy implements AutoCloseable {
             InetAddress remoteInetAddress = InetAddress.getByName(shareCode.host());
             remoteAddress = new InetSocketAddress(remoteInetAddress, shareCode.port());
             tunnelToken = shareCode.token();
-            remoteQuicPort = 0;
-            remoteQuicCertificate = "";
-            quicLocalPort = transport.getLocalPort();
         }
 
         proxyServer = new ServerSocket(0, 16, P2pSockets.loopbackAddress());
@@ -88,10 +81,6 @@ public final class P2pClientProxy implements AutoCloseable {
         if (transport != null && !transport.isClosed()) {
             transport.close();
         }
-        if (directTcpBridge != null) {
-            directTcpBridge.close();
-            directTcpBridge = null;
-        }
         if (rendezvousSession != null) {
             SafraVoiceTransportManager.getInstance().clearJoinSession(rendezvousSession);
             rendezvousSession.close();
@@ -107,7 +96,7 @@ public final class P2pClientProxy implements AutoCloseable {
             resolveRendezvousShareCode(binding);
             transport = binding.transport();
         } catch (IOException exception) {
-            if (!binding.relay() && P2pConstants.turnEnabled()) {
+            if (!binding.relay()) {
                 LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
                 binding.close();
                 discardRendezvousSession();
@@ -130,11 +119,8 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
-        quicLocalPort = binding.transport().getLocalPort();
         remoteAddress = rendezvousSession.hostAddress();
         tunnelToken = rendezvousSession.tunnelToken();
-        remoteQuicPort = rendezvousSession.hostQuicPort();
-        remoteQuicCertificate = rendezvousSession.hostQuicCertificate();
         if (tunnelToken == 0) {
             throw new IOException("Rendezvous sunucusu gecersiz tunel token'i dondurdu");
         }
@@ -152,12 +138,7 @@ public final class P2pClientProxy implements AutoCloseable {
             }
         }
 
-        if (remoteQuicPort > 0) {
-            LOGGER.info("Safra rendezvous code {} resolved to {} with QUIC UDP {}",
-                shareCode.rendezvousCode(), remoteAddress, remoteQuicPort);
-        } else {
-            LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
-        }
+        LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
     }
 
     private boolean samePublicIp(InetSocketAddress joinerAddress, InetSocketAddress hostAddress) {
@@ -175,15 +156,6 @@ public final class P2pClientProxy implements AutoCloseable {
     private void acceptLoop() {
         try (ServerSocket ignored = proxyServer) {
             Socket localSocket = proxyServer.accept();
-            if (canUseQuic()) {
-                try {
-                    startQuicBridge(localSocket);
-                    return;
-                } catch (IOException exception) {
-                    LOGGER.warn("Safra QUIC connect basarisiz, reliable UDP tunnel fallback denenecek: {}", exception.toString());
-                    restoreDirectTransportAfterQuicFailure();
-                }
-            }
             startReliableTunnel(localSocket);
         } catch (IOException exception) {
             if (!closed) {
@@ -191,45 +163,6 @@ public final class P2pClientProxy implements AutoCloseable {
                 close();
             }
         }
-    }
-
-    private boolean canUseQuic() {
-        return shareCode.isRendezvous()
-            && remoteQuicPort > 0
-            && remoteQuicCertificate != null
-            && !remoteQuicCertificate.isBlank()
-            && transport instanceof P2pDirectDatagramTransport
-            && P2pQuicSupport.enabled();
-    }
-
-    private void startQuicBridge(Socket localSocket) throws IOException {
-        if (remoteQuicPort < 1 || remoteAddress == null) {
-            throw new IOException("Safra QUIC hedefi hazir degil");
-        }
-
-        if (transport != null && !transport.isClosed()) {
-            transport.close();
-            transport = null;
-        }
-        InetSocketAddress quicAddress = new InetSocketAddress(remoteAddress.getAddress(), remoteQuicPort);
-        try {
-            LOGGER.info("Safra QUIC client dialing {}", quicAddress);
-            P2pQuicSupport.bridgeClient(LOGGER, localSocket, remoteAddress, remoteQuicPort, quicLocalPort, tunnelToken, remoteQuicCertificate);
-            if (!closed) {
-                close();
-            }
-        } catch (IOException exception) {
-            throw new IOException("Safra QUIC connect to " + quicAddress + " failed", exception);
-        }
-    }
-
-    private void restoreDirectTransportAfterQuicFailure() throws IOException {
-        if (transport != null && !transport.isClosed()) {
-            return;
-        }
-
-        transport = new P2pDirectDatagramTransport(P2pSockets.datagramSocket(quicLocalPort));
-        P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
     }
 
     private void startReliableTunnel(Socket localSocket) throws IOException {
@@ -310,4 +243,5 @@ public final class P2pClientProxy implements AutoCloseable {
         rendezvousSession.close();
         rendezvousSession = null;
     }
+
 }

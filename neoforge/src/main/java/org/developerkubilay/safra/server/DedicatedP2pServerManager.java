@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.server;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dedicated.DedicatedServer;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
@@ -24,7 +25,7 @@ public final class DedicatedP2pServerManager {
 
     public static synchronized void serverStarted(ServerStartedEvent event) {
         MinecraftServer server = event.getServer();
-        if (!server.isDedicatedServer()) {
+        if (!(server instanceof DedicatedServer)) {
             return;
         }
 
@@ -48,7 +49,7 @@ public final class DedicatedP2pServerManager {
     }
 
     public static synchronized void serverStopping(ServerStoppingEvent event) {
-        if (event.getServer().isDedicatedServer()) {
+        if (event.getServer() instanceof DedicatedServer) {
             stopHosting();
         }
     }

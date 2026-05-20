@@ -1,105 +1,5 @@
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'org.bouncycastle:bcprov-jdk18on:1.78.1'
-        classpath 'org.bouncycastle:bcpkix-jdk18on:1.78.1'
-    }
-}
-
-import org.bouncycastle.asn1.x500.X500Name
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
-import org.gradle.api.DefaultTask
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
-
-import java.security.KeyPairGenerator
-import java.security.SecureRandom
-import java.security.Security
-import java.util.Base64
-import java.util.concurrent.TimeUnit
-
 plugins {
     id 'java-library'
-}
-
-def quicNettyVersion = rootProject.ext.quicNettyVersion
-def generatedQuicResourcesDir = layout.buildDirectory.dir('generated/quicResources/main')
-
-abstract class GenerateQuicCertificateTask extends DefaultTask {
-    @OutputDirectory
-    abstract DirectoryProperty getOutputDirectory()
-
-    @Input
-    abstract Property<String> getCommonName()
-
-    @Input
-    abstract Property<Integer> getKeySize()
-
-    @Input
-    abstract Property<Integer> getValidDays()
-
-    @TaskAction
-    void generate() {
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(new BouncyCastleProvider())
-        }
-
-        def random = new SecureRandom()
-        def keyPairGenerator = KeyPairGenerator.getInstance('RSA')
-        keyPairGenerator.initialize(keySize.get(), random)
-        def keyPair = keyPairGenerator.generateKeyPair()
-
-        def now = System.currentTimeMillis()
-        def notBefore = new Date(now - TimeUnit.DAYS.toMillis(1))
-        def notAfter = new Date(now + TimeUnit.DAYS.toMillis(validDays.get()))
-        def subject = new X500Name("CN=${commonName.get()}")
-        def serial = new BigInteger(160, random).abs()
-        def builder = new JcaX509v3CertificateBuilder(subject, serial, notBefore, notAfter, subject, keyPair.public)
-        def signer = new JcaContentSignerBuilder('SHA256withRSA')
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-            .build(keyPair.private)
-        def certificate = new JcaX509CertificateConverter()
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-            .getCertificate(builder.build(signer))
-
-        def outputDirFile = outputDirectory.get().asFile
-        outputDirFile.mkdirs()
-
-        new File(outputDirFile, 'safra-quic.crt').withWriter('UTF-8') { writer ->
-            def pemWriter = new JcaPEMWriter(writer)
-            pemWriter.writeObject(certificate)
-            pemWriter.close()
-        }
-
-        new File(outputDirFile, 'safra-quic.key').withWriter('UTF-8') { writer ->
-            def encoded = Base64.getMimeEncoder(64, System.lineSeparator().bytes).encodeToString(keyPair.private.encoded)
-            writer << '-----BEGIN PRIVATE KEY-----' << System.lineSeparator()
-            writer << encoded << System.lineSeparator()
-            writer << '-----END PRIVATE KEY-----' << System.lineSeparator()
-        }
-    }
-}
-
-sourceSets {
-    main {
-        resources.srcDir(generatedQuicResourcesDir)
-    }
-}
-
-tasks.register('generateQuicCertificate', GenerateQuicCertificateTask) {
-    outputDirectory.set(generatedQuicResourcesDir.map { it.dir('assets/safra') })
-    commonName.set('safra-p2p')
-    keySize.set(2048)
-    validDays.set(3650)
 }
 
 base {
@@ -122,20 +22,14 @@ dependencies {
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
-    compileOnly 'io.netty:netty-all:4.1.97.Final'
-    compileOnly("io.netty:netty-codec-classes-quic:${quicNettyVersion}") {
-        transitive = false
-    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
 processResources {
-    dependsOn tasks.named('generateQuicCertificate')
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'loader_name', 'common'
     inputs.property 'loader_version', 'unknown'
-    inputs.property 'quic_netty_version', quicNettyVersion
     filteringCharset = 'UTF-8'
 
     filesMatching('safra-build.properties') {
@@ -143,8 +37,7 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'common',
-            loader_version: 'unknown',
-            quic_netty_version: quicNettyVersion
+            loader_version: 'unknown'
         )
     }
 }
@@ -153,8 +46,4 @@ jar {
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
-}
-
-tasks.named('sourcesJar') {
-    dependsOn tasks.named('generateQuicCertificate')
 }

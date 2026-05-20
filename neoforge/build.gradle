@@ -32,7 +32,6 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
-        resources.srcDir(project(':common').layout.buildDirectory.dir('generated/quicResources/main'))
     }
 }
 
@@ -42,8 +41,6 @@ base {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
-def quicNettyVersion = rootProject.ext.quicNettyVersion
-def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
 
 def targetJavaVersion = 21
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
@@ -112,7 +109,6 @@ neoForge {
         client {
             client()
             systemProperty 'safra.p2p.diagnostics', 'true'
-            systemProperty 'safra.p2p.experimentalQuic', 'true'
             if (forceTurn) {
                 systemProperty 'safra.p2p.forceTurn', 'true'
             }
@@ -132,31 +128,19 @@ neoForge {
     }
 }
 
-configurations {
-    quicBundle {
-        transitive = false
-    }
-}
 
 dependencies {
-    quicBundle "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
-    compileOnly("io.netty:netty-codec-classes-quic:${quicNettyVersion}") { transitive = false }
-    if (quicNativeClassifier != null) {
-        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
-    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
 processResources {
-    dependsOn project(':common').tasks.named('generateQuicCertificate')
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'minecraft_version_range', project.minecraft_version_range
     inputs.property 'neo_version', project.neo_version
     inputs.property 'neo_version_range', project.neo_version_range
     inputs.property 'loader_version_range', project.loader_version_range
     inputs.property 'loader_name', 'neoforge'
-    inputs.property 'quic_netty_version', quicNettyVersion
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -184,8 +168,7 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
-            loader_version: project.neo_version,
-            quic_netty_version: quicNettyVersion
+            loader_version: project.neo_version
         )
     }
 }
@@ -196,49 +179,10 @@ jar {
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
-    from({
-        configurations.quicBundle.collect { it.isDirectory() ? it : zipTree(it) }
-    }) {
-        exclude 'META-INF/MANIFEST.MF'
-        exclude 'META-INF/*.SF'
-        exclude 'META-INF/*.DSA'
-        exclude 'META-INF/*.RSA'
-        exclude 'META-INF/versions/*/module-info.class'
-        exclude 'META-INF/module-info.class'
-        exclude 'module-info.class'
-    }
-}
-
-tasks.register('normalizeNeoForgeMetadata') {
-    dependsOn tasks.named('jar')
-    inputs.file(layout.buildDirectory.file("libs/${project.archives_base_name}-neoforge-${project.version}.jar"))
-    outputs.file(layout.buildDirectory.file("libs/${project.archives_base_name}-neoforge-${project.version}.jar"))
-
-    doLast {
-        def jarFile = layout.buildDirectory.file("libs/${project.archives_base_name}-neoforge-${project.version}.jar").get().asFile
-        def zipUri = java.net.URI.create("jar:${jarFile.toPath().toUri()}")
-        java.nio.file.FileSystems.newFileSystem(zipUri, [:]).withCloseable { zipFs ->
-            def legacyPath = zipFs.getPath('/META-INF/mods.toml')
-            def neoPath = zipFs.getPath('/META-INF/neoforge.mods.toml')
-
-            if (java.nio.file.Files.exists(legacyPath) && !java.nio.file.Files.exists(neoPath)) {
-                java.nio.file.Files.move(legacyPath, neoPath)
-            }
-        }
-    }
 }
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn project(':common').tasks.named('generateQuicCertificate')
-}
-
-tasks.named('assemble') {
-    dependsOn tasks.named('normalizeNeoForgeMetadata')
-}
-
-tasks.named('build') {
-    dependsOn tasks.named('normalizeNeoForgeMetadata')
 }
 
 publishing {
