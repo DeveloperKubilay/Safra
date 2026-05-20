@@ -10,11 +10,13 @@ import org.developerkubilay.safra.SafraNeoForge;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pQuicBootstrap;
 
 @Mod(value = SafraNeoForge.MOD_ID, dist = Dist.CLIENT)
 public final class SafraNeoForgeClient {
     public SafraNeoForgeClient() {
         RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
+        P2pQuicBootstrap.downloadNativeAsync();
         NeoForge.EVENT_BUS.addListener(SafraNeoForgeClient::clientTick);
         NeoForge.EVENT_BUS.addListener(SafraNeoForgeClient::clientStopping);
     }

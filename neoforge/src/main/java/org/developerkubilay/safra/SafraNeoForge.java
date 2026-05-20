@@ -9,6 +9,10 @@ import org.developerkubilay.safra.server.DedicatedP2pServerManager;
 public final class SafraNeoForge {
     public static final String MOD_ID = "safra";
 
+    static {
+        System.setProperty("io.netty.transport.noKQueue", "true");
+    }
+
     public SafraNeoForge(IEventBus modEventBus) {
         NeoForge.EVENT_BUS.addListener(DedicatedP2pServerManager::serverStarted);
         NeoForge.EVENT_BUS.addListener(DedicatedP2pServerManager::serverStopping);

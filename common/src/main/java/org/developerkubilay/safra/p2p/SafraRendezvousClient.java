@@ -43,6 +43,8 @@ final class SafraRendezvousClient implements AutoCloseable {
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, Collection<InetSocketAddress> publicEndpoints,
+                                 int publicQuicPort,
+                                 P2pQuicHostSession quicHostSession,
                                  Consumer<InetSocketAddress> punchHandler,
                                  Consumer<InetSocketAddress> voicePunchHandler) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
@@ -68,6 +70,15 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             JsonObject metadata = new JsonObject();
             metadata.addProperty("minecraftTcpPort", tcpPort);
+            if (quicHostSession != null) {
+                JsonObject quic = new JsonObject();
+                quic.addProperty("enabled", true);
+                quic.addProperty("mode", quicHostSession.mode());
+                quic.addProperty("port", publicQuicPort);
+                quic.addProperty("alpn", P2pConstants.QUIC_APPLICATION_PROTOCOL);
+                quic.addProperty("certificate", quicHostSession.certificate());
+                metadata.add("quic", quic);
+            }
             metadata.add("safra", safraMetadata("host"));
             ready.add("metadata", metadata);
 
@@ -103,7 +114,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             client.startPing();
             return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(),
-                resolvedHost.minecraftTcpPort(), client, listener);
+                resolvedHost.minecraftTcpPort(), resolvedHost.quicPort(), resolvedHost.quicCertificate(), client, listener);
         } catch (Exception exception) {
             client.close();
             throw asIOException("Safra rendezvous join setup failed", exception);
@@ -423,7 +434,9 @@ final class SafraRendezvousClient implements AutoCloseable {
                 }
                 JsonObject metadata = message.getAsJsonObject("metadata");
                 int minecraftTcpPort = minecraftTcpPort(metadata);
-                resolvedHostFuture.complete(new ResolvedHost(endpoint, token, minecraftTcpPort));
+                int quicPort = quicPort(metadata);
+                String quicCertificate = quicCertificate(metadata);
+                resolvedHostFuture.complete(new ResolvedHost(endpoint, token, minecraftTcpPort, quicPort, quicCertificate));
                 return;
             }
 
@@ -515,6 +528,32 @@ final class SafraRendezvousClient implements AutoCloseable {
         return integer(object.get("minecraftTcpPort"), 0);
     }
 
+    private static int quicPort(JsonObject object) {
+        if (object == null) {
+            return 0;
+        }
+
+        JsonObject quic = object.getAsJsonObject("quic");
+        if (quic == null) {
+            return 0;
+        }
+
+        return integer(quic.get("port"), 0);
+    }
+
+    private static String quicCertificate(JsonObject object) {
+        if (object == null) {
+            return "";
+        }
+
+        JsonObject quic = object.getAsJsonObject("quic");
+        if (quic == null) {
+            return "";
+        }
+
+        return string(quic, "certificate");
+    }
+
     private static int integer(JsonElement element, int fallback) {
         if (element == null || element.isJsonNull()) {
             return fallback;
@@ -558,15 +597,20 @@ final class SafraRendezvousClient implements AutoCloseable {
         private final InetSocketAddress hostAddress;
         private final int tunnelToken;
         private final int hostTcpPort;
+        private final int hostQuicPort;
+        private final String hostQuicCertificate;
         private final SafraRendezvousClient client;
         private final JoinListener listener;
 
-        JoinSession(String code, InetSocketAddress hostAddress, int tunnelToken, int hostTcpPort,
+        JoinSession(String code, InetSocketAddress hostAddress, int tunnelToken, int hostTcpPort, int hostQuicPort,
+                    String hostQuicCertificate,
                     SafraRendezvousClient client, JoinListener listener) {
             this.code = code;
             this.hostAddress = hostAddress;
             this.tunnelToken = tunnelToken;
             this.hostTcpPort = hostTcpPort;
+            this.hostQuicPort = hostQuicPort;
+            this.hostQuicCertificate = hostQuicCertificate;
             this.client = client;
             this.listener = listener;
         }
@@ -587,6 +631,14 @@ final class SafraRendezvousClient implements AutoCloseable {
             return hostTcpPort;
         }
 
+        int hostQuicPort() {
+            return hostQuicPort;
+        }
+
+        String hostQuicCertificate() {
+            return hostQuicCertificate;
+        }
+
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
             return client.resolveVoice(listener, publicEndpoints);
         }
@@ -597,7 +649,8 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    private record ResolvedHost(InetSocketAddress address, int tunnelToken, int minecraftTcpPort) {
+    private record ResolvedHost(InetSocketAddress address, int tunnelToken, int minecraftTcpPort,
+                                int quicPort, String quicCertificate) {
     }
 
     private record ResolvedVoiceHost(InetSocketAddress address) {

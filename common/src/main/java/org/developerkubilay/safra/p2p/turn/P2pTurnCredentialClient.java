@@ -32,7 +32,7 @@ public final class P2pTurnCredentialClient {
 
     public static P2pTurnCredentials fetch(String role, boolean turnOnly) throws IOException {
         if (!P2pConstants.hasRendezvousUrl()) {
-            throw new IOException("TURN icin rendezvous URL gerekli");
+            throw new IOException("Rendezvous URL is required for TURN");
         }
 
         URI uri = turnCredentialsUri(role, turnOnly);
@@ -49,23 +49,23 @@ public final class P2pTurnCredentialClient {
             response = HTTP_CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IOException("TURN credential istegi yarida kesildi", exception);
+            throw new IOException("TURN credential request was interrupted", exception);
         }
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("TURN credential istegi HTTP " + response.statusCode() + " dondu");
+            throw new IOException("TURN credential request returned HTTP " + response.statusCode());
         }
 
         JsonObject json;
         try {
             json = new JsonParser().parse(response.body()).getAsJsonObject();
         } catch (RuntimeException exception) {
-            throw new IOException("TURN credential cevabi gecersiz JSON", exception);
+            throw new IOException("TURN credential response is invalid JSON");
         }
 
         JsonArray iceServers = json.getAsJsonArray("iceServers");
         if (iceServers == null || iceServers.size() == 0) {
-            throw new IOException("TURN credential cevabinda iceServers yok");
+            throw new IOException("iceServers missing in TURN credential response");
         }
 
         Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
@@ -102,10 +102,10 @@ public final class P2pTurnCredentialClient {
         }
 
         if (username.isBlank() || credential.isBlank()) {
-            throw new IOException("TURN credential cevabinda username/credential eksik");
+            throw new IOException("username/credential missing in TURN credential response");
         }
         if (udpServers.isEmpty()) {
-            throw new IOException("TURN credential cevabinda UDP TURN sunucusu yok");
+            throw new IOException("No UDP TURN server found in TURN credential response");
         }
 
         return new P2pTurnCredentials(

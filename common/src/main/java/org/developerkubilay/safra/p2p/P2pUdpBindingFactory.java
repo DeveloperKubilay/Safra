@@ -25,7 +25,7 @@ final class P2pUdpBindingFactory {
         try {
             return createDirectHostBinding(stunClient, preferredPort);
         } catch (IOException exception) {
-            logger.debug("Safra host STUN acilamadi, TURN relay denenecek: {}", exception.toString());
+            logger.debug("Safra host STUN could not be opened, attempting TURN relay: {}", exception.toString());
             return createTurnBinding(logger, "host");
         }
     }
@@ -38,7 +38,7 @@ final class P2pUdpBindingFactory {
         try {
             return createDirectJoinBinding(stunClient);
         } catch (IOException exception) {
-            logger.debug("Safra join STUN acilamadi, TURN relay denenecek: {}", exception.toString());
+            logger.debug("Safra join STUN could not be opened, attempting TURN relay: {}", exception.toString());
             return createTurnBinding(logger, "join");
         }
     }
@@ -60,7 +60,7 @@ final class P2pUdpBindingFactory {
         try {
             Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {
-                throw new IOException("STUN ile genel UDP ucu bulunamadi");
+                throw new IOException("No public UDP endpoint found via STUN");
             }
             success = true;
             return new P2pTransportBinding(
@@ -82,7 +82,7 @@ final class P2pUdpBindingFactory {
         try {
             Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {
-                throw new IOException("STUN ile joiner genel UDP ucu bulunamadi");
+                throw new IOException("No joiner public UDP endpoint found via STUN");
             }
             success = true;
             return new P2pTransportBinding(

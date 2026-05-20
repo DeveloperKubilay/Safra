@@ -71,7 +71,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     credentials.credential()
                 );
                 transport.start(credentials.ttlSeconds());
-                logger.debug("Safra TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
+                logger.debug("Safra TURN {} relay active via {} through {}", role, transport.relayAddress, serverAddress);
                 return transport;
             } catch (IOException exception) {
                 socket.close();
@@ -79,7 +79,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             }
         }
 
-        throw new IOException("TURN relay acilamadi: " + String.join(" | ", failures));
+        throw new IOException("TURN relay could not be opened: " + String.join(" | ", failures));
     }
 
     public InetSocketAddress relayAddress() {
@@ -94,7 +94,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 datagram = incoming.poll(1L, TimeUnit.SECONDS);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IOException("TURN receive yarida kesildi", exception);
+                throw new IOException("TURN receive was interrupted", exception);
             }
             if (datagram == null) {
                 continue;
@@ -110,16 +110,16 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             return;
         }
 
-        throw new IOException("TURN transport kapali");
+        throw new IOException("TURN transport is closed");
     }
 
     @Override
     public void send(DatagramPacket packet) throws IOException {
         if (closed) {
-            throw new IOException("TURN transport kapali");
+            throw new IOException("TURN transport is closed");
         }
         if (!(packet.getSocketAddress() instanceof InetSocketAddress remoteAddress)) {
-            throw new IOException("TURN peer adresi gecersiz");
+            throw new IOException("TURN peer address is invalid");
         }
         ensurePermission(remoteAddress);
         byte[] payload = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
@@ -156,7 +156,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
         scheduler.shutdownNow();
         socket.close();
-        pendingTransactions.values().forEach(future -> future.completeExceptionally(new IOException("TURN transport kapandi")));
+        pendingTransactions.values().forEach(future -> future.completeExceptionally(new IOException("TURN transport was closed")));
         pendingTransactions.clear();
         incoming.clear();
     }
@@ -172,7 +172,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             P2pTurnProtocol.putRequestedTransport(out, P2pTurnProtocol.REQUESTED_TRANSPORT_UDP), true);
         InetSocketAddress resolvedRelayAddress = response.xorAddress(P2pTurnProtocol.ATTR_XOR_RELAYED_ADDRESS);
         if (resolvedRelayAddress == null) {
-            throw new IOException("TURN allocate cevabinda relay adresi yok");
+            throw new IOException("TURN allocate response is missing the relay address");
         }
         relayAddress = resolvedRelayAddress;
     }
@@ -203,7 +203,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         try {
             refreshAllocation();
         } catch (IOException exception) {
-            logger.warn("Safra TURN allocation refresh patladi: {}", exception.toString());
+            logger.warn("Safra TURN allocation refresh failed: {}", exception.toString());
             close();
         }
     }
@@ -314,7 +314,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         String newRealm = response.stringAttribute(P2pTurnProtocol.ATTR_REALM);
         String newNonce = response.stringAttribute(P2pTurnProtocol.ATTR_NONCE);
         if (newRealm.isBlank() || newNonce.isBlank()) {
-            throw new IOException("TURN auth challenge eksik realm/nonce dondu");
+            throw new IOException("TURN auth challenge returned without realm/nonce");
         }
 
         realm = newRealm;
@@ -334,15 +334,15 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             return future.get(P2pConstants.TURN_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IOException("TURN istegi yarida kesildi", exception);
+            throw new IOException("TURN request was interrupted", exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
             if (cause instanceof IOException ioException) {
                 throw ioException;
             }
-            throw new IOException("TURN istegi basarisiz", cause);
+            throw new IOException("TURN request failed", cause);
         } catch (TimeoutException exception) {
-            throw new IOException("TURN istegi zaman asimina ugradi", exception);
+            throw new IOException("TURN request timed out", exception);
         } finally {
             pendingTransactions.remove(key);
         }

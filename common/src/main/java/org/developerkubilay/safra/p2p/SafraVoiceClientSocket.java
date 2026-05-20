@@ -52,7 +52,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
         }
 
         if (stunMappings.discoverPublicEndpoints(discoverySocket).isEmpty()) {
-            throw new IOException("Safra voice joiner genel UDP ucu bulunamadi");
+            throw new IOException("Safra voice joiner public UDP endpoint not found");
         }
 
         InetSocketAddress resolvedRemoteAddress = joinSession.resolveVoice(stunMappings.publicEndpoints());

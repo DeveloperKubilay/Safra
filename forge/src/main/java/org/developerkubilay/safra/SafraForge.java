@@ -7,6 +7,10 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 public final class SafraForge {
     public static final String MOD_ID = "safra";
 
+    static {
+        System.setProperty("io.netty.transport.noKQueue", "true");
+    }
+
     public SafraForge() {
     }
 

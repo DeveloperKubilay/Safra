@@ -6,6 +6,10 @@ import org.developerkubilay.safra.server.DedicatedP2pServerManager;
 
 public class Safra implements ModInitializer {
 
+    static {
+        System.setProperty("io.netty.transport.noKQueue", "true");
+    }
+
     @Override
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register(DedicatedP2pServerManager::serverStarted);

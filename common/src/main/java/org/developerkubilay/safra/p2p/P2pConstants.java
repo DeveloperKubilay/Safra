@@ -52,12 +52,23 @@ public final class P2pConstants {
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;
     public static final int TURN_REFRESH_SAFETY_MARGIN_SECONDS = 60;
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
+    static final int DIRECT_TCP_CONNECT_TIMEOUT_MS = 1_500;
+    static final int DIRECT_TCP_COPY_BUFFER_SIZE = 16 * 1024;
+    static final int DIRECT_TCP_FLUSH_THRESHOLD_BYTES = 64 * 1024;
+    static final String QUIC_APPLICATION_PROTOCOL = "safra-p2p";
+    static final long QUIC_IDLE_TIMEOUT_MS = 30_000L;
+    static final int QUIC_CONNECT_TIMEOUT_MS = 10_000;
+    static final int QUIC_BRIDGE_BUFFER_SIZE = 16 * 1024;
+    static final int QUIC_BRIDGE_FLUSH_THRESHOLD_BYTES = 64 * 1024;
+    static final int QUIC_BRIDGE_QUEUE_CAPACITY = 4096;
     static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
     static final String ADDRESS_SCHEME = "p2p://";
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
+    private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
+    private static final String EXPERIMENTAL_QUIC_PROPERTY = "safra.p2p.experimentalQuic";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -173,6 +184,52 @@ public final class P2pConstants {
         return false;
     }
 
+    static boolean turnEnabled() {
+        String property = System.getProperty(TURN_ENABLED_PROPERTY);
+        if (property != null && !property.isBlank()) {
+            return Boolean.parseBoolean(property.trim());
+        }
+
+        String environment = System.getenv("SAFRA_TURN_ENABLED");
+        if (environment != null && !environment.isBlank()) {
+            return Boolean.parseBoolean(environment.trim());
+        }
+
+        return true;
+    }
+
+    static boolean quicEnabled() {
+        String property = System.getProperty(EXPERIMENTAL_QUIC_PROPERTY);
+        if (property != null && !property.isBlank()) {
+            return Boolean.parseBoolean(property.trim());
+        }
+
+        String environment = System.getenv("SAFRA_P2P_EXPERIMENTAL_QUIC");
+        if (environment != null && !environment.isBlank()) {
+            return Boolean.parseBoolean(environment.trim());
+        }
+
+        return true;
+    }
+
+    static boolean quicOutOfProcessEnabled() {
+        return false;
+    }
+
+    static int quicHostPort(int tcpPort) {
+        String property = System.getProperty("safra.p2p.quicPort");
+        if (property != null && !property.isBlank()) {
+            return parsePort(property.trim(), tcpPort);
+        }
+
+        String environment = System.getenv("SAFRA_P2P_QUIC_PORT");
+        if (environment != null && !environment.isBlank()) {
+            return parsePort(environment.trim(), tcpPort);
+        }
+
+        return tcpPort >= 65_535 ? 0 : tcpPort + 1;
+    }
+
     public static int turnCredentialTtlSeconds() {
         return integerProperty("safra.p2p.turnCredentialTtlSeconds", TURN_DEFAULT_CREDENTIAL_TTL_SECONDS);
     }
@@ -183,6 +240,15 @@ public final class P2pConstants {
 
     public static int turnPermissionLifetimeSeconds() {
         return integerProperty("safra.p2p.turnPermissionLifetimeSeconds", TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS);
+    }
+
+    private static int parsePort(String rawPort, int fallback) {
+        try {
+            int port = Integer.parseInt(rawPort);
+            return port >= 0 && port <= 65_535 ? port : fallback;
+        } catch (RuntimeException exception) {
+            return fallback;
+        }
     }
 
     private static int integerProperty(String key, int fallback) {
