@@ -10,7 +10,7 @@ public final class SafraNeoForge {
     public static final String MOD_ID = "safra";
 
     static {
-        System.setProperty("io.netty.transport.noKQueue", "true");
+        System.setProperty("io.netty.transport.noNative", "true");
     }
 
     public SafraNeoForge(IEventBus modEventBus) {

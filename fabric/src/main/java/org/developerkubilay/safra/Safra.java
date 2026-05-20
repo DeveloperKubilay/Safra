@@ -7,7 +7,7 @@ import org.developerkubilay.safra.server.DedicatedP2pServerManager;
 public class Safra implements ModInitializer {
 
     static {
-        System.setProperty("io.netty.transport.noKQueue", "true");
+        System.setProperty("io.netty.transport.noNative", "true");
     }
 
     @Override

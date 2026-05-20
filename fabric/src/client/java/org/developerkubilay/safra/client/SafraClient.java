@@ -11,7 +11,7 @@ import org.developerkubilay.safra.p2p.P2pQuicBootstrap;
 public class SafraClient implements ClientModInitializer {
 
     static {
-        System.setProperty("io.netty.transport.noKQueue", "true");
+        System.setProperty("io.netty.transport.noNative", "true");
     }
 
     @Override

@@ -280,6 +280,7 @@ final class P2pQuicSupport {
             argLines.add("--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED,io.netty.common");
             argLines.add("-Dio.netty.tryReflectionSetAccessible=true");
             argLines.add("-Dio.netty.transport.noKQueue=true");
+            argLines.add("-Dio.netty.transport.noEpoll=true");
             argLines.add("-D" + BROKER_CHILD_PROPERTY + "=true");
             argLines.add("-D" + READY_FILE_PROPERTY + "=" + quoteArgFileValue(readyFile.toString()));
             argLines.add("-Duser.dir=" + quoteArgFileValue(workDir.toString()));
