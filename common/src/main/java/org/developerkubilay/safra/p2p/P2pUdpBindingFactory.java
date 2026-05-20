@@ -25,9 +25,6 @@ final class P2pUdpBindingFactory {
         try {
             return createDirectHostBinding(stunClient, preferredPort);
         } catch (IOException exception) {
-            if (!P2pConstants.turnEnabled()) {
-                throw exception;
-            }
             logger.debug("Safra host STUN acilamadi, TURN relay denenecek: {}", exception.toString());
             return createTurnBinding(logger, "host");
         }
@@ -41,9 +38,6 @@ final class P2pUdpBindingFactory {
         try {
             return createDirectJoinBinding(stunClient);
         } catch (IOException exception) {
-            if (!P2pConstants.turnEnabled()) {
-                throw exception;
-            }
             logger.debug("Safra join STUN acilamadi, TURN relay denenecek: {}", exception.toString());
             return createTurnBinding(logger, "join");
         }

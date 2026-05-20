@@ -4,6 +4,10 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 record P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+    private static final ThreadLocal<ByteBuffer> ENCODE_BUFFER = ThreadLocal.withInitial(
+        () -> ByteBuffer.allocate(P2pConstants.HEADER_SIZE + P2pConstants.MAX_PAYLOAD_SIZE)
+    );
+
     enum Type {
         OPEN(1),
         OPEN_ACK(2),
@@ -69,7 +73,8 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
     }
 
     byte[] encode() {
-        ByteBuffer buffer = ByteBuffer.allocate(P2pConstants.HEADER_SIZE + payload.length);
+        ByteBuffer buffer = ENCODE_BUFFER.get();
+        buffer.clear();
         buffer.put(P2pConstants.PROTOCOL_VERSION);
         buffer.put((byte) type.id);
         buffer.putInt(token);
@@ -77,7 +82,8 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
         buffer.putInt(sequence);
         buffer.putInt(acknowledgement);
         buffer.put(payload);
-        return buffer.array();
+        int length = buffer.position();
+        return Arrays.copyOf(buffer.array(), length);
     }
 
     static P2pPacket decode(byte[] buffer, int length) {

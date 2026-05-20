@@ -10,7 +10,6 @@ public final class SafraBuildInfo {
     private static final String minecraftVersion;
     private static final String loaderName;
     private static final String loaderVersion;
-    private static final String quicNettyVersion;
 
     static {
         Properties properties = new Properties();
@@ -25,7 +24,6 @@ public final class SafraBuildInfo {
         minecraftVersion = value(properties, "minecraftVersion");
         loaderName = value(properties, "loaderName");
         loaderVersion = value(properties, "loaderVersion");
-        quicNettyVersion = value(properties, "quicNettyVersion");
     }
 
     private SafraBuildInfo() {
@@ -45,10 +43,6 @@ public final class SafraBuildInfo {
 
     public static String loaderVersion() {
         return loaderVersion;
-    }
-
-    public static String quicNettyVersion() {
-        return quicNettyVersion;
     }
 
     private static String value(Properties properties, String key) {
