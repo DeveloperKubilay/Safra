@@ -22,6 +22,12 @@ rootProject.name = 'Safra'
 
 include 'common'
 
+def localProperties = new Properties()
+def localPropertiesFile = file('gradle.properties')
+if (localPropertiesFile.isFile()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
 def taskNames = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
 def currentDirName = gradle.startParameter.currentDir?.name?.toLowerCase(Locale.ROOT)
 def touchesOnly = { List<String> prefixes ->

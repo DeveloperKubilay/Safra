@@ -5,8 +5,52 @@ plugins {
     id 'base'
 }
 
+ext.mcProfiles = [
+    '1.18.2': [
+        release_minecraft_line       : '1.18.2',
+        minecraft_version            : '1.18.2',
+        minecraft_dependency         : '=1.18.2',
+        fabric_minecraft_version     : '1.18.2',
+        fabric_mod_minecraft_version : '1.18.2',
+        yarn_mappings                : '1.18.2+build.2',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.77.0+1.18.2',
+        forge_version                : '40.3.12',
+        forge_version_range          : '[40,)',
+        forge_loader_version_range   : '[40,)',
+        forge_minecraft_version_range: '[1.18.2,1.19)'
+    ],
+    '1.19.2': [
+        release_minecraft_line       : '1.19.2',
+        minecraft_version            : '1.19.2',
+        minecraft_dependency         : '=1.19.2',
+        fabric_minecraft_version     : '1.19.2',
+        fabric_mod_minecraft_version : '1.19.2',
+        yarn_mappings                : '1.19.2+build.28',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.77.0+1.19.2',
+        forge_version                : '43.5.2',
+        forge_version_range          : '[43,)',
+        forge_loader_version_range   : '[43,)',
+        forge_minecraft_version_range: '[1.19.2,1.20)'
+    ]
+]
+
+def requestedMcProfile = (findProperty('mc_profile') ?: findProperty('default_mc_profile') ?: '1.19.2').toString()
+def selectedMcProfile = ext.mcProfiles[requestedMcProfile]
+if (selectedMcProfile == null) {
+    throw new GradleException("Unknown mc_profile '${requestedMcProfile}'. Supported profiles: ${ext.mcProfiles.keySet().join(', ')}")
+}
+
+selectedMcProfile.each { key, value ->
+    ext.set(key, value)
+}
+ext.set('selected_mc_profile', requestedMcProfile)
+ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
+layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
+
 group = project.maven_group
-version = "${project.minecraft_version}-${project.mod_version}"
+version = "${ext.release_minecraft_line}-${project.mod_version}"
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -37,6 +81,29 @@ allprojects {
 }
 
 subprojects {
+    rootProject.ext.properties.findAll { key, value ->
+        key in [
+            'selected_mc_profile',
+            'release_minecraft_line',
+            'build_directory_suffix',
+            'minecraft_version',
+            'minecraft_dependency',
+            'fabric_minecraft_version',
+            'fabric_mod_minecraft_version',
+            'yarn_mappings',
+            'loader_version',
+            'fabric_version',
+            'forge_version',
+            'forge_version_range',
+            'forge_loader_version_range',
+            'forge_minecraft_version_range'
+        ]
+    }.each { key, value ->
+        ext.set(key, value)
+    }
+
+    layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.build_directory_suffix}/${project.name}"))
+
     repositories {
         mavenCentral()
         maven {
@@ -132,6 +199,27 @@ tasks.register('runForgeClient') {
 
 tasks.named('build') {
     dependsOn(tasks.named('collectBuildLibs'))
+}
+
+def releaseTaskNames = []
+ext.mcProfiles.each { profileName, profileConfig ->
+    def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
+    releaseTaskNames << taskName
+    tasks.register(taskName, GradleBuild) {
+        group = 'release'
+        description = "Builds the ${profileName} release line."
+        dir = rootDir
+        tasks = ['build']
+        startParameter.projectProperties = new LinkedHashMap<>(gradle.startParameter.projectProperties + [
+            mc_profile: profileName
+        ])
+    }
+}
+
+tasks.register('buildReleaseMatrix') {
+    group = 'release'
+    description = 'Builds every configured Minecraft release line.'
+    dependsOn(releaseTaskNames.collect { tasks.named(it) })
 }
 
 tasks.register('verifyMixinArtifacts') {

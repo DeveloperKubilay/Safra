@@ -8,15 +8,17 @@ import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Field;
-
 @Mixin(ShareToLanScreen.class)
 abstract class ShareToLanScreenMixin extends Screen {
+    @Shadow
+    private boolean commands;
+
     @Unique
     private Button safra$p2pButton;
 
@@ -36,7 +38,7 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         ForgeLanSessionState.loadFromConfig();
-        this.safra$setField(ForgeLanSessionState.isAllowCommandsEnabled(), "commands", "f_96647_");
+        this.commands = ForgeLanSessionState.isAllowCommandsEnabled();
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -77,22 +79,5 @@ abstract class ShareToLanScreenMixin extends Screen {
         return ForgeClientCompat.translatable(ForgeLanSessionState.isOnlineModeEnabled()
             ? "safra.p2p.online_mode.short.on"
             : "safra.p2p.online_mode.short.off");
-    }
-
-    @Unique
-    private void safra$setField(Object value, String... names) {
-        Class<?> type = this.getClass();
-        while (type != null) {
-            for (String name : names) {
-                try {
-                    Field field = type.getDeclaredField(name);
-                    field.setAccessible(true);
-                    field.set(this, value);
-                    return;
-                } catch (ReflectiveOperationException ignored) {
-                }
-            }
-            type = type.getSuperclass();
-        }
     }
 }

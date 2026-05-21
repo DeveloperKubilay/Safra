@@ -11,33 +11,33 @@ public final class ForgeClientCompat {
 
     public static Component translatable(String key, Object... args) {
         try {
-            Method method = Component.class.getMethod("translatable", String.class, Object[].class);
-            return (Component) method.invoke(null, key, args);
+            Method factoryMethod = Component.class.getMethod("translatable", String.class, Object[].class);
+            return (Component) factoryMethod.invoke(null, key, args);
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
-            Class<?> clazz = Class.forName("net.minecraft.network.chat.TranslatableComponent");
-            Constructor<?> constructor = clazz.getConstructor(String.class, Object[].class);
+            Class<?> legacyClass = Class.forName("net.minecraft.network.chat.TranslatableComponent");
+            Constructor<?> constructor = legacyClass.getConstructor(String.class, Object[].class);
             return (Component) constructor.newInstance(key, args);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Could not create translatable component", exception);
+            throw new IllegalStateException("Compatible translatable component olusturulamadi", exception);
         }
     }
 
     public static Component literal(String value) {
         try {
-            Method method = Component.class.getMethod("literal", String.class);
-            return (Component) method.invoke(null, value);
+            Method factoryMethod = Component.class.getMethod("literal", String.class);
+            return (Component) factoryMethod.invoke(null, value);
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
-            Class<?> clazz = Class.forName("net.minecraft.network.chat.TextComponent");
-            Constructor<?> constructor = clazz.getConstructor(String.class);
+            Class<?> legacyClass = Class.forName("net.minecraft.network.chat.TextComponent");
+            Constructor<?> constructor = legacyClass.getConstructor(String.class);
             return (Component) constructor.newInstance(value);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Could not create literal component", exception);
+            throw new IllegalStateException("Compatible literal component olusturulamadi", exception);
         }
     }
 }

@@ -15,13 +15,19 @@ public final class FabricClientCompat {
 
     public static MutableText translatable(String key, Object... args) {
         try {
-            Method method = Text.class.getMethod("translatable", String.class, Object[].class);
+            Method method = Text.class.getMethod("method_43469", String.class, Object[].class);
             return (MutableText) method.invoke(null, key, args);
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
-            Class<?> clazz = Class.forName("net.minecraft.text.TranslatableText");
+            Method method = Text.class.getMethod("method_43471", String.class);
+            return (MutableText) method.invoke(null, key);
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            Class<?> clazz = Class.forName("net.minecraft.class_2588");
             Constructor<?> constructor = clazz.getConstructor(String.class, Object[].class);
             return (MutableText) constructor.newInstance(key, args);
         } catch (ReflectiveOperationException exception) {
@@ -31,13 +37,13 @@ public final class FabricClientCompat {
 
     public static MutableText literal(String value) {
         try {
-            Method method = Text.class.getMethod("literal", String.class);
+            Method method = Text.class.getMethod("method_43470", String.class);
             return (MutableText) method.invoke(null, value);
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
-            Class<?> clazz = Class.forName("net.minecraft.text.LiteralText");
+            Class<?> clazz = Class.forName("net.minecraft.class_2585");
             Constructor<?> constructor = clazz.getConstructor(String.class);
             return (MutableText) constructor.newInstance(value);
         } catch (ReflectiveOperationException exception) {
@@ -54,7 +60,7 @@ public final class FabricClientCompat {
     }
 
     public static void copyServerInfo(ServerInfo target, ServerInfo source) {
-        for (String methodName : new String[]{"copyWithSettingsFrom", "copyFrom"}) {
+        for (String methodName : new String[]{"method_44292", "method_2996", "copyWithSettingsFrom", "copyFrom"}) {
             try {
                 Method method = ServerInfo.class.getMethod(methodName, ServerInfo.class);
                 method.invoke(target, source);
@@ -79,31 +85,42 @@ public final class FabricClientCompat {
         }
 
         try {
-            Method method = MinecraftClient.class.getMethod("getNarratorManager");
+            Method method = MinecraftClient.class.getMethod("method_44713");
             Object narrator = method.invoke(client);
-            narrator.getClass().getMethod("narrate", Text.class).invoke(narrator, text);
+            narrator.getClass().getMethod("method_37015", Text.class).invoke(narrator, text);
             return;
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
-            Class<?> clazz = Class.forName("net.minecraft.client.util.NarratorManager");
-            Field instanceField = clazz.getField("INSTANCE");
+            Field narratorField = MinecraftClient.class.getDeclaredField("field_39769");
+            narratorField.setAccessible(true);
+            Object narrator = narratorField.get(client);
+            narrator.getClass().getMethod("method_37015", Text.class).invoke(narrator, text);
+            return;
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            Class<?> clazz = Class.forName("net.minecraft.class_333");
+            Field instanceField = clazz.getField("field_2054");
             Object narrator = instanceField.get(null);
-            clazz.getMethod("narrate", Text.class).invoke(narrator, text);
+            clazz.getMethod("method_37015", Text.class).invoke(narrator, text);
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Could not narrate message", exception);
         }
     }
 
     private static Text screenText(String fieldName, String fallbackKey) {
-        for (String className : new String[]{
-            "net.minecraft.client.gui.screen.ScreenTexts",
-            "net.minecraft.screen.ScreenTexts"
-        }) {
+        String runtimeFieldName = switch (fieldName) {
+            case "DONE" -> "field_24334";
+            case "BACK" -> "field_24339";
+            default -> null;
+        };
+        if (runtimeFieldName != null) {
             try {
-                Class<?> clazz = Class.forName(className);
-                Field field = clazz.getField(fieldName);
+                Class<?> clazz = Class.forName("net.minecraft.class_5244");
+                Field field = clazz.getField(runtimeFieldName);
                 return (Text) field.get(null);
             } catch (ReflectiveOperationException ignored) {
             }

@@ -11,17 +11,26 @@ import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-
 @Mixin(DirectJoinServerScreen.class)
 abstract class DirectJoinServerScreenMixin extends Screen {
+    @Shadow
+    private Button selectButton;
+
+    @Shadow
+    private EditBox ipEdit;
+
+    @Shadow
+    @Final
+    private ServerData serverData;
+
     @Unique
     private Button safra$p2pButton;
 
@@ -37,27 +46,20 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
-        EditBox ipEdit = this.safra$ipEdit();
-        Button selectButton = this.safra$selectButton();
-        if (ipEdit == null || selectButton == null) {
-            return;
-        }
-
-        safra$call(ipEdit, new Class<?>[]{int.class}, new Object[]{200}, "setMaxLength", "m_94199_");
-        String currentAddress = safra$getEditValue(ipEdit);
-        boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        this.ipEdit.setMaxLength(200);
+        boolean storedAddress = P2pManager.isP2pStoredAddress(this.ipEdit.getValue());
         if (!this.safra$p2pInitialized) {
             this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
         if (storedAddress) {
-            safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
+            this.ipEdit.setValue(P2pManager.toDisplayAddress(this.ipEdit.getValue()));
         }
 
-        Button cancelButton = this.safra$findSecondaryButton(selectButton);
+        Button cancelButton = this.safra$findSecondaryButton(this.selectButton);
         if (cancelButton != null) {
-            this.safra$moveButton(selectButton, this.width / 2 - 100, this.height / 4 + 108, 98);
+            this.safra$moveButton(this.selectButton, this.width / 2 - 100, this.height / 4 + 108, 98);
             this.safra$moveButton(cancelButton, this.width / 2 + 2, this.height / 4 + 108, 98);
         }
 
@@ -94,19 +96,13 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Unique
     private void safra$persistStoredAddress() {
-        EditBox ipEdit = this.safra$ipEdit();
-        ServerData serverData = this.safra$serverData();
-        if (ipEdit == null || serverData == null) {
-            return;
-        }
-
         SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-        String address = safra$getEditValue(ipEdit);
+        String address = this.ipEdit.getValue();
         if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
             address = P2pManager.toStoredAddress(address);
         }
-        safra$setEditValue(ipEdit, address);
-        safra$setServerAddress(serverData, address);
+        this.ipEdit.setValue(address);
+        this.serverData.ip = address;
     }
 
     @Unique
@@ -116,29 +112,24 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Unique
     private void safra$refreshAddressField() {
-        EditBox ipEdit = this.safra$ipEdit();
-        if (ipEdit == null) {
+        if (this.ipEdit == null) {
             return;
         }
-        safra$call(ipEdit, new Class<?>[]{String.class}, new Object[]{
-            this.safra$p2pEnabled && safra$getEditValue(ipEdit).isEmpty()
+        this.ipEdit.setSuggestion(this.safra$p2pEnabled && this.ipEdit.getValue().isEmpty()
             ? ForgeClientCompat.translatable("safra.p2p.placeholder").getString()
-            : null
-        }, "setSuggestion", "m_94167_");
+            : null);
     }
 
     @Unique
     private void safra$updateValidation() {
-        Button selectButton = this.safra$selectButton();
-        EditBox ipEdit = this.safra$ipEdit();
-        if (selectButton == null || ipEdit == null) {
+        if (this.selectButton == null || this.ipEdit == null) {
             return;
         }
 
-        String address = safra$getEditValue(ipEdit);
-        safra$setButtonActive(selectButton, this.safra$p2pEnabled
+        String address = this.ipEdit.getValue();
+        this.selectButton.active = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
-            : safra$isValidServerAddress(address));
+            : ServerAddress.isValidAddress(address);
     }
 
     @Unique
@@ -157,101 +148,5 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         button.setWidth(width);
         button.x = x;
         button.y = y;
-    }
-
-    @Unique
-    private Button safra$selectButton() {
-        return (Button) this.safra$getField("selectButton", "f_95953_");
-    }
-
-    @Unique
-    private EditBox safra$ipEdit() {
-        return (EditBox) this.safra$getField("ipEdit", "f_95955_");
-    }
-
-    @Unique
-    private ServerData safra$serverData() {
-        return (ServerData) this.safra$getField("serverData", "f_95954_");
-    }
-
-    @Unique
-    private static boolean safra$isValidServerAddress(String address) {
-        return address != null && !address.trim().isEmpty() && !address.contains(" ");
-    }
-
-    @Unique
-    private static void safra$setButtonActive(Button button, boolean active) {
-        Class<?> type = button.getClass();
-        while (type != null) {
-            for (String name : new String[]{"active", "f_93623_"}) {
-                try {
-                    Field field = type.getDeclaredField(name);
-                    field.setAccessible(true);
-                    field.setBoolean(button, active);
-                    return;
-                } catch (ReflectiveOperationException ignored) {
-                }
-            }
-            type = type.getSuperclass();
-        }
-    }
-
-    @Unique
-    private static void safra$setServerAddress(ServerData serverData, String address) {
-        Class<?> type = serverData.getClass();
-        while (type != null) {
-            for (String name : new String[]{"ip", "f_105363_"}) {
-                try {
-                    Field field = type.getDeclaredField(name);
-                    field.setAccessible(true);
-                    field.set(serverData, address);
-                    return;
-                } catch (ReflectiveOperationException ignored) {
-                }
-            }
-            type = type.getSuperclass();
-        }
-    }
-
-    @Unique
-    private Object safra$getField(String... names) {
-        Class<?> type = this.getClass();
-        while (type != null) {
-            for (String name : names) {
-                try {
-                    Field field = type.getDeclaredField(name);
-                    field.setAccessible(true);
-                    return field.get(this);
-                } catch (ReflectiveOperationException ignored) {
-                }
-            }
-            type = type.getSuperclass();
-        }
-        return null;
-    }
-
-    @Unique
-    private static String safra$getEditValue(EditBox editBox) {
-        Object value = safra$call(editBox, new Class<?>[0], new Object[0], "getValue", "m_94155_");
-        return value instanceof String text ? text : "";
-    }
-
-    @Unique
-    private static void safra$setEditValue(EditBox editBox, String value) {
-        safra$call(editBox, new Class<?>[]{String.class}, new Object[]{value}, "setValue", "m_94144_");
-    }
-
-    @Unique
-    private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {
-        Class<?> type = target instanceof Class<?> clazz ? clazz : target.getClass();
-        for (String name : names) {
-            try {
-                Method method = type.getMethod(name, parameterTypes);
-                method.setAccessible(true);
-                return method.invoke(target instanceof Class<?> ? null : target, args);
-            } catch (ReflectiveOperationException ignored) {
-            }
-        }
-        return null;
     }
 }
