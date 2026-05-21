@@ -4,10 +4,10 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
+import org.developerkubilay.safra.client.p2p.FabricVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -54,7 +54,13 @@ abstract class MultiplayerScreenMixin {
                     return;
                 }
 
-                ConnectScreen.connect(this.parent, MinecraftClient.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                FabricVersionCompat.startConnect(
+                    this.parent,
+                    MinecraftClient.getInstance(),
+                    rewriteResult.serverAddress(),
+                    rewriteResult.serverInfo(),
+                    false
+                );
             })
         );
         ci.cancel();

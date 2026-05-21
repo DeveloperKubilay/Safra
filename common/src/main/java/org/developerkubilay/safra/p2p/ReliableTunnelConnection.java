@@ -147,7 +147,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile ScheduledFuture<?> delayedAcknowledgementTask;
     private volatile ScheduledFuture<?> acknowledgementReinforcementTask;
     private volatile int adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
-    private volatile long adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_WAIT_NANOS;
     private volatile int microBatchWarmupSamples;
     private volatile long microBatchWarmupBytes;
 
@@ -1136,31 +1135,22 @@ final class ReliableTunnelConnection implements AutoCloseable {
         int thresholdBytes = initiator
             ? Math.min(adaptiveMicroBatchThresholdBytes, P2pConstants.CLIENT_MICRO_BATCH_THRESHOLD_BYTES)
             : adaptiveMicroBatchThresholdBytes;
-        long waitNanos = initiator
-            ? Math.min(adaptiveMicroBatchWaitNanos, P2pConstants.CLIENT_MICRO_BATCH_WAIT_NANOS)
-            : adaptiveMicroBatchWaitNanos;
-        boolean microBatch = totalRead > 0 && totalRead < thresholdBytes;
-        long deadline = 0L;
-        if (microBatch) {
-            incrementDiagnosticCounter(microBatchHits);
-            addDiagnosticCounter(microBatchStartBytes, totalRead);
-            deadline = System.nanoTime() + waitNanos;
+        if (totalRead > 0 && totalRead < thresholdBytes) {
+            int availableBeforeWait = inputStream.available();
+            if (availableBeforeWait > 0) {
+                incrementDiagnosticCounter(microBatchHits);
+                addDiagnosticCounter(microBatchStartBytes, totalRead);
+            }
+            addDiagnosticCounter(microBatchEndBytes, totalRead);
+            if (availableBeforeWait > 0) {
+                incrementDiagnosticCounter(microBatchDeadlineExits);
+            }
         }
 
         while (totalRead < buffer.length) {
             int available = inputStream.available();
             if (available <= 0) {
-                if (!microBatch) {
-                    break;
-                }
-                long now = System.nanoTime();
-                if (now >= deadline) {
-                    incrementDiagnosticCounter(microBatchDeadlineExits);
-                    break;
-                }
-                long remaining = deadline - now;
-                LockSupport.parkNanos(Math.min(P2pConstants.MICRO_BATCH_POLL_NANOS, remaining));
-                continue;
+                break;
             }
 
             int chunk = inputStream.read(buffer, totalRead, Math.min(buffer.length - totalRead, available));
@@ -1169,14 +1159,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
             }
 
             totalRead += chunk;
-            if (microBatch && totalRead >= thresholdBytes) {
-                incrementDiagnosticCounter(microBatchThresholdExits);
-                break;
-            }
-        }
-
-        if (microBatch) {
-            addDiagnosticCounter(microBatchEndBytes, totalRead);
         }
         return totalRead;
     }
@@ -1198,18 +1180,15 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long averageBytes = Math.max(1L, microBatchWarmupBytes / samples);
         if (averageBytes <= 20L) {
             adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_MAX_THRESHOLD_BYTES;
-            adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_MAX_WAIT_NANOS;
             return;
         }
 
         if (averageBytes <= 40L) {
             adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
-            adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_WAIT_NANOS;
             return;
         }
 
         adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_MIN_THRESHOLD_BYTES;
-        adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_MIN_WAIT_NANOS;
     }
 
     private void sendAcknowledgementPacket(int acknowledgement, int acknowledgementMask, long now) {

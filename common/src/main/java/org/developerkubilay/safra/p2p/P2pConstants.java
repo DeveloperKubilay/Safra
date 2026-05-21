@@ -31,11 +31,6 @@ public final class P2pConstants {
     static final long ACK_REINFORCE_DELAY_MS = 8L;
     static final long DELAYED_ACK_MS = 2L;
     static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
-    static final long MICRO_BATCH_MIN_WAIT_NANOS = 400_000L;
-    static final long MICRO_BATCH_WAIT_NANOS = 900_000L;
-    static final long MICRO_BATCH_MAX_WAIT_NANOS = 2_000_000L;
-    static final long CLIENT_MICRO_BATCH_WAIT_NANOS = 200_000L;
-    static final long MICRO_BATCH_POLL_NANOS = 100_000L;
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;
     static final long WINDOW_STALL_WARN_MS = 150L;

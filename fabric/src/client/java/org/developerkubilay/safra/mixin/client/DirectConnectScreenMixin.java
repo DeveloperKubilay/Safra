@@ -2,7 +2,6 @@ package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.multiplayer.DirectConnectScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -10,16 +9,22 @@ import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.FabricVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(DirectConnectScreen.class)
+@Pseudo
+@Mixin(targets = {
+    "net.minecraft.client.gui.screen.multiplayer.DirectConnectScreen",
+    "net.minecraft.client.gui.screen.DirectConnectScreen"
+})
 abstract class DirectConnectScreenMixin extends Screen {
     @Shadow
     private ButtonWidget selectServerButton;
@@ -59,8 +64,8 @@ abstract class DirectConnectScreenMixin extends Screen {
 
         ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
         if (cancelButton != null) {
-            this.selectServerButton.setDimensionsAndPosition(98, 20, this.width / 2 - 100, this.height / 4 + 108);
-            cancelButton.setDimensionsAndPosition(98, 20, this.width / 2 + 2, this.height / 4 + 108);
+            FabricVersionCompat.setWidgetBounds(this.selectServerButton, 98, 20, this.width / 2 - 100, this.height / 4 + 108);
+            FabricVersionCompat.setWidgetBounds(cancelButton, 98, 20, this.width / 2 + 2, this.height / 4 + 108);
         }
 
         this.safra$p2pToggle = this.addDrawableChild(

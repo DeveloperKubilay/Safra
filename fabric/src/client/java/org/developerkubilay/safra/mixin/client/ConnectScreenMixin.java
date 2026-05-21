@@ -4,11 +4,12 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
+import org.developerkubilay.safra.client.p2p.FabricVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,7 +18,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
-@Mixin(ConnectScreen.class)
+@Pseudo
+@Mixin(targets = {
+    "net.minecraft.client.gui.screen.multiplayer.ConnectScreen",
+    "net.minecraft.client.gui.screen.ConnectScreen"
+})
 abstract class ConnectScreenMixin {
     @Inject(method = "connect", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, MinecraftClient client, ServerAddress serverAddress,
@@ -49,7 +54,7 @@ abstract class ConnectScreenMixin {
                     return;
                 }
 
-                ConnectScreen.connect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay);
+                FabricVersionCompat.startConnect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay);
             })
         );
         ci.cancel();

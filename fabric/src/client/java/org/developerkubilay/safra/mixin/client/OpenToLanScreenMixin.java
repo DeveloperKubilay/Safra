@@ -15,6 +15,7 @@ import net.minecraft.util.Formatting;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
+import org.developerkubilay.safra.client.p2p.FabricVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.spongepowered.asm.mixin.Mixin;
@@ -82,7 +83,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
 
-        this.portField.setDimensionsAndPosition(70, 20, this.width / 2 - 80, 156);
+        FabricVersionCompat.setWidgetBounds(this.portField, 70, 20, this.width / 2 - 80, 156);
         this.safra$p2pButton = this.addDrawableChild(
             ButtonWidget.builder(this.safra$getToggleText(), button -> {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
