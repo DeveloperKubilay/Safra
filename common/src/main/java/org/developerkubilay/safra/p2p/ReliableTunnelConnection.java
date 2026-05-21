@@ -147,7 +147,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile ScheduledFuture<?> delayedAcknowledgementTask;
     private volatile ScheduledFuture<?> acknowledgementReinforcementTask;
     private volatile int adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
-    private volatile long adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_WAIT_NANOS;
     private volatile int microBatchWarmupSamples;
     private volatile long microBatchWarmupBytes;
 
@@ -1181,18 +1180,15 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long averageBytes = Math.max(1L, microBatchWarmupBytes / samples);
         if (averageBytes <= 20L) {
             adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_MAX_THRESHOLD_BYTES;
-            adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_MAX_WAIT_NANOS;
             return;
         }
 
         if (averageBytes <= 40L) {
             adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
-            adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_WAIT_NANOS;
             return;
         }
 
         adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_MIN_THRESHOLD_BYTES;
-        adaptiveMicroBatchWaitNanos = P2pConstants.MICRO_BATCH_MIN_WAIT_NANOS;
     }
 
     private void sendAcknowledgementPacket(int acknowledgement, int acknowledgementMask, long now) {
