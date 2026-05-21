@@ -5,8 +5,97 @@ plugins {
     id 'base'
 }
 
+ext.mcProfiles = [
+    '1.20-1.20.1': [
+        release_minecraft_line       : '1.20-1.20.1',
+        minecraft_version            : '1.20.1',
+        minecraft_dependency         : '>=1.20 <=1.20.1',
+        fabric_minecraft_version     : '1.20.1',
+        fabric_mod_minecraft_version : '1.20.1',
+        yarn_mappings                : '1.20.1+build.10',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.92.6+1.20.1',
+        enable_neoforge             : 'false',
+        minecraft_version_range      : '[1.20,1.20.2)',
+        forge_version                : '47.4.18',
+        forge_version_range          : '[47,)',
+        forge_loader_version_range   : '[47,)',
+        forge_minecraft_version_range: '[1.20,1.20.2)'
+    ],
+    '1.20.2': [
+        release_minecraft_line       : '1.20.2',
+        minecraft_version            : '1.20.2',
+        minecraft_dependency         : '=1.20.2',
+        fabric_minecraft_version     : '1.20.2',
+        fabric_mod_minecraft_version : '1.20.2',
+        yarn_mappings                : '1.20.2+build.4',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.91.6+1.20.2',
+        enable_neoforge             : 'true',
+        minecraft_version_range      : '[1.20.2]',
+        neo_version                  : '20.2.93',
+        neo_version_range            : '[20.2.93,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '48.1.0',
+        forge_version_range          : '[48,)',
+        forge_loader_version_range   : '[48,)',
+        forge_minecraft_version_range: '[1.20.2,1.20.3)'
+    ],
+    '1.20.3-1.20.4': [
+        release_minecraft_line       : '1.20.3-1.20.4',
+        minecraft_version            : '1.20.4',
+        minecraft_dependency         : '>=1.20.3 <=1.20.4',
+        fabric_minecraft_version     : '1.20.4',
+        fabric_mod_minecraft_version : '1.20.4',
+        yarn_mappings                : '1.20.4+build.3',
+        loader_version               : '0.19.2',
+        fabric_version               : '0.97.3+1.20.4',
+        enable_neoforge             : 'true',
+        minecraft_version_range      : '[1.20.3,1.20.5)',
+        neo_version                  : '20.4.239',
+        neo_version_range            : '[20.4.239,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '49.2.7',
+        forge_version_range          : '[49,)',
+        forge_loader_version_range   : '[49,)',
+        forge_minecraft_version_range: '[1.20.3,1.20.5)'
+    ],
+    '1.20.5-1.20.6': [
+        release_minecraft_line       : '1.20.5-1.20.6',
+        minecraft_version            : '1.20.6',
+        minecraft_dependency         : '>=1.20.5 <=1.20.6',
+        fabric_minecraft_version     : '1.20.6',
+        fabric_mod_minecraft_version : '1.20.6',
+        yarn_mappings                : '1.20.6+build.3',
+        loader_version               : '0.15.11',
+        fabric_version               : '0.100.8+1.20.6',
+        enable_neoforge             : 'true',
+        minecraft_version_range      : '[1.20.5,1.20.7)',
+        neo_version                  : '20.6.137',
+        neo_version_range            : '[20.6.137,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '50.2.8',
+        forge_version_range          : '[50,)',
+        forge_loader_version_range   : '[50,)',
+        forge_minecraft_version_range: '[1.20.5,1.20.7)'
+    ]
+]
+
+def requestedMcProfile = (findProperty('mc_profile') ?: findProperty('default_mc_profile') ?: '1.20.3-1.20.4').toString()
+def selectedMcProfile = ext.mcProfiles[requestedMcProfile]
+if (selectedMcProfile == null) {
+    throw new GradleException("Unknown mc_profile '${requestedMcProfile}'. Supported profiles: ${ext.mcProfiles.keySet().join(', ')}")
+}
+
+selectedMcProfile.each { key, value ->
+    ext.set(key, value)
+}
+ext.set('selected_mc_profile', requestedMcProfile)
+ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
+layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
+
 group = project.maven_group
-version = "${project.minecraft_version}-${project.mod_version}"
+version = "${ext.release_minecraft_line}-${project.mod_version}"
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -37,6 +126,34 @@ allprojects {
 }
 
 subprojects {
+    rootProject.ext.properties.findAll { key, value ->
+        key in [
+            'selected_mc_profile',
+            'release_minecraft_line',
+            'build_directory_suffix',
+            'minecraft_version',
+            'minecraft_dependency',
+            'fabric_minecraft_version',
+            'fabric_mod_minecraft_version',
+            'yarn_mappings',
+            'loader_version',
+            'fabric_version',
+            'enable_neoforge',
+            'minecraft_version_range',
+            'neo_version',
+            'neo_version_range',
+            'loader_version_range',
+            'forge_version',
+            'forge_version_range',
+            'forge_loader_version_range',
+            'forge_minecraft_version_range'
+        ]
+    }.each { key, value ->
+        ext.set(key, value)
+    }
+
+    layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.build_directory_suffix}/${project.name}"))
+
     repositories {
         mavenCentral()
         maven {
@@ -132,6 +249,28 @@ tasks.register('runForgeClient') {
 
 tasks.named('build') {
     dependsOn(tasks.named('collectBuildLibs'))
+}
+
+def releaseTaskNames = []
+ext.mcProfiles.each { profileName, profileConfig ->
+    def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
+    releaseTaskNames << taskName
+    tasks.register(taskName, GradleBuild) {
+        group = 'release'
+        description = "Builds the ${profileName} release line."
+        dir = rootDir
+        tasks = ['build']
+        startParameter.projectProperties = new LinkedHashMap<>(gradle.startParameter.projectProperties + [
+            mc_profile      : profileName,
+            enable_neoforge : profileConfig.enable_neoforge
+        ])
+    }
+}
+
+tasks.register('buildReleaseMatrix') {
+    group = 'release'
+    description = 'Builds every configured Minecraft release line.'
+    dependsOn(releaseTaskNames.collect { tasks.named(it) })
 }
 
 tasks.register('verifyMixinArtifacts') {

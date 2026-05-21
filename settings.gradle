@@ -36,7 +36,25 @@ if (localPropertiesFile.isFile()) {
     localPropertiesFile.withInputStream { localProperties.load(it) }
 }
 
+def mcProfileDefaults = [
+    '1.20-1.20.1': [enable_neoforge: 'false'],
+    '1.20.2'      : [enable_neoforge: 'true'],
+    '1.20.3-1.20.4': [enable_neoforge: 'true'],
+    '1.20.5-1.20.6': [enable_neoforge: 'true']
+]
+
+def selectedMcProfile = gradle.startParameter.projectProperties['mc_profile']
+if (selectedMcProfile == null) {
+    selectedMcProfile = localProperties.getProperty('default_mc_profile')
+}
+
 def enableNeoForgeValue = gradle.startParameter.projectProperties['enable_neoforge']
+if (enableNeoForgeValue == null) {
+    def profileDefaults = mcProfileDefaults[selectedMcProfile]
+    if (profileDefaults != null) {
+        enableNeoForgeValue = profileDefaults.enable_neoforge
+    }
+}
 if (enableNeoForgeValue == null) {
     enableNeoForgeValue = localProperties.getProperty('enable_neoforge', 'true')
 }

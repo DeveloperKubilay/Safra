@@ -92,10 +92,11 @@ renamer.mappings(minecraft.dependency.toSrg)
 def forgeRuntimeJarName = "${project.archives_base_name}-forge-${project.version}.jar"
 def forgeDevJarName = "${project.archives_base_name}-forge-${project.version}-dev.jar"
 def forgeRemappedJarName = "${project.archives_base_name}-forge-${project.version}-srg.jar"
+def forgeRemappedJarFile = layout.buildDirectory.file("minecraftforge/renamer/renamed/${forgeRemappedJarName}")
 
 tasks.register('prepareForgeRuntimeJar') {
     dependsOn(tasks.named('renameJar'))
-    inputs.file(layout.buildDirectory.file("libs/${forgeRemappedJarName}"))
+    inputs.file(forgeRemappedJarFile)
     outputs.file(layout.buildDirectory.file("libs/${forgeRuntimeJarName}"))
     outputs.file(layout.buildDirectory.file("libs/${forgeDevJarName}"))
 
@@ -103,7 +104,7 @@ tasks.register('prepareForgeRuntimeJar') {
         def libsDir = layout.buildDirectory.dir('libs').get().asFile
         def runtimeJar = new File(libsDir, forgeRuntimeJarName)
         def devJar = new File(libsDir, forgeDevJarName)
-        def remappedJar = new File(libsDir, forgeRemappedJarName)
+        def remappedJar = forgeRemappedJarFile.get().asFile
 
         if (!remappedJar.isFile()) {
             throw new GradleException("Missing remapped Forge jar: ${remappedJar}")
@@ -131,12 +132,12 @@ tasks.register('normalizeForgeMixinRefmaps') {
     inputs.files(
         layout.buildDirectory.file("libs/${forgeRuntimeJarName}"),
         layout.buildDirectory.file("libs/${forgeDevJarName}"),
-        layout.buildDirectory.file("libs/${forgeRemappedJarName}")
+        forgeRemappedJarFile
     )
     outputs.files(
         layout.buildDirectory.file("libs/${forgeRuntimeJarName}"),
         layout.buildDirectory.file("libs/${forgeDevJarName}"),
-        layout.buildDirectory.file("libs/${forgeRemappedJarName}")
+        forgeRemappedJarFile
     )
 
     doLast {
@@ -192,7 +193,7 @@ tasks.register('normalizeForgeMixinRefmaps') {
         [
             layout.buildDirectory.file("libs/${forgeRuntimeJarName}").get().asFile,
             layout.buildDirectory.file("libs/${forgeDevJarName}").get().asFile,
-            layout.buildDirectory.file("libs/${forgeRemappedJarName}").get().asFile
+            forgeRemappedJarFile.get().asFile
         ].findAll { it.isFile() }.each { jarFile ->
             def zipFile = java.nio.file.Path.of(jarFile.absolutePath)
             def zipUri = java.net.URI.create("jar:${zipFile.toUri()}")
