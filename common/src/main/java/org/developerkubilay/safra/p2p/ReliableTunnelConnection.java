@@ -1136,31 +1136,22 @@ final class ReliableTunnelConnection implements AutoCloseable {
         int thresholdBytes = initiator
             ? Math.min(adaptiveMicroBatchThresholdBytes, P2pConstants.CLIENT_MICRO_BATCH_THRESHOLD_BYTES)
             : adaptiveMicroBatchThresholdBytes;
-        long waitNanos = initiator
-            ? Math.min(adaptiveMicroBatchWaitNanos, P2pConstants.CLIENT_MICRO_BATCH_WAIT_NANOS)
-            : adaptiveMicroBatchWaitNanos;
-        boolean microBatch = totalRead > 0 && totalRead < thresholdBytes;
-        long deadline = 0L;
-        if (microBatch) {
-            incrementDiagnosticCounter(microBatchHits);
-            addDiagnosticCounter(microBatchStartBytes, totalRead);
-            deadline = System.nanoTime() + waitNanos;
+        if (totalRead > 0 && totalRead < thresholdBytes) {
+            int availableBeforeWait = inputStream.available();
+            if (availableBeforeWait > 0) {
+                incrementDiagnosticCounter(microBatchHits);
+                addDiagnosticCounter(microBatchStartBytes, totalRead);
+            }
+            addDiagnosticCounter(microBatchEndBytes, totalRead);
+            if (availableBeforeWait > 0) {
+                incrementDiagnosticCounter(microBatchDeadlineExits);
+            }
         }
 
         while (totalRead < buffer.length) {
             int available = inputStream.available();
             if (available <= 0) {
-                if (!microBatch) {
-                    break;
-                }
-                long now = System.nanoTime();
-                if (now >= deadline) {
-                    incrementDiagnosticCounter(microBatchDeadlineExits);
-                    break;
-                }
-                long remaining = deadline - now;
-                LockSupport.parkNanos(Math.min(P2pConstants.MICRO_BATCH_POLL_NANOS, remaining));
-                continue;
+                break;
             }
 
             int chunk = inputStream.read(buffer, totalRead, Math.min(buffer.length - totalRead, available));
@@ -1169,14 +1160,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
             }
 
             totalRead += chunk;
-            if (microBatch && totalRead >= thresholdBytes) {
-                incrementDiagnosticCounter(microBatchThresholdExits);
-                break;
-            }
-        }
-
-        if (microBatch) {
-            addDiagnosticCounter(microBatchEndBytes, totalRead);
         }
         return totalRead;
     }
