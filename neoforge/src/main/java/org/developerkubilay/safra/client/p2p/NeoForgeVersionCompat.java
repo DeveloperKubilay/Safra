@@ -10,8 +10,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public final class ForgeVersionCompat {
-    private ForgeVersionCompat() {
+public final class NeoForgeVersionCompat {
+    private NeoForgeVersionCompat() {
     }
 
     public static ServerData copyServerData(ServerData originalServerInfo, String address) {
