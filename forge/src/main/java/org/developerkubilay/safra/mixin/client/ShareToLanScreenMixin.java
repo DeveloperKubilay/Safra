@@ -4,6 +4,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
+import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -60,7 +61,7 @@ abstract class ShareToLanScreenMixin extends Screen {
             })
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            new Button(this.width / 2 - 49, 172, 98, 20, Component.translatable("safra.p2p.server_settings.short"), button ->
+            new Button(this.width / 2 - 49, 172, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
@@ -68,12 +69,12 @@ abstract class ShareToLanScreenMixin extends Screen {
 
     @Unique
     private Component safra$getToggleText() {
-        return Component.translatable(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
+        return ForgeClientCompat.translatable(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 
     @Unique
     private Component safra$getOnlineModeText() {
-        return Component.translatable(ForgeLanSessionState.isOnlineModeEnabled()
+        return ForgeClientCompat.translatable(ForgeLanSessionState.isOnlineModeEnabled()
             ? "safra.p2p.online_mode.short.on"
             : "safra.p2p.online_mode.short.off");
     }

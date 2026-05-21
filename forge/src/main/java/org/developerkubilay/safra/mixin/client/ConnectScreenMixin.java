@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
+import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,8 +30,8 @@ abstract class ConnectScreenMixin {
         }
 
         ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStart(Component.translatable("connect.connecting"));
-        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        progressScreen.progressStart(ForgeClientCompat.translatable("connect.connecting"));
+        progressScreen.progressStage(ForgeClientCompat.translatable("safra.p2p.prepare_message"));
         client.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
@@ -45,8 +46,8 @@ abstract class ConnectScreenMixin {
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     client.setScreen(new DisconnectedScreen(
                         parent,
-                        Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        ForgeClientCompat.translatable("connect.failed"),
+                        ForgeClientCompat.translatable("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }

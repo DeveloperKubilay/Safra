@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.worldselection.EditGameRulesScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameRules;
+import org.developerkubilay.safra.client.ForgeClientCompat;
 
 import java.util.Optional;
 
@@ -17,7 +18,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private Button fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
-        super(Component.translatable("safra.p2p.server_settings"));
+        super(ForgeClientCompat.translatable("safra.p2p.server_settings"));
         this.parent = parent;
     }
 
@@ -34,12 +35,12 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 button.setMessage(this.getFixedCodeText());
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 72, 200, 20, Component.translatable("safra.p2p.fixed_code.refresh"), button -> {
+        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 72, 200, 20, ForgeClientCompat.translatable("safra.p2p.fixed_code.refresh"), button -> {
                 ForgeLanSessionState.regenerateFixedCode();
                 this.clearWidgetFocus();
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 96, 200, 20, Component.translatable("safra.p2p.game_rules"), button -> {
+        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 96, 200, 20, ForgeClientCompat.translatable("safra.p2p.game_rules"), button -> {
                 Minecraft minecraft = this.minecraft;
                 if (minecraft == null || minecraft.level == null) {
                     return;
@@ -48,7 +49,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 minecraft.setScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 120, 200, 20, Component.translatable("safra.p2p.game_rules.reset"), button -> {
+        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 120, 200, 20, ForgeClientCompat.translatable("safra.p2p.game_rules.reset"), button -> {
                 ForgeLanSessionState.resetGameRules();
                 this.clearWidgetFocus();
             }));
@@ -72,7 +73,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private Component getAllowCommandsText() {
-        return Component.translatable(
+        return ForgeClientCompat.translatable(
             ForgeLanSessionState.isAllowCommandsEnabled()
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
@@ -80,7 +81,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private Component getFixedCodeText() {
-        return Component.translatable(
+        return ForgeClientCompat.translatable(
             ForgeLanSessionState.isFixedCodeEnabled()
                 ? "safra.p2p.fixed_code.on"
                 : "safra.p2p.fixed_code.off"

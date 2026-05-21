@@ -8,8 +8,8 @@ import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.text.Text;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.FabricClientCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -40,7 +40,7 @@ abstract class DirectConnectScreenMixin extends Screen {
     @Unique
     private boolean safra$p2pInitialized;
 
-    protected DirectConnectScreenMixin(Text title) {
+    protected DirectConnectScreenMixin(net.minecraft.text.Text title) {
         super(title);
     }
 
@@ -70,7 +70,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         this.safra$p2pToggle = this.addDrawableChild(
             CyclingButtonWidget.onOffBuilder(this.safra$p2pEnabled)
                 .build(this.width / 2 - 100, this.height / 4 + 84, 200, 20,
-                    Text.translatable("safra.p2p.toggle"),
+                    FabricClientCompat.translatable("safra.p2p.toggle"),
                     (button, value) -> {
                         this.safra$p2pEnabled = value;
                         SafraClientConfig.get().setDirectConnectP2pEnabled(value);
@@ -86,7 +86,6 @@ abstract class DirectConnectScreenMixin extends Screen {
 
     @Inject(method = "onAddressFieldChanged", at = @At("TAIL"))
     private void safra$overrideValidation(CallbackInfo ci) {
-        this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
@@ -116,9 +115,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setSuggestion(this.safra$p2pEnabled && this.addressField.getText().isEmpty()
-            ? Text.translatable("safra.p2p.placeholder").getString()
-            : null);
+        this.addressField.setSuggestion(null);
     }
 
     @Unique

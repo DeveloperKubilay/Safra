@@ -2,7 +2,6 @@ package org.developerkubilay.safra.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -29,12 +28,6 @@ public final class SafraForgeClientEvents {
         }
         P2pManager.getInstance().tick(safra$getMinecraft());
     }
-
-    @SubscribeEvent
-    public static void clientStopping(GameShuttingDownEvent event) {
-        P2pManager.getInstance().shutdown();
-    }
-
     private static Minecraft safra$getMinecraft() {
         try {
             Method method = Minecraft.class.getDeclaredMethod("m_91087_");

@@ -6,10 +6,12 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.FabricClientCompat;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -88,7 +90,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             })
         );
         this.safra$serverSettingsButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 - 49, 172, 98, 20, Text.translatable("safra.p2p.server_settings.short"), button ->
+            new ButtonWidget(this.width / 2 - 49, 172, 98, 20, FabricClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 this.client.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             )
         );
@@ -127,7 +129,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         }
 
         int tcpPort = server.getServerPort();
-        this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.starting"));
+        this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
@@ -146,13 +148,13 @@ abstract class OpenToLanScreenMixin extends Screen {
     }
 
     @Unique
-    private Text safra$getToggleText() {
-        return Text.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
+    private MutableText safra$getToggleText() {
+        return FabricClientCompat.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 
     @Unique
-    private Text safra$getOnlineModeText() {
-        return Text.translatable(this.safra$onlineModeEnabled ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off");
+    private MutableText safra$getOnlineModeText() {
+        return FabricClientCompat.translatable(this.safra$onlineModeEnabled ? "safra.p2p.online_mode.short.on" : "safra.p2p.online_mode.short.off");
     }
 
     @Unique
@@ -161,17 +163,17 @@ abstract class OpenToLanScreenMixin extends Screen {
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
         this.client.keyboard.setClipboard(shareCodeText);
 
-        Text shareText = Text.literal(shareCodeText)
+        Text shareText = FabricClientCompat.literal(shareCodeText)
             .setStyle(Style.EMPTY
                 .withColor(Formatting.AQUA)
                 .withUnderline(true)
                 .withInsertion(shareCodeText)
                 .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.translatable("safra.p2p.copy_hint"))));
-        this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.started", shareText));
-        this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.copied"));
-        this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.instructions"));
-        this.client.getNarratorManager().narrate(Text.translatable("safra.p2p.host.narration", shareCodeText));
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, FabricClientCompat.translatable("safra.p2p.copy_hint"))));
+        this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.started", shareText));
+        this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.copied"));
+        this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.instructions"));
+        FabricClientCompat.narrate(this.client, FabricClientCompat.translatable("safra.p2p.host.narration", shareText));
     }
 
     @Unique
@@ -186,7 +188,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
         this.client.inGameHud.getChatHud().addMessage(
-            Text.translatable("safra.p2p.host.failed", message).copy().formatted(Formatting.RED)
+            FabricClientCompat.translatable("safra.p2p.host.failed", message).formatted(Formatting.RED)
         );
     }
 }

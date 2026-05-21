@@ -121,7 +121,7 @@ public final class P2pManager {
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerInfo originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         ServerInfo snapshot = new ServerInfo(originalServerInfo.name, originalServerInfo.address, originalServerInfo.isLocal());
-        snapshot.copyWithSettingsFrom(originalServerInfo);
+        FabricClientCompat.copyServerInfo(snapshot, originalServerInfo);
 
         long generation;
         synchronized (this) {
@@ -195,7 +195,7 @@ public final class P2pManager {
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
-        rewritten.copyWithSettingsFrom(originalServerInfo);
+        FabricClientCompat.copyServerInfo(rewritten, originalServerInfo);
         rewritten.address = localAddress;
         return new RewriteResult(ServerAddress.parse(rewritten.address), rewritten);
     }

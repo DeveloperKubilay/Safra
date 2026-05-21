@@ -4,7 +4,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.world.EditGameRulesScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.world.GameRules;
 
@@ -16,7 +15,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private ButtonWidget fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
-        super(Text.translatable("safra.p2p.server_settings"));
+        super(FabricClientCompat.translatable("safra.p2p.server_settings"));
         this.parent = parent;
     }
 
@@ -33,12 +32,12 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 button.setMessage(this.getFixedCodeText());
             }));
 
-        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 72, 200, 20, Text.translatable("safra.p2p.fixed_code.refresh"), button -> {
+        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 72, 200, 20, FabricClientCompat.translatable("safra.p2p.fixed_code.refresh"), button -> {
                 FabricLanSessionState.regenerateFixedCode();
                 this.clearWidgetFocus();
             }));
 
-        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 96, 200, 20, Text.translatable("safra.p2p.game_rules"), button -> {
+        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 96, 200, 20, FabricClientCompat.translatable("safra.p2p.game_rules"), button -> {
                 if (this.client == null || this.client.world == null) {
                     return;
                 }
@@ -46,13 +45,13 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 this.client.setScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             }));
 
-        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 120, 200, 20, Text.translatable("safra.p2p.game_rules.reset"), button -> {
+        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 120, 200, 20, FabricClientCompat.translatable("safra.p2p.game_rules.reset"), button -> {
                 FabricLanSessionState.resetGameRules();
                 this.clearWidgetFocus();
             }));
 
-        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 168, 98, 20, ScreenTexts.DONE, button -> this.close()));
-        this.addDrawableChild(new ButtonWidget(this.width / 2 + 2, top + 168, 98, 20, ScreenTexts.BACK, button -> this.close()));
+        this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 168, 98, 20, FabricClientCompat.screenDone(), button -> this.close()));
+        this.addDrawableChild(new ButtonWidget(this.width / 2 + 2, top + 168, 98, 20, FabricClientCompat.screenBack(), button -> this.close()));
     }
 
     @Override
@@ -70,7 +69,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private Text getAllowCommandsText() {
-        return Text.translatable(
+        return FabricClientCompat.translatable(
             FabricLanSessionState.isAllowCommandsEnabled()
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
@@ -78,7 +77,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private Text getFixedCodeText() {
-        return Text.translatable(
+        return FabricClientCompat.translatable(
             FabricLanSessionState.isFixedCodeEnabled()
                 ? "safra.p2p.fixed_code.on"
                 : "safra.p2p.fixed_code.off"

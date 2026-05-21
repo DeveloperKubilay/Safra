@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
+import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
@@ -110,7 +111,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Unique
     private Component safra$getToggleText() {
-        return Component.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
+        return ForgeClientCompat.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 
     @Unique
@@ -121,7 +122,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         }
         safra$call(ipEdit, new Class<?>[]{String.class}, new Object[]{
             this.safra$p2pEnabled && safra$getEditValue(ipEdit).isEmpty()
-            ? Component.translatable("safra.p2p.placeholder").getString()
+            ? ForgeClientCompat.translatable("safra.p2p.placeholder").getString()
             : null
         }, "setSuggestion", "m_94167_");
     }
