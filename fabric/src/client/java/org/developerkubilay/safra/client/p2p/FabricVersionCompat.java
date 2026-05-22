@@ -8,6 +8,7 @@ import net.minecraft.client.network.ServerInfo;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 public final class FabricVersionCompat {
     private static final String[] CONNECT_SCREEN_CLASS_NAMES = {
@@ -34,14 +35,17 @@ public final class FabricVersionCompat {
         for (String className : CONNECT_SCREEN_CLASS_NAMES) {
             try {
                 Class<?> connectScreenClass = Class.forName(className);
-                Method connectMethod = connectScreenClass.getDeclaredMethod(
-                    "connect",
+                Method connectMethod = findStaticMethod(
+                    connectScreenClass,
                     Screen.class,
                     MinecraftClient.class,
                     ServerAddress.class,
                     ServerInfo.class,
                     boolean.class
                 );
+                if (connectMethod == null) {
+                    throw new NoSuchMethodException("Could not find a compatible ConnectScreen.connect overload");
+                }
                 connectMethod.invoke(null, parent, client, serverAddress, serverInfo, quickPlay);
                 return;
             } catch (ClassNotFoundException ignored) {
@@ -58,31 +62,21 @@ public final class FabricVersionCompat {
 
     public static void setWidgetBounds(Object widget, int width, int height, int x, int y) {
         try {
-            Method setBoundsMethod = widget.getClass().getMethod(
-                "setDimensionsAndPosition",
+            Method setBoundsMethod = findInstanceMethod(
+                widget.getClass(),
                 int.class,
                 int.class,
                 int.class,
                 int.class
             );
+            if (setBoundsMethod == null) {
+                throw new NoSuchMethodException("Could not find a compatible widget bounds setter overload");
+            }
             setBoundsMethod.invoke(widget, width, height, x, y);
-            return;
-        } catch (NoSuchMethodException ignored) {
-            // Fall back to older widget mutators used by 1.20.1.
         } catch (InvocationTargetException exception) {
             throw rethrow("Failed to invoke compatible widget bounds setter", exception);
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Failed to resolve compatible widget bounds setter", exception);
-        }
-
-        try {
-            widget.getClass().getMethod("setWidth", int.class).invoke(widget, width);
-            widget.getClass().getMethod("setX", int.class).invoke(widget, x);
-            widget.getClass().getMethod("setY", int.class).invoke(widget, y);
-        } catch (InvocationTargetException exception) {
-            throw rethrow("Failed to invoke legacy widget bounds setters", exception);
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Failed to resolve legacy widget bounds setters", exception);
         }
     }
 
@@ -109,17 +103,62 @@ public final class FabricVersionCompat {
     private static Object resolveThirdServerInfoArgument(ServerInfo originalServerInfo, Class<?> thirdParameterType)
         throws ReflectiveOperationException {
         if (thirdParameterType == boolean.class || thirdParameterType == Boolean.class) {
-            Method isLocalMethod = ServerInfo.class.getMethod("isLocal");
+            Method isLocalMethod = findInstanceMethod(ServerInfo.class, boolean.class);
+            if (isLocalMethod == null) {
+                throw new NoSuchMethodException("Could not find a compatible ServerInfo local flag accessor");
+            }
             return isLocalMethod.invoke(originalServerInfo);
         }
 
-        Method getServerTypeMethod = ServerInfo.class.getMethod("getServerType");
-        Object serverType = getServerTypeMethod.invoke(originalServerInfo);
-        if (thirdParameterType.isInstance(serverType)) {
-            return serverType;
+        for (Method method : ServerInfo.class.getMethods()) {
+            if (Modifier.isStatic(method.getModifiers())
+                || method.getParameterCount() != 0
+                || !thirdParameterType.isAssignableFrom(method.getReturnType())) {
+                continue;
+            }
+            Object serverType = method.invoke(originalServerInfo);
+            if (thirdParameterType.isInstance(serverType)) {
+                return serverType;
+            }
         }
 
         throw new NoSuchMethodException("Unsupported ServerInfo constructor parameter type: " + thirdParameterType.getName());
+    }
+
+    private static Method findStaticMethod(Class<?> owner, Class<?>... parameterTypes) {
+        for (Method method : owner.getMethods()) {
+            if (!Modifier.isStatic(method.getModifiers())
+                || !matchesParameters(method.getParameterTypes(), parameterTypes)) {
+                continue;
+            }
+            return method;
+        }
+        return null;
+    }
+
+    private static Method findInstanceMethod(Class<?> owner, Class<?>... parameterTypes) {
+        for (Method method : owner.getMethods()) {
+            if (Modifier.isStatic(method.getModifiers())
+                || !matchesParameters(method.getParameterTypes(), parameterTypes)) {
+                continue;
+            }
+            return method;
+        }
+        return null;
+    }
+
+    private static boolean matchesParameters(Class<?>[] actualTypes, Class<?>[] expectedTypes) {
+        if (actualTypes.length != expectedTypes.length) {
+            return false;
+        }
+
+        for (int index = 0; index < actualTypes.length; index++) {
+            if (actualTypes[index] != expectedTypes[index]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static RuntimeException rethrow(String message, InvocationTargetException exception) {
