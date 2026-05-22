@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -47,8 +48,9 @@ abstract class ShareToLanScreenMixin extends Screen {
         if (!this.safra$p2pInitialized) {
             ForgeLanSessionState.loadFromConfig();
         }
-        if (this.minecraft != null && this.minecraft.getSingleplayerServer() != null) {
-            ForgeLanSessionState.initializeGameRules(this.minecraft);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.getSingleplayerServer() != null) {
+            ForgeLanSessionState.initializeGameRules(minecraft);
         }
 
         EditBox portEdit = this.safra$portEdit();
@@ -74,7 +76,7 @@ abstract class ShareToLanScreenMixin extends Screen {
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
             Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                    this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
+                    Minecraft.getInstance().setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
                 .bounds(this.width / 2 + 2, 180, 98, 20)
                 .build()
         );

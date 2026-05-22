@@ -3,6 +3,7 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.screens.DirectJoinServerScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
@@ -18,6 +19,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 @Mixin(DirectJoinServerScreen.class)
 abstract class DirectJoinServerScreenMixin extends Screen {
@@ -47,6 +50,10 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
             this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            if (!storedAddress && !this.safra$p2pEnabled) {
+                this.safra$p2pEnabled = true;
+                SafraClientConfig.get().setDirectConnectP2pEnabled(true);
+            }
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
@@ -141,12 +148,54 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private Button safra$findSecondaryButton(Button primaryButton) {
         Button candidate = null;
-        for (GuiEventListener element : this.children()) {
+        for (GuiEventListener element : this.safra$children()) {
             if (element instanceof Button button && button != primaryButton) {
                 candidate = button;
             }
         }
         return candidate;
+    }
+
+    @Unique
+    private Iterable<GuiEventListener> safra$children() {
+        Object resolvedChildren = safra$call(this, new Class<?>[0], new Object[0], "children", "m_7222_");
+        if (resolvedChildren instanceof Iterable<?> iterable) {
+            List<GuiEventListener> listeners = new ArrayList<>();
+            for (Object element : iterable) {
+                if (element instanceof GuiEventListener listener) {
+                    listeners.add(listener);
+                }
+            }
+            return listeners;
+        }
+
+        if ((Object) this instanceof ContainerEventHandler container) {
+            return new ArrayList<>(container.children());
+        }
+
+        for (Field field : this.getClass().getDeclaredFields()) {
+            if (!Iterable.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                Object value = field.get(this);
+                if (value instanceof Iterable<?> iterable) {
+                    List<GuiEventListener> listeners = new ArrayList<>();
+                    for (Object element : iterable) {
+                        if (element instanceof GuiEventListener listener) {
+                            listeners.add(listener);
+                        }
+                    }
+                    if (!listeners.isEmpty()) {
+                        return listeners;
+                    }
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+
+        return List.of();
     }
 
     @Unique
