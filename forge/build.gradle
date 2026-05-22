@@ -24,7 +24,7 @@ def rootRunClientRequested = gradle.startParameter.taskNames.any {
 def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
 def forgeSupportOnly = rootRunClientRequested && runningFromRootDir
 
-def targetJavaVersion = 21
+def targetJavaVersion = rootProject.ext.java_target_version as int
 def sourceMixinMappingsFile = layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
 
 java {

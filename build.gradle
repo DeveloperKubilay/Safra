@@ -92,6 +92,7 @@ selectedMcProfile.each { key, value ->
 }
 ext.set('selected_mc_profile', requestedMcProfile)
 ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
+ext.set('java_target_version', requestedMcProfile == '1.20.5-1.20.6' ? 21 : 17)
 layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
 
 group = project.maven_group
@@ -131,6 +132,7 @@ subprojects {
             'selected_mc_profile',
             'release_minecraft_line',
             'build_directory_suffix',
+            'java_target_version',
             'minecraft_version',
             'minecraft_dependency',
             'fabric_minecraft_version',
