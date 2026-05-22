@@ -14,6 +14,10 @@ import org.developerkubilay.safra.client.p2p.P2pManager;
 
 @Mod.EventBusSubscriber(modid = SafraForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class SafraForgeClientEvents {
+    private static final String[] CLIENT_SHUTDOWN_EVENT_CLASS_NAMES = {
+        "net.minecraftforge.event.GameShuttingDownEvent"
+    };
+
     private static final String[] CLIENT_STOPPING_EVENT_CLASS_NAMES = {
         "net.minecraftforge.client.event.ClientPlayerNetworkEvent$LoggedOutEvent",
         "net.minecraftforge.client.event.ClientPlayerNetworkEvent$LoggingOut"
@@ -21,7 +25,9 @@ public final class SafraForgeClientEvents {
 
     static {
         RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
-        registerClientStoppingListener();
+        if (!registerClientShutdownListener()) {
+            registerClientStoppingListener();
+        }
     }
 
     private SafraForgeClientEvents() {
@@ -37,6 +43,21 @@ public final class SafraForgeClientEvents {
 
     public static void clientStopping(Object event) {
         P2pManager.getInstance().shutdown();
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static boolean registerClientShutdownListener() {
+        for (String className : CLIENT_SHUTDOWN_EVENT_CLASS_NAMES) {
+            try {
+                Class<?> eventClass = Class.forName(className);
+                MinecraftForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, (Class) eventClass, SafraForgeClientEvents::clientStopping);
+                return true;
+            } catch (ClassNotFoundException ignored) {
+                // Fall back to older disconnect events when game shutdown event is unavailable.
+            }
+        }
+
+        return false;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

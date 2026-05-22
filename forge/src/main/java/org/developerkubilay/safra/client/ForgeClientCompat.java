@@ -3,6 +3,7 @@ package org.developerkubilay.safra.client;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Method;
 
 public final class ForgeClientCompat {
@@ -11,8 +12,10 @@ public final class ForgeClientCompat {
 
     public static Component translatable(String key, Object... args) {
         try {
-            Method factoryMethod = Component.class.getMethod("translatable", String.class, Object[].class);
-            return (Component) factoryMethod.invoke(null, key, args);
+            Method factoryMethod = findStaticFactoryMethod(String.class, Object[].class);
+            if (factoryMethod != null) {
+                return (Component) factoryMethod.invoke(null, key, args);
+            }
         } catch (ReflectiveOperationException ignored) {
         }
 
@@ -27,8 +30,10 @@ public final class ForgeClientCompat {
 
     public static Component literal(String value) {
         try {
-            Method factoryMethod = Component.class.getMethod("literal", String.class);
-            return (Component) factoryMethod.invoke(null, value);
+            Method factoryMethod = findStaticFactoryMethod(String.class);
+            if (factoryMethod != null) {
+                return (Component) factoryMethod.invoke(null, value);
+            }
         } catch (ReflectiveOperationException ignored) {
         }
 
@@ -39,5 +44,32 @@ public final class ForgeClientCompat {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Compatible literal component olusturulamadi", exception);
         }
+    }
+
+    private static Method findStaticFactoryMethod(Class<?>... parameterTypes) {
+        for (Method method : Component.class.getMethods()) {
+            if (!Modifier.isStatic(method.getModifiers())
+                || !Component.class.isAssignableFrom(method.getReturnType())) {
+                continue;
+            }
+            if (matchesParameters(method.getParameterTypes(), parameterTypes)) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private static boolean matchesParameters(Class<?>[] actualTypes, Class<?>[] expectedTypes) {
+        if (actualTypes.length != expectedTypes.length) {
+            return false;
+        }
+
+        for (int index = 0; index < actualTypes.length; index++) {
+            if (actualTypes[index] != expectedTypes[index]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
