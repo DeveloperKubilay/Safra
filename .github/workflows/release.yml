@@ -104,6 +104,8 @@ jobs:
           esac
 
           echo "SAFRA_MINECRAFT_VERSION=$minecraft_target" >> "$GITHUB_ENV"
+          echo "SAFRA_BUILD_DIRECTORY_SUFFIX=$minecraft_target" >> "$GITHUB_ENV"
+          echo "SAFRA_ARTIFACT_DIR=build/$minecraft_target/root/libs" >> "$GITHUB_ENV"
           echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
           echo "SAFRA_TAG=Safra-$minecraft_target-$version_number" >> "$GITHUB_ENV"
           echo "SAFRA_BASE_MINECRAFT_VERSION=$base_minecraft_version" >> "$GITHUB_ENV"
@@ -128,6 +130,7 @@ jobs:
 
           path = Path("gradle.properties")
           values = {
+              "default_mc_profile": "${{ env.SAFRA_MINECRAFT_VERSION }}",
               "base_minecraft_version": "${{ env.SAFRA_BASE_MINECRAFT_VERSION }}",
               "fabric_minecraft_version": "${{ env.SAFRA_FABRIC_MINECRAFT_VERSION }}",
               "fabric_mod_minecraft_version": "${{ env.SAFRA_FABRIC_MOD_MINECRAFT_VERSION }}",
@@ -174,23 +177,26 @@ jobs:
         shell: bash
         run: |
           ./gradlew clean build --stacktrace \
+            -Pmc_profile="${{ env.SAFRA_MINECRAFT_VERSION }}" \
             -Pmod_version="${{ env.SAFRA_VERSION }}"
 
       - name: Verify effective Gradle release version
         shell: bash
         run: |
           ./gradlew properties --no-daemon --console=plain \
+            -Pmc_profile="${{ env.SAFRA_MINECRAFT_VERSION }}" \
             -Pmod_version="${{ env.SAFRA_VERSION }}" | \
-            grep -E "^(version:|minecraft_version:|base_minecraft_version:|fabric_minecraft_version:|fabric_mod_minecraft_version:|yarn_mappings:|loader_version:|fabric_version:|forge_version:|forge_version_range:|forge_loader_version_range:)"
+            grep -E "^(version:|selected_mc_profile:|build_directory_suffix:|minecraft_version:|base_minecraft_version:|fabric_minecraft_version:|fabric_mod_minecraft_version:|yarn_mappings:|loader_version:|fabric_version:|forge_version:|forge_version_range:|forge_loader_version_range:)"
 
       - name: Verify artifact names match selected Minecraft target
         shell: bash
         run: |
           expected_suffix="-${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}.jar"
+          artifact_dir="${{ env.SAFRA_ARTIFACT_DIR }}"
           shopt -s nullglob
-          jars=(build/libs/*.jar)
+          jars=("$artifact_dir"/*.jar)
           if [ "${#jars[@]}" -eq 0 ]; then
-            echo "No jars found in build/libs"
+            echo "No jars found in $artifact_dir"
             exit 1
           fi
 
@@ -240,7 +246,7 @@ jobs:
             prerelease_flag="--prerelease"
           fi
 
-          gh release create "${{ env.SAFRA_TAG }}" build/libs/* \
+          gh release create "${{ env.SAFRA_TAG }}" "${{ env.SAFRA_ARTIFACT_DIR }}"/* \
             --target "${GITHUB_SHA}" \
             --title "Safra ${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}" \
             --notes-file release-notes.md \
