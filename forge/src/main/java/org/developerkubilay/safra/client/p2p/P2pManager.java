@@ -119,9 +119,9 @@ public final class P2pManager {
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         ServerData snapshot = new ServerData(
-            originalServerInfo.name,
-            originalServerInfo.ip,
-            originalServerInfo.isLan()
+            originalServerInfo.serverName,
+            originalServerInfo.serverIP,
+            originalServerInfo.isOnLAN()
         );
         snapshot.copyFrom(originalServerInfo);
 
@@ -152,7 +152,7 @@ public final class P2pManager {
 
     private RewriteResult createRewrite(ServerData originalServerInfo, long generation) throws IOException {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.ip);
+        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.serverIP);
 
         P2pClientProxy[] proxyRef = new P2pClientProxy[1];
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
@@ -197,13 +197,13 @@ public final class P2pManager {
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerData rewritten = new ServerData(
-            originalServerInfo.name,
+            originalServerInfo.serverName,
             localAddress,
-            originalServerInfo.isLan()
+            originalServerInfo.isOnLAN()
         );
         rewritten.copyFrom(originalServerInfo);
-        rewritten.ip = localAddress;
-        return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
+        rewritten.serverIP = localAddress;
+        return new RewriteResult(ServerAddress.fromString(rewritten.serverIP), rewritten);
     }
 
     public synchronized void shutdown() {
@@ -217,13 +217,13 @@ public final class P2pManager {
             return;
         }
 
-        IntegratedServer server = client.getSingleplayerServer();
+        IntegratedServer server = client.getIntegratedServer();
         if (server == null) {
             stopHosting();
             return;
         }
 
-        int currentPort = server.getPort();
+        int currentPort = server.getServerPort();
         if (currentPort != service.tcpPort()) {
             LOGGER.info("Safra P2P host service stopping because LAN port changed from {} to {}", service.tcpPort(), currentPort);
             stopHosting();

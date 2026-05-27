@@ -1,6 +1,6 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "示例：ABC123",
+  "safra.p2p.placeholder": "输入 Safra 代码",
   "safra.p2p.prepare_failed": "无法准备 Safra P2P 代理：%s",
   "safra.p2p.button.on": "P2P：开",
   "safra.p2p.button.off": "P2P：关",
@@ -19,7 +19,11 @@
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.online_mode.short.off": "在线：关",
-  "safra.p2p.server_settings.reset": "重置服务器设置",
+  "safra.p2p.game_rules.reset": "重置游戏规则",
+  "safra.p2p.fixed_code.on": "使用固定代码：开",
+  "safra.p2p.fixed_code.off": "使用固定代码：关",
+  "safra.p2p.fixed_code.refresh": "刷新固定代码",
+  "safra.p2p.server_settings.reset": "重置游戏规则",
   "safra.p2p.online_mode.short.on": "在线：开",
   "safra.p2p.server_settings.short": "设置"
 }

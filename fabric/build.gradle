@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.14.4'
+    id 'fabric-loom' version '0.12-SNAPSHOT'
     id 'maven-publish'
 }
 
@@ -16,7 +16,13 @@ base {
     archivesName = "${project.archives_base_name}-fabric"
 }
 
+configurations {
+    embed
+    implementation.extendsFrom(embed)
+}
+
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 loom {
     mods {
@@ -27,6 +33,10 @@ loom {
 
     runs {
         client {
+            property 'safra.p2p.diagnostics', 'true'
+            if (forceTurn) {
+                property 'safra.p2p.forceTurn', 'true'
+            }
             programArg '--username'
             programArg devUsername
         }
@@ -39,7 +49,9 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    implementation "org.slf4j:slf4j-api:1.7.36"
+    embed("org.slf4j:slf4j-api:1.7.36") {
+        transitive = false
+    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
@@ -47,6 +59,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'loader_version', project.loader_version
+    inputs.property 'loader_name', 'fabric'
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
@@ -62,8 +75,16 @@ processResources {
             mod_description: project.mod_description
         )
     }
-}
 
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'fabric',
+            loader_version: project.loader_version
+        )
+    }
+}
 def targetJavaVersion = 17
 
 tasks.withType(JavaCompile).configureEach {
@@ -78,6 +99,9 @@ java {
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
@@ -85,6 +109,13 @@ jar {
 
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('classes') {
+    def syncDevResourcesTask = tasks.findByName('syncDevResources')
+    if (syncDevResourcesTask != null) {
+        dependsOn(syncDevResourcesTask)
+    }
 }
 
 publishing {

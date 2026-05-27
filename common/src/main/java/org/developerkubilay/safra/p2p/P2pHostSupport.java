@@ -20,7 +20,16 @@ public final class P2pHostSupport {
     }
 
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
-        P2pHostService service = new P2pHostService(tcpPort, createShareToken(), resolveTargetAddress(serverIp, logger));
+        return startDedicatedHost(tcpPort, serverIp, null, logger);
+    }
+
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+        P2pHostService service = new P2pHostService(
+            tcpPort,
+            createShareToken(),
+            resolveTargetAddress(serverIp, logger),
+            preferredRendezvousCode
+        );
         try {
             return new HostStartResult(service, service.start());
         } catch (IOException exception) {

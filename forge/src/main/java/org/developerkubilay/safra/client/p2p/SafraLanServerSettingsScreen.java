@@ -62,7 +62,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     public void onClose() {
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.displayGuiScreen(this.parent);
         }
     }
 

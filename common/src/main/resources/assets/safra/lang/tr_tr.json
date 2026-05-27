@@ -1,6 +1,6 @@
-﻿{
+{
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "Ornek: ABC123",
+  "safra.p2p.placeholder": "Safra kodunu gir",
   "safra.p2p.prepare_failed": "Safra P2P ara proxy'si hazirlanamadi: %s",
   "safra.p2p.button.on": "P2P: Acik",
   "safra.p2p.button.off": "P2P: Kapali",
@@ -16,10 +16,14 @@
   "safra.p2p.prepare_message": "Safra P2P baglantisi hazirlaniyor...",
   "safra.p2p.server_settings": "Sunucu Ayarlari",
   "safra.p2p.game_rules": "Oyun Kurallari",
+  "safra.p2p.game_rules.reset": "Oyun Kurallarini Sifirla",
   "safra.p2p.allow_commands.on": "Hileler: Acik",
   "safra.p2p.allow_commands.off": "Hileler: Kapali",
+  "safra.p2p.fixed_code.on": "Sabit Bir Kod Kullan: Acik",
+  "safra.p2p.fixed_code.off": "Sabit Bir Kod Kullan: Kapali",
+  "safra.p2p.fixed_code.refresh": "Sabit Kodu Yenile",
   "safra.p2p.online_mode.short.off": "Online: Kapali",
-  "safra.p2p.server_settings.reset": "Sunucu Ayarlarini Sifirla",
+  "safra.p2p.server_settings.reset": "Oyun Kurallarini Sifirla",
   "safra.p2p.online_mode.short.on": "Online: Acik",
   "safra.p2p.server_settings.short": "Ayarlar"
 }

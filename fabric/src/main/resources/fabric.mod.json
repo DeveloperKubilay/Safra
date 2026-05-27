@@ -1,4 +1,4 @@
-﻿{
+{
   "schemaVersion": 1,
   "id": "safra",
   "version": "${version}",
@@ -33,7 +33,7 @@
   "depends": {
     "java": ">=17",
     "fabricloader": ">=${loader_version}",
-    "fabric-api": "*",
+    "fabric": "*",
     "minecraft": "${minecraft_version}"
   }
 }

@@ -1,8 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[7.0.23,8.0)'
-    id 'net.minecraftforge.renamer' version '1.0.14'
+    id 'net.minecraftforge.gradle' version '5.1.+'
 }
 
 sourceSets {
@@ -16,9 +15,14 @@ base {
     archivesName = "${project.archives_base_name}-forge"
 }
 
-def devUsername = rootProject.ext.devRunUsername(project)
-
 def targetJavaVersion = 17
+def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+
+configurations {
+    embed
+    implementation.extendsFrom(embed)
+}
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
@@ -29,59 +33,69 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-renamer.enableMixinRefmaps {
-    config "${project.mod_id}.forge.mixins.json"
-}
-
-renamer.classes(tasks.named('jar', Jar)) {
-    archiveClassifier = 'srg'
-    mappings renamer.mixin.generatedMappings
-}
-
 minecraft {
-    mappings channel: 'official', version: project.minecraft_version
+    mappings channel: 'snapshot', version: '20200119-1.14.4'
 
     runs {
-        configureEach {
-            workingDir.convention layout.projectDirectory.dir('run')
-            args "--mixin.config=${project.mod_id}.forge.mixins.json"
+        client {
+            property 'safra.p2p.diagnostics', 'true'
+            workingDirectory project.file('run')
+            arg '--username'
+            arg devUsername
+            arg "-mixin.config=${project.mod_id}.forge.mixins.json"
+            property 'io.netty.transport.noNative', 'true'
+            property 'java.net.preferIPv4Stack', 'false'
+
+            mods {
+                "${project.mod_id}" {
+                    source sourceSets.main
+                }
+            }
         }
 
-        register('client') {
-            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-            systemProperty 'io.netty.transport.noNative', 'true'
-            systemProperty 'java.net.preferIPv4Stack', 'false'
-            args '--username', devUsername
-        }
+        server {
+            workingDirectory project.file('run')
+            arg 'nogui'
+            arg "-mixin.config=${project.mod_id}.forge.mixins.json"
 
-        register('server') {
-            args '--nogui'
+            mods {
+                "${project.mod_id}" {
+                    source sourceSets.main
+                }
+            }
         }
     }
 }
 
 repositories {
-    minecraft.mavenizer(it)
-    maven fg.forgeMaven
-    maven fg.minecraftLibsMaven
     mavenCentral()
+    maven {
+        name = 'Forge'
+        url = 'https://maven.minecraftforge.net/'
+    }
+    maven {
+        name = 'Minecraft Libraries'
+        url = 'https://libraries.minecraft.net/'
+    }
 }
 
 dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
-    implementation "org.slf4j:slf4j-api:1.7.36"
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+    embed('org.slf4j:slf4j-api:1.7.36') {
+        transitive = false
+    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
-renamer.mappings(minecraft.dependency.toSrg)
-
 processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
     inputs.property 'forge_loader_version_range', project.forge_loader_version_range
+    inputs.property 'forge_version', project.forge_version
     inputs.property 'forge_version_range', project.forge_version_range
+    inputs.property 'loader_name', 'forge'
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -102,10 +116,22 @@ processResources {
             mod_description: project.mod_description
         )
     }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
+        )
+    }
 }
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }

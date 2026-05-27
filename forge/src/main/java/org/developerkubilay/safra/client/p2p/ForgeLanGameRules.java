@@ -27,10 +27,10 @@ public final class ForgeLanGameRules {
 
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
-        GameRules.visitGameRuleTypes(new GameRules.IRuleEntryVisitor() {
+        GameRules.func_223590_a(new GameRules.IRuleEntryVisitor() {
             @Override
-            public <T extends GameRules.RuleValue<T>> void visit(GameRules.RuleKey<T> key, GameRules.RuleType<T> type) {
-                values.put(key.getId(), rules.getRule(key).toString());
+            public <T extends GameRules.RuleValue<T>> void func_223481_a(GameRules.RuleKey<T> key, GameRules.RuleType<T> type) {
+                values.put(key.func_223576_a(), rules.get(key).toString());
             }
         });
         return values;
@@ -40,7 +40,7 @@ public final class ForgeLanGameRules {
         if (snapshot.isEmpty()) {
             return;
         }
-        for (ServerWorld world : server.getAllLevels()) {
+        for (ServerWorld world : server.getWorlds()) {
             apply(world.getGameRules(), snapshot);
         }
     }
@@ -50,6 +50,6 @@ public final class ForgeLanGameRules {
         for (Map.Entry<String, String> entry : snapshot.entrySet()) {
             tag.putString(entry.getKey(), entry.getValue());
         }
-        rules.loadFromTag(tag);
+        rules.read(tag);
     }
 }
