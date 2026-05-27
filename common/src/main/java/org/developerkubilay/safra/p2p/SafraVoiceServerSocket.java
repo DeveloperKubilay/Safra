@@ -2,6 +2,7 @@ package org.developerkubilay.safra.p2p;
 
 import de.maxhenkel.voicechat.api.RawUdpPacket;
 import de.maxhenkel.voicechat.api.VoicechatSocket;
+import org.developerkubilay.safra.util.Java8Compat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         SafraVoiceTransportManager manager = SafraVoiceTransportManager.getInstance();
         SafraRendezvousClient.HostSession session = manager.hostSession();
         String code = manager.hostCode();
-        if (session == null || code == null || code.isBlank()) {
+        if (session == null || Java8Compat.isBlank(code)) {
             publishedCode = null;
             stunMappings.clear();
             return;
@@ -133,7 +134,6 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         while (true) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             currentSocket.receive(packet);
-            // STUN replies share the same UDP socket; swallow them before they confuse Simple Voice Chat.
             if (handleStunPacket(packet)) {
                 continue;
             }
@@ -203,7 +203,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         try {
             return createSocket(port, address);
         } catch (BindException exception) {
-            if (address == null || bindAddress == null || bindAddress.isBlank()) {
+            if (address == null || Java8Compat.isBlank(bindAddress)) {
                 throw exception;
             }
 
@@ -213,7 +213,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
     }
 
     private static InetAddress parseBindAddress(String bindAddress) throws UnknownHostException {
-        if (bindAddress == null || bindAddress.isBlank()) {
+        if (Java8Compat.isBlank(bindAddress)) {
             return null;
         }
         return InetAddress.getByName(bindAddress);

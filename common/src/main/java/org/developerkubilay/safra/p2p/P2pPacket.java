@@ -1,15 +1,25 @@
 package org.developerkubilay.safra.p2p;
 
+import org.developerkubilay.safra.util.Java8Compat;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 final class P2pPacket {
+    private final Type type;
+    private final int token;
+    private final int connectionId;
+    private final int sequence;
+    private final int acknowledgement;
+    private final byte[] payload;
+
     enum Type {
         OPEN(1),
         OPEN_ACK(2),
         DATA(3),
         ACK(4),
-        CLOSE(5);
+        CLOSE(5),
+        NACK(6);
 
         private final int id;
 
@@ -27,14 +37,7 @@ final class P2pPacket {
         }
     }
 
-    private final Type type;
-    private final int token;
-    private final int connectionId;
-    private final int sequence;
-    private final int acknowledgement;
-    private final byte[] payload;
-
-    private P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+    P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
         this.type = type;
         this.token = token;
         this.connectionId = connectionId;
@@ -56,35 +59,27 @@ final class P2pPacket {
     }
 
     static P2pPacket ack(int token, int connectionId, int acknowledgement) {
-        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, new byte[0]);
+        return ack(token, connectionId, acknowledgement, 0);
+    }
+
+    static P2pPacket ack(int token, int connectionId, int acknowledgement, int acknowledgementMask) {
+        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, controlPayload(acknowledgementMask));
+    }
+
+    static P2pPacket nack(int token, int connectionId, int missingSequence, int acknowledgement, int acknowledgementMask) {
+        return new P2pPacket(Type.NACK, token, connectionId, missingSequence, acknowledgement, controlPayload(acknowledgementMask));
     }
 
     static P2pPacket close(int token, int connectionId) {
         return new P2pPacket(Type.CLOSE, token, connectionId, 0, 0, new byte[0]);
     }
 
-    Type type() {
-        return type;
-    }
+    int acknowledgementMask() {
+        if ((type != Type.ACK && type != Type.NACK) || payload.length < Integer.BYTES) {
+            return 0;
+        }
 
-    int token() {
-        return token;
-    }
-
-    int connectionId() {
-        return connectionId;
-    }
-
-    int sequence() {
-        return sequence;
-    }
-
-    int acknowledgement() {
-        return acknowledgement;
-    }
-
-    byte[] payload() {
-        return payload;
+        return ByteBuffer.wrap(payload, 0, Integer.BYTES).getInt();
     }
 
     byte[] encode() {
@@ -110,7 +105,7 @@ final class P2pPacket {
             return null;
         }
 
-        Type type = Type.fromId(byteBuffer.get() & 0xFF);
+        Type type = Type.fromId(Java8Compat.unsignedByteToInt(byteBuffer.get()));
         if (type == null) {
             return null;
         }
@@ -121,5 +116,39 @@ final class P2pPacket {
         int acknowledgement = byteBuffer.getInt();
         byte[] payload = Arrays.copyOfRange(buffer, P2pConstants.HEADER_SIZE, length);
         return new P2pPacket(type, token, connectionId, sequence, acknowledgement, payload);
+    }
+
+    private static byte[] controlPayload(int acknowledgementMask) {
+        if (acknowledgementMask == 0) {
+            return new byte[0];
+        }
+
+        return ByteBuffer.allocate(Integer.BYTES)
+            .putInt(acknowledgementMask)
+            .array();
+    }
+
+    Type type() {
+        return type;
+    }
+
+    int token() {
+        return token;
+    }
+
+    int connectionId() {
+        return connectionId;
+    }
+
+    int sequence() {
+        return sequence;
+    }
+
+    int acknowledgement() {
+        return acknowledgement;
+    }
+
+    byte[] payload() {
+        return payload;
     }
 }

@@ -5,11 +5,11 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiShareToLan;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.server.integrated.IntegratedServer;
-import net.minecraft.util.text.Style;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.world.GameType;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.ChatStyle;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.world.WorldSettings;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 
 import java.io.IOException;
@@ -35,13 +35,17 @@ public final class SafraGuiShareToLan extends GuiScreen {
         ForgeLanSessionState.initializeGameRules(this.mc);
         this.allowCommands = ForgeLanSessionState.isAllowCommandsEnabled();
         this.buttonList.clear();
-        this.gameModeButton = this.addButton(new GuiButton(0, this.width / 2 - 155, this.height - 112, 150, 20, getGameModeText()));
-        this.commandsButton = this.addButton(new GuiButton(1, this.width / 2 + 5, this.height - 112, 150, 20, getAllowCommandsText()));
-        this.p2pButton = this.addButton(new GuiButton(2, this.width / 2 - 155, this.height - 88, 150, 20, getP2pText()));
-        this.onlineModeButton = this.addButton(new GuiButton(3, this.width / 2 + 5, this.height - 88, 150, 20, getOnlineModeText()));
-        this.addButton(new GuiButton(4, this.width / 2 - 155, this.height - 52, 150, 20, I18n.format("selectServer.open")));
-        this.addButton(new GuiButton(5, this.width / 2 + 5, this.height - 52, 150, 20, I18n.format("gui.cancel")));
-        this.addButton(new GuiButton(6, this.width / 2 - 100, this.height - 28, 200, 20, I18n.format("safra.p2p.server_settings.short")));
+        this.gameModeButton = new GuiButton(0, this.width / 2 - 155, this.height - 112, 150, 20, getGameModeText());
+        this.commandsButton = new GuiButton(1, this.width / 2 + 5, this.height - 112, 150, 20, getAllowCommandsText());
+        this.p2pButton = new GuiButton(2, this.width / 2 - 155, this.height - 88, 150, 20, getP2pText());
+        this.onlineModeButton = new GuiButton(3, this.width / 2 + 5, this.height - 88, 150, 20, getOnlineModeText());
+        this.buttonList.add(this.gameModeButton);
+        this.buttonList.add(this.commandsButton);
+        this.buttonList.add(this.p2pButton);
+        this.buttonList.add(this.onlineModeButton);
+        this.buttonList.add(new GuiButton(4, this.width / 2 - 155, this.height - 52, 150, 20, I18n.format("selectServer.open")));
+        this.buttonList.add(new GuiButton(5, this.width / 2 + 5, this.height - 52, 150, 20, I18n.format("gui.cancel")));
+        this.buttonList.add(new GuiButton(6, this.width / 2 - 100, this.height - 28, 200, 20, I18n.format("safra.p2p.server_settings.short")));
     }
 
     @Override
@@ -83,8 +87,7 @@ public final class SafraGuiShareToLan extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
-        this.drawCenteredString(this.fontRenderer, I18n.format("lanServer.title"), this.width / 2, 50, 0xFFFFFF);
-        this.drawCenteredString(this.fontRenderer, I18n.format("safra.p2p.open_hint"), this.width / 2, 82, 0xA0A0A0);
+        this.drawCenteredString(this.fontRendererObj, I18n.format("lanServer.title"), this.width / 2, 50, 0xFFFFFF);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -95,19 +98,15 @@ public final class SafraGuiShareToLan extends GuiScreen {
         }
 
         server.setOnlineMode(ForgeLanSessionState.isOnlineModeEnabled());
-        if (ForgeLanSessionState.isP2pEnabled()) {
-            server.setPreventProxyConnections(false);
-        }
-
         String port = server.shareToLAN(resolveGameType(), this.allowCommands);
         if (port == null) {
-            this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("commands.publish.failed"));
+            this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("commands.publish.failed"));
             this.mc.displayGuiScreen(null);
             return;
         }
 
         ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("commands.publish.started", port));
+        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("commands.publish.started", port));
         this.mc.displayGuiScreen(null);
 
         if (!ForgeLanSessionState.isP2pEnabled()) {
@@ -116,7 +115,7 @@ public final class SafraGuiShareToLan extends GuiScreen {
         }
 
         final int tcpPort = server.getServerPort();
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("safra.p2p.host.starting"));
+        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.starting"));
         P2pManager.getInstance().startHostingAsync(tcpPort).whenComplete((shareCode, throwable) -> mc.addScheduledTask(new Runnable() {
             @Override
             public void run() {
@@ -126,7 +125,7 @@ public final class SafraGuiShareToLan extends GuiScreen {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("safra.p2p.host.failed", message).setStyle(new Style().setColor(TextFormatting.RED)));
+                    mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.failed", message).setChatStyle(new ChatStyle().setColor(EnumChatFormatting.RED)));
                     return;
                 }
                 publishShareCode(shareCode);
@@ -137,11 +136,11 @@ public final class SafraGuiShareToLan extends GuiScreen {
     private void publishShareCode(P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
         GuiScreen.setClipboardString(shareCodeText);
-        TextComponentString display = new TextComponentString(shareCodeText);
-        display.setStyle(new Style().setColor(TextFormatting.AQUA).setUnderlined(true));
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("safra.p2p.host.started", display));
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("safra.p2p.host.copied"));
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("safra.p2p.host.instructions"));
+        ChatComponentText display = new ChatComponentText(shareCodeText);
+        display.setChatStyle(new ChatStyle().setColor(EnumChatFormatting.AQUA).setUnderlined(true));
+        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.started", display));
+        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.copied"));
+        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.instructions"));
     }
 
     private void cycleGameMode() {
@@ -156,9 +155,9 @@ public final class SafraGuiShareToLan extends GuiScreen {
         }
     }
 
-    private GameType resolveGameType() {
-        GameType type = GameType.parseGameTypeWithDefault(gameMode, GameType.SURVIVAL);
-        return type == null ? GameType.SURVIVAL : type;
+    private WorldSettings.GameType resolveGameType() {
+        WorldSettings.GameType type = WorldSettings.GameType.getByName(gameMode);
+        return type == null ? WorldSettings.GameType.SURVIVAL : type;
     }
 
     private String getGameModeText() {

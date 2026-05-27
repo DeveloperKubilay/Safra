@@ -6,7 +6,6 @@
   "safra.p2p.button.off": "P2P：关",
   "safra.p2p.online_mode.on": "联机模式：开",
   "safra.p2p.online_mode.off": "联机模式：关",
-  "safra.p2p.open_hint": "启用后，Safra P2P 会让 LAN 世界继续通过 UDP 可访问。",
   "safra.p2p.host.starting": "Safra P2P 正在后台准备分享代码...",
   "safra.p2p.host.started": "Safra P2P 分享代码：%s",
   "safra.p2p.host.copied": "分享代码已复制到剪贴板。点击聊天中的代码可再次复制。",
@@ -20,7 +19,11 @@
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.online_mode.short.off": "在线：关",
-  "safra.p2p.server_settings.reset": "重置服务器设置",
+  "safra.p2p.game_rules.reset": "重置游戏规则",
+  "safra.p2p.fixed_code.on": "使用固定代码：开",
+  "safra.p2p.fixed_code.off": "使用固定代码：关",
+  "safra.p2p.fixed_code.refresh": "刷新固定代码",
+  "safra.p2p.server_settings.reset": "重置游戏规则",
   "safra.p2p.online_mode.short.on": "在线：开",
   "safra.p2p.server_settings.short": "设置"
 }

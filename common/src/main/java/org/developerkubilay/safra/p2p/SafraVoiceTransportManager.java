@@ -1,9 +1,10 @@
 package org.developerkubilay.safra.p2p;
 
-import java.net.InetSocketAddress;
-
 public final class SafraVoiceTransportManager {
     private static final SafraVoiceTransportManager INSTANCE = new SafraVoiceTransportManager();
+
+    private volatile SafraRendezvousClient.HostSession hostSession;
+    private volatile SafraRendezvousClient.JoinSession joinSession;
 
     private SafraVoiceTransportManager() {
     }
@@ -12,18 +13,34 @@ public final class SafraVoiceTransportManager {
         return INSTANCE;
     }
 
-    public void setHostSession(SafraRendezvousClient.HostSession session) {
+    public synchronized void setHostSession(SafraRendezvousClient.HostSession session) {
+        hostSession = session;
     }
 
-    public void clearHostSession(SafraRendezvousClient.HostSession session) {
+    public synchronized void clearHostSession(SafraRendezvousClient.HostSession session) {
+        if (hostSession == session) {
+            hostSession = null;
+        }
     }
 
-    public void setJoinSession(SafraRendezvousClient.JoinSession session) {
+    public synchronized void setJoinSession(SafraRendezvousClient.JoinSession session) {
+        joinSession = session;
     }
 
-    public void clearJoinSession(SafraRendezvousClient.JoinSession session) {
+    public synchronized void clearJoinSession(SafraRendezvousClient.JoinSession session) {
+        if (joinSession == session) {
+            joinSession = null;
+        }
     }
 
-    public void punchHostVoiceEndpoint(InetSocketAddress remoteAddress) {
+    public SafraRendezvousClient.JoinSession joinSession() {
+        return joinSession;
+    }
+
+    public boolean hasJoinSession() {
+        return joinSession != null;
+    }
+
+    public void punchHostVoiceEndpoint(java.net.InetSocketAddress remoteAddress) {
     }
 }

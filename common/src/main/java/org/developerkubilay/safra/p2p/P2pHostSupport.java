@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.ThreadLocalRandom;
+import org.developerkubilay.safra.util.Java8Compat;
 
 public final class P2pHostSupport {
     private P2pHostSupport() {
@@ -20,7 +21,16 @@ public final class P2pHostSupport {
     }
 
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
-        P2pHostService service = new P2pHostService(tcpPort, createShareToken(), resolveTargetAddress(serverIp, logger));
+        return startDedicatedHost(tcpPort, serverIp, null, logger);
+    }
+
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+        P2pHostService service = new P2pHostService(
+            tcpPort,
+            createShareToken(),
+            resolveTargetAddress(serverIp, logger),
+            preferredRendezvousCode
+        );
         try {
             return new HostStartResult(service, service.start());
         } catch (IOException exception) {
@@ -30,7 +40,7 @@ public final class P2pHostSupport {
     }
 
     private static InetAddress resolveTargetAddress(String serverIp, Logger logger) {
-        if (P2pCompat.isBlank(serverIp) || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
+        if (Java8Compat.isBlank(serverIp) || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
             return InetAddress.getLoopbackAddress();
         }
 

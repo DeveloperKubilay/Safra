@@ -13,10 +13,10 @@ public final class ForgeLanGameRules {
     }
 
     public static Map<String, String> createDefaultSnapshot(Minecraft client) {
-        if (client == null || client.world == null) {
+        if (client == null || client.theWorld == null) {
             return new LinkedHashMap<String, String>();
         }
-        return serialize(client.world.getGameRules());
+        return serialize(client.theWorld.getGameRules());
     }
 
     public static Map<String, String> serialize(GameRules rules) {
@@ -31,10 +31,10 @@ public final class ForgeLanGameRules {
     }
 
     public static void applyToServer(MinecraftServer server, Map<String, String> snapshot) {
-        if (server == null || snapshot == null || snapshot.isEmpty() || server.worlds == null) {
+        if (server == null || snapshot == null || snapshot.isEmpty() || server.worldServers == null) {
             return;
         }
-        for (WorldServer world : server.worlds) {
+        for (WorldServer world : server.worldServers) {
             if (world == null) {
                 continue;
             }

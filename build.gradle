@@ -1,21 +1,32 @@
-plugins {
-    id 'java'
-    id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '5.1.+'
+import groovy.json.JsonSlurper
+
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven {
+            name = 'Forge'
+            url = 'https://files.minecraftforge.net/maven'
+        }
+        maven {
+            name = 'SpongePowered'
+            url = 'https://repo.spongepowered.org/maven'
+        }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-SNAPSHOT'
+    }
 }
+
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+apply plugin: 'net.minecraftforge.gradle.forge'
 
 group = project.maven_group
 version = "${project.minecraft_version}-${project.mod_version}"
+archivesBaseName = project.archives_base_name
 
-base {
-    archivesName = project.archives_base_name
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withSourcesJar()
-}
+sourceCompatibility = targetCompatibility = '1.8'
 
 sourceSets {
     main {
@@ -26,7 +37,8 @@ sourceSets {
             ]
             exclude 'org/developerkubilay/safra/mixin/**'
             exclude 'org/developerkubilay/safra/voicechat/**'
-            exclude 'org/developerkubilay/safra/p2p/SafraVoice*.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoiceClientSocket.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoiceServerSocket.java'
             exclude 'org/developerkubilay/safra/p2p/SafraPassthroughVoiceClientSocket.java'
             exclude 'org/developerkubilay/safra/p2p/SafraRawUdpPacket.java'
         }
@@ -43,20 +55,14 @@ sourceSets {
 
 configurations {
     embed
-    implementation.extendsFrom(embed)
+    compile.extendsFrom(embed)
 }
 
 minecraft {
-    mappings channel: project.mcp_mappings_channel, version: "${project.mcp_mappings_version}-1.12"
-    runs {
-        client {
-            workingDirectory project.file('run')
-            args '--username', 'SafraDev'
-        }
-        server {
-            workingDirectory project.file('run')
-        }
-    }
+    version = "${project.minecraft_version}-${project.forge_version}"
+    mappings = "${project.mcp_mappings_channel}_${project.mcp_mappings_version}"
+    runDir = 'run'
+    clientJvmArgs += ['-Dsafra.p2p.diagnostics=true']
 }
 
 repositories {
@@ -64,7 +70,6 @@ repositories {
 }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
     embed("org.java-websocket:Java-WebSocket:${project.java_websocket_version}") {
         transitive = false
     }
@@ -73,11 +78,47 @@ dependencies {
     }
 }
 
+def generatedLegacyLangDir = file("$buildDir/generated/resources/legacyLang")
+
+String escapeLegacyLangValue(String value) {
+    return value
+        .replace('\\', '\\\\')
+        .replace('\r', '')
+        .replace('\n', '\\n')
+}
+
+task generateLegacyLang {
+    inputs.files(fileTree('common/src/main/resources/assets/safra/lang') {
+        include '*.json'
+    })
+    outputs.dir(generatedLegacyLangDir)
+
+    doLast {
+        delete(generatedLegacyLangDir)
+
+        fileTree('common/src/main/resources/assets/safra/lang').matching {
+            include '*.json'
+        }.files.sort { it.name }.each { File jsonFile ->
+            Map<String, Object> entries = new JsonSlurper().parse(jsonFile) as Map<String, Object>
+            File langFile = new File(generatedLegacyLangDir, "assets/safra/lang/${jsonFile.name.replace('.json', '.lang')}")
+            langFile.parentFile.mkdirs()
+            String content = entries.collect { String key, Object value ->
+                "${key}=${escapeLegacyLangValue(String.valueOf(value))}"
+            }.join(System.lineSeparator()) + System.lineSeparator()
+            langFile.setText(content, 'UTF-8')
+        }
+    }
+}
+
 processResources {
+    dependsOn generateLegacyLang
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'minecraft_version', project.minecraft_version
+
+    from(generatedLegacyLangDir)
 
     filesMatching(['mcmod.info', 'pack.mcmeta']) {
         expand(
@@ -86,6 +127,15 @@ processResources {
             mod_version: project.mod_version,
             mod_description: project.mod_description,
             minecraft_version: project.minecraft_version
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
         )
     }
 }
@@ -103,16 +153,24 @@ jar {
     }
 }
 
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourcesJar
+}
+
 publishing {
     publications {
-        create('mavenJava', MavenPublication) {
-            from components.java
+        mavenJava(MavenPublication) {
+            artifact jar
+            artifact sourcesJar
         }
     }
 }
 
-tasks.withType(JavaExec).configureEach {
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(8)
-    })
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
 }

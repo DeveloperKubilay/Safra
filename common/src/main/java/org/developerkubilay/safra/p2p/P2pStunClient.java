@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.developerkubilay.safra.util.Java8Compat;
 
 final class P2pStunClient {
     private static final int DISCOVERY_TIMEOUT_MS = 2_500;
@@ -195,8 +196,8 @@ final class P2pStunClient {
             return null;
         }
         ByteBuffer buffer = ByteBuffer.wrap(payload);
-        int messageType = Short.toUnsignedInt(buffer.getShort());
-        int messageLength = Short.toUnsignedInt(buffer.getShort());
+        int messageType = Java8Compat.unsignedShortToInt(buffer.getShort());
+        int messageLength = Java8Compat.unsignedShortToInt(buffer.getShort());
         int magicCookie = buffer.getInt();
         if (messageType != BINDING_SUCCESS_RESPONSE || magicCookie != MAGIC_COOKIE || messageLength > buffer.remaining()) {
             return null;
@@ -212,8 +213,8 @@ final class P2pStunClient {
             return null;
         }
         ByteBuffer buffer = ByteBuffer.wrap(payload);
-        int messageType = Short.toUnsignedInt(buffer.getShort());
-        int messageLength = Short.toUnsignedInt(buffer.getShort());
+        int messageType = Java8Compat.unsignedShortToInt(buffer.getShort());
+        int messageLength = Java8Compat.unsignedShortToInt(buffer.getShort());
         int magicCookie = buffer.getInt();
         if (messageType != BINDING_SUCCESS_RESPONSE || magicCookie != MAGIC_COOKIE || messageLength > buffer.remaining()) {
             return null;
@@ -230,8 +231,8 @@ final class P2pStunClient {
 
     private DiscoveredEndpoint readAttributes(ByteBuffer buffer, byte[] transactionId) {
         while (buffer.remaining() >= 4) {
-            int type = Short.toUnsignedInt(buffer.getShort());
-            int length = Short.toUnsignedInt(buffer.getShort());
+            int type = Java8Compat.unsignedShortToInt(buffer.getShort());
+            int length = Java8Compat.unsignedShortToInt(buffer.getShort());
             if (length > buffer.remaining()) {
                 return null;
             }
@@ -257,8 +258,8 @@ final class P2pStunClient {
 
         int attributeStart = buffer.position();
         buffer.get();
-        int family = Byte.toUnsignedInt(buffer.get());
-        int port = Short.toUnsignedInt(buffer.getShort());
+        int family = Java8Compat.unsignedByteToInt(buffer.get());
+        int port = Java8Compat.unsignedShortToInt(buffer.getShort());
         if (xor) {
             port ^= MAGIC_COOKIE >>> 16;
         }
@@ -363,14 +364,6 @@ final class P2pStunClient {
             this.stunServer = stunServer;
         }
 
-        InetSocketAddress publicAddress() {
-            return publicAddress;
-        }
-
-        InetSocketAddress stunServer() {
-            return stunServer;
-        }
-
         DiscoveredEndpoint withServer(InetSocketAddress server) {
             return new DiscoveredEndpoint(publicAddress, server);
         }
@@ -380,15 +373,22 @@ final class P2pStunClient {
         }
 
         boolean matches(SocketAddress remote) {
-            if (!(remote instanceof InetSocketAddress)) {
+            if (!(remote instanceof InetSocketAddress) || stunServer == null) {
                 return false;
             }
             InetSocketAddress socketAddress = (InetSocketAddress) remote;
-            return stunServer != null
-                && socketAddress.getAddress() != null
+            return socketAddress.getAddress() != null
                 && stunServer.getAddress() != null
                 && socketAddress.getAddress().equals(stunServer.getAddress())
                 && socketAddress.getPort() == stunServer.getPort();
+        }
+
+        InetSocketAddress publicAddress() {
+            return publicAddress;
+        }
+
+        InetSocketAddress stunServer() {
+            return stunServer;
         }
     }
 
@@ -401,24 +401,23 @@ final class P2pStunClient {
             this.transactionId = transactionId;
         }
 
+        boolean matches(SocketAddress remote) {
+            if (!(remote instanceof InetSocketAddress) || server == null) {
+                return false;
+            }
+            InetSocketAddress socketAddress = (InetSocketAddress) remote;
+            return socketAddress.getAddress() != null
+                && server.getAddress() != null
+                && socketAddress.getAddress().equals(server.getAddress())
+                && socketAddress.getPort() == server.getPort();
+        }
+
         InetSocketAddress server() {
             return server;
         }
 
         byte[] transactionId() {
             return transactionId;
-        }
-
-        boolean matches(SocketAddress remote) {
-            if (!(remote instanceof InetSocketAddress)) {
-                return false;
-            }
-            InetSocketAddress socketAddress = (InetSocketAddress) remote;
-            return server != null
-                && socketAddress.getAddress() != null
-                && server.getAddress() != null
-                && socketAddress.getAddress().equals(server.getAddress())
-                && socketAddress.getPort() == server.getPort();
         }
     }
 }

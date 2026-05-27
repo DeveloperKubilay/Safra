@@ -52,14 +52,14 @@ public class SafraGuiMultiplayer extends GuiMultiplayer {
             return false;
         }
 
-        ServerData snapshot = new ServerData(selected.serverName, selected.serverIP, selected.isOnLAN());
+        ServerData snapshot = new ServerData(selected.serverName, selected.serverIP, selected.field_78841_f);
         snapshot.copyFrom(selected);
         try {
             P2pManager.RewriteResult rewriteResult = P2pManager.getInstance().createRewrite(snapshot);
             this.mc.displayGuiScreen(new GuiConnecting(this, this.mc, rewriteResult.serverInfo()));
             return true;
         } catch (IOException exception) {
-            this.mc.displayGuiScreen(new net.minecraft.client.gui.GuiDisconnected(this, "connect.failed", new net.minecraft.util.text.TextComponentString(exception.getMessage())));
+            this.mc.displayGuiScreen(new net.minecraft.client.gui.GuiDisconnected(this, "connect.failed", new net.minecraft.util.ChatComponentText(exception.getMessage())));
             return true;
         }
     }

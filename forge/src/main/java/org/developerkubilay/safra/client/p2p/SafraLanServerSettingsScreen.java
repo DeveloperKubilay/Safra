@@ -17,10 +17,11 @@ public final class SafraLanServerSettingsScreen extends GuiScreen {
     @Override
     public void initGui() {
         this.buttonList.clear();
-        this.allowCommandsButton = this.addButton(new GuiButton(0, this.width / 2 - 100, this.height / 4 + 24, 200, 20, getAllowCommandsText()));
-        this.addButton(new GuiButton(1, this.width / 2 - 100, this.height / 4 + 48, 200, 20, I18n.format("safra.p2p.server_settings.reset")));
-        this.addButton(new GuiButton(2, this.width / 2 - 100, this.height / 4 + 96, 98, 20, I18n.format("gui.done")));
-        this.addButton(new GuiButton(3, this.width / 2 + 2, this.height / 4 + 96, 98, 20, I18n.format("gui.back")));
+        this.allowCommandsButton = new GuiButton(0, this.width / 2 - 100, this.height / 4 + 24, 200, 20, getAllowCommandsText());
+        this.buttonList.add(this.allowCommandsButton);
+        this.buttonList.add(new GuiButton(1, this.width / 2 - 100, this.height / 4 + 48, 200, 20, I18n.format("safra.p2p.server_settings.reset")));
+        this.buttonList.add(new GuiButton(2, this.width / 2 - 100, this.height / 4 + 96, 98, 20, I18n.format("gui.done")));
+        this.buttonList.add(new GuiButton(3, this.width / 2 + 2, this.height / 4 + 96, 98, 20, I18n.format("gui.back")));
     }
 
     @Override
@@ -41,8 +42,7 @@ public final class SafraLanServerSettingsScreen extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
-        this.drawCenteredString(this.fontRenderer, I18n.format("safra.p2p.server_settings"), this.width / 2, this.height / 4, 0xFFFFFF);
-        this.drawCenteredString(this.fontRenderer, I18n.format("safra.p2p.open_hint"), this.width / 2, this.height / 4 + 72, 0xA0A0A0);
+        this.drawCenteredString(this.fontRendererObj, I18n.format("safra.p2p.server_settings"), this.width / 2, this.height / 4, 0xFFFFFF);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 

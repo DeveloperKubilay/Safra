@@ -17,6 +17,7 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 def targetJavaVersion = 17
 
@@ -48,6 +49,10 @@ minecraft {
         }
 
         register('client') {
+            systemProperty 'safra.p2p.diagnostics', 'true'
+            if (forceTurn) {
+                systemProperty 'safra.p2p.forceTurn', 'true'
+            }
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'io.netty.transport.noNative', 'true'
             systemProperty 'java.net.preferIPv4Stack', 'false'
@@ -79,7 +84,9 @@ processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
     inputs.property 'forge_loader_version_range', project.forge_loader_version_range
+    inputs.property 'forge_version', project.forge_version
     inputs.property 'forge_version_range', project.forge_version_range
+    inputs.property 'loader_name', 'forge'
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -98,6 +105,15 @@ processResources {
             mod_license: project.mod_license,
             mod_version: project.mod_version,
             mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
         )
     }
 }

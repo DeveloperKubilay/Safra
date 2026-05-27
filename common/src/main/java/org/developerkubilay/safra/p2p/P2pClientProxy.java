@@ -1,11 +1,12 @@
 package org.developerkubilay.safra.p2p;
 
+import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
+import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -25,7 +26,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final Runnable onClose;
 
-    private DatagramSocket udpSocket;
+    private P2pDatagramTransport transport;
     private ServerSocket proxyServer;
     private InetSocketAddress remoteAddress;
     private SafraRendezvousClient.JoinSession rendezvousSession;
@@ -38,10 +39,16 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     public int start() throws IOException {
-        udpSocket = P2pSockets.datagramSocket();
         if (shareCode.isRendezvous()) {
             resolveRendezvousShareCode();
+            if (P2pOptionalIntegrations.isVoiceChatAvailable()) {
+                SafraVoiceTransportManager.getInstance().setJoinSession(rendezvousSession);
+            } else {
+                LOGGER.debug("Safra voicechat modu yok; join rendezvous websocket'i eslesme sonrasi kapatiliyor");
+                discardRendezvousSession();
+            }
         } else {
+            transport = new P2pDirectDatagramTransport(P2pSockets.datagramSocket());
             InetAddress remoteInetAddress = InetAddress.getByName(shareCode.host());
             remoteAddress = new InetSocketAddress(remoteInetAddress, shareCode.port());
             tunnelToken = shareCode.token();
@@ -71,39 +78,64 @@ public final class P2pClientProxy implements AutoCloseable {
             } catch (IOException ignored) {
             }
         }
-        if (udpSocket != null && !udpSocket.isClosed()) {
-            udpSocket.close();
-        }
         if (rendezvousSession != null) {
+            SafraVoiceTransportManager.getInstance().clearJoinSession(rendezvousSession);
             rendezvousSession.close();
             rendezvousSession = null;
+        }
+        if (transport != null && !transport.isClosed()) {
+            transport.close();
         }
         LOGGER.debug("Safra P2P client proxy closed for {}", remoteAddress);
         onClose.run();
     }
 
     private void resolveRendezvousShareCode() throws IOException {
-        Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = stunClient.discoverCandidates(udpSocket);
-        if (discoveredEndpoints.isEmpty()) {
-            throw new IOException("STUN ile joiner genel UDP ucu bulunamadi");
+        P2pTransportBinding binding = P2pUdpBindingFactory.createBestJoinBinding(LOGGER, stunClient);
+        try {
+            resolveRendezvousShareCode(binding);
+            transport = binding.transport();
+        } catch (IOException exception) {
+            if (!binding.relay() && P2pConstants.turnEnabled()) {
+                LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
+                binding.close();
+                discardRendezvousSession();
+                P2pTransportBinding turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
+                try {
+                    resolveRendezvousShareCode(turnBinding);
+                    transport = turnBinding.transport();
+                    return;
+                } catch (IOException turnException) {
+                    turnBinding.close();
+                    discardRendezvousSession();
+                    throw turnException;
+                }
+            }
+            binding.close();
+            discardRendezvousSession();
+            throw exception;
         }
+    }
 
-        rendezvousSession = SafraRendezvousClient.join(
-            shareCode.rendezvousCode(),
-            P2pStunClient.publicEndpoints(discoveredEndpoints)
-        );
+    private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
+        rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
         remoteAddress = rendezvousSession.hostAddress();
         tunnelToken = rendezvousSession.tunnelToken();
         if (tunnelToken == 0) {
             throw new IOException("Rendezvous sunucusu gecersiz tunel token'i dondurdu");
         }
-        P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = discoveredEndpoints.get(P2pSockets.addressFamily(remoteAddress));
-        if (matchingLocalEndpoint == null) {
-            throw new IOException("Host ve joiner farkli IP ailesi kullaniyor ("
-                + discoveredEndpoints.keySet() + " / "
-                + P2pSockets.addressFamily(remoteAddress) + ")");
+
+        if (!binding.relay()) {
+            P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = binding.stunEndpoints().get(P2pSockets.addressFamily(remoteAddress));
+            if (matchingLocalEndpoint == null) {
+                throw new IOException("Host ve joiner farkli IP ailesi kullaniyor ("
+                    + binding.stunEndpoints().keySet() + " / "
+                    + P2pSockets.addressFamily(remoteAddress) + ")");
+            }
         }
-        if (samePublicIp(matchingLocalEndpoint.publicAddress(), remoteAddress)) {
+
+        InetSocketAddress localEndpoint = firstPublishedEndpoint(binding.publicEndpoints());
+        if (samePublicIp(localEndpoint, remoteAddress)) {
             LOGGER.debug("Safra P2P host and joiner resolved to the same public IP {}; attempting NAT hairpin/self-connect path", remoteAddress.getAddress());
         }
         LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
@@ -153,7 +185,7 @@ public final class P2pClientProxy implements AutoCloseable {
         while (!closed) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
-                udpSocket.receive(packet);
+                transport.receive(packet);
             } catch (IOException exception) {
                 if (!closed) {
                     LOGGER.debug("Client UDP receive failed: {}", exception.toString());
@@ -185,17 +217,36 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
-        if (closed || udpSocket == null || udpSocket.isClosed()) {
+        if (closed || transport == null || transport.isClosed()) {
             return;
         }
 
         byte[] encoded = packet.encode();
-        synchronized (udpSocket) {
-            try {
-                udpSocket.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
-            } catch (IOException exception) {
-                LOGGER.debug("Client UDP send failed: {}", exception.toString());
+        try {
+            transport.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
+        } catch (IOException exception) {
+            LOGGER.debug("Client UDP send failed: {}", exception.toString());
+        }
+    }
+
+    private InetSocketAddress firstPublishedEndpoint(Iterable<InetSocketAddress> endpoints) {
+        if (endpoints == null) {
+            return null;
+        }
+
+        for (InetSocketAddress endpoint : endpoints) {
+            if (endpoint != null) {
+                return endpoint;
             }
         }
+        return null;
+    }
+
+    private void discardRendezvousSession() {
+        if (rendezvousSession == null) {
+            return;
+        }
+        rendezvousSession.close();
+        rendezvousSession = null;
     }
 }

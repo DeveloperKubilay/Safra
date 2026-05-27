@@ -2,6 +2,9 @@ package org.developerkubilay.safra.client.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.P2pShareCode;
+import org.developerkubilay.safra.util.Java8Compat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +23,12 @@ public abstract class BaseSafraClientConfig {
     protected boolean openToLanP2pEnabled = true;
     protected boolean openToLanOnlineModeEnabled = false;
     protected boolean openToLanAllowCommandsEnabled = false;
+    protected boolean openToLanFixedCodeEnabled = false;
+    protected String openToLanFixedCode = "";
     protected Map<String, String> openToLanGameRules = new LinkedHashMap<>();
     protected boolean directConnectP2pEnabled = true;
+    protected String rendezvousUrl = "";
+    protected String siteApiVersion = "1.0";
 
     protected abstract Path configPath();
 
@@ -58,6 +65,30 @@ public abstract class BaseSafraClientConfig {
         }
     }
 
+    public synchronized String getRendezvousUrl() {
+        return rendezvousUrl;
+    }
+
+    public synchronized void setRendezvousUrl(String rendezvousUrl) {
+        String normalized = normalizeRendezvousUrl(rendezvousUrl);
+        if (!this.rendezvousUrl.equals(normalized)) {
+            this.rendezvousUrl = normalized;
+            save();
+        }
+    }
+
+    public synchronized String getSiteApiVersion() {
+        return siteApiVersion;
+    }
+
+    public synchronized void setSiteApiVersion(String siteApiVersion) {
+        String normalized = normalizeSiteApiVersion(siteApiVersion);
+        if (!this.siteApiVersion.equals(normalized)) {
+            this.siteApiVersion = normalized;
+            save();
+        }
+    }
+
     public synchronized boolean isOpenToLanAllowCommandsEnabled() {
         return openToLanAllowCommandsEnabled;
     }
@@ -67,6 +98,41 @@ public abstract class BaseSafraClientConfig {
             this.openToLanAllowCommandsEnabled = openToLanAllowCommandsEnabled;
             save();
         }
+    }
+
+    public synchronized boolean isOpenToLanFixedCodeEnabled() {
+        return openToLanFixedCodeEnabled;
+    }
+
+    public synchronized void setOpenToLanFixedCodeEnabled(boolean openToLanFixedCodeEnabled) {
+        if (this.openToLanFixedCodeEnabled != openToLanFixedCodeEnabled) {
+            this.openToLanFixedCodeEnabled = openToLanFixedCodeEnabled;
+            save();
+        }
+    }
+
+    public synchronized String getOpenToLanFixedCode() {
+        return openToLanFixedCode;
+    }
+
+    public synchronized void setOpenToLanFixedCode(String openToLanFixedCode) {
+        String normalized = normalizeOpenToLanFixedCode(openToLanFixedCode);
+        if (!this.openToLanFixedCode.equals(normalized)) {
+            this.openToLanFixedCode = normalized;
+            save();
+        }
+    }
+
+    public synchronized String ensureOpenToLanFixedCode() {
+        String normalized = normalizeOpenToLanFixedCode(openToLanFixedCode);
+        if (Java8Compat.isBlank(normalized)) {
+            normalized = P2pShareCode.createRendezvousCode(P2pShareCode.FIXED_RENDEZVOUS_CODE_LENGTH);
+        }
+        if (!normalized.equals(openToLanFixedCode)) {
+            openToLanFixedCode = normalized;
+            save();
+        }
+        return openToLanFixedCode;
     }
 
     public synchronized Map<String, String> getOpenToLanGameRules() {
@@ -127,10 +193,42 @@ public abstract class BaseSafraClientConfig {
     }
 
     final boolean normalize() {
+        boolean changed = false;
         if (openToLanGameRules == null) {
             openToLanGameRules = new LinkedHashMap<>();
-            return true;
+            changed = true;
         }
-        return false;
+        String normalizedFixedCode = normalizeOpenToLanFixedCode(openToLanFixedCode);
+        if (!normalizedFixedCode.equals(openToLanFixedCode)) {
+            openToLanFixedCode = normalizedFixedCode;
+            changed = true;
+        }
+        String normalizedRendezvousUrl = normalizeRendezvousUrl(rendezvousUrl);
+        if (!normalizedRendezvousUrl.equals(rendezvousUrl)) {
+            rendezvousUrl = normalizedRendezvousUrl;
+            changed = true;
+        }
+
+        String normalizedSiteApiVersion = normalizeSiteApiVersion(siteApiVersion);
+        if (!normalizedSiteApiVersion.equals(siteApiVersion)) {
+            siteApiVersion = normalizedSiteApiVersion;
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static String normalizeRendezvousUrl(String rendezvousUrl) {
+        return P2pConstants.isValidRendezvousUrl(rendezvousUrl) ? rendezvousUrl.trim() : "";
+    }
+
+    private static String normalizeSiteApiVersion(String siteApiVersion) {
+        return Java8Compat.isBlank(siteApiVersion)
+            ? "1.0"
+            : siteApiVersion.trim();
+    }
+
+    private static String normalizeOpenToLanFixedCode(String openToLanFixedCode) {
+        String normalized = P2pShareCode.normalizeRendezvousCode(openToLanFixedCode);
+        return normalized == null ? "" : normalized;
     }
 }
