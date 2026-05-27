@@ -1,0 +1,48 @@
+plugins {
+    id 'java-library'
+}
+
+base {
+    archivesName = "${project.archives_base_name}-common"
+}
+
+def targetJavaVersion = 17
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+dependencies {
+    compileOnly 'com.google.code.gson:gson:2.11.0'
+    compileOnly 'com.google.guava:guava:33.4.8-jre'
+    compileOnly 'org.slf4j:slf4j-api:2.0.16'
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+}
+
+processResources {
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'loader_name', 'common'
+    inputs.property 'loader_version', 'unknown'
+    filteringCharset = 'UTF-8'
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'common',
+            loader_version: 'unknown'
+        )
+    }
+}
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}

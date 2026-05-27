@@ -1,0 +1,168 @@
+import groovy.json.JsonSlurper
+
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+group = project.maven_group
+version = "${project.minecraft_version}-${project.mod_version}"
+archivesBaseName = project.archives_base_name
+
+sourceCompatibility = targetCompatibility = '1.8'
+
+sourceSets {
+    main {
+        java {
+            srcDirs = [
+                'common/src/main/java',
+                'forge/src/main/java'
+            ]
+            exclude 'org/developerkubilay/safra/mixin/**'
+            exclude 'org/developerkubilay/safra/voicechat/**'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoiceClientSocket.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoiceServerSocket.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraPassthroughVoiceClientSocket.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraRawUdpPacket.java'
+        }
+        resources {
+            srcDirs = [
+                'common/src/main/resources',
+                'forge/src/main/resources'
+            ]
+            exclude 'safra.forge.mixins.json'
+            exclude 'META-INF/mods.toml'
+        }
+    }
+}
+
+configurations {
+    embed
+    compile.extendsFrom(embed)
+}
+
+minecraft {
+    version = "${project.minecraft_version}-${project.forge_version}"
+    runDir = 'run'
+    mappings = "${project.mcp_mappings_channel}_${project.mcp_mappings_version}"
+    clientJvmArgs += ['-Dsafra.p2p.diagnostics=true']
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    embed("org.java-websocket:Java-WebSocket:${project.java_websocket_version}") {
+        transitive = false
+    }
+    embed("org.slf4j:slf4j-api:1.7.25") {
+        transitive = false
+    }
+}
+
+def generatedLegacyLangDir = file("$buildDir/generated/resources/legacyLang")
+
+String escapeLegacyLangValue(String value) {
+    return value
+        .replace('\\', '\\\\')
+        .replace('\r', '')
+        .replace('\n', '\\n')
+}
+
+task generateLegacyLang {
+    inputs.files(fileTree('common/src/main/resources/assets/safra/lang') {
+        include '*.json'
+    })
+    outputs.dir(generatedLegacyLangDir)
+
+    doLast {
+        project.delete(generatedLegacyLangDir)
+
+        fileTree('common/src/main/resources/assets/safra/lang').matching {
+            include '*.json'
+        }.files.sort { it.name }.each { File jsonFile ->
+            Map entries = new JsonSlurper().parse(jsonFile) as Map
+            File langFile = new File(generatedLegacyLangDir, "assets/safra/lang/${jsonFile.name.replace('.json', '.lang')}")
+            langFile.parentFile.mkdirs()
+            String content = entries.collect { key, value ->
+                "${key}=${escapeLegacyLangValue(String.valueOf(value))}"
+            }.join(System.lineSeparator()) + System.lineSeparator()
+            langFile.setText(content, 'UTF-8')
+        }
+    }
+}
+
+processResources {
+    dependsOn generateLegacyLang
+    inputs.property 'mod_id', project.mod_id
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'mod_description', project.mod_description
+    inputs.property 'minecraft_version', project.minecraft_version
+
+    from(generatedLegacyLangDir)
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand(
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_version: project.mod_version,
+            mod_description: project.mod_description,
+            minecraft_version: project.minecraft_version
+        )
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+
+    filesMatching('pack.mcmeta') {
+        expand(
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_version: project.mod_version,
+            mod_description: project.mod_description,
+            minecraft_version: project.minecraft_version
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
+        )
+    }
+}
+
+jar {
+    from {
+        configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    manifest {
+        attributes(
+            'Implementation-Title': project.mod_name,
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
