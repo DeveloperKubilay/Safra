@@ -15,7 +15,13 @@ base {
     archivesName = "${project.archives_base_name}-forge"
 }
 
+configurations {
+    embed
+    implementation.extendsFrom(embed)
+}
+
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 def targetJavaVersion = 17
 
@@ -30,6 +36,22 @@ tasks.withType(JavaCompile).configureEach {
 
 minecraft {
     mappings channel: 'snapshot', version: '20210309-1.16.5'
+
+    runs {
+        client {
+            property 'safra.p2p.diagnostics', 'true'
+            workingDirectory project.file('run')
+            arg '--username'
+            arg devUsername
+            arg '-mixin.config=safra.forge.mixins.json'
+
+            mods {
+                "${project.mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
 }
 
 repositories {
@@ -46,7 +68,9 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
-    compileOnly 'org.slf4j:slf4j-api:1.7.36'
+    embed('org.slf4j:slf4j-api:1.7.36') {
+        transitive = false
+    }
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -55,7 +79,9 @@ processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
     inputs.property 'forge_loader_version_range', project.forge_loader_version_range
+    inputs.property 'forge_version', project.forge_version
     inputs.property 'forge_version_range', project.forge_version_range
+    inputs.property 'loader_name', 'forge'
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -76,10 +102,22 @@ processResources {
             mod_description: project.mod_description
         )
     }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
+        )
+    }
 }
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }

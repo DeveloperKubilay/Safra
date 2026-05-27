@@ -133,7 +133,6 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         while (true) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             currentSocket.receive(packet);
-            // STUN replies share the same UDP socket; swallow them before they confuse Simple Voice Chat.
             if (handleStunPacket(packet)) {
                 continue;
             }

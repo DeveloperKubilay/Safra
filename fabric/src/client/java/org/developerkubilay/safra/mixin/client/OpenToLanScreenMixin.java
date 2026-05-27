@@ -3,8 +3,6 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
@@ -101,7 +99,8 @@ abstract class OpenToLanScreenMixin extends Screen {
     }
 
     @Inject(method = "method_19851", at = @At("HEAD"))
-    private void safra$applyOnlineMode(IntegratedServer server, ButtonWidget button, CallbackInfo ci) {
+    private void safra$applyOnlineMode(ButtonWidget button, CallbackInfo ci) {
+        IntegratedServer server = this.client == null ? null : this.client.getServer();
         if (server != null) {
             this.allowCommands = FabricLanSessionState.isAllowCommandsEnabled();
             server.setOnlineMode(this.safra$onlineModeEnabled);
@@ -117,7 +116,8 @@ abstract class OpenToLanScreenMixin extends Screen {
     }
 
     @Inject(method = "method_19851", at = @At("TAIL"))
-    private void safra$startP2pHost(IntegratedServer server, ButtonWidget button, CallbackInfo ci) {
+    private void safra$startP2pHost(ButtonWidget button, CallbackInfo ci) {
+        IntegratedServer server = this.client == null ? null : this.client.getServer();
         if (server == null) {
             return;
         }
@@ -149,11 +149,6 @@ abstract class OpenToLanScreenMixin extends Screen {
                 safra$publishShareCode(tcpPort, shareCode);
             });
         });
-    }
-
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$renderHint(MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        drawCenteredText(matrices, this.textRenderer, new TranslatableText("safra.p2p.open_hint"), this.width / 2, 232, 0xA0A0A0);
     }
 
     @Unique

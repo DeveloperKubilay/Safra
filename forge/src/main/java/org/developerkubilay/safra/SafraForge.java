@@ -7,6 +7,10 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 public final class SafraForge {
     public static final String MOD_ID = "safra";
 
+    public SafraForge() {
+        this(FMLJavaModLoadingContext.get());
+    }
+
     public SafraForge(FMLJavaModLoadingContext context) {
     }
 }

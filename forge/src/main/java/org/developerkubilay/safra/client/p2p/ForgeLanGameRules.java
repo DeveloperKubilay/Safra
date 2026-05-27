@@ -2,9 +2,9 @@ package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.client.server.IntegratedServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.world.GameRules;
+import net.minecraft.world.server.ServerWorld;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,12 +14,12 @@ public final class ForgeLanGameRules {
     }
 
     public static GameRules createEditableGameRules(Minecraft client, Map<String, String> snapshot) {
-        IntegratedServer server = client.getSingleplayerServer();
-        if (server == null || client.level == null) {
+        IntegratedServer server = client.getIntegratedServer();
+        if (server == null) {
             throw new IllegalStateException("Integrated server is not available");
         }
 
-        GameRules copy = server.overworld().getGameRules().copy();
+        GameRules copy = server.func_241755_D_().getGameRules().clone();
         if (!snapshot.isEmpty()) {
             apply(copy, snapshot, null);
         }
@@ -27,18 +27,19 @@ public final class ForgeLanGameRules {
     }
 
     public static Map<String, String> createDefaultSnapshot(Minecraft client) {
-        if (client.level == null) {
-            throw new IllegalStateException("Client level is not available");
+        IntegratedServer server = client.getIntegratedServer();
+        if (server == null) {
+            throw new IllegalStateException("Integrated server is not available");
         }
-        return serialize(new GameRules());
+        return serialize(server.func_241755_D_().getGameRules());
     }
 
     public static Map<String, String> serialize(GameRules rules) {
         Map<String, String> values = new LinkedHashMap<>();
-        GameRules.visitGameRuleTypes(new GameRules.GameRuleTypeVisitor() {
+        GameRules.visitAll(new GameRules.IRuleEntryVisitor() {
             @Override
-            public <T extends GameRules.Value<T>> void visit(GameRules.Key<T> key, GameRules.Type<T> type) {
-                values.put(key.getId(), rules.getRule(key).serialize());
+            public <T extends GameRules.RuleValue<T>> void visit(GameRules.RuleKey<T> key, GameRules.RuleType<T> type) {
+                values.put(key.getName(), rules.get(key).stringValue());
             }
         });
         return values;
@@ -48,26 +49,26 @@ public final class ForgeLanGameRules {
         if (snapshot.isEmpty()) {
             return;
         }
-        for (ServerLevel level : server.getAllLevels()) {
+        for (ServerWorld level : server.getWorlds()) {
             apply(level.getGameRules(), snapshot, server);
         }
     }
 
     private static void apply(GameRules rules, Map<String, String> snapshot, MinecraftServer server) {
-        GameRules.visitGameRuleTypes(new GameRules.GameRuleTypeVisitor() {
+        GameRules.visitAll(new GameRules.IRuleEntryVisitor() {
             @Override
-            public <T extends GameRules.Value<T>> void visit(GameRules.Key<T> key, GameRules.Type<T> type) {
-                String serializedValue = snapshot.get(key.getId());
+            public <T extends GameRules.RuleValue<T>> void visit(GameRules.RuleKey<T> key, GameRules.RuleType<T> type) {
+                String serializedValue = snapshot.get(key.getName());
                 if (serializedValue == null) {
                     return;
                 }
 
-                GameRules.Value<?> rule = rules.getRule(key);
+                GameRules.RuleValue<?> rule = rules.get(key);
                 if (rule instanceof GameRules.BooleanValue booleanRule) {
                     booleanRule.set(Boolean.parseBoolean(serializedValue), server);
                 } else if (rule instanceof GameRules.IntegerValue intRule) {
                     try {
-                        intRule.set(Integer.parseInt(serializedValue), server);
+                        intRule.parseIntValue(serializedValue);
                     } catch (NumberFormatException ignored) {
                     }
                 }

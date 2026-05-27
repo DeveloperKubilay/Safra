@@ -6,7 +6,6 @@
   "safra.p2p.button.off": "P2P : DÉSACTIVÉ",
   "safra.p2p.online_mode.on": "Mode en ligne : ACTIVÉ",
   "safra.p2p.online_mode.off": "Mode en ligne : DÉSACTIVÉ",
-  "safra.p2p.open_hint": "Lorsqu'il est activé, Safra P2P maintient le monde LAN accessible via UDP.",
   "safra.p2p.host.starting": "Safra P2P prépare le code de partage en arrière-plan...",
   "safra.p2p.host.started": "Code de partage Safra P2P : %s",
   "safra.p2p.host.copied": "Code copié dans le presse-papiers. Cliquez à nouveau sur le code dans le chat pour le recopier.",
@@ -20,7 +19,11 @@
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.online_mode.short.off": "Online : NON",
-  "safra.p2p.server_settings.reset": "Reinitialiser les parametres du serveur",
+  "safra.p2p.game_rules.reset": "Reinitialiser les regles du jeu",
+  "safra.p2p.fixed_code.on": "Utiliser un code fixe : Active",
+  "safra.p2p.fixed_code.off": "Utiliser un code fixe : Desactive",
+  "safra.p2p.fixed_code.refresh": "Renouveler le code fixe",
+  "safra.p2p.server_settings.reset": "Reinitialiser les regles du jeu",
   "safra.p2p.online_mode.short.on": "Online : OUI",
   "safra.p2p.server_settings.short": "Parametres"
 }

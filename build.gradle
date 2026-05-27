@@ -22,11 +22,14 @@ ext.devRunUsername = { Project targetProject ->
     return "Player${base + offset}"
 }
 
+ext.devBooleanProperty = { String name ->
+    def value = gradle.startParameter.projectProperties[name]
+    return value != null && Boolean.parseBoolean(value)
+}
 allprojects {
     group = rootProject.group
     version = rootProject.version
 }
-
 subprojects {
     repositories {
         mavenCentral()
@@ -59,6 +62,30 @@ tasks.register('collectBuildLibs', Copy) {
 
     doFirst {
         delete(layout.buildDirectory.dir('libs').get().asFile)
+    }
+    doLast {
+        def launcherForgeProject = findProject(':forge')
+        if (launcherForgeProject == null) {
+            return
+        }
+
+        def rootLibsDir = layout.buildDirectory.dir('libs').get().asFile
+        def rootForgeJar = new File(rootLibsDir, "${project.archives_base_name}-forge-${project.version}.jar")
+        def forgeDevJar = launcherForgeProject.layout.buildDirectory.file("libs/${project.archives_base_name}-forge-${project.version}-dev.jar").get().asFile
+
+        if (!forgeDevJar.isFile()) {
+            return
+        }
+
+        if (rootForgeJar.exists() && !rootForgeJar.delete()) {
+            throw new GradleException("Could not replace root Forge jar: ${rootForgeJar}")
+        }
+
+        copy {
+            from(forgeDevJar)
+            into(rootLibsDir)
+            rename { "${project.archives_base_name}-forge-${project.version}.jar" }
+        }
     }
 }
 

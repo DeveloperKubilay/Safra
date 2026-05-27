@@ -1,10 +1,12 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.server.IntegratedServer;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.GameType;
+import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.GameType;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -19,25 +21,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
-@Mixin(IntegratedServer.class)
+@Mixin(value = IntegratedServer.class, remap = false)
 abstract class IntegratedServerMixin {
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
 
-    @Inject(method = "publishServer", at = @At("HEAD"))
+    @Inject(method = "shareToLAN", at = @At("HEAD"), remap = false)
     private void safra$applyOnlineMode(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         IntegratedServer server = (IntegratedServer) (Object) this;
-        server.setUsesAuthentication(ForgeLanSessionState.isOnlineModeEnabled());
+        server.setOnlineMode(ForgeLanSessionState.isOnlineModeEnabled());
         if (ForgeLanSessionState.isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
         SAFRA_LOGGER.debug(
             "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
-            server.usesAuthentication(),
+            server.isServerInOnlineMode(),
             server.getPreventProxyConnections()
         );
     }
 
-    @Inject(method = "publishServer", at = @At("RETURN"))
+    @Inject(method = "shareToLAN", at = @At("RETURN"), remap = false)
     private void safra$startP2pHost(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             P2pManager.getInstance().stopHosting();
@@ -51,10 +53,14 @@ abstract class IntegratedServerMixin {
 
         IntegratedServer server = (IntegratedServer) (Object) this;
         ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
-        int tcpPort = server.getPort();
+        int tcpPort = server.getServerPort();
         Minecraft client = Minecraft.getInstance();
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));
+        client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.starting"));
         P2pManager.getInstance().startHostingAsync(tcpPort).whenComplete((shareCode, throwable) -> {
+            if (client == null) {
+                return;
+            }
+
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
@@ -69,12 +75,12 @@ abstract class IntegratedServerMixin {
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
-        client.keyboardHandler.setClipboard(shareCodeText);
+        client.keyboardListener.setClipboardString(shareCodeText);
 
-        Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.started", shareText));
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.instructions"));
+        ITextComponent shareText = new StringTextComponent(shareCodeText).mergeStyle(TextFormatting.AQUA, TextFormatting.UNDERLINE);
+        client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.started", shareText));
+        client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.copied"));
+        client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.instructions"));
     }
 
     private static void safra$publishStartFailure(Minecraft client, int tcpPort, Throwable throwable) {
@@ -87,8 +93,8 @@ abstract class IntegratedServerMixin {
 
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
-        client.gui.getChat().addMessage(
-            Component.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED)
+        client.ingameGUI.getChatGUI().printChatMessage(
+            new TranslationTextComponent("safra.p2p.host.failed", message).mergeStyle(TextFormatting.RED)
         );
     }
 }

@@ -8,6 +8,9 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 public record P2pShareCode(String host, int port, int token, String rendezvousCode) {
+    public static final int DEFAULT_RENDEZVOUS_CODE_LENGTH = 12;
+    public static final int FIXED_RENDEZVOUS_CODE_LENGTH = 16;
+    private static final String RENDEZVOUS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final Pattern RENDEZVOUS_CODE_PATTERN = Pattern.compile("[A-HJ-NP-Z2-9]{6,16}");
 
     public P2pShareCode(String host, int port, int token) {
@@ -77,6 +80,23 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
         return new P2pShareCode("", 0, 0, code);
     }
 
+    public static String createRendezvousCode() {
+        return createRendezvousCode(DEFAULT_RENDEZVOUS_CODE_LENGTH);
+    }
+
+    public static String createRendezvousCode(int length) {
+        if (length < 6 || length > 16) {
+            throw new IllegalArgumentException("rendezvous code length out of range");
+        }
+
+        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        StringBuilder builder = new StringBuilder(length);
+        for (int index = 0; index < length; index++) {
+            builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(random.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
+        }
+        return builder.toString();
+    }
+
     public boolean isRendezvous() {
         return rendezvousCode != null && !rendezvousCode.isBlank();
     }
@@ -102,7 +122,10 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
         return new InetSocketAddress(host, port);
     }
 
-    private static String normalizeRendezvousCode(String rawCode) {
+    public static String normalizeRendezvousCode(String rawCode) {
+        if (rawCode == null) {
+            return null;
+        }
         String code = rawCode.trim().toUpperCase(Locale.ROOT).replace("-", "").replace(" ", "");
         if (!RENDEZVOUS_CODE_PATTERN.matcher(code).matches()) {
             return null;
