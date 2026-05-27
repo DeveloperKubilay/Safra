@@ -51,15 +51,15 @@ jobs:
       - name: Resolve release version
         shell: bash
         run: |
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          minecraft_version="${repo_name#Safra-}"
+          branch_name="${GITHUB_REF_NAME}"
+          minecraft_version="${branch_name#Safra-}"
           version_number="${{ github.event.inputs.version_number }}"
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
             exit 1
           fi
-          if [[ "$repo_name" == "$minecraft_version" || -z "$minecraft_version" ]]; then
-            echo "Could not resolve Minecraft version from repository name: $repo_name"
+          if [[ -z "$minecraft_version" ]]; then
+            echo "Could not resolve Minecraft version from branch name: $branch_name"
             exit 1
           fi
 

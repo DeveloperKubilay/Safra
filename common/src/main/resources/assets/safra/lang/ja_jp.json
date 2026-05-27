@@ -6,7 +6,6 @@
   "safra.p2p.button.off": "P2P: オフ",
   "safra.p2p.online_mode.on": "オンラインモード: オン",
   "safra.p2p.online_mode.off": "オンラインモード: オフ",
-  "safra.p2p.open_hint": "有効にすると、Safra P2P は LAN ワールドを UDP 経由で接続可能な状態に保ちます。",
   "safra.p2p.host.starting": "Safra P2P が共有コードをバックグラウンドで準備しています...",
   "safra.p2p.host.started": "Safra P2P 共有コード: %s",
   "safra.p2p.host.copied": "共有コードをクリップボードにコピーしました。もう一度コピーするにはチャット内のコードをクリックしてください。",
@@ -20,7 +19,11 @@
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.online_mode.short.off": "オンライン: オフ",
-  "safra.p2p.server_settings.reset": "サーバー設定をリセット",
+  "safra.p2p.game_rules.reset": "ゲームルールをリセット",
+  "safra.p2p.fixed_code.on": "固定コードを使う: オン",
+  "safra.p2p.fixed_code.off": "固定コードを使う: オフ",
+  "safra.p2p.fixed_code.refresh": "固定コードを再生成",
+  "safra.p2p.server_settings.reset": "ゲームルールをリセット",
   "safra.p2p.online_mode.short.on": "オンライン: オン",
   "safra.p2p.server_settings.short": "設定"
 }

@@ -9,7 +9,7 @@
     "updateUrl": "",
     "authorList": ["DeveloperKubilay"],
     "credits": "",
-    "logoFile": "assets/safra/icon.png",
+    "logoFile": "icon.png",
     "screenshots": [],
     "dependencies": []
   }

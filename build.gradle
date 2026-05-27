@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id 'java'
     id 'maven-publish'
@@ -12,8 +14,8 @@ base {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
     withSourcesJar()
 }
 
@@ -26,7 +28,8 @@ sourceSets {
             ]
             exclude 'org/developerkubilay/safra/mixin/**'
             exclude 'org/developerkubilay/safra/voicechat/**'
-            exclude 'org/developerkubilay/safra/p2p/SafraVoice*.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoiceClientSocket.java'
+            exclude 'org/developerkubilay/safra/p2p/SafraVoiceServerSocket.java'
             exclude 'org/developerkubilay/safra/p2p/SafraPassthroughVoiceClientSocket.java'
             exclude 'org/developerkubilay/safra/p2p/SafraRawUdpPacket.java'
         }
@@ -51,6 +54,7 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            jvmArg '-Dsafra.p2p.diagnostics=true'
             args '--username', 'SafraDev'
         }
         server {
@@ -73,11 +77,47 @@ dependencies {
     }
 }
 
+def generatedLegacyLangDir = layout.buildDirectory.dir('generated/resources/legacyLang')
+
+String escapeLegacyLangValue(String value) {
+    return value
+        .replace('\\', '\\\\')
+        .replace('\r', '')
+        .replace('\n', '\\n')
+}
+
+tasks.register('generateLegacyLang') {
+    inputs.files(fileTree('common/src/main/resources/assets/safra/lang') {
+        include '*.json'
+    })
+    outputs.dir(generatedLegacyLangDir)
+
+    doLast {
+        File outputRoot = generatedLegacyLangDir.get().asFile
+        delete(outputRoot)
+
+        fileTree('common/src/main/resources/assets/safra/lang').matching {
+            include '*.json'
+        }.files.sort { it.name }.each { File jsonFile ->
+            Map<String, Object> entries = new JsonSlurper().parse(jsonFile) as Map<String, Object>
+            File langFile = new File(outputRoot, "assets/safra/lang/${jsonFile.name.replace('.json', '.lang')}")
+            langFile.parentFile.mkdirs()
+            String content = entries.collect { String key, Object value ->
+                "${key}=${escapeLegacyLangValue(String.valueOf(value))}"
+            }.join(System.lineSeparator()) + System.lineSeparator()
+            langFile.setText(content, 'UTF-8')
+        }
+    }
+}
+
 processResources {
+    dependsOn tasks.named('generateLegacyLang')
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
+
+    from(generatedLegacyLangDir)
 
     filesMatching(['mcmod.info', 'pack.mcmeta']) {
         expand(
@@ -86,6 +126,15 @@ processResources {
             mod_version: project.mod_version,
             mod_description: project.mod_description,
             minecraft_version: project.minecraft_version
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
         )
     }
 }
@@ -113,6 +162,6 @@ publishing {
 
 tasks.withType(JavaExec).configureEach {
     javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(8)
+        languageVersion = JavaLanguageVersion.of(17)
     })
 }

@@ -20,7 +20,16 @@ public final class P2pHostSupport {
     }
 
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
-        P2pHostService service = new P2pHostService(tcpPort, createShareToken(), resolveTargetAddress(serverIp, logger));
+        return startDedicatedHost(tcpPort, serverIp, null, logger);
+    }
+
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+        P2pHostService service = new P2pHostService(
+            tcpPort,
+            createShareToken(),
+            resolveTargetAddress(serverIp, logger),
+            preferredRendezvousCode
+        );
         try {
             return new HostStartResult(service, service.start());
         } catch (IOException exception) {
@@ -30,7 +39,7 @@ public final class P2pHostSupport {
     }
 
     private static InetAddress resolveTargetAddress(String serverIp, Logger logger) {
-        if (P2pCompat.isBlank(serverIp) || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
+        if (serverIp == null || serverIp.isBlank() || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
             return InetAddress.getLoopbackAddress();
         }
 
@@ -42,21 +51,6 @@ public final class P2pHostSupport {
         }
     }
 
-    public static final class HostStartResult {
-        private final P2pHostService service;
-        private final P2pShareCode shareCode;
-
-        public HostStartResult(P2pHostService service, P2pShareCode shareCode) {
-            this.service = service;
-            this.shareCode = shareCode;
-        }
-
-        public P2pHostService service() {
-            return service;
-        }
-
-        public P2pShareCode shareCode() {
-            return shareCode;
-        }
+    public record HostStartResult(P2pHostService service, P2pShareCode shareCode) {
     }
 }

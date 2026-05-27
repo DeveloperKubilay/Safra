@@ -42,7 +42,6 @@ public final class SafraLanServerSettingsScreen extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
         this.drawCenteredString(this.fontRenderer, I18n.format("safra.p2p.server_settings"), this.width / 2, this.height / 4, 0xFFFFFF);
-        this.drawCenteredString(this.fontRenderer, I18n.format("safra.p2p.open_hint"), this.width / 2, this.height / 4 + 72, 0xA0A0A0);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 

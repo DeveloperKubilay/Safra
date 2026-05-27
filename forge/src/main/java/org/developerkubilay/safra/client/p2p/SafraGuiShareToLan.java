@@ -84,7 +84,6 @@ public final class SafraGuiShareToLan extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
         this.drawCenteredString(this.fontRenderer, I18n.format("lanServer.title"), this.width / 2, 50, 0xFFFFFF);
-        this.drawCenteredString(this.fontRenderer, I18n.format("safra.p2p.open_hint"), this.width / 2, 82, 0xA0A0A0);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -95,10 +94,6 @@ public final class SafraGuiShareToLan extends GuiScreen {
         }
 
         server.setOnlineMode(ForgeLanSessionState.isOnlineModeEnabled());
-        if (ForgeLanSessionState.isP2pEnabled()) {
-            server.setPreventProxyConnections(false);
-        }
-
         String port = server.shareToLAN(resolveGameType(), this.allowCommands);
         if (port == null) {
             this.mc.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("commands.publish.failed"));

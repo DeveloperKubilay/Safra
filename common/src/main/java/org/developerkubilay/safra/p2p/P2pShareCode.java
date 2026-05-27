@@ -7,42 +7,34 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
-public final class P2pShareCode {
+public record P2pShareCode(String host, int port, int token, String rendezvousCode) {
+    public static final int DEFAULT_RENDEZVOUS_CODE_LENGTH = 12;
+    public static final int FIXED_RENDEZVOUS_CODE_LENGTH = 16;
+    private static final String RENDEZVOUS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final Pattern RENDEZVOUS_CODE_PATTERN = Pattern.compile("[A-HJ-NP-Z2-9]{6,16}");
-
-    private final String host;
-    private final int port;
-    private final int token;
-    private final String rendezvousCode;
 
     public P2pShareCode(String host, int port, int token) {
         this(host, port, token, null);
     }
 
-    public P2pShareCode(String host, int port, int token, String rendezvousCode) {
-        if (!P2pCompat.isBlank(rendezvousCode)) {
-            this.rendezvousCode = normalizeRendezvousCode(rendezvousCode);
-            if (this.rendezvousCode == null) {
+    public P2pShareCode {
+        if (rendezvousCode != null && !rendezvousCode.isBlank()) {
+            rendezvousCode = normalizeRendezvousCode(rendezvousCode);
+            if (rendezvousCode == null) {
                 throw new IllegalArgumentException("rendezvous code is invalid");
             }
-            this.host = "";
-            this.port = 0;
-            this.token = 0;
-            return;
+            host = "";
+            port = 0;
+            token = 0;
+        } else {
+            Objects.requireNonNull(host, "host");
+            if (host.isBlank()) {
+                throw new IllegalArgumentException("host is blank");
+            }
+            if (port < 1 || port > 65535) {
+                throw new IllegalArgumentException("port out of range");
+            }
         }
-
-        Objects.requireNonNull(host, "host");
-        if (P2pCompat.isBlank(host)) {
-            throw new IllegalArgumentException("host is blank");
-        }
-        if (port < 1 || port > 65535) {
-            throw new IllegalArgumentException("port out of range");
-        }
-
-        this.host = host;
-        this.port = port;
-        this.token = token;
-        this.rendezvousCode = null;
     }
 
     public static boolean isStoredAddress(String address) {
@@ -77,7 +69,7 @@ public final class P2pShareCode {
 
         HostAndPort hostAndPort = HostAndPort.fromString(endpointPart).withDefaultPort(25565);
         String host = hostAndPort.getHost().trim();
-        if (P2pCompat.isBlank(host)) {
+        if (host.isBlank()) {
             throw new IllegalArgumentException("host is blank");
         }
 
@@ -88,24 +80,25 @@ public final class P2pShareCode {
         return new P2pShareCode("", 0, 0, code);
     }
 
-    public String host() {
-        return host;
+    public static String createRendezvousCode() {
+        return createRendezvousCode(DEFAULT_RENDEZVOUS_CODE_LENGTH);
     }
 
-    public int port() {
-        return port;
-    }
+    public static String createRendezvousCode(int length) {
+        if (length < 6 || length > 16) {
+            throw new IllegalArgumentException("rendezvous code length out of range");
+        }
 
-    public int token() {
-        return token;
-    }
-
-    public String rendezvousCode() {
-        return rendezvousCode;
+        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        StringBuilder builder = new StringBuilder(length);
+        for (int index = 0; index < length; index++) {
+            builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(random.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
+        }
+        return builder.toString();
     }
 
     public boolean isRendezvous() {
-        return !P2pCompat.isBlank(rendezvousCode);
+        return rendezvousCode != null && !rendezvousCode.isBlank();
     }
 
     public String toStoredAddress() {
@@ -129,11 +122,15 @@ public final class P2pShareCode {
         return new InetSocketAddress(host, port);
     }
 
-    private static String normalizeRendezvousCode(String rawCode) {
+    public static String normalizeRendezvousCode(String rawCode) {
+        if (rawCode == null) {
+            return null;
+        }
         String code = rawCode.trim().toUpperCase(Locale.ROOT).replace("-", "").replace(" ", "");
         if (!RENDEZVOUS_CODE_PATTERN.matcher(code).matches()) {
             return null;
         }
+
         return code;
     }
 }
