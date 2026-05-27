@@ -1,0 +1,73 @@
+import groovy.json.JsonSlurper
+
+group = "org.developerkubilay"
+version = "1.7.10-1.0-SNAPSHOT"
+
+def generatedLegacyLangDir = layout.buildDirectory.dir("generated/resources/legacyLang")
+
+String escapeLegacyLangValue(String value) {
+    return value
+        .replace("\\", "\\\\")
+        .replace("\r", "")
+        .replace("\n", "\\n")
+}
+
+tasks.register("generateLegacyLang") {
+    inputs.files(fileTree("src/main/resources/assets/safra/lang") {
+        include "*.json"
+    })
+    outputs.dir(generatedLegacyLangDir)
+
+    doLast {
+        File outputRoot = generatedLegacyLangDir.get().asFile
+        delete(outputRoot)
+
+        fileTree("src/main/resources/assets/safra/lang").matching {
+            include "*.json"
+        }.files.sort { it.name }.each { File jsonFile ->
+            Map<String, Object> entries = new JsonSlurper().parse(jsonFile) as Map<String, Object>
+            File langFile = new File(outputRoot, "assets/safra/lang/${jsonFile.name.replace('.json', '.lang')}")
+            langFile.parentFile.mkdirs()
+            String content = entries.collect { String key, Object value ->
+                "${key}=${escapeLegacyLangValue(String.valueOf(value))}"
+            }.join(System.lineSeparator()) + System.lineSeparator()
+            langFile.setText(content, "UTF-8")
+        }
+    }
+}
+
+tasks.processResources.configure {
+    dependsOn(tasks.named("generateLegacyLang"))
+
+    def projVersion = project.version.toString()
+    inputs.property("version", projVersion)
+    inputs.property("mod_name", "Safra")
+    inputs.property("mod_id", "safra")
+    inputs.property("mod_description", "Play Minecraft with your friend for free and without limits, no server or unnecessary setup required.")
+    inputs.property("minecraft_version", "1.7.10")
+
+    from(generatedLegacyLangDir)
+
+    filesMatching("mcmod.info") {
+        expand([
+            modId: "safra",
+            modName: "Safra",
+            modVersion: projVersion,
+            minecraftVersion: "1.7.10",
+            mod_id: "safra",
+            mod_name: "Safra",
+            mod_version: projVersion,
+            minecraft_version: "1.7.10",
+            mod_description: "Play Minecraft with your friend for free and without limits, no server or unnecessary setup required."
+        ])
+    }
+
+    filesMatching("safra-build.properties") {
+        expand([
+            mod_version: projVersion,
+            minecraft_version: "1.7.10",
+            loader_name: "forge",
+            loader_version: "10.13.4.1614"
+        ])
+    }
+}
