@@ -15,6 +15,7 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 loom {
     splitEnvironmentSourceSets()
@@ -29,6 +30,9 @@ loom {
     runs {
         client {
             property 'safra.p2p.diagnostics', 'true'
+            if (forceTurn) {
+                property 'safra.p2p.forceTurn', 'true'
+            }
             programArg '--username'
             programArg devUsername
         }
@@ -53,6 +57,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.fabric_mod_minecraft_version
     inputs.property 'loader_version', project.loader_version
+    inputs.property 'loader_name', 'fabric'
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
@@ -66,6 +71,15 @@ processResources {
             mod_name: project.mod_name,
             mod_license: project.mod_license,
             mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.base_minecraft_version,
+            loader_name: 'fabric',
+            loader_version: project.loader_version
         )
     }
 }

@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-final class SafraBuildInfo {
+public final class SafraBuildInfo {
     private static final String DEFAULT_VERSION = "unknown";
     private static final String modVersion;
     private static final String minecraftVersion;
+    private static final String loaderName;
+    private static final String loaderVersion;
 
     static {
         Properties properties = new Properties();
@@ -20,17 +22,27 @@ final class SafraBuildInfo {
 
         modVersion = value(properties, "modVersion");
         minecraftVersion = value(properties, "minecraftVersion");
+        loaderName = value(properties, "loaderName");
+        loaderVersion = value(properties, "loaderVersion");
     }
 
     private SafraBuildInfo() {
     }
 
-    static String modVersion() {
+    public static String modVersion() {
         return modVersion;
     }
 
-    static String minecraftVersion() {
+    public static String minecraftVersion() {
         return minecraftVersion;
+    }
+
+    public static String loaderName() {
+        return loaderName;
+    }
+
+    public static String loaderVersion() {
+        return loaderVersion;
     }
 
     private static String value(Properties properties, String key) {

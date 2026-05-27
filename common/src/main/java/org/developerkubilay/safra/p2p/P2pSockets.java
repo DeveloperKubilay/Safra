@@ -9,20 +9,20 @@ import java.net.UnknownHostException;
 import java.net.Socket;
 import java.net.SocketException;
 
-final class P2pSockets {
+public final class P2pSockets {
     private static final InetAddress IPV4_LOOPBACK = createIpv4Loopback();
 
     private P2pSockets() {
     }
 
-    static DatagramSocket datagramSocket() throws SocketException {
+    public static DatagramSocket datagramSocket() throws SocketException {
         DatagramSocket socket = new DatagramSocket((SocketAddress) null);
         socket.bind(new InetSocketAddress(0));
         tune(socket);
         return socket;
     }
 
-    static DatagramSocket datagramSocket(int port) throws SocketException {
+    public static DatagramSocket datagramSocket(int port) throws SocketException {
         DatagramSocket socket = new DatagramSocket((SocketAddress) null);
         socket.bind(new InetSocketAddress(port));
         tune(socket);

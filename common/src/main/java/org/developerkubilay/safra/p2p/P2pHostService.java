@@ -1,16 +1,17 @@
 package org.developerkubilay.safra.p2p;
 
+import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
+import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.BindException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,9 +27,10 @@ public final class P2pHostService implements AutoCloseable {
     private final int token;
     private final InetAddress targetAddress;
 
-    private DatagramSocket socket;
+    private P2pDatagramTransport transport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
+    private volatile boolean relayTransport;
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
@@ -46,40 +48,44 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        socket = bindSocket(tcpPort);
+        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort);
+        transport = binding.transport();
+        relayTransport = binding.relay();
         if (closed) {
-            socket.close();
+            binding.close();
             throw new IOException("Safra P2P host service was stopped");
         }
 
         discoveredEndpoints.clear();
-        discoveredEndpoints.putAll(stunClient.discoverCandidates(socket));
+        discoveredEndpoints.putAll(binding.stunEndpoints());
         if (closed) {
-            socket.close();
+            binding.close();
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        P2pStunClient.DiscoveredEndpoint preferredEndpoint = P2pStunClient.preferredCandidate(discoveredEndpoints);
-        InetSocketAddress publishedEndpoint = preferredEndpoint != null ? preferredEndpoint.publicAddress() : null;
+        InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
         if (publishedEndpoint == null) {
-            socket.close();
-            throw new IOException("STUN ile genel UDP ucu bulunamadi");
+            binding.close();
+            throw new IOException("genel UDP ucu bulunamadi");
         }
 
         P2pRuntime.start("safra-p2p-host-recv", this::receiveLoop);
-        scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
-            P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        if (!relayTransport && !discoveredEndpoints.isEmpty()) {
+            scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
+                P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        }
 
         InetAddress address = publishedEndpoint.getAddress();
         String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
-        LOGGER.debug("Safra P2P host UDP socket bound on local port {}, published endpoint {}:{}", socket.getLocalPort(), host, publishedEndpoint.getPort());
+        LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
+            relayTransport ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
         P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
 
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
                 tcpPort,
                 token,
-                P2pStunClient.publicEndpoints(discoveredEndpoints),
+                binding.publicEndpoints(),
                 this::punchRemoteEndpoint,
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint
             );
@@ -87,6 +93,10 @@ public final class P2pHostService implements AutoCloseable {
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
+            if (relayTransport) {
+                LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
+                throw exception;
+            }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
             return directShareCode;
         }
@@ -110,10 +120,10 @@ public final class P2pHostService implements AutoCloseable {
             rendezvousSession.close();
             rendezvousSession = null;
         }
-        if (socket != null && !socket.isClosed()) {
-            socket.close();
+        if (transport != null && !transport.isClosed()) {
+            transport.close();
         }
-        LOGGER.debug("Safra P2P host UDP socket closed for local Minecraft TCP port {}", tcpPort);
+        LOGGER.debug("Safra P2P host UDP transport closed for local Minecraft TCP port {}", tcpPort);
     }
 
     private void punchRemoteEndpoint(InetSocketAddress remoteAddress) {
@@ -135,7 +145,7 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void refreshStunMapping() {
-        if (closed || socket == null || socket.isClosed() || discoveredEndpoints.isEmpty()) {
+        if (closed || relayTransport || discoveredEndpoints.isEmpty()) {
             return;
         }
 
@@ -144,7 +154,9 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             }
             try {
-                stunClient.sendKeepAlive(socket, endpoint.stunServer());
+                if (transport instanceof P2pDirectDatagramTransport directTransport) {
+                    stunClient.sendKeepAlive(directTransport.socket(), endpoint.stunServer());
+                }
             } catch (IOException exception) {
                 LOGGER.debug("STUN keepalive failed: {}", exception.toString());
             }
@@ -156,7 +168,7 @@ public final class P2pHostService implements AutoCloseable {
         while (!closed) {
             DatagramPacket datagramPacket = new DatagramPacket(buffer, buffer.length);
             try {
-                socket.receive(datagramPacket);
+                transport.receive(datagramPacket);
             } catch (SocketTimeoutException ignored) {
                 continue;
             } catch (IOException exception) {
@@ -166,8 +178,8 @@ public final class P2pHostService implements AutoCloseable {
                 return;
             }
 
-            P2pStunClient.DiscoveredEndpoint stunEndpoint = matchingStunEndpoint(datagramPacket.getSocketAddress());
-            if (stunEndpoint != null) {
+            P2pStunClient.DiscoveredEndpoint stunEndpoint = relayTransport ? null : matchingStunEndpoint(datagramPacket.getSocketAddress());
+            if (!relayTransport && stunEndpoint != null) {
                 P2pStunClient.DiscoveredEndpoint refreshed = stunClient.tryParseResponse(datagramPacket);
                 if (refreshed != null) {
                     discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
@@ -239,25 +251,15 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
-        if (closed || socket == null || socket.isClosed()) {
+        if (closed || transport == null || transport.isClosed()) {
             return;
         }
 
         byte[] encoded = packet.encode();
-        synchronized (socket) {
-            try {
-                socket.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
-            } catch (IOException exception) {
-                LOGGER.debug("Host UDP send failed: {}", exception.toString());
-            }
-        }
-    }
-
-    private DatagramSocket bindSocket(int preferredPort) throws IOException {
         try {
-            return P2pSockets.datagramSocket(preferredPort);
-        } catch (BindException ignored) {
-            return P2pSockets.datagramSocket();
+            transport.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
+        } catch (IOException exception) {
+            LOGGER.debug("Host UDP send failed: {}", exception.toString());
         }
     }
 
@@ -268,5 +270,27 @@ public final class P2pHostService implements AutoCloseable {
             }
         }
         return null;
+    }
+
+    private InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {
+        if (endpoints == null) {
+            return null;
+        }
+
+        InetSocketAddress ipv4 = null;
+        InetSocketAddress fallback = null;
+        for (InetSocketAddress endpoint : endpoints) {
+            if (endpoint == null || endpoint.getAddress() == null) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = endpoint;
+            }
+            if ("ipv4".equals(P2pSockets.addressFamily(endpoint))) {
+                ipv4 = endpoint;
+                break;
+            }
+        }
+        return ipv4 != null ? ipv4 : fallback;
     }
 }

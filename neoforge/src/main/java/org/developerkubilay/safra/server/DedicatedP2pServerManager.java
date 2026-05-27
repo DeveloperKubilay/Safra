@@ -3,6 +3,7 @@ package org.developerkubilay.safra.server;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.CachedRendezvousConfigLoader;
 import org.developerkubilay.safra.p2p.ConsoleShareCodePrinter;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -32,8 +33,10 @@ public final class DedicatedP2pServerManager {
         RemoteRendezvousBootstrap.initialize();
 
         int tcpPort = server.getPort();
+        SafraClientConfig config = SafraClientConfig.get();
+        String fixedCode = config.isOpenToLanFixedCodeEnabled() ? config.ensureOpenToLanFixedCode() : null;
         try {
-            P2pHostSupport.HostStartResult hostStartResult = P2pHostSupport.startDedicatedHost(tcpPort, server.getLocalIp(), LOGGER);
+            P2pHostSupport.HostStartResult hostStartResult = P2pHostSupport.startDedicatedHost(tcpPort, server.getLocalIp(), fixedCode, LOGGER);
             hostService = hostStartResult.service();
             String shareCodeText = hostStartResult.shareCode().toDisplayCode();
             LOGGER.info("Safra P2P dedicated server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);

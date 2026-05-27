@@ -14,8 +14,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -24,8 +22,6 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -33,14 +29,11 @@ import java.util.function.Consumer;
 final class SafraRendezvousClient implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
-
-    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
         .build();
 
     private WebSocket webSocket;
-    private ScheduledFuture<?> pingTask;
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, Collection<InetSocketAddress> publicEndpoints,
@@ -74,7 +67,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             client.send(ready);
             listener.readyFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            client.startPing();
             return new HostSession(code, client);
         } catch (Exception exception) {
             client.close();
@@ -102,7 +94,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             client.send(ready);
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            client.startPing();
             return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(), client, listener);
         } catch (Exception exception) {
             client.close();
@@ -155,46 +146,11 @@ final class SafraRendezvousClient implements AutoCloseable {
             .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
-    private void deleteSession(String code) {
-        if (code == null || code.isBlank()) {
-            return;
-        }
-
-        try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(httpUri("/v1/sessions/" + encode(code)))
-                .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
-                .DELETE();
-            String token = P2pConstants.rendezvousToken();
-            if (!token.isBlank()) {
-                builder.header("Authorization", "Bearer " + token);
-            }
-
-            httpClient.sendAsync(builder.build(), HttpResponse.BodyHandlers.discarding())
-                .whenComplete((response, throwable) -> {
-                    if (throwable != null) {
-                        LOGGER.debug("Safra rendezvous session delete request failed: {}", throwable.toString());
-                    } else if (response.statusCode() >= 400) {
-                        LOGGER.debug("Safra rendezvous session delete request returned HTTP {}", response.statusCode());
-                    }
-                });
-        } catch (RuntimeException exception) {
-            LOGGER.debug("Safra rendezvous session delete request could not be sent: {}", exception.toString());
-        }
-    }
-
     private void send(JsonObject message) {
         WebSocket socket = webSocket;
         if (socket != null && !closed) {
             socket.sendText(GSON.toJson(message), true);
         }
-    }
-
-    private void startPing() {
-        pingTask = scheduler.scheduleAtFixedRate(() -> {
-            JsonObject ping = new JsonObject();
-            ping.addProperty("type", "ping");
-            send(ping);
-        }, P2pConstants.RENDEZVOUS_PING_MS, P2pConstants.RENDEZVOUS_PING_MS, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -203,11 +159,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             return;
         }
         closed = true;
-        ScheduledFuture<?> task = pingTask;
-        if (task != null) {
-            task.cancel(false);
-        }
-        scheduler.shutdownNow();
         WebSocket socket = webSocket;
         if (socket != null) {
             socket.sendClose(WebSocket.NORMAL_CLOSURE, "safra closed");
@@ -297,6 +248,8 @@ final class SafraRendezvousClient implements AutoCloseable {
         JsonObject safra = new JsonObject();
         safra.addProperty("role", role);
         safra.addProperty("minecraftVersion", SafraBuildInfo.minecraftVersion());
+        safra.addProperty("loader", SafraBuildInfo.loaderName());
+        safra.addProperty("loaderVersion", SafraBuildInfo.loaderVersion());
         safra.addProperty("modVersion", SafraBuildInfo.modVersion());
         safra.addProperty("protocolVersion", Byte.toUnsignedInt(P2pConstants.PROTOCOL_VERSION));
         return safra;
@@ -546,7 +499,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
         @Override
         public void close() {
-            client.deleteSession(code);
             client.close();
         }
     }
