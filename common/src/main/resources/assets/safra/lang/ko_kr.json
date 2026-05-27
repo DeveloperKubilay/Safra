@@ -1,6 +1,6 @@
 {
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "예시: ABC123",
+  "safra.p2p.placeholder": "Safra 코드 입력",
   "safra.p2p.prepare_failed": "Safra P2P 프록시를 준비하지 못했습니다: %s",
   "safra.p2p.button.on": "P2P: 켜짐",
   "safra.p2p.button.off": "P2P: 꺼짐",

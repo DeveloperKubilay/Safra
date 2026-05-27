@@ -1,6 +1,6 @@
 {
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "Exemplo: ABC123",
+  "safra.p2p.placeholder": "Digite o codigo Safra",
   "safra.p2p.prepare_failed": "Não foi possível preparar o proxy P2P do Safra: %s",
   "safra.p2p.button.on": "P2P: LIGADO",
   "safra.p2p.button.off": "P2P: DESLIGADO",

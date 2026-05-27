@@ -17,58 +17,44 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private Button fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
-        super(Component.translatable("safra.p2p.server_settings"));
+        super(ForgeComponentCompat.translatable("safra.p2p.server_settings"));
         this.parent = parent;
     }
 
     @Override
     protected void init() {
         int top = this.height / 4 - 20;
-        this.allowCommandsButton = this.addRenderableWidget(Button.builder(this.getAllowCommandsText(), button -> {
+        this.allowCommandsButton = ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(this.getAllowCommandsText(), button -> {
                 ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
                 button.setMessage(this.getAllowCommandsText());
-            })
-            .bounds(this.width / 2 - 100, top + 24, 200, 20)
-            .build());
+            }, this.width / 2 - 100, top + 24, 200, 20));
 
-        this.fixedCodeButton = this.addRenderableWidget(Button.builder(this.getFixedCodeText(), button -> {
+        this.fixedCodeButton = ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(this.getFixedCodeText(), button -> {
                 ForgeLanSessionState.setFixedCodeEnabled(!ForgeLanSessionState.isFixedCodeEnabled());
                 button.setMessage(this.getFixedCodeText());
-            })
-            .bounds(this.width / 2 - 100, top + 48, 200, 20)
-            .build());
+            }, this.width / 2 - 100, top + 48, 200, 20));
 
-        this.addRenderableWidget(Button.builder(Component.translatable("safra.p2p.fixed_code.refresh"), button -> {
+        ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(ForgeComponentCompat.translatable("safra.p2p.fixed_code.refresh"), button -> {
                 ForgeLanSessionState.regenerateFixedCode();
                 this.clearWidgetFocus();
-            })
-            .bounds(this.width / 2 - 100, top + 72, 200, 20)
-            .build());
+            }, this.width / 2 - 100, top + 72, 200, 20));
 
-        this.addRenderableWidget(Button.builder(Component.translatable("safra.p2p.game_rules"), button -> {
+        ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(ForgeComponentCompat.translatable("safra.p2p.game_rules"), button -> {
                 Minecraft minecraft = this.minecraft;
                 if (minecraft == null || minecraft.level == null) {
                     return;
                 }
                 GameRules editableRules = ForgeLanGameRules.createEditableGameRules(minecraft, ForgeLanSessionState.getGameRuleSnapshot());
                 minecraft.setScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
-            })
-            .bounds(this.width / 2 - 100, top + 96, 200, 20)
-            .build());
+            }, this.width / 2 - 100, top + 96, 200, 20));
 
-        this.addRenderableWidget(Button.builder(Component.translatable("safra.p2p.game_rules.reset"), button -> {
+        ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(ForgeComponentCompat.translatable("safra.p2p.game_rules.reset"), button -> {
                 ForgeLanSessionState.resetGameRules();
                 this.clearWidgetFocus();
-            })
-            .bounds(this.width / 2 - 100, top + 120, 200, 20)
-            .build());
+            }, this.width / 2 - 100, top + 120, 200, 20));
 
-        this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> this.onClose())
-            .bounds(this.width / 2 - 100, top + 168, 98, 20)
-            .build());
-        this.addRenderableWidget(Button.builder(CommonComponents.GUI_BACK, button -> this.onClose())
-            .bounds(this.width / 2 + 2, top + 168, 98, 20)
-            .build());
+        ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(CommonComponents.GUI_DONE, button -> this.onClose(), this.width / 2 - 100, top + 168, 98, 20));
+        ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(CommonComponents.GUI_BACK, button -> this.onClose(), this.width / 2 + 2, top + 168, 98, 20));
     }
 
     @Override
@@ -86,7 +72,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private Component getAllowCommandsText() {
-        return Component.translatable(
+        return ForgeComponentCompat.translatable(
             ForgeLanSessionState.isAllowCommandsEnabled()
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
@@ -94,7 +80,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private Component getFixedCodeText() {
-        return Component.translatable(
+        return ForgeComponentCompat.translatable(
             ForgeLanSessionState.isFixedCodeEnabled()
                 ? "safra.p2p.fixed_code.on"
                 : "safra.p2p.fixed_code.off"

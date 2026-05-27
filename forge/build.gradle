@@ -5,6 +5,30 @@ plugins {
     id 'net.minecraftforge.renamer' version '1.0.14'
 }
 
+abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineArgumentProvider {
+    @org.gradle.api.tasks.InputFile
+    @org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.NONE)
+    abstract org.gradle.api.file.RegularFileProperty getInMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getOutMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getRefmap()
+
+    @Override
+    Iterable<String> asArguments() {
+        [
+            "-AreobfTsrgFile=${getInMappings().get().asFile.absolutePath}",
+            "-AoutTsrgFile=${getOutMappings().get().asFile.absolutePath}",
+            "-AoutRefMapFile=${getRefmap().get().asFile.absolutePath}",
+            '-AmappingTypes=tsrg',
+            '-ApluginVersion=0.7',
+            '-AdefaultObfuscationEnv=searge'
+        ]
+    }
+}
+
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
@@ -26,6 +50,18 @@ def forgeSupportOnly = rootRunClientRequested && runningFromRootDir
 
 def targetJavaVersion = rootProject.ext.java_target_version as int
 def sourceMixinMappingsFile = layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
+def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
+def mixinMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
+def identityMixinMappingsFile = layout.buildDirectory.file('mappings/identityMixinMappings.tsrg')
+def compileJavaRefmapFile = layout.buildDirectory.file('tmp/compileJava/compileJava-refmap.json')
+def modernNamedForgeProfile = rootProject.ext.selected_mc_profile == '1.20.5-1.20.6'
+def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
+
+if (modernNamedForgeProfile) {
+    mixinCompilerArgs.inMappings.set(identityMixinMappingsFile)
+    mixinCompilerArgs.outMappings.set(mixinMappingsFile)
+    mixinCompilerArgs.refmap.set(mixinRefmapFile)
+}
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
@@ -34,6 +70,48 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+tasks.register('generateForgeIdentityMixinMappings') {
+    dependsOn(tasks.named('formatMixinMappings'))
+    inputs.file(sourceMixinMappingsFile)
+    outputs.file(identityMixinMappingsFile)
+    onlyIf { modernNamedForgeProfile }
+
+    doLast {
+        def sourceFile = sourceMixinMappingsFile.get().asFile
+        def outputFile = identityMixinMappingsFile.get().asFile
+        outputFile.parentFile.mkdirs()
+
+        outputFile.setText(sourceFile.readLines('UTF-8').collect { line ->
+            if (line.isBlank()) {
+                return line
+            }
+
+            if (!line.startsWith('\t')) {
+                def parts = line.split(' ')
+                return parts.length == 2 ? "${parts[0]} ${parts[0]}" : line
+            }
+
+            def parts = line.trim().split(' ')
+            if (parts.length == 2) {
+                return "\t${parts[0]} ${parts[0]}"
+            }
+            if (parts.length == 3) {
+                return "\t${parts[0]} ${parts[1]} ${parts[0]}"
+            }
+            return line
+        }.join(System.lineSeparator()), 'UTF-8')
+    }
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    if (modernNamedForgeProfile) {
+        dependsOn tasks.named('generateForgeIdentityMixinMappings')
+        options.compilerArgumentProviders.add(mixinCompilerArgs)
+        outputs.file(mixinRefmapFile)
+        outputs.file(mixinMappingsFile)
+    }
 }
 
 renamer.enableMixinRefmaps {
@@ -141,6 +219,10 @@ tasks.register('normalizeForgeMixinRefmaps') {
     )
 
     doLast {
+        if (modernNamedForgeProfile) {
+            return
+        }
+
         def methodMappings = [:]
         def fieldMappings = [:]
         def currentOwner = null
@@ -264,6 +346,11 @@ processResources {
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    if (modernNamedForgeProfile) {
+        from(compileJavaRefmapFile) {
+            rename { 'main.refmap.json' }
+        }
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }

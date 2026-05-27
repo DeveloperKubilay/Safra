@@ -2,14 +2,15 @@ package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.DirectJoinServerScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.ForgeButtonCompat;
+import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.ForgeScreenCompat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -34,7 +35,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         super(title);
     }
 
-    @Inject(method = "m_7856_", at = @At("TAIL"), remap = false)
+    @Inject(method = "init", at = @At("TAIL"), remap = false)
     private void safra$initP2pUi(CallbackInfo ci) {
         EditBox ipEdit = this.safra$ipEdit();
         Button selectButton = this.safra$selectButton();
@@ -54,40 +55,42 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
         }
 
-        Button cancelButton = this.safra$findSecondaryButton(selectButton);
-        if (cancelButton != null) {
-            this.safra$moveButton(selectButton, this.width / 2 - 100, this.height / 4 + 108, 98);
-            this.safra$moveButton(cancelButton, this.width / 2 + 2, this.height / 4 + 108, 98);
-        }
-
-        this.safra$p2pButton = this.addRenderableWidget(
-            Button.builder(this.safra$getToggleText(), button -> {
+        if (this.safra$p2pButton == null) {
+            this.safra$p2pButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
+                this.safra$getToggleText(),
+                button -> {
                     this.safra$p2pEnabled = !this.safra$p2pEnabled;
                     SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
                     button.setMessage(this.safra$getToggleText());
                     this.safra$refreshAddressField();
                     this.safra$updateValidation();
-                })
-                .bounds(this.width / 2 - 100, this.height / 4 + 132, 200, 20)
-                .build()
-        );
+                },
+                this.safra$screenWidth() / 2 - 100,
+                this.safra$screenHeight() / 4 + 84,
+                200,
+                20
+            ));
+        } else {
+            this.safra$p2pButton.setMessage(this.safra$getToggleText());
+            this.safra$moveButton(this.safra$p2pButton, this.safra$screenWidth() / 2 - 100, this.safra$screenHeight() / 4 + 84, 200);
+        }
 
         this.safra$p2pInitialized = true;
         this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
-    @Inject(method = "m_95986_", at = @At("TAIL"), remap = false)
+    @Inject(method = "updateSelectButtonStatus", at = @At("TAIL"), remap = false)
     private void safra$overrideValidation(CallbackInfo ci) {
         this.safra$updateValidation();
     }
 
-    @Inject(method = "m_95987_", at = @At("HEAD"), remap = false)
+    @Inject(method = "onSelect", at = @At("HEAD"), remap = false)
     private void safra$storeP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
 
-    @Inject(method = "m_7379_", at = @At("HEAD"), remap = false)
+    @Inject(method = "removed", at = @At("HEAD"), remap = false)
     private void safra$storeLastP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
@@ -111,7 +114,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Unique
     private Component safra$getToggleText() {
-        return Component.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
+        return ForgeComponentCompat.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 
     @Unique
@@ -121,7 +124,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             return;
         }
         safra$call(ipEdit, new Class<?>[]{Component.class}, new Object[]{
-            this.safra$p2pEnabled ? Component.translatable("safra.p2p.placeholder") : Component.empty()
+            this.safra$p2pEnabled ? ForgeComponentCompat.translatable("safra.p2p.placeholder") : ForgeComponentCompat.empty()
         }, "setHint", "m_257771_");
     }
 
@@ -137,17 +140,6 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         safra$setButtonActive(selectButton, this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
             : safra$isValidServerAddress(address));
-    }
-
-    @Unique
-    private Button safra$findSecondaryButton(Button primaryButton) {
-        Button candidate = null;
-        for (GuiEventListener element : this.children()) {
-            if (element instanceof Button button && button != primaryButton) {
-                candidate = button;
-            }
-        }
-        return candidate;
     }
 
     @Unique
@@ -169,6 +161,22 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private ServerData safra$serverData() {
         return (ServerData) this.safra$getField("serverData", "f_95954_");
+    }
+
+    @Unique
+    private int safra$screenWidth() {
+        return this.safra$getIntField("width", "f_96543_");
+    }
+
+    @Unique
+    private int safra$screenHeight() {
+        return this.safra$getIntField("height", "f_96544_");
+    }
+
+    @Unique
+    private int safra$getIntField(String... names) {
+        Object value = this.safra$getField(names);
+        return value instanceof Integer integer ? integer : 0;
     }
 
     @Unique

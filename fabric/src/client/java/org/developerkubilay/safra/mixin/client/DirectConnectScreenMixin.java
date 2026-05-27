@@ -1,9 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
@@ -22,7 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Pseudo
 @Mixin(targets = {
-    "net.minecraft.client.gui.screen.multiplayer.DirectConnectScreen",
     "net.minecraft.client.gui.screen.DirectConnectScreen"
 })
 abstract class DirectConnectScreenMixin extends Screen {
@@ -37,7 +34,7 @@ abstract class DirectConnectScreenMixin extends Screen {
     private ServerInfo serverEntry;
 
     @Unique
-    private CyclingButtonWidget<Boolean> safra$p2pToggle;
+    private ButtonWidget safra$p2pToggle;
 
     @Unique
     private boolean safra$p2pEnabled;
@@ -62,22 +59,23 @@ abstract class DirectConnectScreenMixin extends Screen {
             this.addressField.setText(P2pManager.toDisplayAddress(this.addressField.getText()));
         }
 
-        ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
-        if (cancelButton != null) {
-            FabricVersionCompat.setWidgetBounds(this.selectServerButton, 98, 20, this.width / 2 - 100, this.height / 4 + 108);
-            FabricVersionCompat.setWidgetBounds(cancelButton, 98, 20, this.width / 2 + 2, this.height / 4 + 108);
+        if (this.safra$p2pToggle != null) {
+            this.safra$p2pToggle.setMessage(this.safra$getToggleText());
+            this.safra$refreshAddressField();
+            this.safra$updateValidation();
+            return;
         }
 
         this.safra$p2pToggle = this.addDrawableChild(
-            CyclingButtonWidget.onOffBuilder(this.safra$p2pEnabled)
-                .build(this.width / 2 - 100, this.height / 4 + 84, 200, 20,
-                    Text.translatable("safra.p2p.toggle"),
-                    (button, value) -> {
-                        this.safra$p2pEnabled = value;
-                        SafraClientConfig.get().setDirectConnectP2pEnabled(value);
+            ButtonWidget.builder(this.safra$getToggleText(), button -> {
+                        this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                        SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+                        button.setMessage(this.safra$getToggleText());
                         this.safra$refreshAddressField();
                         this.safra$updateValidation();
                     })
+                .dimensions(this.width / 2 - 100, this.height / 4 + 84, 200, 20)
+                .build()
         );
 
         this.safra$p2pInitialized = true;
@@ -122,6 +120,11 @@ abstract class DirectConnectScreenMixin extends Screen {
     }
 
     @Unique
+    private Text safra$getToggleText() {
+        return Text.translatable(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
+    }
+
+    @Unique
     private void safra$updateValidation() {
         if (this.selectServerButton == null || this.addressField == null) {
             return;
@@ -131,16 +134,5 @@ abstract class DirectConnectScreenMixin extends Screen {
         this.selectServerButton.active = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
             : ServerAddress.isValid(address);
-    }
-
-    @Unique
-    private ButtonWidget safra$findSecondaryButton(ButtonWidget primaryButton) {
-        ButtonWidget candidate = null;
-        for (Element element : this.children()) {
-            if (element instanceof ButtonWidget buttonWidget && buttonWidget != primaryButton) {
-                candidate = buttonWidget;
-            }
-        }
-        return candidate;
     }
 }

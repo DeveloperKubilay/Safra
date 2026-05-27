@@ -1,0 +1,38 @@
+{
+  "mappings": {
+    "org/developerkubilay/safra/mixin/client/DirectJoinServerScreenMixin": {
+      "init": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_7856_()V",
+      "removed": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_7861_()V",
+      "updateSelectButtonStatus": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_95987_()V",
+      "onSelect": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_95986_()V"
+    },
+    "org/developerkubilay/safra/mixin/client/JoinMultiplayerScreenMixin": {
+      "join": "Lnet/minecraft/client/gui/screens/multiplayer/JoinMultiplayerScreen;m_99702_(Lnet/minecraft/client/multiplayer/ServerData;)V"
+    },
+    "org/developerkubilay/safra/mixin/client/ConnectScreenMixin": {
+      "startConnecting": "Lnet/minecraft/client/gui/screens/ConnectScreen;m_278792_(Lnet/minecraft/client/gui/screens/Screen;Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/multiplayer/resolver/ServerAddress;Lnet/minecraft/client/multiplayer/ServerData;ZLnet/minecraft/client/multiplayer/TransferState;)V"
+    },
+    "org/developerkubilay/safra/mixin/client/ShareToLanScreenMixin": {
+      "init": "Lnet/minecraft/client/gui/screens/ShareToLanScreen;m_7856_()V"
+    }
+  },
+  "data": {
+    "searge": {
+      "org/developerkubilay/safra/mixin/client/DirectJoinServerScreenMixin": {
+        "init": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_7856_()V",
+        "removed": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_7861_()V",
+        "updateSelectButtonStatus": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_95987_()V",
+        "onSelect": "Lnet/minecraft/client/gui/screens/DirectJoinServerScreen;m_95986_()V"
+      },
+      "org/developerkubilay/safra/mixin/client/JoinMultiplayerScreenMixin": {
+        "join": "Lnet/minecraft/client/gui/screens/multiplayer/JoinMultiplayerScreen;m_99702_(Lnet/minecraft/client/multiplayer/ServerData;)V"
+      },
+      "org/developerkubilay/safra/mixin/client/ConnectScreenMixin": {
+        "startConnecting": "Lnet/minecraft/client/gui/screens/ConnectScreen;m_278792_(Lnet/minecraft/client/gui/screens/Screen;Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/multiplayer/resolver/ServerAddress;Lnet/minecraft/client/multiplayer/ServerData;ZLnet/minecraft/client/multiplayer/TransferState;)V"
+      },
+      "org/developerkubilay/safra/mixin/client/ShareToLanScreenMixin": {
+        "init": "Lnet/minecraft/client/gui/screens/ShareToLanScreen;m_7856_()V"
+      }
+    }
+  }
+}
