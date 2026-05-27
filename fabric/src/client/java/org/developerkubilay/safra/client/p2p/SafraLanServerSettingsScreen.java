@@ -1,9 +1,9 @@
 package org.developerkubilay.safra.client.p2p;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.InWorldGameRulesScreen;
+import net.minecraft.client.gui.screens.worldselection.EditGameRulesScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -48,11 +48,8 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 if (this.minecraft == null || this.minecraft.level == null) {
                     return;
                 }
-                var connection = this.minecraft.getConnection();
-                if (connection == null) {
-                    return;
-                }
-                this.minecraft.setScreenAndShow(new InWorldGameRulesScreen(connection, this::handleGameRulesClose, this));
+                GameRules editableRules = FabricLanGameRules.createEditableGameRules(this.minecraft, FabricLanSessionState.getGameRuleSnapshot());
+                this.minecraft.setScreenAndShow(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             })
             .bounds(this.width / 2 - 100, top + 96, 200, 20)
             .build());
@@ -80,10 +77,10 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, this.width, this.height, 0xC0101010);
-        context.centeredText(this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
-        super.extractRenderState(context, mouseX, mouseY, delta);
+        context.drawCenteredString(this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
+        super.render(context, mouseX, mouseY, delta);
     }
 
     private Component getAllowCommandsText() {

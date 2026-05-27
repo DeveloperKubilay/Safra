@@ -30,6 +30,23 @@ ext.devBooleanProperty = { String name ->
     return value != null && Boolean.parseBoolean(value)
 }
 
+ext.quicNettyVersion = '4.2.7.Final'
+ext.quicNativeClassifier = {
+    String osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+    String osArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+    boolean aarch64 = osArch.contains('aarch64') || osArch.contains('arm64')
+    if (osName.contains('win')) {
+        return 'windows-x86_64'
+    }
+    if (osName.contains('mac')) {
+        return aarch64 ? 'osx-aarch_64' : 'osx-x86_64'
+    }
+    if (osName.contains('linux')) {
+        return aarch64 ? 'linux-aarch_64' : 'linux-x86_64'
+    }
+    return null
+}
+
 allprojects {
     group = rootProject.group
     version = rootProject.version

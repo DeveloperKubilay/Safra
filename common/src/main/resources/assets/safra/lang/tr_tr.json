@@ -1,6 +1,6 @@
 {
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "Ornek: ABC123",
+  "safra.p2p.placeholder": "Safra kodunu gir",
   "safra.p2p.prepare_failed": "Safra P2P ara proxy'si hazirlanamadi: %s",
   "safra.p2p.button.on": "P2P: Acik",
   "safra.p2p.button.off": "P2P: Kapali",

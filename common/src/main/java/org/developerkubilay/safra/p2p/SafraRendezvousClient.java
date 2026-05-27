@@ -23,8 +23,6 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -34,13 +32,11 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static final Gson GSON = new Gson();
     private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 350, 1000};
 
-    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
         .build();
 
     private WebSocket webSocket;
-    private ScheduledFuture<?> pingTask;
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, Collection<InetSocketAddress> publicEndpoints,
@@ -74,7 +70,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             client.send(ready);
             listener.readyFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            client.startPing();
             return new HostSession(code, client);
         } catch (Exception exception) {
             client.close();
@@ -102,7 +97,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             client.send(ready);
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            client.startPing();
             return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(),
                 resolvedHost.minecraftTcpPort(), client, listener);
         } catch (Exception exception) {
@@ -196,25 +190,12 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    private void startPing() {
-        pingTask = scheduler.scheduleAtFixedRate(() -> {
-            JsonObject ping = new JsonObject();
-            ping.addProperty("type", "ping");
-            send(ping);
-        }, P2pConstants.RENDEZVOUS_PING_MS, P2pConstants.RENDEZVOUS_PING_MS, TimeUnit.MILLISECONDS);
-    }
-
     @Override
     public void close() {
         if (closed) {
             return;
         }
         closed = true;
-        ScheduledFuture<?> task = pingTask;
-        if (task != null) {
-            task.cancel(false);
-        }
-        scheduler.shutdownNow();
         WebSocket socket = webSocket;
         if (socket != null) {
             socket.sendClose(WebSocket.NORMAL_CLOSURE, "safra closed");

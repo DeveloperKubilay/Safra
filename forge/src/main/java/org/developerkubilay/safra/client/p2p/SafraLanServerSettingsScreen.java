@@ -1,10 +1,10 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.InWorldGameRulesScreen;
+import net.minecraft.client.gui.screens.worldselection.EditGameRulesScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -50,11 +50,8 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 if (minecraft == null || minecraft.level == null) {
                     return;
                 }
-                var connection = minecraft.getConnection();
-                if (connection == null) {
-                    return;
-                }
-                minecraft.setScreen(new InWorldGameRulesScreen(connection, this::handleGameRulesClose, this));
+                GameRules editableRules = ForgeLanGameRules.createEditableGameRules(minecraft, ForgeLanSessionState.getGameRuleSnapshot());
+                minecraft.setScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             })
             .bounds(this.width / 2 - 100, top + 96, 200, 20)
             .build());
@@ -82,10 +79,10 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         guiGraphics.fill(0, 0, this.width, this.height, 0xC0101010);
-        guiGraphics.centeredText(this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
-        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     private Component getAllowCommandsText() {

@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.16.1'
+    id 'net.fabricmc.fabric-loom-remap' version '1.16.1'
     id 'maven-publish'
 }
 
@@ -46,15 +46,16 @@ fabricApi {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.fabric_minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
 processResources {
     inputs.property 'mod_version', project.mod_version
-    inputs.property 'minecraft_version', project.fabric_mod_minecraft_version
+    inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'loader_version', project.loader_version
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -64,7 +65,7 @@ processResources {
     filesMatching('fabric.mod.json') {
         expand(
             version: project.mod_version,
-            minecraft_version: project.fabric_mod_minecraft_version,
+            minecraft_version: project.minecraft_version,
             loader_version: project.loader_version,
             mod_name: project.mod_name,
             mod_license: project.mod_license,
@@ -75,14 +76,14 @@ processResources {
     filesMatching('safra-build.properties') {
         expand(
             mod_version: project.mod_version,
-            minecraft_version: project.fabric_minecraft_version,
+            minecraft_version: project.minecraft_version,
             loader_name: 'fabric',
             loader_version: project.loader_version
         )
     }
 }
 
-def targetJavaVersion = 25
+def targetJavaVersion = 21
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

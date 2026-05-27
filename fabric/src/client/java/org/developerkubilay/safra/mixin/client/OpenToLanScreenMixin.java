@@ -104,7 +104,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.safra$p2pInitialized = true;
     }
 
-    @Inject(method = "lambda$init$2", at = @At("HEAD"))
+    @Inject(method = {"method_19851", "lambda$init$2"}, at = @At("HEAD"), require = 0)
     private void safra$applyOnlineMode(IntegratedServer server, Button button, CallbackInfo ci) {
         if (server != null) {
             this.commands = FabricLanSessionState.isAllowCommandsEnabled();
@@ -121,7 +121,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         }
     }
 
-    @Inject(method = "lambda$init$2", at = @At("TAIL"))
+    @Inject(method = {"method_19851", "lambda$init$2"}, at = @At("TAIL"), require = 0)
     private void safra$startP2pHost(IntegratedServer server, Button button, CallbackInfo ci) {
         if (server == null || server.getPort() != this.port) {
             return;
@@ -200,6 +200,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Unique
     private void safra$addClientSystemMessage(Component message) {
-        this.minecraft.gui.getChat().addClientSystemMessage(message);
+        this.minecraft.gui.getChat().addMessage(message);
     }
 }
