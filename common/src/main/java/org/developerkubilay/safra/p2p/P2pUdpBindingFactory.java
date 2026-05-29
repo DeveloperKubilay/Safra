@@ -54,8 +54,8 @@ final class P2pUdpBindingFactory {
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
         return new P2pTransportBinding(
             transport,
-            List.of(transport.relayAddress()),
-            Map.of(),
+            java.util.Collections.singletonList(transport.relayAddress()),
+            java.util.Collections.emptyMap(),
             true
         );
     }
@@ -72,7 +72,7 @@ final class P2pUdpBindingFactory {
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                Map.copyOf(discovered),
+                new java.util.HashMap<>(discovered),
                 false
             );
         } finally {
@@ -94,7 +94,7 @@ final class P2pUdpBindingFactory {
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                Map.copyOf(discovered),
+                new java.util.HashMap<>(discovered),
                 false
             );
         } finally {

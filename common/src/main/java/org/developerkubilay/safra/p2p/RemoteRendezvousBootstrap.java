@@ -3,23 +3,22 @@ package org.developerkubilay.safra.p2p;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousBootstrap.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final String DEFAULT_SITE_API_VERSION = "1.0";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(CONNECT_TIMEOUT)
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
         .build();
 
     private RemoteRendezvousBootstrap() {
@@ -31,30 +30,36 @@ public final class RemoteRendezvousBootstrap {
         }
 
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
-                .timeout(REQUEST_TIMEOUT)
-                .GET()
+            Request request = new Request.Builder()
+                .url(REMOTE_CONFIG_URL)
+                .get()
                 .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                LOGGER.debug("Safra remote rendezvous config request returned HTTP {}", response.statusCode());
-                return;
-            }
 
-            String remoteUrl = parseRemoteUrl(response.body(), siteApiVersion());
-            if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
-                LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion());
-                return;
-            }
+            Response response = HTTP_CLIENT.newCall(request).execute();
+            try {
+                if (!response.isSuccessful()) {
+                    LOGGER.debug("Safra remote rendezvous config request returned HTTP {}", response.code());
+                    return;
+                }
 
-            P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
+                String body = response.body() != null ? response.body().string() : "";
+                String remoteUrl = parseRemoteUrl(body, siteApiVersion());
+                if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
+                    LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion());
+                    return;
+                }
+
+                P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
+            } finally {
+                response.close();
+            }
         } catch (Exception exception) {
             LOGGER.debug("Safra remote rendezvous bootstrap skipped: {}", exception.toString());
         }
     }
 
     private static String parseRemoteUrl(String body, String siteApiVersion) {
-        if (body == null || body.isBlank()) {
+        if (body == null || body.trim().isEmpty()) {
             return "";
         }
 
@@ -69,12 +74,12 @@ public final class RemoteRendezvousBootstrap {
 
     private static String siteApiVersion() {
         String property = System.getProperty("safra.siteApiVersion");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_SITE_API_VERSION");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return environment.trim();
         }
 

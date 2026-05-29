@@ -15,7 +15,7 @@ base {
     archivesName = "${project.archives_base_name}-forge"
 }
 
-def targetJavaVersion = 17
+def targetJavaVersion = 8
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
@@ -84,6 +84,8 @@ dependencies {
     embed('org.slf4j:slf4j-api:1.7.36') {
         transitive = false
     }
+    embed('com.squareup.okhttp3:okhttp:3.12.13')
+    embed('com.squareup.okio:okio:1.15.0')
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'

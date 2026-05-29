@@ -10,8 +10,8 @@ public final class ForgeLanSessionState {
     private static volatile boolean p2pEnabled = true;
     private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
-    private static volatile Map<String, String> gameRuleSnapshot = Map.of();
-    private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
+    private static volatile Map<String, String> gameRuleSnapshot = java.util.Collections.emptyMap();
+    private static volatile Map<String, String> defaultGameRuleSnapshot = java.util.Collections.emptyMap();
 
     private ForgeLanSessionState() {
     }
@@ -72,7 +72,7 @@ public final class ForgeLanSessionState {
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
         gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
-            ? Map.of()
+            ? java.util.Collections.emptyMap()
             : new LinkedHashMap<>(defaultGameRuleSnapshot);
         SafraClientConfig config = SafraClientConfig.get();
         config.setOpenToLanAllowCommandsEnabled(false);

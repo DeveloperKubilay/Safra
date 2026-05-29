@@ -52,6 +52,8 @@ dependencies {
     embed("org.slf4j:slf4j-api:1.7.36") {
         transitive = false
     }
+    embed('com.squareup.okhttp3:okhttp:3.12.13')
+    embed('com.squareup.okio:okio:1.15.0')
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 

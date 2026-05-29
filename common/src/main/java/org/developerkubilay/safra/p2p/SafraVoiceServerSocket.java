@@ -51,7 +51,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         SafraVoiceTransportManager manager = SafraVoiceTransportManager.getInstance();
         SafraRendezvousClient.HostSession session = manager.hostSession();
         String code = manager.hostCode();
-        if (session == null || code == null || code.isBlank()) {
+        if (session == null || code == null || code.trim().isEmpty()) {
             publishedCode = null;
             stunMappings.clear();
             return;
@@ -202,7 +202,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         try {
             return createSocket(port, address);
         } catch (BindException exception) {
-            if (address == null || bindAddress == null || bindAddress.isBlank()) {
+            if (address == null || bindAddress == null || bindAddress.trim().isEmpty()) {
                 throw exception;
             }
 
@@ -212,7 +212,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
     }
 
     private static InetAddress parseBindAddress(String bindAddress) throws UnknownHostException {
-        if (bindAddress == null || bindAddress.isBlank()) {
+        if (bindAddress == null || bindAddress.trim().isEmpty()) {
             return null;
         }
         return InetAddress.getByName(bindAddress);

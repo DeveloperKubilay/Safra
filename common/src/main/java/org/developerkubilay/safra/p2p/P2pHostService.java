@@ -165,7 +165,8 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             }
             try {
-                if (transport instanceof P2pDirectDatagramTransport directTransport) {
+                if (transport instanceof P2pDirectDatagramTransport) {
+                    P2pDirectDatagramTransport directTransport = (P2pDirectDatagramTransport) transport;
                     stunClient.sendKeepAlive(directTransport.socket(), endpoint.stunServer());
                 }
             } catch (IOException exception) {

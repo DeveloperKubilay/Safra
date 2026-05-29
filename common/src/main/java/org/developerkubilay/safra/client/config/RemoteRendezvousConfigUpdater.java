@@ -3,23 +3,25 @@ package org.developerkubilay.safra.client.config;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(CONNECT_TIMEOUT)
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
 
@@ -36,23 +38,34 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(java.net.URI.create(REMOTE_CONFIG_URL))
-            .timeout(REQUEST_TIMEOUT)
-            .GET()
+        Request request = new Request.Builder()
+            .url(REMOTE_CONFIG_URL)
+            .get()
             .build();
 
-        HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-            .thenApply(response -> response.statusCode() >= 200 && response.statusCode() < 300 ? response.body() : "")
-            .thenAccept(body -> applyRemoteConfig(config, body))
-            .exceptionally(throwable -> {
-                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", throwable.toString());
-                return null;
-            });
+        HTTP_CLIENT.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", e.toString());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        String body = response.body().string();
+                        applyRemoteConfig(config, body);
+                    }
+                } finally {
+                    response.close();
+                }
+            }
+        });
     }
 
     private static void applyRemoteConfig(BaseSafraClientConfig config, String body) {
         try {
-            if (body == null || body.isBlank()) {
+            if (body == null || body.trim().isEmpty()) {
                 return;
             }
 

@@ -34,10 +34,13 @@ abstract class JoinMultiplayerScreenMixin {
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
-                    Throwable cause = throwable instanceof CompletionException completionException
-                        && completionException.getCause() != null
-                        ? completionException.getCause()
-                        : throwable;
+                    Throwable cause = throwable;
+                    if (throwable instanceof CompletionException) {
+                        CompletionException completionException = (CompletionException) throwable;
+                        if (completionException.getCause() != null) {
+                            cause = completionException.getCause();
+                        }
+                    }
                     if (cause instanceof CancellationException) {
                         return;
                     }
