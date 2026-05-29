@@ -20,10 +20,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
 @Pseudo
-@Mixin(targets = {
-    "net.minecraft.client.gui.screen.multiplayer.ConnectScreen",
-    "net.minecraft.client.gui.screen.ConnectScreen"
-})
+@Mixin(targets = "net.minecraft.client.gui.screen.multiplayer.ConnectScreen")
 abstract class ConnectScreenMixin {
     @Inject(method = "connect", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, MinecraftClient client, ServerAddress serverAddress,

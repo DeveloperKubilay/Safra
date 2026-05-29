@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.DirectConnectScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
@@ -11,17 +12,13 @@ import org.developerkubilay.safra.client.p2p.FabricVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Pseudo
-@Mixin(targets = {
-    "net.minecraft.client.gui.screen.DirectConnectScreen"
-})
+@Mixin(DirectConnectScreen.class)
 abstract class DirectConnectScreenMixin extends Screen {
     @Shadow
     private ButtonWidget selectServerButton;
