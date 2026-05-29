@@ -76,11 +76,11 @@ public final class P2pConstants {
     }
 
     public static boolean hasRendezvousUrl() {
-        return !rendezvousUrl().isBlank();
+        return !rendezvousUrl().trim().isEmpty();
     }
 
     public static boolean isValidRendezvousUrl(String url) {
-        if (url == null || url.isBlank()) {
+        if (url == null || url.trim().isEmpty()) {
             return false;
         }
 
@@ -97,22 +97,22 @@ public final class P2pConstants {
 
     public static String rendezvousUrl() {
         String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return environment.trim();
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
+        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
             return legacyEnvironment.trim();
         }
 
         String runtime = runtimeRendezvousUrl;
-        if (runtime != null && !runtime.isBlank()) {
+        if (runtime != null && !runtime.trim().isEmpty()) {
             return runtime.trim();
         }
 
@@ -121,17 +121,17 @@ public final class P2pConstants {
 
     public static String rendezvousToken() {
         String property = System.getProperty("safra.rendezvousToken");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_TOKEN");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return environment.trim();
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_TOKEN");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
+        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
             return legacyEnvironment.trim();
         }
 
@@ -140,7 +140,7 @@ public final class P2pConstants {
 
     static boolean diagnosticsEnabled() {
         String property = System.getProperty(DIAGNOSTICS_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
@@ -149,12 +149,12 @@ public final class P2pConstants {
 
     static boolean forceTurnRelay() {
         String property = System.getProperty(FORCE_TURN_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
         String environment = System.getenv("SAFRA_FORCE_TURN");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return Boolean.parseBoolean(environment.trim());
         }
 
@@ -163,12 +163,12 @@ public final class P2pConstants {
 
     static boolean turnEnabled() {
         String property = System.getProperty(TURN_ENABLED_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
         String environment = System.getenv("SAFRA_TURN_ENABLED");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return Boolean.parseBoolean(environment.trim());
         }
 
@@ -189,7 +189,7 @@ public final class P2pConstants {
 
     private static int integerProperty(String key, int fallback) {
         String property = System.getProperty(key);
-        if (property == null || property.isBlank()) {
+        if (property == null || property.trim().isEmpty()) {
             return fallback;
         }
 

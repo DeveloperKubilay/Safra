@@ -7,20 +7,17 @@ import org.developerkubilay.safra.p2p.P2pConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(CONNECT_TIMEOUT)
-        .build();
+    private static final int TIMEOUT_MS = 5000;
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
 
     private RemoteRendezvousConfigUpdater() {
@@ -36,23 +33,41 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(java.net.URI.create(REMOTE_CONFIG_URL))
-            .timeout(REQUEST_TIMEOUT)
-            .GET()
-            .build();
-
-        HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-            .thenApply(response -> response.statusCode() >= 200 && response.statusCode() < 300 ? response.body() : "")
-            .thenAccept(body -> applyRemoteConfig(config, body))
-            .exceptionally(throwable -> {
+        Thread thread = new Thread(() -> {
+            try {
+                String body = httpGet(REMOTE_CONFIG_URL);
+                applyRemoteConfig(config, body);
+            } catch (Exception throwable) {
                 LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", throwable.toString());
-                return null;
-            });
+            }
+        });
+        thread.setDaemon(true);
+        thread.setName("safra-config-updater");
+        thread.start();
+    }
+
+    private static String httpGet(String urlStr) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(urlStr).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(TIMEOUT_MS);
+        connection.setReadTimeout(TIMEOUT_MS);
+        int code = connection.getResponseCode();
+        if (code < 200 || code >= 300) {
+            return "";
+        }
+        StringBuilder result = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                result.append(line);
+            }
+        }
+        return result.toString();
     }
 
     private static void applyRemoteConfig(BaseSafraClientConfig config, String body) {
         try {
-            if (body == null || body.isBlank()) {
+            if (body == null || body.trim().isEmpty()) {
                 return;
             }
 

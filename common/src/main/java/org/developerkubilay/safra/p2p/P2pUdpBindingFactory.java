@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,10 +55,12 @@ final class P2pUdpBindingFactory {
     static P2pTransportBinding createTurnBinding(Logger logger, String role) throws IOException {
         P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, P2pConstants.forceTurnRelay());
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
+        List<InetSocketAddress> endpoints = new ArrayList<>();
+        endpoints.add(transport.relayAddress());
         return new P2pTransportBinding(
             transport,
-            List.of(transport.relayAddress()),
-            Map.of(),
+            endpoints,
+            new HashMap<String, P2pStunClient.DiscoveredEndpoint>(),
             true
         );
     }
@@ -72,7 +77,7 @@ final class P2pUdpBindingFactory {
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                Map.copyOf(discovered),
+                new HashMap<>(discovered),
                 false
             );
         } finally {
@@ -94,7 +99,7 @@ final class P2pUdpBindingFactory {
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                Map.copyOf(discovered),
+                new HashMap<>(discovered),
                 false
             );
         } finally {

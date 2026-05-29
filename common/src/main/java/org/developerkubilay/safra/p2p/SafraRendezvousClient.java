@@ -13,27 +13,26 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.WebSocket;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 final class SafraRendezvousClient implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
-    private final HttpClient httpClient = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
-        .build();
 
-    private WebSocket webSocket;
+    private WebSocketClient webSocket;
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredRendezvousCode, Collection<InetSocketAddress> publicEndpoints,
@@ -134,22 +133,58 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    private void connect(URI uri, WebSocket.Listener listener) throws Exception {
-        WebSocket.Builder builder = httpClient.newWebSocketBuilder();
+    private void connect(URI uri, JsonListener listener) throws Exception {
+        Map<String, String> headers = new HashMap<>();
         String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
+        if (!token.trim().isEmpty()) {
+            headers.put("Authorization", "Bearer " + token);
         }
 
-        webSocket = builder
-            .buildAsync(uri, listener)
-            .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        CountDownLatch connectLatch = new CountDownLatch(1);
+        AtomicReference<Exception> connectError = new AtomicReference<>();
+
+        webSocket = new WebSocketClient(uri, new org.java_websocket.drafts.Draft_6455(), headers, (int)P2pConstants.RENDEZVOUS_TIMEOUT_MS) {
+            @Override
+            public void onOpen(ServerHandshake handshakedata) {
+                listener.onOpen();
+                connectLatch.countDown();
+            }
+
+            @Override
+            public void onMessage(String message) {
+                listener.onText(message);
+            }
+
+            @Override
+            public void onClose(int code, String reason, boolean remote) {
+                listener.onClose(code, reason);
+            }
+
+            @Override
+            public void onError(Exception ex) {
+                if (connectLatch.getCount() > 0) {
+                    connectError.set(ex);
+                    connectLatch.countDown();
+                } else {
+                    listener.onError(ex);
+                }
+            }
+        };
+
+        webSocket.connect();
+        if (!connectLatch.await(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            webSocket.close();
+            throw new IOException("WebSocket connection timeout");
+        }
+        if (connectError.get() != null) {
+            throw new IOException("WebSocket connection failed", connectError.get());
+        }
     }
 
     private void send(JsonObject message) {
-        WebSocket socket = webSocket;
+        WebSocketClient socket = webSocket;
         if (socket != null && !closed) {
-            socket.sendText(GSON.toJson(message), true);
+            socket.send(GSON.toJson(message));
         }
     }
 
@@ -159,9 +194,9 @@ final class SafraRendezvousClient implements AutoCloseable {
             return;
         }
         closed = true;
-        WebSocket socket = webSocket;
+        WebSocketClient socket = webSocket;
         if (socket != null) {
-            socket.sendClose(WebSocket.NORMAL_CLOSURE, "safra closed");
+            socket.close(1000, "safra closed");
         }
     }
 
@@ -171,16 +206,21 @@ final class SafraRendezvousClient implements AutoCloseable {
 
     private static URI webSocketUri(String path, String peerId, String fixedCode) {
         String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
-        if (base.isBlank()) {
+        if (base.trim().isEmpty()) {
             throw new IllegalStateException("rendezvous URL is not configured");
         }
         URI baseUri = URI.create(base);
-        String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
-            case "http" -> "ws";
-            case "https" -> "wss";
-            case "ws", "wss" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
-        };
+        String schemeRaw = baseUri.getScheme().toLowerCase(Locale.ROOT);
+        String scheme;
+        if ("http".equals(schemeRaw)) {
+            scheme = "ws";
+        } else if ("https".equals(schemeRaw)) {
+            scheme = "wss";
+        } else if ("ws".equals(schemeRaw) || "wss".equals(schemeRaw)) {
+            scheme = schemeRaw;
+        } else {
+            throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
+        }
 
         StringBuilder uri = new StringBuilder()
             .append(scheme)
@@ -189,7 +229,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             .append(path)
             .append("?peerId=")
             .append(encode(peerId));
-        if (fixedCode != null && !fixedCode.isBlank()) {
+        if (fixedCode != null && !fixedCode.trim().isEmpty()) {
             uri.append("&fixedCode=").append(encode(fixedCode));
         }
         return URI.create(uri.toString());
@@ -197,22 +237,31 @@ final class SafraRendezvousClient implements AutoCloseable {
 
     private static URI httpUri(String path) {
         String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
-        if (base.isBlank()) {
+        if (base.trim().isEmpty()) {
             throw new IllegalStateException("rendezvous URL is not configured");
         }
         URI baseUri = URI.create(base);
-        String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
-            case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            case "ws" -> "http";
-            case "wss" -> "https";
-            default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
-        };
+        String schemeRaw2 = baseUri.getScheme().toLowerCase(Locale.ROOT);
+        String scheme;
+        if ("http".equals(schemeRaw2) || "https".equals(schemeRaw2)) {
+            scheme = schemeRaw2;
+        } else if ("ws".equals(schemeRaw2)) {
+            scheme = "http";
+        } else if ("wss".equals(schemeRaw2)) {
+            scheme = "https";
+        } else {
+            throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
+        }
 
         return URI.create(scheme + "://" + baseUri.getAuthority() + path);
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException exception) {
+            throw new RuntimeException("UTF-8 not supported", exception);
+        }
     }
 
     private static InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> publicEndpoints) {
@@ -240,11 +289,11 @@ final class SafraRendezvousClient implements AutoCloseable {
     }
 
     private static IOException asIOException(String message, Exception exception) {
-        Throwable cause = exception instanceof java.util.concurrent.ExecutionException executionException
-            ? executionException.getCause()
+        Throwable cause = exception instanceof java.util.concurrent.ExecutionException
+            ? ((java.util.concurrent.ExecutionException) exception).getCause()
             : exception;
-        if (cause instanceof IOException ioException) {
-            return ioException;
+        if (cause instanceof IOException) {
+            return (IOException) cause;
         }
         if (cause instanceof TimeoutException) {
             return new IOException(message + ": timeout", cause);
@@ -269,41 +318,26 @@ final class SafraRendezvousClient implements AutoCloseable {
         return safra;
     }
 
-    private abstract static class JsonListener implements WebSocket.Listener {
-        private final StringBuilder buffer = new StringBuilder();
+    private abstract static class JsonListener {
 
-        @Override
-        public void onOpen(WebSocket webSocket) {
-            webSocket.request(1);
+        public void onOpen() {
         }
 
-        @Override
-        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-            buffer.append(data);
-            if (last) {
-                try {
-                    JsonObject message = new JsonParser().parse(buffer.toString()).getAsJsonObject();
-                    handle(message);
-                } catch (RuntimeException exception) {
-                    fail(exception);
-                } finally {
-                    buffer.setLength(0);
-                }
+        public void onText(String data) {
+            try {
+                JsonObject message = new JsonParser().parse(data).getAsJsonObject();
+                handle(message);
+            } catch (RuntimeException exception) {
+                fail(exception);
             }
-
-            webSocket.request(1);
-            return CompletableFuture.completedFuture(null);
         }
 
-        @Override
-        public void onError(WebSocket webSocket, Throwable error) {
+        public void onError(Exception error) {
             fail(error);
         }
 
-        @Override
-        public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+        public void onClose(int statusCode, String reason) {
             fail(new IOException("rendezvous websocket closed: " + statusCode + " " + reason));
-            return CompletableFuture.completedFuture(null);
         }
 
         protected abstract void handle(JsonObject message);
@@ -459,7 +493,7 @@ final class SafraRendezvousClient implements AutoCloseable {
 
         String host = string(object, "host");
         int port = integer(object.get("port"), 0);
-        if (host.isBlank() || port < 1 || port > 65535) {
+        if (host.trim().isEmpty() || port < 1 || port > 65535) {
             return null;
         }
 
@@ -554,13 +588,59 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    private record ResolvedHost(InetSocketAddress address, int tunnelToken) {
+    private static final class ResolvedHost {
+        private final InetSocketAddress address;
+        private final int tunnelToken;
+
+        ResolvedHost(InetSocketAddress address, int tunnelToken) {
+            this.address = address;
+            this.tunnelToken = tunnelToken;
+        }
+
+        InetSocketAddress address() {
+            return address;
+        }
+
+        int tunnelToken() {
+            return tunnelToken;
+        }
     }
 
-    private record ResolvedVoiceHost(InetSocketAddress address) {
+    private static final class ResolvedVoiceHost {
+        private final InetSocketAddress address;
+
+        ResolvedVoiceHost(InetSocketAddress address) {
+            this.address = address;
+        }
+
+        InetSocketAddress address() {
+            return address;
+        }
     }
 
-    private record UdpEndpoint(String host, int port, String family) {
+    private static final class UdpEndpoint {
+        private final String host;
+        private final int port;
+        private final String family;
+
+        UdpEndpoint(String host, int port, String family) {
+            this.host = host;
+            this.port = port;
+            this.family = family;
+        }
+
+        String host() {
+            return host;
+        }
+
+        int port() {
+            return port;
+        }
+
+        String family() {
+            return family;
+        }
+
         static UdpEndpoint from(InetSocketAddress publicEndpoint) {
             InetAddress address = publicEndpoint.getAddress();
             String host = address == null ? publicEndpoint.getHostString() : address.getHostAddress();

@@ -3,7 +3,13 @@ package org.developerkubilay.safra.p2p;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-record P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+final class P2pPacket {
+    private final Type type;
+    private final int token;
+    private final int connectionId;
+    private final int sequence;
+    private final int acknowledgement;
+    private final byte[] payload;
     enum Type {
         OPEN(1),
         OPEN_ACK(2),
@@ -56,8 +62,37 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
         return new P2pPacket(Type.CLOSE, token, connectionId, 0, 0, new byte[0]);
     }
 
-    P2pPacket {
-        payload = payload == null ? new byte[0] : payload;
+    P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+        this.type = type;
+        this.token = token;
+        this.connectionId = connectionId;
+        this.sequence = sequence;
+        this.acknowledgement = acknowledgement;
+        this.payload = payload == null ? new byte[0] : payload;
+    }
+
+    Type type() {
+        return type;
+    }
+
+    int token() {
+        return token;
+    }
+
+    int connectionId() {
+        return connectionId;
+    }
+
+    int sequence() {
+        return sequence;
+    }
+
+    int acknowledgement() {
+        return acknowledgement;
+    }
+
+    byte[] payload() {
+        return payload;
     }
 
     int acknowledgementMask() {

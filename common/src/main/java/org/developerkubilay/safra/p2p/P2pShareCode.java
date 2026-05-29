@@ -7,7 +7,11 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
-public record P2pShareCode(String host, int port, int token, String rendezvousCode) {
+public final class P2pShareCode {
+    private final String host;
+    private final int port;
+    private final int token;
+    private final String rendezvousCode;
     public static final int DEFAULT_RENDEZVOUS_CODE_LENGTH = 12;
     public static final int FIXED_RENDEZVOUS_CODE_LENGTH = 16;
     private static final String RENDEZVOUS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -17,24 +21,45 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
         this(host, port, token, null);
     }
 
-    public P2pShareCode {
-        if (rendezvousCode != null && !rendezvousCode.isBlank()) {
-            rendezvousCode = normalizeRendezvousCode(rendezvousCode);
-            if (rendezvousCode == null) {
+    public P2pShareCode(String host, int port, int token, String rendezvousCode) {
+        if (rendezvousCode != null && !rendezvousCode.trim().isEmpty()) {
+            String normalized = normalizeRendezvousCode(rendezvousCode);
+            if (normalized == null) {
                 throw new IllegalArgumentException("rendezvous code is invalid");
             }
-            host = "";
-            port = 0;
-            token = 0;
+            this.rendezvousCode = normalized;
+            this.host = "";
+            this.port = 0;
+            this.token = 0;
         } else {
             Objects.requireNonNull(host, "host");
-            if (host.isBlank()) {
+            if (host.trim().isEmpty()) {
                 throw new IllegalArgumentException("host is blank");
             }
             if (port < 1 || port > 65535) {
                 throw new IllegalArgumentException("port out of range");
             }
+            this.host = host;
+            this.port = port;
+            this.token = token;
+            this.rendezvousCode = null;
         }
+    }
+
+    public String host() {
+        return host;
+    }
+
+    public int port() {
+        return port;
+    }
+
+    public int token() {
+        return token;
+    }
+
+    public String rendezvousCode() {
+        return rendezvousCode;
     }
 
     public static boolean isStoredAddress(String address) {
@@ -69,7 +94,7 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
 
         HostAndPort hostAndPort = HostAndPort.fromString(endpointPart).withDefaultPort(25565);
         String host = hostAndPort.getHost().trim();
-        if (host.isBlank()) {
+        if (host.trim().isEmpty()) {
             throw new IllegalArgumentException("host is blank");
         }
 
@@ -98,7 +123,7 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
     }
 
     public boolean isRendezvous() {
-        return rendezvousCode != null && !rendezvousCode.isBlank();
+        return rendezvousCode != null && !rendezvousCode.trim().isEmpty();
     }
 
     public String toStoredAddress() {
