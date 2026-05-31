@@ -1,0 +1,564 @@
+import groovy.json.JsonSlurper
+import java.util.jar.JarFile
+
+plugins {
+    id 'base'
+}
+
+def versionConfig = [
+    '1.21'   : [
+        sourceBucket              : '1_21_0',
+        forgeEventSourceDir       : '1_21_pre_6',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.102.0+1.21',
+        minecraftVersionRange     : '[1.21,1.21.1)',
+        neoVersion                : '21.0.167',
+        neoVersionRange           : '[21.0.167,)',
+        forgeVersion              : '51.0.28',
+        forgeVersionRange         : '[51,)',
+        forgeLoaderVersionRange   : '[51,)',
+        forgeMinecraftVersionRange: '[1.21,1.21.1)'
+    ],
+    '1.21.1' : [
+        sourceBucket              : '1_21_0',
+        forgeEventSourceDir       : '1_21_pre_6',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.116.12+1.21.1',
+        minecraftVersionRange     : '[1.21.1,1.21.2)',
+        neoVersion                : '21.1.228',
+        neoVersionRange           : '[21.1.228,)',
+        forgeVersion              : '52.1.14',
+        forgeVersionRange         : '[52,)',
+        forgeLoaderVersionRange   : '[52,)',
+        forgeMinecraftVersionRange: '[1.21.1,1.21.2)'
+    ],
+    '1.21.2' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_pre_6',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.106.1+1.21.2',
+        minecraftVersionRange     : '[1.21.2,1.21.3)',
+        neoVersion                : '21.2.1-beta',
+        neoVersionRange           : '[21.2.1-beta,)',
+        forgeVersion              : '53.1.10',
+        forgeVersionRange         : '[53,)',
+        forgeLoaderVersionRange   : '[53,)',
+        forgeMinecraftVersionRange: '[1.21.2,1.21.3)'
+    ],
+    '1.21.3' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_pre_6',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.114.1+1.21.3',
+        minecraftVersionRange     : '[1.21.3,1.21.4)',
+        neoVersion                : '21.3.96',
+        neoVersionRange           : '[21.3.96,)',
+        forgeVersion              : '53.1.10',
+        forgeVersionRange         : '[53,)',
+        forgeLoaderVersionRange   : '[53,)',
+        forgeMinecraftVersionRange: '[1.21.3,1.21.4)'
+    ],
+    '1.21.4' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_pre_6',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.119.4+1.21.4',
+        minecraftVersionRange     : '[1.21.4,1.21.5)',
+        neoVersion                : '21.4.157',
+        neoVersionRange           : '[21.4.157,)',
+        forgeVersion              : '54.1.16',
+        forgeVersionRange         : '[54,)',
+        forgeLoaderVersionRange   : '[54,)',
+        forgeMinecraftVersionRange: '[1.21.4,1.21.5)'
+    ],
+    '1.21.5' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_pre_6',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.128.2+1.21.5',
+        minecraftVersionRange     : '[1.21.5,1.21.6)',
+        neoVersion                : '21.5.97',
+        neoVersionRange           : '[21.5.97,)',
+        forgeVersion              : '55.0.1',
+        forgeVersionRange         : '[55,)',
+        forgeLoaderVersionRange   : '[55,)',
+        forgeMinecraftVersionRange: '[1.21.5,1.21.6)'
+    ],
+    '1.21.6' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_6_plus',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.128.2+1.21.6',
+        minecraftVersionRange     : '[1.21.6,1.21.9)',
+        neoVersion                : '21.6.20-beta',
+        neoVersionRange           : '[21.6.20-beta,)',
+        forgeVersion              : '56.0.7',
+        forgeVersionRange         : '[56,)',
+        forgeLoaderVersionRange   : '[56,)',
+        forgeMinecraftVersionRange: '[1.21.6,1.21.9)'
+    ],
+    '1.21.8' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_6_plus',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.132.0+1.21.8',
+        minecraftVersionRange     : '[1.21.8,1.21.9)',
+        neoVersion                : '21.8.53',
+        neoVersionRange           : '[21.8.53,)',
+        forgeVersion              : '58.0.0',
+        forgeVersionRange         : '[58,)',
+        forgeLoaderVersionRange   : '[58,)',
+        forgeMinecraftVersionRange: '[1.21.8,1.21.9)'
+    ],
+    '1.21.9' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_6_plus',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.134.1+1.21.9',
+        minecraftVersionRange     : '[1.21.9,1.21.11)',
+        neoVersion                : '21.9.16-beta',
+        neoVersionRange           : '[21.9.16-beta,)',
+        forgeVersion              : '59.0.5',
+        forgeVersionRange         : '[59,)',
+        forgeLoaderVersionRange   : '[59,)',
+        forgeMinecraftVersionRange: '[1.21.9,1.21.11)'
+    ],
+    '1.21.10': [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_6_plus',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.136.0+1.21.10',
+        minecraftVersionRange     : '[1.21.10,1.21.11)',
+        neoVersion                : '21.10.64',
+        neoVersionRange           : '[21.10.64,)',
+        forgeVersion              : '60.0.0',
+        forgeVersionRange         : '[60,)',
+        forgeLoaderVersionRange   : '[60,)',
+        forgeMinecraftVersionRange: '[1.21.10,1.21.11)'
+    ],
+    '1.21.11': [
+        sourceBucket              : '1_21_11',
+        forgeEventSourceDir       : '1_21_6_plus',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.141.3+1.21.11',
+        minecraftVersionRange     : '[1.21.11]',
+        neoVersion                : '21.11.42',
+        neoVersionRange           : '[21.11.42,)',
+        forgeVersion              : '61.1.5',
+        forgeVersionRange         : '[61,)',
+        forgeLoaderVersionRange   : '[61,)',
+        forgeMinecraftVersionRange: '[1.21.11,1.22)'
+    ]
+]
+
+def requestedMcVersion = (findProperty('mcVersion') ?: findProperty('minecraft_version')).toString()
+def activeVersion = versionConfig[requestedMcVersion]
+if (activeVersion == null) {
+    throw new GradleException("Unknown mcVersion '${requestedMcVersion}'. Supported versions: ${versionConfig.keySet().join(', ')}")
+}
+
+ext.mcVersion = requestedMcVersion
+ext.activeVersion = activeVersion
+ext.versionSourceDir = activeVersion.sourceBucket
+ext.forgeEventSourceDir = activeVersion.forgeEventSourceDir
+ext.versionConfig = versionConfig
+ext.supportedMcVersions = versionConfig.keySet() as List
+ext.buildDirectorySuffix = requestedMcVersion.replaceAll('[^0-9A-Za-z.-]+', '_')
+layout.buildDirectory.set(file("build/${ext.buildDirectorySuffix}/root"))
+
+group = project.maven_group
+version = "${requestedMcVersion}-${project.mod_version}"
+
+ext.devRunUsername = { Project targetProject ->
+    def override = gradle.startParameter.projectProperties['devUsername']
+    if (override != null && !override.isBlank()) {
+        return override
+    }
+
+    def baseByProject = [
+        fabric  : 100,
+        neoforge: 400,
+        forge   : 700
+    ]
+    int base = baseByProject.get(targetProject.name, 100)
+    long seed = System.currentTimeMillis() ^ (targetProject.path.hashCode() * 31L)
+    int offset = Math.floorMod((int) seed, 300)
+    return "Player${base + offset}"
+}
+
+ext.devBooleanProperty = { String name ->
+    def value = gradle.startParameter.projectProperties[name]
+    return value != null && Boolean.parseBoolean(value)
+}
+
+ext.quicNettyVersion = '4.2.7.Final'
+ext.quicNativeClassifier = {
+    String osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+    String osArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+    boolean aarch64 = osArch.contains('aarch64') || osArch.contains('arm64')
+    if (osName.contains('win')) {
+        return 'windows-x86_64'
+    }
+    if (osName.contains('mac')) {
+        return aarch64 ? 'osx-aarch_64' : 'osx-x86_64'
+    }
+    if (osName.contains('linux')) {
+        return aarch64 ? 'linux-aarch_64' : 'linux-x86_64'
+    }
+    return null
+}
+
+allprojects {
+    group = rootProject.group
+    version = rootProject.version
+}
+
+subprojects {
+    ext.minecraft_version = rootProject.ext.mcVersion
+    ext.loader_version = rootProject.ext.activeVersion.loaderVersion
+    ext.fabric_version = rootProject.ext.activeVersion.fabricVersion
+    ext.minecraft_version_range = rootProject.ext.activeVersion.minecraftVersionRange
+    ext.neo_version = rootProject.ext.activeVersion.neoVersion
+    ext.neo_version_range = rootProject.ext.activeVersion.neoVersionRange
+    ext.forge_version = rootProject.ext.activeVersion.forgeVersion
+    ext.forge_version_range = rootProject.ext.activeVersion.forgeVersionRange
+    ext.forge_loader_version_range = rootProject.ext.activeVersion.forgeLoaderVersionRange
+    ext.forge_minecraft_version_range = rootProject.ext.activeVersion.forgeMinecraftVersionRange
+    ext.versionSourceDir = rootProject.ext.versionSourceDir
+    ext.forgeEventSourceDir = rootProject.ext.activeVersion.forgeEventSourceDir
+    ext.build_directory_suffix = rootProject.ext.buildDirectorySuffix
+
+    layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.buildDirectorySuffix}/${project.name}"))
+
+    repositories {
+        mavenCentral()
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        maven {
+            name = 'Forge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+        maven {
+            name = 'NeoForged'
+            url = 'https://maven.neoforged.net/releases/'
+        }
+        maven {
+            name = 'MaxHenkel'
+            url = 'https://maven.maxhenkel.de/repository/public'
+            content {
+                includeGroup 'de.maxhenkel.voicechat'
+            }
+        }
+    }
+}
+
+def fabricProject = findProject(':fabric')
+def neoforgeProject = findProject(':neoforge')
+def forgeProject = findProject(':forge')
+def rootRunClientRequested = gradle.startParameter.taskNames.any {
+    it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
+}
+def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
+def rootTaskSelectorRunClient = rootRunClientRequested && runningFromRootDir
+def wrapperExecutable = System.getProperty('os.name', '').toLowerCase(Locale.ROOT).contains('win') ? 'gradlew.bat' : './gradlew'
+def forwardedProjectProperties = gradle.startParameter.projectProperties.collect { key, value ->
+    value == null || value.isBlank() ? "-P${key}" : "-P${key}=${value}"
+}
+
+fabricProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+neoforgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+
+tasks.register('collectBuildLibs', Copy) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    into(layout.buildDirectory.dir('libs'))
+    include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+
+    if (fabricProject != null) {
+        dependsOn(':fabric:build')
+        from(fabricProject.layout.buildDirectory.dir('libs'))
+    }
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:build')
+        from(neoforgeProject.layout.buildDirectory.dir('libs'))
+    }
+    if (forgeProject != null) {
+        dependsOn(':forge:build')
+        from(forgeProject.layout.buildDirectory.dir('libs'))
+    }
+
+    doFirst {
+        delete(layout.buildDirectory.dir('libs').get().asFile)
+    }
+}
+
+tasks.register('runClient', Exec) {
+    group = 'application'
+    description = 'Runs the NeoForge client from the root project.'
+    workingDir rootProject.projectDir
+    if (neoforgeProject != null) {
+        commandLine([wrapperExecutable, ':neoforge:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
+    } else if (fabricProject != null) {
+        commandLine([wrapperExecutable, ':fabric:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
+    }
+}
+
+tasks.register('runFabricClient') {
+    group = 'application'
+    description = 'Runs the Fabric client from the root project.'
+    if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    }
+}
+
+tasks.register('runNeoForgeClient') {
+    group = 'application'
+    description = 'Runs the NeoForge client from the root project.'
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:runClient')
+    }
+}
+
+tasks.register('runForgeClient') {
+    group = 'application'
+    description = 'Runs the Forge client from the root project.'
+    if (forgeProject != null) {
+        dependsOn(':forge:runClient')
+    }
+}
+
+tasks.named('build') {
+    doFirst {
+        delete(layout.buildDirectory.file('reports/problems/problems-report.html').get().asFile)
+    }
+    dependsOn(tasks.named('collectBuildLibs'))
+}
+
+def releaseTaskNames = []
+ext.supportedMcVersions.each { profileName ->
+    def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
+    releaseTaskNames << taskName
+    tasks.register(taskName, Exec) {
+        group = 'release'
+        description = "Builds the ${profileName} release line."
+        workingDir rootProject.projectDir
+        commandLine([wrapperExecutable, 'clean', 'build', '--no-daemon', '--console=plain'] + forwardedProjectProperties + [
+            "-PmcVersion=${profileName}"
+        ])
+    }
+}
+
+tasks.register('buildReleaseMatrix') {
+    group = 'release'
+    description = 'Builds every configured Minecraft release line.'
+    dependsOn(releaseTaskNames.collect { tasks.named(it) })
+}
+
+tasks.register('collectReleaseMatrixArtifacts') {
+    group = 'release'
+    description = 'Collects all built release artifacts into one folder tree.'
+    dependsOn(tasks.named('buildReleaseMatrix'))
+
+    doLast {
+        def outputDir = rootProject.file("build/release-matrix/${project.mod_version}")
+        delete(outputDir)
+        outputDir.mkdirs()
+
+        rootProject.ext.supportedMcVersions.each { profileName ->
+            def versionLibDir = file("${rootProject.projectDir}/build/${profileName}/root/libs")
+            if (!versionLibDir.exists()) {
+                throw new GradleException("Missing built artifact directory for ${profileName}: ${versionLibDir}")
+            }
+
+            def targetDir = file("${outputDir}/${profileName}")
+            targetDir.mkdirs()
+
+            copy {
+                from(versionLibDir)
+                into(targetDir)
+                include('*.jar')
+                exclude('*-dev.jar', '*-srg.jar')
+            }
+        }
+    }
+}
+
+tasks.register('verifyMixinArtifacts') {
+    dependsOn(tasks.named('collectBuildLibs'))
+
+    doLast {
+        def jars = layout.buildDirectory.dir('libs').get().asFile.listFiles()?.findAll {
+            it.name.endsWith('.jar') && !it.name.endsWith('-sources.jar')
+        } ?: []
+        if (jars.isEmpty()) {
+            throw new GradleException('No built jars were found for mixin verification.')
+        }
+
+        def slurper = new JsonSlurper()
+        def mixinConfigRequirements = [
+            'safra.forge.mixins.json'   : 'forge',
+            'safra.neoforge.mixins.json': 'neoforge'
+        ]
+        def modEntryClassName = 'org.developerkubilay.safra.SafraForge'
+        def modEntryClassPath = 'org/developerkubilay/safra/SafraForge.class'
+        def hasPublicNoArgConstructor = { byte[] classBytes ->
+            def input = new DataInputStream(new ByteArrayInputStream(classBytes))
+            try {
+                if ((input.readInt() & 0xFFFFFFFFL) != 0xCAFEBABEL) {
+                    throw new GradleException("Invalid class file for ${modEntryClassName}")
+                }
+
+                input.readUnsignedShort()
+                input.readUnsignedShort()
+
+                int constantPoolCount = input.readUnsignedShort()
+                def constantPool = new Object[constantPoolCount]
+                for (int index = 1; index < constantPoolCount; index++) {
+                    switch (input.readUnsignedByte()) {
+                        case 1:
+                            constantPool[index] = input.readUTF()
+                            break
+                        case 3:
+                        case 4:
+                            input.readInt()
+                            break
+                        case 5:
+                        case 6:
+                            input.readLong()
+                            index++
+                            break
+                        case 7:
+                        case 8:
+                        case 16:
+                        case 19:
+                        case 20:
+                            input.readUnsignedShort()
+                            break
+                        case 9:
+                        case 10:
+                        case 11:
+                        case 12:
+                        case 17:
+                        case 18:
+                            input.readUnsignedShort()
+                            input.readUnsignedShort()
+                            break
+                        case 15:
+                            input.readUnsignedByte()
+                            input.readUnsignedShort()
+                            break
+                        default:
+                            throw new GradleException("Unsupported class file constant pool tag while checking ${modEntryClassName}")
+                    }
+                }
+
+                input.readUnsignedShort()
+                input.readUnsignedShort()
+                input.readUnsignedShort()
+
+                input.readUnsignedShort().times {
+                    input.readUnsignedShort()
+                }
+
+                def skipMember = {
+                    input.readUnsignedShort()
+                    input.readUnsignedShort()
+                    input.readUnsignedShort()
+                    input.readUnsignedShort().times {
+                        input.readUnsignedShort()
+                        input.skipNBytes(input.readInt() as long)
+                    }
+                }
+
+                input.readUnsignedShort().times {
+                    skipMember()
+                }
+
+                int methodCount = input.readUnsignedShort()
+                for (int methodIndex = 0; methodIndex < methodCount; methodIndex++) {
+                    int accessFlags = input.readUnsignedShort()
+                    int nameIndex = input.readUnsignedShort()
+                    int descriptorIndex = input.readUnsignedShort()
+                    String methodName = constantPool[nameIndex] as String
+                    String descriptor = constantPool[descriptorIndex] as String
+                    input.readUnsignedShort().times {
+                        input.readUnsignedShort()
+                        input.skipNBytes(input.readInt() as long)
+                    }
+
+                    if (methodName == '<init>' && descriptor == '()V' && (accessFlags & 0x0001) != 0) {
+                        return true
+                    }
+                }
+
+                return false
+            } finally {
+                input.close()
+            }
+        }
+
+        jars.findAll { jarFile ->
+            jarFile.name.contains('-forge-') || jarFile.name.contains('-neoforge-')
+        }.each { jarFile ->
+            JarFile jar = new JarFile(jarFile)
+            try {
+                mixinConfigRequirements.each { configName, loader ->
+                    def configEntry = jar.getJarEntry(configName)
+                    if (configEntry == null) {
+                        return
+                    }
+
+                    def config = slurper.parse(jar.getInputStream(configEntry))
+                    def refmapName = config.refmap
+                    if (!(refmapName instanceof String) || refmapName.isBlank()) {
+                        throw new GradleException("Missing refmap in ${jarFile.name}:${configName}")
+                    }
+
+                    def refmapEntry = jar.getJarEntry(refmapName)
+                    if (refmapEntry == null) {
+                        throw new GradleException("Missing refmap resource ${refmapName} in ${jarFile.name}")
+                    }
+
+                    def refmap = slurper.parse(jar.getInputStream(refmapEntry))
+                    def hasMappings = refmap instanceof Map && (
+                        (refmap.mappings instanceof Map && !refmap.mappings.isEmpty()) ||
+                        (refmap.data instanceof Map && refmap.data.values().any { it instanceof Map && !it.isEmpty() })
+                    )
+                    if (!hasMappings) {
+                        throw new GradleException("Empty refmap ${refmapName} in ${jarFile.name}")
+                    }
+
+                    if (loader == 'forge' || loader == 'neoforge') {
+                        def serializedRefmap = groovy.json.JsonOutput.toJson(refmap)
+                        if (serializedRefmap.contains(';m_') || serializedRefmap.contains(' f_')) {
+                            throw new GradleException("${loader.capitalize()} refmap ${refmapName} in ${jarFile.name} still contains obfuscated member names.")
+                        }
+                    }
+                }
+                if (jarFile.name.contains('-forge-')) {
+                    def modEntryClass = jar.getJarEntry(modEntryClassPath)
+                    if (modEntryClass == null) {
+                        throw new GradleException("Missing mod entrypoint class ${modEntryClassName} in ${jarFile.name}")
+                    }
+                    if (!hasPublicNoArgConstructor(jar.getInputStream(modEntryClass).bytes)) {
+                        throw new GradleException("Missing public no-arg mod entrypoint constructor in ${jarFile.name}:${modEntryClassName}")
+                    }
+                }
+            } finally {
+                jar.close()
+            }
+        }
+    }
+}
+
+tasks.named('build') {
+    dependsOn(tasks.named('verifyMixinArtifacts'))
+}

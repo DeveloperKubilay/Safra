@@ -1,0 +1,121 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version '1.16.1'
+    id 'maven-publish'
+}
+
+def versionSourceDir = rootProject.ext.versionSourceDir
+
+sourceSets {
+    main {
+        java.srcDir(project(':common').file('src/main/java'))
+        resources.srcDir(project(':common').file('src/main/resources'))
+    }
+}
+
+base {
+    archivesName = "${project.archives_base_name}-fabric"
+}
+
+def devUsername = rootProject.ext.devRunUsername(project)
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+
+    runs {
+        client {
+            property 'safra.p2p.diagnostics', 'true'
+            programArg '--username'
+            programArg devUsername
+        }
+        server {
+            server()
+            property 'safra.p2p.diagnostics', 'false'
+        }
+    }
+}
+
+sourceSets.named('client') {
+    java.srcDir(file("src/client/versionSpecific/${versionSourceDir}/java"))
+    resources.srcDir(file("src/client/versionSpecific/${versionSourceDir}/resources"))
+}
+
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+}
+
+processResources {
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'loader_version', project.loader_version
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_license', project.mod_license
+    inputs.property 'mod_description', project.mod_description
+    filteringCharset = 'UTF-8'
+
+    filesMatching('fabric.mod.json') {
+        expand(
+            version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_version: project.loader_version,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'fabric',
+            loader_version: project.loader_version
+        )
+    }
+}
+
+def targetJavaVersion = 21
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            artifactId = "${project.archives_base_name}-fabric"
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}

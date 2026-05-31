@@ -1,0 +1,33 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        maven {
+            name = 'Forge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+        maven {
+            name = 'NeoForged'
+            url = 'https://maven.neoforged.net/releases/'
+        }
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'Safra'
+
+def requestedMcVersion = gradle.startParameter.projectProperties['mcVersion'] ?: '1.21.11'
+def forgeUnsupportedVersions = ['1.21.2'] as Set
+
+include 'common'
+include 'fabric'
+include 'neoforge'
+if (!forgeUnsupportedVersions.contains(requestedMcVersion)) {
+    include 'forge'
+}

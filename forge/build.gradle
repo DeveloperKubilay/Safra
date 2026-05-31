@@ -1,0 +1,315 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[7.0.23,8.0)'
+    id 'net.minecraftforge.renamer' version '1.0.14'
+}
+
+def versionSourceDir = rootProject.ext.versionSourceDir
+def forgeEventSourceDir = rootProject.ext.forgeEventSourceDir
+
+sourceSets {
+    main {
+        java.srcDir(project(':common').file('src/main/java'))
+        resources.srcDir(project(':common').file('src/main/resources'))
+        java.srcDir(file("src/main/versionSpecific/${versionSourceDir}/java"))
+        java.srcDir(file("src/main/versionEvents/${forgeEventSourceDir}/java"))
+        resources.srcDir(file("src/main/versionSpecific/${versionSourceDir}/resources"))
+    }
+}
+
+base {
+    archivesName = "${project.archives_base_name}-forge"
+}
+
+def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+def quicNettyVersion = rootProject.ext.quicNettyVersion
+def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
+def rootRunClientRequested = gradle.startParameter.taskNames.any {
+    it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
+}
+def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
+def forgeSupportOnly = rootRunClientRequested && runningFromRootDir
+
+def targetJavaVersion = 21
+def sourceMixinMappingsFile = layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+renamer.enableMixinRefmaps {
+    config "${project.mod_id}.forge.mixins.json"
+}
+
+renamer.classes(tasks.named('jar', Jar)) {
+    archiveClassifier = 'srg'
+    mappings renamer.mixin.generatedMappings
+}
+
+minecraft {
+    mappings channel: 'official', version: project.minecraft_version
+
+    runs {
+        configureEach {
+            workingDir.convention layout.projectDirectory.dir('run')
+            args "--mixin.config=${project.mod_id}.forge.mixins.json"
+            systemProperty 'io.netty.tryReflectionSetAccessible', 'true'
+            jvmArgs '--enable-native-access=ALL-UNNAMED,io.netty.common'
+            jvmArgs '--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED,io.netty.common'
+        }
+
+        if (!forgeSupportOnly) {
+            register('client') {
+                systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+                systemProperty 'java.net.preferIPv4Stack', 'false'
+                systemProperty 'safra.p2p.diagnostics', 'true'
+                systemProperty 'safra.p2p.experimentalQuic', 'true'
+                if (forceTurn) {
+                    systemProperty 'safra.p2p.forceTurn', 'true'
+                }
+                args '--username', devUsername
+            }
+
+            register('server') {
+                systemProperty 'safra.p2p.diagnostics', 'true'
+                systemProperty 'safra.p2p.experimentalQuic', 'true'
+                args '--nogui'
+            }
+        }
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
+    compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
+    runtimeOnly "io.netty:netty-pkitesting:${quicNettyVersion}"
+    if (quicNativeClassifier != null) {
+        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
+    }
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+}
+
+renamer.mappings(minecraft.dependency.toSrg)
+
+def forgeRuntimeJarName = "${project.archives_base_name}-forge-${project.version}.jar"
+def forgeDevJarName = "${project.archives_base_name}-forge-${project.version}-dev.jar"
+def forgeRemappedJarName = "${project.archives_base_name}-forge-${project.version}-srg.jar"
+
+tasks.register('prepareForgeRuntimeJar') {
+    dependsOn(tasks.named('renameJar'))
+    outputs.file(layout.buildDirectory.file("libs/${forgeRuntimeJarName}"))
+    outputs.file(layout.buildDirectory.file("libs/${forgeDevJarName}"))
+
+    doLast {
+        def libsDir = layout.buildDirectory.dir('libs').get().asFile
+        def runtimeJar = new File(libsDir, forgeRuntimeJarName)
+        def devJar = new File(libsDir, forgeDevJarName)
+        def remappedJar = new File(libsDir, forgeRemappedJarName)
+
+        if (!remappedJar.isFile()) {
+            def producedRemappedJar = fileTree(layout.buildDirectory.dir('minecraftforge/renamer/renamed')).matching {
+                include(forgeRemappedJarName)
+            }.files.find { it.isFile() }
+            if (producedRemappedJar != null) {
+                copy {
+                    from(producedRemappedJar)
+                    into(libsDir)
+                }
+            }
+        }
+
+        if (!remappedJar.isFile()) {
+            throw new GradleException("Missing remapped Forge jar: ${remappedJar}")
+        }
+
+        if (devJar.exists() && !devJar.delete()) {
+            throw new GradleException("Could not delete stale Forge dev jar: ${devJar}")
+        }
+
+        if (!runtimeJar.isFile()) {
+            throw new GradleException("Missing Forge runtime jar: ${runtimeJar}")
+        }
+
+        copy {
+            from(runtimeJar)
+            into(libsDir)
+            rename { forgeDevJarName }
+        }
+    }
+}
+
+tasks.register('normalizeForgeMixinRefmaps') {
+    dependsOn(tasks.named('prepareForgeRuntimeJar'))
+    inputs.file(sourceMixinMappingsFile)
+    inputs.files(
+        layout.buildDirectory.file("libs/${forgeRuntimeJarName}"),
+        layout.buildDirectory.file("libs/${forgeDevJarName}"),
+        layout.buildDirectory.file("libs/${forgeRemappedJarName}")
+    )
+    outputs.files(
+        layout.buildDirectory.file("libs/${forgeRuntimeJarName}"),
+        layout.buildDirectory.file("libs/${forgeDevJarName}"),
+        layout.buildDirectory.file("libs/${forgeRemappedJarName}")
+    )
+
+    doLast {
+        def methodMappings = [:]
+        def fieldMappings = [:]
+        def currentOwner = null
+
+        sourceMixinMappingsFile.get().asFile.eachLine('UTF-8') { line ->
+            if (line.isBlank()) {
+                return
+            }
+
+            if (!line.startsWith('\t')) {
+                def parts = line.split(' ')
+                currentOwner = parts.length >= 1 ? parts[0] : null
+                return
+            }
+
+            if (currentOwner == null) {
+                return
+            }
+
+            def parts = line.trim().split(' ')
+            if (parts.length == 2) {
+                fieldMappings["L${currentOwner};${parts[1]}"] = "L${currentOwner};${parts[0]}"
+            } else if (parts.length == 3) {
+                methodMappings["L${currentOwner};${parts[2]}${parts[1]}"] = "L${currentOwner};${parts[0]}${parts[1]}"
+            }
+        }
+
+        def remapValue
+        remapValue = { value ->
+            if (value instanceof Map) {
+                return value.collectEntries { key, entry -> [key, remapValue(entry)] }
+            }
+            if (value instanceof List) {
+                return value.collect { entry -> remapValue(entry) }
+            }
+            if (!(value instanceof String)) {
+                return value
+            }
+
+            def remapped = value
+            methodMappings.each { from, to ->
+                remapped = remapped.replace(from, to)
+            }
+            fieldMappings.each { from, to ->
+                remapped = remapped.replace(from, to)
+            }
+            return remapped
+        }
+
+        [
+            layout.buildDirectory.file("libs/${forgeRuntimeJarName}").get().asFile,
+            layout.buildDirectory.file("libs/${forgeDevJarName}").get().asFile,
+            layout.buildDirectory.file("libs/${forgeRemappedJarName}").get().asFile
+        ].findAll { it.isFile() }.each { jarFile ->
+            def zipFile = java.nio.file.Path.of(jarFile.absolutePath)
+            def zipUri = java.net.URI.create("jar:${zipFile.toUri()}")
+            java.nio.file.FileSystems.newFileSystem(zipUri, [:]).withCloseable { zipFs ->
+                def refmapPath = zipFs.getPath('/main.refmap.json')
+                if (!java.nio.file.Files.exists(refmapPath)) {
+                    throw new GradleException("Missing refmap main.refmap.json in ${jarFile.name}")
+                }
+
+                def refmap = new groovy.json.JsonSlurper().parse(java.nio.file.Files.newBufferedReader(refmapPath))
+                def normalized = remapValue(refmap)
+                java.nio.file.Files.writeString(
+                    refmapPath,
+                    groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(normalized)),
+                    java.nio.charset.StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
+                )
+            }
+        }
+    }
+}
+
+tasks.named('assemble') {
+    dependsOn(tasks.named('normalizeForgeMixinRefmaps'))
+}
+
+tasks.named('build') {
+    dependsOn(tasks.named('normalizeForgeMixinRefmaps'))
+}
+
+processResources {
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
+    inputs.property 'forge_loader_version_range', project.forge_loader_version_range
+    inputs.property 'forge_version_range', project.forge_version_range
+    inputs.property 'forge_version', project.forge_version
+    inputs.property 'loader_name', 'forge'
+    inputs.property 'mod_id', project.mod_id
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_license', project.mod_license
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'mod_description', project.mod_description
+    filteringCharset = 'UTF-8'
+
+    filesMatching('META-INF/mods.toml') {
+        expand(
+            minecraft_version: project.minecraft_version,
+            forge_minecraft_version_range: project.forge_minecraft_version_range,
+            forge_loader_version_range: project.forge_loader_version_range,
+            forge_version_range: project.forge_version_range,
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_version: project.mod_version,
+            mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'forge',
+            loader_version: project.forge_version
+        )
+    }
+}
+
+tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+    manifest {
+        attributes['MixinConfigs'] = "${project.mod_id}.forge.mixins.json"
+    }
+}
+
+tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            artifactId = "${project.archives_base_name}-forge"
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "refmap": "main.refmap.json",
+  "package": "org.developerkubilay.safra.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ConnectScreenMixin",
+    "DirectJoinServerScreenMixin",
+    "IntegratedServerMixin",
+    "JoinMultiplayerScreenMixin",
+    "ShareToLanScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

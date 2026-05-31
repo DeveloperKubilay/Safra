@@ -1,0 +1,202 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.141'
+}
+
+abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineArgumentProvider {
+    @org.gradle.api.tasks.InputFile
+    @org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.NONE)
+    abstract org.gradle.api.file.RegularFileProperty getInMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getOutMappings()
+
+    @org.gradle.api.tasks.OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getRefmap()
+
+    @Override
+    Iterable<String> asArguments() {
+        [
+            "-AreobfTsrgFile=${getInMappings().get().asFile.absolutePath}",
+            "-AoutTsrgFile=${getOutMappings().get().asFile.absolutePath}",
+            "-AoutRefMapFile=${getRefmap().get().asFile.absolutePath}",
+            '-AmappingTypes=tsrg',
+            '-ApluginVersion=0.7',
+            '-AdefaultObfuscationEnv=searge'
+        ]
+    }
+}
+
+def versionSourceDir = rootProject.ext.versionSourceDir
+
+sourceSets {
+    main {
+        java.srcDir(project(':common').file('src/main/java'))
+        resources.srcDir(project(':common').file('src/main/resources'))
+        java.srcDir(file("src/main/versionSpecific/${versionSourceDir}/java"))
+        resources.srcDir(file("src/main/versionSpecific/${versionSourceDir}/resources"))
+    }
+}
+
+base {
+    archivesName = "${project.archives_base_name}-neoforge"
+}
+
+def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+
+def targetJavaVersion = 21
+def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
+def mixinMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
+def neoForgeMixinMappingsFile = layout.buildDirectory.file('mappings/identityMixinMappings.tsrg')
+def forgeProject = findProject(':forge')
+def forgeMixinMappingsFile = forgeProject != null
+    ? forgeProject.layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
+    : providers.provider { layout.projectDirectory.file("mappings/fallback/${project.minecraft_version}-formatMixinMappings.tsrg") }
+def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
+mixinCompilerArgs.inMappings.set(neoForgeMixinMappingsFile)
+mixinCompilerArgs.outMappings.set(mixinMappingsFile)
+mixinCompilerArgs.refmap.set(mixinRefmapFile)
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
+}
+
+tasks.register('generateNeoForgeMixinMappings') {
+    if (forgeProject != null) {
+        dependsOn forgeProject.tasks.named('formatMixinMappings')
+    }
+    inputs.file(forgeMixinMappingsFile)
+    outputs.file(neoForgeMixinMappingsFile)
+
+    doLast {
+        def sourceFile = forgeMixinMappingsFile.get().asFile
+        def outputFile = neoForgeMixinMappingsFile.get().asFile
+        outputFile.parentFile.mkdirs()
+
+        outputFile.setText(sourceFile.readLines('UTF-8').collect { line ->
+            if (line.isBlank()) {
+                return line
+            }
+
+            if (!line.startsWith('\t')) {
+                def parts = line.split(' ')
+                return parts.length == 2 ? "${parts[0]} ${parts[0]}" : line
+            }
+
+            def parts = line.trim().split(' ')
+            if (parts.length == 2) {
+                return "\t${parts[0]} ${parts[0]}"
+            }
+            if (parts.length == 3) {
+                return "\t${parts[0]} ${parts[1]} ${parts[0]}"
+            }
+            return line
+        }.join(System.lineSeparator()), 'UTF-8')
+    }
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    dependsOn tasks.named('createMinecraftArtifacts')
+    dependsOn tasks.named('generateNeoForgeMixinMappings')
+    options.compilerArgumentProviders.add(mixinCompilerArgs)
+    outputs.file(mixinRefmapFile)
+    outputs.file(mixinMappingsFile)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+            systemProperty 'safra.p2p.diagnostics', 'true'
+            if (forceTurn) {
+                systemProperty 'safra.p2p.forceTurn', 'true'
+            }
+            programArgument '--username'
+            programArgument devUsername
+        }
+        server {
+            server()
+            systemProperty 'safra.p2p.diagnostics', 'false'
+            programArgument '--nogui'
+        }
+    }
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+}
+
+processResources {
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'minecraft_version_range', project.minecraft_version_range
+    inputs.property 'neo_version', project.neo_version
+    inputs.property 'neo_version_range', project.neo_version_range
+    inputs.property 'loader_version_range', project.loader_version_range
+    inputs.property 'loader_name', 'neoforge'
+    inputs.property 'mod_id', project.mod_id
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_license', project.mod_license
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'mod_description', project.mod_description
+    filteringCharset = 'UTF-8'
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand(
+            minecraft_version: project.minecraft_version,
+            minecraft_version_range: project.minecraft_version_range,
+            neo_version: project.neo_version,
+            neo_version_range: project.neo_version_range,
+            loader_version_range: project.loader_version_range,
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_version: project.mod_version,
+            mod_description: project.mod_description
+        )
+    }
+
+    filesMatching('safra-build.properties') {
+        expand(
+            mod_version: project.mod_version,
+            minecraft_version: project.minecraft_version,
+            loader_name: 'neoforge',
+            loader_version: project.neo_version
+        )
+    }
+}
+
+jar {
+    from(mixinRefmapFile)
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            artifactId = "${project.archives_base_name}-neoforge"
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}
