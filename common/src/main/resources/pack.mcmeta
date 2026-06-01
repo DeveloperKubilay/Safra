@@ -1,7 +1,7 @@
 {
   "pack": {
     "description": "Safra resources",
-    "pack_format": 75,
-    "supported_formats": [75, 81]
+    "pack_format": ${pack_format},
+    "supported_formats": ${supported_formats_json}
   }
 }

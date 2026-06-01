@@ -155,6 +155,8 @@ processResources {
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'pack_format', project.pack_format
+    inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/neoforge.mods.toml') {
@@ -178,6 +180,13 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
             loader_version: project.neo_version
+        )
+    }
+
+    filesMatching('pack.mcmeta') {
+        expand(
+            pack_format: project.pack_format,
+            supported_formats_json: project.supported_formats_json
         )
     }
 }

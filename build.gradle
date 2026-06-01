@@ -9,8 +9,11 @@ def versionConfig = [
     '1.21'   : [
         sourceBucket              : '1_21_0',
         forgeEventSourceDir       : '1_21_pre_6',
+        fabricClientSourceDir     : '1_21_0',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.102.0+1.21',
+        packFormat                : 34,
+        supportedFormats          : [34, 34],
         minecraftVersionRange     : '[1.21,1.21.1)',
         neoVersion                : '21.0.167',
         neoVersionRange           : '[21.0.167,)',
@@ -22,8 +25,11 @@ def versionConfig = [
     '1.21.1' : [
         sourceBucket              : '1_21_0',
         forgeEventSourceDir       : '1_21_pre_6',
+        fabricClientSourceDir     : '1_21_0',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.116.12+1.21.1',
+        packFormat                : 34,
+        supportedFormats          : [34, 34],
         minecraftVersionRange     : '[1.21.1,1.21.2)',
         neoVersion                : '21.1.228',
         neoVersionRange           : '[21.1.228,)',
@@ -35,8 +41,11 @@ def versionConfig = [
     '1.21.2' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_pre_6',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.106.1+1.21.2',
+        packFormat                : 42,
+        supportedFormats          : [42, 42],
         minecraftVersionRange     : '[1.21.2,1.21.3)',
         neoVersion                : '21.2.1-beta',
         neoVersionRange           : '[21.2.1-beta,)',
@@ -48,8 +57,11 @@ def versionConfig = [
     '1.21.3' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_pre_6',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.114.1+1.21.3',
+        packFormat                : 42,
+        supportedFormats          : [42, 42],
         minecraftVersionRange     : '[1.21.3,1.21.4)',
         neoVersion                : '21.3.96',
         neoVersionRange           : '[21.3.96,)',
@@ -61,8 +73,11 @@ def versionConfig = [
     '1.21.4' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_pre_6',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.119.4+1.21.4',
+        packFormat                : 46,
+        supportedFormats          : [46, 46],
         minecraftVersionRange     : '[1.21.4,1.21.5)',
         neoVersion                : '21.4.157',
         neoVersionRange           : '[21.4.157,)',
@@ -74,8 +89,11 @@ def versionConfig = [
     '1.21.5' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_pre_6',
+        fabricClientSourceDir     : '1_21_5',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.128.2+1.21.5',
+        packFormat                : 55,
+        supportedFormats          : [55, 55],
         minecraftVersionRange     : '[1.21.5,1.21.6)',
         neoVersion                : '21.5.97',
         neoVersionRange           : '[21.5.97,)',
@@ -87,8 +105,11 @@ def versionConfig = [
     '1.21.6' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.128.2+1.21.6',
+        packFormat                : 63,
+        supportedFormats          : [63, 63],
         minecraftVersionRange     : '[1.21.6,1.21.9)',
         neoVersion                : '21.6.20-beta',
         neoVersionRange           : '[21.6.20-beta,)',
@@ -100,8 +121,11 @@ def versionConfig = [
     '1.21.8' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.132.0+1.21.8',
+        packFormat                : 69,
+        supportedFormats          : [69, 81],
         minecraftVersionRange     : '[1.21.8,1.21.9)',
         neoVersion                : '21.8.53',
         neoVersionRange           : '[21.8.53,)',
@@ -113,8 +137,11 @@ def versionConfig = [
     '1.21.9' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.134.1+1.21.9',
+        packFormat                : 69,
+        supportedFormats          : [69, 81],
         minecraftVersionRange     : '[1.21.9,1.21.11)',
         neoVersion                : '21.9.16-beta',
         neoVersionRange           : '[21.9.16-beta,)',
@@ -126,8 +153,11 @@ def versionConfig = [
     '1.21.10': [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
+        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.136.0+1.21.10',
+        packFormat                : 69,
+        supportedFormats          : [69, 81],
         minecraftVersionRange     : '[1.21.10,1.21.11)',
         neoVersion                : '21.10.64',
         neoVersionRange           : '[21.10.64,)',
@@ -139,8 +169,11 @@ def versionConfig = [
     '1.21.11': [
         sourceBucket              : '1_21_11',
         forgeEventSourceDir       : '1_21_6_plus',
+        fabricClientSourceDir     : '1_21_11',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.141.3+1.21.11',
+        packFormat                : 75,
+        supportedFormats          : [75, 81],
         minecraftVersionRange     : '[1.21.11]',
         neoVersion                : '21.11.42',
         neoVersionRange           : '[21.11.42,)',
@@ -160,6 +193,7 @@ if (activeVersion == null) {
 ext.mcVersion = requestedMcVersion
 ext.activeVersion = activeVersion
 ext.versionSourceDir = activeVersion.sourceBucket
+ext.fabricClientSourceDir = activeVersion.fabricClientSourceDir ?: activeVersion.sourceBucket
 ext.forgeEventSourceDir = activeVersion.forgeEventSourceDir
 ext.versionConfig = versionConfig
 ext.supportedMcVersions = versionConfig.keySet() as List
@@ -225,7 +259,10 @@ subprojects {
     ext.forge_loader_version_range = rootProject.ext.activeVersion.forgeLoaderVersionRange
     ext.forge_minecraft_version_range = rootProject.ext.activeVersion.forgeMinecraftVersionRange
     ext.versionSourceDir = rootProject.ext.versionSourceDir
+    ext.fabric_client_source_dir = rootProject.ext.fabricClientSourceDir
     ext.forgeEventSourceDir = rootProject.ext.activeVersion.forgeEventSourceDir
+    ext.pack_format = rootProject.ext.activeVersion.packFormat
+    ext.supported_formats_json = "[${rootProject.ext.activeVersion.supportedFormats.join(', ')}]"
     ext.build_directory_suffix = rootProject.ext.buildDirectorySuffix
 
     layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.buildDirectorySuffix}/${project.name}"))

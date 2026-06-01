@@ -30,6 +30,8 @@ processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'loader_name', 'common'
     inputs.property 'loader_version', 'unknown'
+    inputs.property 'pack_format', project.pack_format
+    inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
 
     filesMatching('safra-build.properties') {
@@ -38,6 +40,13 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'common',
             loader_version: 'unknown'
+        )
+    }
+
+    filesMatching('pack.mcmeta') {
+        expand(
+            pack_format: project.pack_format,
+            supported_formats_json: project.supported_formats_json
         )
     }
 }

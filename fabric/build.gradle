@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
 }
 
-def versionSourceDir = rootProject.ext.versionSourceDir
+def versionSourceDir = rootProject.ext.fabricClientSourceDir
 
 sourceSets {
     main {
@@ -67,6 +67,8 @@ processResources {
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'pack_format', project.pack_format
+    inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
 
     filesMatching('fabric.mod.json') {
@@ -86,6 +88,13 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'fabric',
             loader_version: project.loader_version
+        )
+    }
+
+    filesMatching('pack.mcmeta') {
+        expand(
+            pack_format: project.pack_format,
+            supported_formats_json: project.supported_formats_json
         )
     }
 }
