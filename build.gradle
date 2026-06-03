@@ -6,6 +6,125 @@ plugins {
 }
 
 ext.mcProfiles = [
+    '1.20': [
+        release_minecraft_line       : '1.20',
+        minecraft_version            : '1.20',
+        minecraft_dependency         : '>=1.20 <=1.20',
+        fabric_minecraft_version     : '1.20',
+        fabric_mod_minecraft_version : '1.20',
+        yarn_mappings                : '1.20+build.1',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.83.0+1.20',
+        enable_neoforge              : 'false',
+        enable_forge                 : 'true',
+        minecraft_version_range      : '[1.20,1.20.1)',
+        forge_version                : '46.0.14',
+        forge_version_range          : '[46,)',
+        forge_loader_version_range   : '[46,)',
+        forge_minecraft_version_range: '[1.20,1.20.1)',
+        java_target_version          : 17,
+        common_bucket                : '1.20',
+        fabric_bucket                : '1.20',
+        forge_bucket                 : '1.20',
+        neoforge_bucket              : ''
+    ],
+    '1.20.1': [
+        release_minecraft_line       : '1.20.1',
+        minecraft_version            : '1.20.1',
+        minecraft_dependency         : '>=1.20 <=1.20.1',
+        fabric_minecraft_version     : '1.20.1',
+        fabric_mod_minecraft_version : '1.20.1',
+        yarn_mappings                : '1.20.1+build.10',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.92.6+1.20.1',
+        enable_neoforge              : 'false',
+        enable_forge                 : 'true',
+        minecraft_version_range      : '[1.20,1.20.2)',
+        forge_version                : '47.4.18',
+        forge_version_range          : '[46,)',
+        forge_loader_version_range   : '[46,)',
+        forge_minecraft_version_range: '[1.20,1.20.2)',
+        java_target_version          : 17,
+        common_bucket                : '1.20.1',
+        fabric_bucket                : '1.20.1',
+        forge_bucket                 : '1.20.1',
+        neoforge_bucket              : ''
+    ],
+    '1.20.2': [
+        release_minecraft_line       : '1.20.2',
+        minecraft_version            : '1.20.2',
+        minecraft_dependency         : '=1.20.2',
+        fabric_minecraft_version     : '1.20.2',
+        fabric_mod_minecraft_version : '1.20.2',
+        yarn_mappings                : '1.20.2+build.4',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.91.6+1.20.2',
+        enable_neoforge              : 'false',
+        enable_forge                 : 'true',
+        minecraft_version_range      : '[1.20.2]',
+        neo_version                  : '20.2.86',
+        neo_version_range            : '[20.2.86,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '48.1.0',
+        forge_version_range          : '[48,)',
+        forge_loader_version_range   : '[48,)',
+        forge_minecraft_version_range: '[1.20.2,1.20.3)',
+        java_target_version          : 17,
+        common_bucket                : '',
+        fabric_bucket                : '1.20.2',
+        forge_bucket                 : '1.20.2',
+        neoforge_bucket              : '1.20.2'
+    ],
+    '1.20.3': [
+        release_minecraft_line       : '1.20.3',
+        minecraft_version            : '1.20.3',
+        minecraft_dependency         : '1.20.3',
+        fabric_minecraft_version     : '1.20.3',
+        fabric_mod_minecraft_version : '1.20.3',
+        yarn_mappings                : '1.20.3+build.1',
+        loader_version               : '0.19.2',
+        fabric_version               : '0.91.1+1.20.3',
+        enable_neoforge              : 'true',
+        enable_forge                 : 'true',
+        minecraft_version_range      : '[1.20.3]',
+        neo_version                  : '20.3.8-beta',
+        neo_version_range            : '[20.3.8-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '49.0.2',
+        forge_version_range          : '[49,)',
+        forge_loader_version_range   : '[49,)',
+        forge_minecraft_version_range: '[1.20.3,1.20.4)',
+        java_target_version          : 17,
+        common_bucket                : '1.20.3-1.20.4',
+        fabric_bucket                : '1.20.3-1.20.4',
+        forge_bucket                 : '1.20.3-1.20.4',
+        neoforge_bucket              : '1.20.3-1.20.4'
+    ],
+    '1.20.3-1.20.4': [
+        release_minecraft_line       : '1.20.3-1.20.4',
+        minecraft_version            : '1.20.4',
+        minecraft_dependency         : '>=1.20.3 <=1.20.4',
+        fabric_minecraft_version     : '1.20.4',
+        fabric_mod_minecraft_version : '1.20.4',
+        yarn_mappings                : '1.20.4+build.3',
+        loader_version               : '0.19.2',
+        fabric_version               : '0.97.3+1.20.4',
+        enable_neoforge              : 'true',
+        enable_forge                 : 'true',
+        minecraft_version_range      : '[1.20.3,1.20.5)',
+        neo_version                  : '20.4.239',
+        neo_version_range            : '[20.3.8-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '49.2.7',
+        forge_version_range          : '[49,)',
+        forge_loader_version_range   : '[49,)',
+        forge_minecraft_version_range: '[1.20.3,1.20.5)',
+        java_target_version          : 17,
+        common_bucket                : '1.20.3-1.20.4',
+        fabric_bucket                : '1.20.3-1.20.4',
+        forge_bucket                 : '1.20.3-1.20.4',
+        neoforge_bucket              : '1.20.3-1.20.4'
+    ],
     '1.20.5-1.20.6': [
         release_minecraft_line       : '1.20.5-1.20.6',
         minecraft_version            : '1.20.6',
@@ -16,6 +135,7 @@ ext.mcProfiles = [
         loader_version               : '0.15.11',
         fabric_version               : '0.100.8+1.20.6',
         enable_neoforge             : 'true',
+        enable_forge                : 'true',
         minecraft_version_range      : '[1.20.5,1.20.7)',
         neo_version                  : '20.6.137',
         neo_version_range            : '[20.5.21-beta,)',
@@ -23,11 +143,19 @@ ext.mcProfiles = [
         forge_version                : '50.2.8',
         forge_version_range          : '[50,)',
         forge_loader_version_range   : '[50,)',
-        forge_minecraft_version_range: '[1.20.5,1.20.7)'
+        forge_minecraft_version_range: '[1.20.5,1.20.7)',
+        java_target_version          : 21,
+        common_bucket                : '',
+        fabric_bucket                : '',
+        forge_bucket                 : '',
+        neoforge_bucket              : ''
     ]
 ]
 
-def requestedMcProfile = (findProperty('mc_profile') ?: findProperty('default_mc_profile') ?: '1.20.5-1.20.6').toString()
+def requestedMcProfile = (gradle.startParameter.projectProperties['mc_profile']
+    ?: findProperty('mc_profile')
+    ?: findProperty('default_mc_profile')
+    ?: '1.20.5-1.20.6').toString()
 def selectedMcProfile = ext.mcProfiles[requestedMcProfile]
 if (selectedMcProfile == null) {
     throw new GradleException("Unknown mc_profile '${requestedMcProfile}'. Supported profiles: ${ext.mcProfiles.keySet().join(', ')}")
@@ -38,7 +166,6 @@ selectedMcProfile.each { key, value ->
 }
 ext.set('selected_mc_profile', requestedMcProfile)
 ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
-ext.set('java_target_version', 21)
 layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
 
 group = project.maven_group
@@ -87,6 +214,7 @@ subprojects {
             'loader_version',
             'fabric_version',
             'enable_neoforge',
+            'enable_forge',
             'minecraft_version_range',
             'neo_version',
             'neo_version_range',
@@ -94,7 +222,11 @@ subprojects {
             'forge_version',
             'forge_version_range',
             'forge_loader_version_range',
-            'forge_minecraft_version_range'
+            'forge_minecraft_version_range',
+            'common_bucket',
+            'fabric_bucket',
+            'forge_bucket',
+            'neoforge_bucket'
         ]
     }.each { key, value ->
         ext.set(key, value)
@@ -133,9 +265,14 @@ def rootRunClientRequested = gradle.startParameter.taskNames.any {
     it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
 }
 def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
+def rootTaskSelectorRunClient = rootRunClientRequested && runningFromRootDir
+def wrapperExecutable = System.getProperty('os.name', '').toLowerCase(Locale.ROOT).contains('win') ? 'gradlew.bat' : './gradlew'
+def forwardedProjectProperties = gradle.startParameter.projectProperties.collect { key, value ->
+    value == null || value.isBlank() ? "-P${key}" : "-P${key}=${value}"
+}
 
 forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
-    onlyIf { !(rootRunClientRequested && runningFromRootDir) }
+    onlyIf { !rootTaskSelectorRunClient }
 }
 
 tasks.register('collectBuildLibs', Copy) {
@@ -161,13 +298,14 @@ tasks.register('collectBuildLibs', Copy) {
     }
 }
 
-tasks.register('runClient') {
+tasks.register('runClient', Exec) {
     group = 'application'
     description = 'Runs the NeoForge client from the root project.'
+    workingDir rootProject.projectDir
     if (neoforgeProject != null) {
-        dependsOn(':neoforge:runClient')
+        commandLine([wrapperExecutable, ':neoforge:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     } else if (fabricProject != null) {
-        dependsOn(':fabric:runClient')
+        commandLine([wrapperExecutable, ':fabric:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     }
 }
 
@@ -196,6 +334,9 @@ tasks.register('runForgeClient') {
 }
 
 tasks.named('build') {
+    doFirst {
+        delete(layout.buildDirectory.file('reports/problems/problems-report.html').get().asFile)
+    }
     dependsOn(tasks.named('collectBuildLibs'))
 }
 
@@ -203,14 +344,14 @@ def releaseTaskNames = []
 ext.mcProfiles.each { profileName, profileConfig ->
     def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
     releaseTaskNames << taskName
-    tasks.register(taskName, GradleBuild) {
+    tasks.register(taskName, Exec) {
         group = 'release'
         description = "Builds the ${profileName} release line."
-        dir = rootDir
-        tasks = ['build']
-        startParameter.projectProperties = new LinkedHashMap<>(gradle.startParameter.projectProperties + [
-            mc_profile      : profileName,
-            enable_neoforge : profileConfig.enable_neoforge
+        workingDir rootProject.projectDir
+        commandLine([wrapperExecutable, 'clean', 'build', '--no-daemon', '--console=plain'] + forwardedProjectProperties + [
+            "-Pmc_profile=${profileName}",
+            "-Penable_neoforge=${profileConfig.enable_neoforge}",
+            "-Penable_forge=${profileConfig.enable_forge}"
         ])
     }
 }
@@ -219,6 +360,35 @@ tasks.register('buildReleaseMatrix') {
     group = 'release'
     description = 'Builds every configured Minecraft release line.'
     dependsOn(releaseTaskNames.collect { tasks.named(it) })
+}
+
+tasks.register('collectReleaseMatrixArtifacts') {
+    group = 'release'
+    description = 'Collects all built release artifacts into one folder tree.'
+    dependsOn(tasks.named('buildReleaseMatrix'))
+
+    doLast {
+        def outputDir = rootProject.file("build/release-matrix/${project.mod_version}")
+        delete(outputDir)
+        outputDir.mkdirs()
+
+        rootProject.ext.mcProfiles.each { profileName, profileConfig ->
+            def versionLibDir = file("${rootProject.projectDir}/build/${profileName}/root/libs")
+            if (!versionLibDir.exists()) {
+                throw new GradleException("Missing built artifact directory for ${profileName}: ${versionLibDir}")
+            }
+
+            def targetDir = file("${outputDir}/${profileName}")
+            targetDir.mkdirs()
+
+            copy {
+                from(versionLibDir)
+                into(targetDir)
+                include('*.jar')
+                exclude('*-dev.jar', '*-srg.jar')
+            }
+        }
+    }
 }
 
 tasks.register('verifyMixinArtifacts') {

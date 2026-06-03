@@ -33,7 +33,6 @@ public final class SafraNeoForgeClientEvents {
                 NeoForge.EVENT_BUS.addListener((Class) eventClass, SafraNeoForgeClientEvents::clientTick);
                 return;
             } catch (ClassNotFoundException ignored) {
-                // Try the event class used by the other NeoForge line.
             }
         }
 

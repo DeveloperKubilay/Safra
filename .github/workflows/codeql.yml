@@ -26,7 +26,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Gradle 9.4.0
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make Gradle wrapper executable
@@ -44,7 +44,38 @@ jobs:
           build-mode: manual
 
       - name: Build project
-        run: ./gradlew clean build --stacktrace
+        shell: bash
+        run: |
+          ./gradlew clean :fabric:build :forge:build \
+            -Pmc_profile=1.20 \
+            -Penable_forge=true \
+            -Penable_neoforge=false \
+            --stacktrace
+          ./gradlew clean :fabric:build :forge:build \
+            -Pmc_profile=1.20.1 \
+            -Penable_forge=true \
+            -Penable_neoforge=false \
+            --stacktrace
+          ./gradlew clean :fabric:build :forge:build \
+            -Pmc_profile=1.20.2 \
+            -Penable_forge=true \
+            -Penable_neoforge=false \
+            --stacktrace
+          ./gradlew clean :fabric:build \
+            -Pmc_profile=1.20.3 \
+            -Penable_forge=false \
+            -Penable_neoforge=false \
+            --stacktrace
+          ./gradlew clean :fabric:build :forge:build :neoforge:build \
+            -Pmc_profile=1.20.3-1.20.4 \
+            -Penable_forge=true \
+            -Penable_neoforge=true \
+            --stacktrace
+          ./gradlew clean :fabric:build :forge:build :neoforge:build \
+            -Pmc_profile=1.20.5-1.20.6 \
+            -Penable_forge=true \
+            -Penable_neoforge=true \
+            --stacktrace
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3

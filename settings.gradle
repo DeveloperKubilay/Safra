@@ -28,7 +28,6 @@ rootProject.name = 'Safra'
 
 include 'common'
 include 'fabric'
-include 'forge'
 
 def localProperties = new Properties()
 def localPropertiesFile = file('gradle.properties')
@@ -37,12 +36,32 @@ if (localPropertiesFile.isFile()) {
 }
 
 def mcProfileDefaults = [
-    '1.20.5-1.20.6': [enable_neoforge: 'true']
+    '1.20'          : [enable_neoforge: 'false', enable_forge: 'true'],
+    '1.20.1'        : [enable_neoforge: 'false', enable_forge: 'true'],
+    '1.20.2'        : [enable_neoforge: 'false', enable_forge: 'true'],
+    '1.20.3'        : [enable_neoforge: 'true', enable_forge: 'true'],
+    '1.20.3-1.20.4' : [enable_neoforge: 'true', enable_forge: 'true'],
+    '1.20.5-1.20.6' : [enable_neoforge: 'true', enable_forge: 'true']
 ]
 
 def selectedMcProfile = gradle.startParameter.projectProperties['mc_profile']
 if (selectedMcProfile == null) {
     selectedMcProfile = localProperties.getProperty('default_mc_profile')
+}
+
+def enableForgeValue = gradle.startParameter.projectProperties['enable_forge']
+if (enableForgeValue == null) {
+    def profileDefaults = mcProfileDefaults[selectedMcProfile]
+    if (profileDefaults != null && profileDefaults.enable_forge != null) {
+        enableForgeValue = profileDefaults.enable_forge
+    }
+}
+if (enableForgeValue == null) {
+    enableForgeValue = localProperties.getProperty('enable_forge', 'true')
+}
+def forgeEnabled = Boolean.parseBoolean(enableForgeValue)
+if (forgeEnabled) {
+    include 'forge'
 }
 
 def enableNeoForgeValue = gradle.startParameter.projectProperties['enable_neoforge']
@@ -56,6 +75,6 @@ if (enableNeoForgeValue == null) {
     enableNeoForgeValue = localProperties.getProperty('enable_neoforge', 'true')
 }
 
-if (Boolean.parseBoolean(enableNeoForgeValue)) {
+if (forgeEnabled && Boolean.parseBoolean(enableNeoForgeValue)) {
     include 'neoforge'
 }

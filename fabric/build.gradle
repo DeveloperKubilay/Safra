@@ -7,6 +7,38 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        def commonCompatBucket = (rootProject.ext.common_bucket ?: '').toString()
+        if (commonCompatBucket == '1.20' || commonCompatBucket == '1.20.1') {
+            java {
+                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
+            }
+        } else if (commonCompatBucket == '1.20.3-1.20.4') {
+            java {
+                exclude { details ->
+                    details.file.canonicalFile == project(':common').file('src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java').canonicalFile
+                }
+                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
+            }
+        }
+    }
+}
+
+def fabricCompatBucket = (rootProject.ext.fabric_bucket ?: '').toString()
+if (!fabricCompatBucket.isBlank()) {
+    def compatClientFiles = [
+        'org/developerkubilay/safra/client/p2p/FabricVersionCompat.java',
+        'org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java',
+        'org/developerkubilay/safra/mixin/client/ConnectScreenMixin.java',
+        'org/developerkubilay/safra/mixin/client/DirectConnectScreenMixin.java',
+        'org/developerkubilay/safra/mixin/client/OpenToLanScreenMixin.java'
+    ].collect { relativePath ->
+        project.file("src/client/java/${relativePath}").canonicalFile
+    }
+    sourceSets.matching { it.name == 'client' }.configureEach {
+        java {
+            exclude { details -> compatClientFiles.contains(details.file.canonicalFile) }
+            srcDir("compat/${fabricCompatBucket}/src/client/java")
+        }
     }
 }
 

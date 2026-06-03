@@ -7,6 +7,24 @@ base {
 }
 
 def targetJavaVersion = rootProject.ext.java_target_version as int
+def commonCompatBucket = (rootProject.ext.common_bucket ?: '').toString()
+
+sourceSets {
+    main {
+        if (commonCompatBucket == '1.20' || commonCompatBucket == '1.20.1') {
+            java {
+                srcDir("src/compat/${commonCompatBucket}/java")
+            }
+        } else if (commonCompatBucket == '1.20.3-1.20.4') {
+            java {
+                exclude { details ->
+                    details.file.canonicalFile == file('src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java').canonicalFile
+                }
+                srcDir("src/compat/${commonCompatBucket}/java")
+            }
+        }
+    }
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

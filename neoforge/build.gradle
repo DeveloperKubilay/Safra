@@ -32,12 +32,49 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        def commonCompatBucket = (rootProject.ext.common_bucket ?: '').toString()
+        if (commonCompatBucket == '1.20' || commonCompatBucket == '1.20.1') {
+            java {
+                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
+            }
+        } else if (commonCompatBucket == '1.20.3-1.20.4') {
+            java {
+                exclude { details ->
+                    details.file.canonicalFile == project(':common').file('src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java').canonicalFile
+                }
+                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
+            }
+        }
+    }
+}
+
+def neoforgeCompatBucket = (rootProject.ext.neoforge_bucket ?: '').toString()
+if (!neoforgeCompatBucket.isBlank()) {
+    def neoforgeCompatRoots = [
+        project.file('src/main/java/org/developerkubilay/safra/client/p2p').canonicalFile,
+        project.file('src/main/java/org/developerkubilay/safra/mixin/client').canonicalFile
+    ]
+    sourceSets.main {
+        java {
+            exclude { details -> neoforgeCompatRoots.any { root -> details.file.canonicalPath.startsWith(root.canonicalPath) } }
+            srcDir("compat/${neoforgeCompatBucket}/src/main/java")
+        }
+        if (neoforgeCompatBucket == '1.20.3-1.20.4') {
+            resources {
+                exclude 'META-INF/neoforge.mods.toml'
+                srcDir("compat/${neoforgeCompatBucket}/src/main/resources")
+            }
+        }
     }
 }
 
 base {
     archivesName = "${project.archives_base_name}-neoforge"
 }
+
+def modDescription = rootProject.ext.selected_mc_profile == '1.20.3'
+    ? 'NeoForge 1.20.3 destegi simdilik kaldirildi. Bu hat su an bakim disi.'
+    : project.mod_description
 
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
@@ -145,10 +182,10 @@ processResources {
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
-    inputs.property 'mod_description', project.mod_description
+    inputs.property 'mod_description', modDescription
     filteringCharset = 'UTF-8'
 
-    filesMatching('META-INF/neoforge.mods.toml') {
+    filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
         expand(
             minecraft_version: project.minecraft_version,
             minecraft_version_range: project.minecraft_version_range,
@@ -159,7 +196,7 @@ processResources {
             mod_name: project.mod_name,
             mod_license: project.mod_license,
             mod_version: project.mod_version,
-            mod_description: project.mod_description
+            mod_description: modDescription
         )
     }
 

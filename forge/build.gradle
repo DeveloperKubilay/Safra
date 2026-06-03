@@ -33,12 +33,42 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        def commonCompatBucket = (rootProject.ext.common_bucket ?: '').toString()
+        if (commonCompatBucket == '1.20' || commonCompatBucket == '1.20.1') {
+            java {
+                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
+            }
+        } else if (commonCompatBucket == '1.20.3-1.20.4') {
+            java {
+                exclude { details ->
+                    details.file.canonicalFile == project(':common').file('src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java').canonicalFile
+                }
+                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
+            }
+        }
+    }
+}
+
+def forgeCompatBucket = (rootProject.ext.forge_bucket ?: '').toString()
+if (!forgeCompatBucket.isBlank()) {
+    def forgeCompatRoots = [
+        project.file('src/main/java/org/developerkubilay/safra/client/p2p').canonicalFile,
+        project.file('src/main/java/org/developerkubilay/safra/mixin/client').canonicalFile
+    ]
+    sourceSets.main.java {
+        exclude { details -> forgeCompatRoots.any { root -> details.file.canonicalPath.startsWith(root.canonicalPath) } }
+        srcDir("compat/${forgeCompatBucket}/src/main/java")
     }
 }
 
 base {
     archivesName = "${project.archives_base_name}-forge"
 }
+
+def modDescription = (rootProject.ext.selected_mc_profile == '1.20.3'
+    || rootProject.ext.selected_mc_profile == '1.20.3-1.20.4')
+    ? 'Forge 1.20.3 ve 1.20.4 tarafini simdilik rafa kaldirdik. Duzelecek, ama bu buildde destek acik degil.'
+    : project.mod_description
 
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
@@ -317,7 +347,7 @@ processResources {
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
-    inputs.property 'mod_description', project.mod_description
+    inputs.property 'mod_description', modDescription
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/mods.toml') {
@@ -330,7 +360,7 @@ processResources {
             mod_name: project.mod_name,
             mod_license: project.mod_license,
             mod_version: project.mod_version,
-            mod_description: project.mod_description
+            mod_description: modDescription
         )
     }
 
