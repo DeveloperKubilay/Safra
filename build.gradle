@@ -36,7 +36,12 @@ ext.mcProfiles = [
     ]
 ]
 
-def requestedMcProfile = (findProperty('mc_profile') ?: findProperty('default_mc_profile') ?: '1.19.2').toString()
+def requestedMcProfile = (
+    gradle.startParameter.projectProperties['mc_profile']
+        ?: findProperty('mc_profile')
+        ?: findProperty('default_mc_profile')
+        ?: '1.19.2'
+).toString()
 def selectedMcProfile = ext.mcProfiles[requestedMcProfile]
 if (selectedMcProfile == null) {
     throw new GradleException("Unknown mc_profile '${requestedMcProfile}'. Supported profiles: ${ext.mcProfiles.keySet().join(', ')}")
@@ -135,9 +140,20 @@ def rootRunClientRequested = gradle.startParameter.taskNames.any {
     it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
 }
 def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
+def rootTaskSelectorRunClient = rootRunClientRequested && runningFromRootDir
+def wrapperExecutable = System.getProperty('os.name', '').toLowerCase(Locale.ROOT).contains('win') ? 'gradlew.bat' : './gradlew'
+def forwardedProjectProperties = gradle.startParameter.projectProperties.collect { key, value ->
+    value == null || value.isBlank() ? "-P${key}" : "-P${key}=${value}"
+}
 
+fabricProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+neoforgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
 forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
-    onlyIf { !(rootRunClientRequested && runningFromRootDir) }
+    onlyIf { !rootTaskSelectorRunClient }
 }
 
 tasks.register('collectBuildLibs', Copy) {
@@ -163,13 +179,14 @@ tasks.register('collectBuildLibs', Copy) {
     }
 }
 
-tasks.register('runClient') {
+tasks.register('runClient', Exec) {
     group = 'application'
     description = 'Runs the NeoForge client from the root project.'
+    workingDir rootProject.projectDir
     if (neoforgeProject != null) {
-        dependsOn(':neoforge:runClient')
+        commandLine([wrapperExecutable, ':neoforge:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     } else if (fabricProject != null) {
-        dependsOn(':fabric:runClient')
+        commandLine([wrapperExecutable, ':fabric:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     }
 }
 
@@ -205,13 +222,12 @@ def releaseTaskNames = []
 ext.mcProfiles.each { profileName, profileConfig ->
     def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
     releaseTaskNames << taskName
-    tasks.register(taskName, GradleBuild) {
+    tasks.register(taskName, Exec) {
         group = 'release'
         description = "Builds the ${profileName} release line."
-        dir = rootDir
-        tasks = ['build']
-        startParameter.projectProperties = new LinkedHashMap<>(gradle.startParameter.projectProperties + [
-            mc_profile: profileName
+        workingDir rootProject.projectDir
+        commandLine([wrapperExecutable, 'clean', 'build', '--no-daemon', '--console=plain'] + forwardedProjectProperties + [
+            "-Pmc_profile=${profileName}"
         ])
     }
 }
@@ -220,6 +236,35 @@ tasks.register('buildReleaseMatrix') {
     group = 'release'
     description = 'Builds every configured Minecraft release line.'
     dependsOn(releaseTaskNames.collect { tasks.named(it) })
+}
+
+tasks.register('collectReleaseMatrixArtifacts') {
+    group = 'release'
+    description = 'Collects all built release artifacts into one folder tree.'
+    dependsOn(tasks.named('buildReleaseMatrix'))
+
+    doLast {
+        def outputDir = rootProject.file("build/release-matrix/${project.mod_version}")
+        delete(outputDir)
+        outputDir.mkdirs()
+
+        rootProject.ext.mcProfiles.each { profileName, profileConfig ->
+            def versionLibDir = file("${rootProject.projectDir}/build/${profileName}/root/libs")
+            if (!versionLibDir.exists()) {
+                throw new GradleException("Missing built artifact directory for ${profileName}: ${versionLibDir}")
+            }
+
+            def targetDir = file("${outputDir}/${profileName}")
+            targetDir.mkdirs()
+
+            copy {
+                from(versionLibDir)
+                into(targetDir)
+                include('*.jar')
+                exclude('*-dev.jar', '*-srg.jar')
+            }
+        }
+    }
 }
 
 tasks.register('verifyMixinArtifacts') {

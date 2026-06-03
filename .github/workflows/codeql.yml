@@ -26,7 +26,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Gradle 9.4.0
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make Gradle wrapper executable
@@ -44,7 +44,7 @@ jobs:
           build-mode: manual
 
       - name: Build project
-        run: ./gradlew clean build --stacktrace
+        run: ./gradlew clean build --stacktrace -Pmc_profile=1.19.2
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
