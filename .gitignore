@@ -11,6 +11,7 @@ out/
 .classpath
 .project
 .eclipse/
+build_errors.txt
 
 # OS files
 Thumbs.db

@@ -302,7 +302,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
-            // OkHttp doesn't need to request messages
         }
 
         @Override
