@@ -2,8 +2,8 @@ package org.developerkubilay.safra.p2p;
 
 import de.maxhenkel.voicechat.api.RawUdpPacket;
 import de.maxhenkel.voicechat.api.VoicechatSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -19,7 +19,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SafraVoiceServerSocket implements VoicechatSocket {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceServerSocket.class);
+    private static final Logger LOGGER = SafraLogger.get(SafraVoiceServerSocket.class);
 
     private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final P2pStunMappings stunMappings = new P2pStunMappings();

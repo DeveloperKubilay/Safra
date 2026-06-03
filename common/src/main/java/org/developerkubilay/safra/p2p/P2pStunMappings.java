@@ -1,6 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

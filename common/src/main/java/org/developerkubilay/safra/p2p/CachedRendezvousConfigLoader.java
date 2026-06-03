@@ -2,8 +2,8 @@ package org.developerkubilay.safra.p2p;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class CachedRendezvousConfigLoader {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CachedRendezvousConfigLoader.class);
+    private static final Logger LOGGER = SafraLogger.get(CachedRendezvousConfigLoader.class);
 
     private CachedRendezvousConfigLoader() {
     }

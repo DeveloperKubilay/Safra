@@ -7,14 +7,14 @@ import org.developerkubilay.safra.p2p.ConsoleShareCodePrinter;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.RemoteRendezvousBootstrap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.nio.file.Paths;
 
 public final class DedicatedP2pServerManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Safra P2P");
+    private static final Logger LOGGER = SafraLogger.get("Safra P2P");
     private static P2pHostService hostService;
 
     private DedicatedP2pServerManager() {

@@ -9,8 +9,8 @@ import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +21,7 @@ import java.util.concurrent.CompletionException;
 
 @Mixin(IntegratedServer.class)
 abstract class IntegratedServerMixin {
-    private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
+    private static final Logger SAFRA_LOGGER = SafraLogger.get("Safra P2P");
 
     @Inject(method = "publishServer", at = @At("HEAD"))
     private void safra$applyOnlineMode(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {

@@ -4,8 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pShareCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -16,7 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public abstract class BaseSafraClientConfig {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseSafraClientConfig.class);
+    private static final Logger LOGGER = SafraLogger.get(BaseSafraClientConfig.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     protected boolean openToLanP2pEnabled = true;

@@ -4,7 +4,7 @@ import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
 import org.developerkubilay.safra.p2p.turn.P2pTurnCredentialClient;
 import org.developerkubilay.safra.p2p.turn.P2pTurnCredentials;
 import org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.BindException;

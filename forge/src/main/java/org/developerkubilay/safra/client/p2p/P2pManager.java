@@ -9,8 +9,8 @@ import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -20,7 +20,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 public final class P2pManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
+    private static final Logger LOGGER = SafraLogger.get(P2pManager.class);
     private static final P2pManager INSTANCE = new P2pManager();
     private static final Executor BACKGROUND_EXECUTOR = new Executor() {
         @Override

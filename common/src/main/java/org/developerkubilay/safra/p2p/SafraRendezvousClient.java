@@ -5,8 +5,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 final class SafraRendezvousClient implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
+    private static final Logger LOGGER = SafraLogger.get(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
 
     private WebSocketClient webSocket;

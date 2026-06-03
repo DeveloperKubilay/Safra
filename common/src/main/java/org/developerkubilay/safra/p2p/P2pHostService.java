@@ -2,8 +2,8 @@ package org.developerkubilay.safra.p2p;
 
 import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
 import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -18,7 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class P2pHostService implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostService.class);
+    private static final Logger LOGGER = SafraLogger.get(P2pHostService.class);
 
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
     private final P2pStunClient stunClient = new P2pStunClient();
