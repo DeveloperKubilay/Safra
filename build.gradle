@@ -118,6 +118,22 @@ def versionConfig = [
         forgeLoaderVersionRange   : '[56,)',
         forgeMinecraftVersionRange: '[1.21.6,1.21.9)'
     ],
+    '1.21.7' : [
+        sourceBucket              : '1_21_2',
+        forgeEventSourceDir       : '1_21_6_plus',
+        fabricClientSourceDir     : '1_21_2',
+        loaderVersion             : '0.19.2',
+        fabricVersion             : '0.129.0+1.21.7',
+        packFormat                : 64,
+        supportedFormats          : [64, 64],
+        minecraftVersionRange     : '[1.21.7,1.21.8)',
+        neoVersion                : '21.7.25-beta',
+        neoVersionRange           : '[21.7.25-beta,)',
+        forgeVersion              : '57.0.3',
+        forgeVersionRange         : '[57,)',
+        forgeLoaderVersionRange   : '[57,)',
+        forgeMinecraftVersionRange: '[1.21.7,1.21.8)'
+    ],
     '1.21.8' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
