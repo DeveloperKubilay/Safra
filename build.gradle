@@ -5,8 +5,76 @@ plugins {
     id 'base'
 }
 
+def versionConfig = [
+    '26.1': [
+        base_minecraft_version       : '26.1',
+        fabric_minecraft_version     : '26.1',
+        fabric_mod_minecraft_version : '26.1',
+        fabric_version               : '0.145.1+26.1',
+        minecraft_version            : '26.1',
+        minecraft_version_range      : '[26.1,26.2)',
+        neo_version                  : '26.1.0.19-beta',
+        neo_version_range            : '[26.1.0.19-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '62.0.9',
+        forge_version_range          : '[62,)',
+        forge_loader_version_range   : '[62,)',
+        forge_minecraft_version_range: '[26.1,26.2)'
+    ],
+    '26.1.1': [
+        base_minecraft_version       : '26.1.1',
+        fabric_minecraft_version     : '26.1.1',
+        fabric_mod_minecraft_version : '26.1.1',
+        fabric_version               : '0.145.2+26.1.1',
+        minecraft_version            : '26.1.1',
+        minecraft_version_range      : '[26.1.1,26.2)',
+        neo_version                  : '26.1.1.15-beta',
+        neo_version_range            : '[26.1.1.15-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '63.0.2',
+        forge_version_range          : '[63,)',
+        forge_loader_version_range   : '[63,)',
+        forge_minecraft_version_range: '[26.1.1,26.2)'
+    ],
+    '26.1.2': [
+        base_minecraft_version       : '26.1.2',
+        fabric_minecraft_version     : '26.1.2',
+        fabric_mod_minecraft_version : '26.1.2',
+        fabric_version               : '0.149.0+26.1.2',
+        minecraft_version            : '26.1.2',
+        minecraft_version_range      : '[26.1.2,26.2)',
+        neo_version                  : '26.1.2.54-beta',
+        neo_version_range            : '[26.1.2.54-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '64.0.6',
+        forge_version_range          : '[64,)',
+        forge_loader_version_range   : '[64,)',
+        forge_minecraft_version_range: '[26.1.2,26.2)'
+    ]
+]
+
+def requestedMcVersion = (
+    gradle.startParameter.projectProperties['mcVersion']
+        ?: findProperty('mcVersion')
+        ?: gradle.startParameter.projectProperties['minecraft_version']
+        ?: findProperty('minecraft_version')
+        ?: findProperty('base_minecraft_version')
+        ?: '26.1.1'
+).toString()
+def activeVersion = versionConfig[requestedMcVersion]
+if (activeVersion == null) {
+    throw new GradleException("Unknown mcVersion '${requestedMcVersion}'. Supported versions: ${versionConfig.keySet().join(', ')}")
+}
+
+ext.mcVersion = requestedMcVersion
+ext.activeVersion = activeVersion
+ext.versionConfig = versionConfig
+ext.supportedMcVersions = versionConfig.keySet() as List
+ext.buildDirectorySuffix = requestedMcVersion.replaceAll('[^0-9A-Za-z.-]+', '_')
+layout.buildDirectory.set(file("build/${ext.buildDirectorySuffix}/root"))
+
 group = project.maven_group
-version = "${project.minecraft_version}-${project.mod_version}"
+version = "${requestedMcVersion}-${project.mod_version}"
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -36,6 +104,23 @@ allprojects {
 }
 
 subprojects {
+    ext.base_minecraft_version = rootProject.ext.activeVersion.base_minecraft_version
+    ext.fabric_minecraft_version = rootProject.ext.activeVersion.fabric_minecraft_version
+    ext.fabric_mod_minecraft_version = rootProject.ext.activeVersion.fabric_mod_minecraft_version
+    ext.fabric_version = rootProject.ext.activeVersion.fabric_version
+    ext.minecraft_version = rootProject.ext.activeVersion.minecraft_version
+    ext.minecraft_version_range = rootProject.ext.activeVersion.minecraft_version_range
+    ext.neo_version = rootProject.ext.activeVersion.neo_version
+    ext.neo_version_range = rootProject.ext.activeVersion.neo_version_range
+    ext.loader_version_range = rootProject.ext.activeVersion.loader_version_range
+    ext.forge_version = rootProject.ext.activeVersion.forge_version
+    ext.forge_version_range = rootProject.ext.activeVersion.forge_version_range
+    ext.forge_loader_version_range = rootProject.ext.activeVersion.forge_loader_version_range
+    ext.forge_minecraft_version_range = rootProject.ext.activeVersion.forge_minecraft_version_range
+    ext.build_directory_suffix = rootProject.ext.buildDirectorySuffix
+
+    layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.buildDirectorySuffix}/${project.name}"))
+
     repositories {
         mavenCentral()
         maven {
@@ -146,6 +231,55 @@ tasks.named('build') {
         delete(layout.buildDirectory.file('reports/problems/problems-report.html').get().asFile)
     }
     dependsOn(tasks.named('collectBuildLibs'))
+}
+
+def releaseTaskNames = []
+ext.supportedMcVersions.each { profileName ->
+    def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
+    releaseTaskNames << taskName
+    tasks.register(taskName, Exec) {
+        group = 'release'
+        description = "Builds the ${profileName} release line."
+        workingDir rootProject.projectDir
+        commandLine([wrapperExecutable, 'clean', 'build', '--no-daemon', '--console=plain'] + forwardedProjectProperties + [
+            "-PmcVersion=${profileName}"
+        ])
+    }
+}
+
+tasks.register('buildReleaseMatrix') {
+    group = 'release'
+    description = 'Builds every configured Minecraft release line.'
+    dependsOn(releaseTaskNames.collect { tasks.named(it) })
+}
+
+tasks.register('collectReleaseMatrixArtifacts') {
+    group = 'release'
+    description = 'Collects all built release artifacts into one folder tree.'
+    dependsOn(tasks.named('buildReleaseMatrix'))
+
+    doLast {
+        def outputDir = rootProject.file("build/release-matrix/${project.mod_version}")
+        delete(outputDir)
+        outputDir.mkdirs()
+
+        rootProject.ext.supportedMcVersions.each { profileName ->
+            def versionLibDir = file("${rootProject.projectDir}/build/${profileName}/root/libs")
+            if (!versionLibDir.exists()) {
+                throw new GradleException("Missing built artifact directory for ${profileName}: ${versionLibDir}")
+            }
+
+            def targetDir = file("${outputDir}/${profileName}")
+            targetDir.mkdirs()
+
+            copy {
+                from(versionLibDir)
+                into(targetDir)
+                include('*.jar')
+                exclude('*-dev.jar', '*-srg.jar')
+            }
+        }
+    }
 }
 
 tasks.register('verifyMixinArtifacts') {
