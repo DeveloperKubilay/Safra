@@ -203,7 +203,7 @@ jobs:
           for loader in ${{ env.SAFRA_BUILD_TASKS }}; do
             project_name="${loader#:}"
             project_name="${project_name%:build}"
-            loader_paths+=("$project_name/build/libs")
+            loader_paths+=("build/${{ env.SAFRA_MC_PROFILE }}/$project_name/libs")
           done
 
           shopt -s nullglob
