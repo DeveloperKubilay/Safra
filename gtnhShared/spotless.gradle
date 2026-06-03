@@ -1,9 +1,6 @@
 
 apply plugin: 'com.diffplug.spotless'
 
-// Spotless autoformatter
-// See https://github.com/diffplug/spotless/tree/main/plugin-gradle
-// Can be locally toggled via spotless:off/spotless:on comments
 spotless {
     encoding 'UTF-8'
 
@@ -38,7 +35,7 @@ spotless {
         scalafmt('3.7.15')
     }
     json {
-        ratchetFrom 'origin/master' // only format files which have changed since origin/master
+        ratchetFrom 'origin/master'
 
         target(
             'src/**/mcmod.info',

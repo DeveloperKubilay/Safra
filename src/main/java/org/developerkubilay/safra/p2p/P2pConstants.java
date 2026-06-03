@@ -14,16 +14,17 @@ public final class P2pConstants {
     static final long MAINTENANCE_TICK_MS = 100L;
     static final long OPEN_RESEND_MS = 500L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
-    static final long INITIAL_RESEND_MS = 240L;
-    static final long MIN_RESEND_MS = 180L;
-    static final long MAX_RESEND_MS = 1_200L;
+    static final long INITIAL_RESEND_MS = 150L;
+    static final long MIN_RESEND_MS = 90L;
+    static final long MAX_RESEND_MS = 450L;
     static final long KEEP_ALIVE_MS = 10_000L;
     static final long CONNECTION_TIMEOUT_MS = 30_000L;
     static final int SELECTIVE_ACK_BITS = 32;
     static final int MICRO_BATCH_WARMUP_SAMPLES = 24;
     static final int MICRO_BATCH_MIN_THRESHOLD_BYTES = 64;
-    static final int MICRO_BATCH_THRESHOLD_BYTES = 192;
-    static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 256;
+    static final int MICRO_BATCH_THRESHOLD_BYTES = 0;
+    static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 0;
+    static final int CLIENT_MICRO_BATCH_THRESHOLD_BYTES = 0;
     static final int FAST_RETRANSMIT_DUP_ACKS = 3;
     static final long FAST_RETRANSMIT_GUARD_MS = 60L;
     static final long NEGATIVE_ACK_REPEAT_MS = 80L;
@@ -35,13 +36,15 @@ public final class P2pConstants {
     static final long MICRO_BATCH_MAX_WAIT_NANOS = 1_500_000L;
     static final long MICRO_BATCH_POLL_NANOS = 100_000L;
 
+    static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
+
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;
     static final long WINDOW_STALL_WARN_MS = 150L;
     static final long IDLE_RESTART_MIN_MS = 500L;
-    static final int PACING_BURST_PACKETS = 4;
-    static final long MIN_PACING_INTERVAL_NANOS = 100_000L;
-    static final long MAX_PACING_INTERVAL_NANOS = 4_000_000L;
+    static final int PACING_BURST_PACKETS = 16;
+    static final long MIN_PACING_INTERVAL_NANOS = 50_000L;
+    static final long MAX_PACING_INTERVAL_NANOS = 1_000_000L;
     static final long STUN_REFRESH_MS = 20_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
     public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
