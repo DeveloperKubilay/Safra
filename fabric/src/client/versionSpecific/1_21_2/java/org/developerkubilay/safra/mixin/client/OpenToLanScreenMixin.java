@@ -1,7 +1,6 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -26,8 +25,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
@@ -101,7 +98,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
             Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                safra$setScreenCompat(this.minecraft, new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
+                this.minecraft.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             ).bounds(this.width / 2 + 2, 180, 98, 20).build()
         );
         this.safra$p2pInitialized = true;
@@ -177,12 +174,12 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withColor(ChatFormatting.AQUA)
                 .withUnderlined(true)
                 .withInsertion(shareCodeText)
-                .withClickEvent(safra$createCopyToClipboardClickEvent(shareCodeText))
-                .withHoverEvent(safra$createShowTextHoverEvent(Component.translatable("safra.p2p.copy_hint"))));
+                .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
+                .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
-        safra$narrateCompat(this.minecraft, Component.translatable("safra.p2p.host.narration", shareText));
+        this.minecraft.getNarrator().sayNow(Component.translatable("safra.p2p.host.narration", shareText));
     }
 
     @Unique
@@ -207,80 +204,4 @@ abstract class OpenToLanScreenMixin extends Screen {
     }
 
     @Unique
-    private static void safra$setScreenCompat(Minecraft minecraft, Screen screen) {
-        if (minecraft == null) {
-            return;
-        }
-
-        try {
-            Method method = Minecraft.class.getMethod("setScreenAndShow", Screen.class);
-            method.invoke(minecraft, screen);
-            return;
-        } catch (NoSuchMethodException ignored) {
-        } catch (ReflectiveOperationException exception) {
-            throw new RuntimeException("Safra could not open the requested screen", exception);
-        }
-
-        minecraft.setScreen(screen);
-    }
-
-    @Unique
-    private static ClickEvent safra$createCopyToClipboardClickEvent(String text) {
-        try {
-            Class<?> copyToClipboardClass = Class.forName("net.minecraft.network.chat.ClickEvent$CopyToClipboard");
-            Constructor<?> constructor = copyToClipboardClass.getDeclaredConstructor(String.class);
-            return (ClickEvent) constructor.newInstance(text);
-        } catch (ReflectiveOperationException firstFailure) {
-            try {
-                Class<? extends Enum> actionClass = Class.forName("net.minecraft.network.chat.ClickEvent$Action").asSubclass(Enum.class);
-                Object action = Enum.valueOf((Class) actionClass, "COPY_TO_CLIPBOARD");
-                Constructor<ClickEvent> constructor = ClickEvent.class.getDeclaredConstructor(actionClass, String.class);
-                return constructor.newInstance(action, text);
-            } catch (ReflectiveOperationException secondFailure) {
-                throw new RuntimeException("Safra could not create the copy-to-clipboard click event", secondFailure);
-            }
-        }
-    }
-
-    @Unique
-    private static HoverEvent safra$createShowTextHoverEvent(Component text) {
-        try {
-            Class<?> showTextClass = Class.forName("net.minecraft.network.chat.HoverEvent$ShowText");
-            Constructor<?> constructor = showTextClass.getDeclaredConstructor(Component.class);
-            return (HoverEvent) constructor.newInstance(text);
-        } catch (ReflectiveOperationException firstFailure) {
-            try {
-                Class<? extends Enum> actionClass = Class.forName("net.minecraft.network.chat.HoverEvent$Action").asSubclass(Enum.class);
-                Object action = Enum.valueOf((Class) actionClass, "SHOW_TEXT");
-                Constructor<HoverEvent> constructor = HoverEvent.class.getDeclaredConstructor(actionClass, Component.class);
-                return constructor.newInstance(action, text);
-            } catch (ReflectiveOperationException secondFailure) {
-                throw new RuntimeException("Safra could not create the hover event", secondFailure);
-            }
-        }
-    }
-
-    @Unique
-    private static void safra$narrateCompat(Minecraft minecraft, Component message) {
-        if (minecraft == null) {
-            return;
-        }
-
-        Object narrator = minecraft.getNarrator();
-        try {
-            Method method = narrator.getClass().getMethod("saySystemQueued", Component.class);
-            method.invoke(narrator, message);
-            return;
-        } catch (NoSuchMethodException ignored) {
-        } catch (ReflectiveOperationException exception) {
-            throw new RuntimeException("Safra could not queue narrator output", exception);
-        }
-
-        try {
-            Method method = narrator.getClass().getMethod("sayNow", Component.class);
-            method.invoke(narrator, message);
-        } catch (ReflectiveOperationException exception) {
-            throw new RuntimeException("Safra could not send narrator output", exception);
-        }
-    }
 }
