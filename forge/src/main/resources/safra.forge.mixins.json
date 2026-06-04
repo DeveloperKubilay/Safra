@@ -5,6 +5,7 @@
   "package": "org.developerkubilay.safra.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "AddressCheckMixin",
     "ConnectScreenMixin",
     "DirectJoinServerScreenMixin",
     "IntegratedServerMixin",
