@@ -9,7 +9,7 @@
     "ConnectScreenMixin",
     "DirectJoinServerScreenMixin",
     "IntegratedServerMixin",
-    "LanServerDetectionMixin",
+    "LanServerDetectorMixin",
     "JoinMultiplayerScreenMixin",
     "ServerNameResolverMixin",
     "ShareToLanScreenMixin"
