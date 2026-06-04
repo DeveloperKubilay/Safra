@@ -174,8 +174,8 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withColor(ChatFormatting.AQUA)
                 .withUnderlined(true)
                 .withInsertion(shareCodeText)
-                .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
-                .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
+                .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("safra.p2p.copy_hint"))));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
@@ -203,5 +203,4 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.minecraft.gui.getChat().addMessage(message);
     }
 
-    @Unique
 }
