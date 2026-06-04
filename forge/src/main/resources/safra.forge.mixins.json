@@ -9,7 +9,9 @@
     "ConnectScreenMixin",
     "DirectJoinServerScreenMixin",
     "IntegratedServerMixin",
+    "LanServerDetectionMixin",
     "JoinMultiplayerScreenMixin",
+    "ServerNameResolverMixin",
     "ShareToLanScreenMixin"
   ],
   "injectors": {
