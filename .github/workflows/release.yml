@@ -318,9 +318,8 @@ jobs:
           - 1.20.6: Fabric, Forge, NeoForge
 
           Notes:
-          - 1.20.3 intentionally ships without Forge and NeoForge artifacts in this unified line.
-          - 1.20.4 intentionally ships without a Forge artifact in this unified line.
-          - Each Minecraft version is built separately with its own release profile and selected loader set.
+          - 1.20.3 Forge and Neoforge builds are intentionally not released.
+          - 1.20.4 Forge build intentionally not released.
           EOF
 
       - name: Ensure release tag is new
