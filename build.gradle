@@ -105,7 +105,7 @@ def versionConfig = [
     '1.21.6' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_2',
+        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.128.2+1.21.6',
         packFormat                : 63,
@@ -121,7 +121,7 @@ def versionConfig = [
     '1.21.7' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_2',
+        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.129.0+1.21.7',
         packFormat                : 64,
@@ -137,7 +137,7 @@ def versionConfig = [
     '1.21.8' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_2',
+        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.132.0+1.21.8',
         packFormat                : 69,
@@ -153,7 +153,7 @@ def versionConfig = [
     '1.21.9' : [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_2',
+        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.134.1+1.21.9',
         packFormat                : 69,
@@ -169,7 +169,7 @@ def versionConfig = [
     '1.21.10': [
         sourceBucket              : '1_21_2',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_2',
+        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.136.0+1.21.10',
         packFormat                : 69,
