@@ -1061,51 +1061,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         return firstEntry == null ? 0 : firstEntry.getKey();
     }
 
-    private void maybeGrowSendWindow() {
-        if (maxBandwidthBytesPerSecond > 0L && smoothedRoundTripTimeMs > 0.0D) {
-            int targetCwnd;
-            if (bbrState == BbrState.PROBE_RTT) {
-                targetCwnd = 8;
-            } else {
-                double cwndGain = 2.0D;
-                long bdpBytes = Math.round((maxBandwidthBytesPerSecond * smoothedRoundTripTimeMs) / 1000.0D);
-                targetCwnd = (int) Math.round((bdpBytes * cwndGain) / P2pConstants.MAX_PAYLOAD_SIZE);
-            }
-
-            targetCwnd = Math.max(P2pConstants.INITIAL_SEND_WINDOW_SIZE,
-                Math.min(P2pConstants.MAX_SEND_WINDOW_SIZE, targetCwnd));
-
-            if (targetCwnd > sendWindowSize) {
-                sendWindowSize = Math.min(sendWindowSize + 1, targetCwnd);
-                incrementDiagnosticCounter(sendWindowGrowthEvents);
-            } else if (targetCwnd < sendWindowSize) {
-                sendWindowSize = Math.max(sendWindowSize - 1, targetCwnd);
-            }
-            return;
-        }
-
-        if (sendWindowSize >= P2pConstants.MAX_SEND_WINDOW_SIZE) {
-            acknowledgementsSinceWindowIncrease = 0;
-            return;
-        }
-
-        if (sendWindowSize < slowStartThreshold) {
-            sendWindowSize++;
-            incrementDiagnosticCounter(sendWindowGrowthEvents);
-            return;
-        }
-
-        acknowledgementsSinceWindowIncrease++;
-        if (acknowledgementsSinceWindowIncrease < Math.max(1, sendWindowSize)) {
-            return;
-        }
-
-        acknowledgementsSinceWindowIncrease = 0;
-        sendWindowSize++;
-        incrementDiagnosticCounter(sendWindowGrowthEvents);
-    }
-
-    private void noteCongestionEvent(long now) {
+    private void maybeGrowSendWindow() {`r`n        if (maxBandwidthBytesPerSecond > 0L && smoothedRoundTripTimeMs > 0.0D) {`r`n            int targetCwnd;`r`n            if (bbrState == BbrState.PROBE_RTT) {`r`n                targetCwnd = 8;`r`n            } else {`r`n                double cwndGain = 2.0D;`r`n                long bdpBytes = Math.round((maxBandwidthBytesPerSecond * smoothedRoundTripTimeMs) / 1000.0D);`r`n                targetCwnd = (int) Math.round((bdpBytes * cwndGain) / P2pConstants.MAX_PAYLOAD_SIZE);`r`n            }`r`n`r`n            targetCwnd = Math.max(P2pConstants.INITIAL_SEND_WINDOW_SIZE,`r`n                Math.min(P2pConstants.MAX_SEND_WINDOW_SIZE, targetCwnd));`r`n`r`n            if (targetCwnd > sendWindowSize) {`r`n                sendWindowSize = Math.min(sendWindowSize + 1, targetCwnd);`r`n                incrementDiagnosticCounter(sendWindowGrowthEvents);`r`n            } else if (targetCwnd < sendWindowSize) {`r`n                sendWindowSize = Math.max(sendWindowSize - 1, targetCwnd);`r`n            }`r`n            return;`r`n        }`r`n`r`n        if (sendWindowSize >= P2pConstants.MAX_SEND_WINDOW_SIZE) {`r`n            acknowledgementsSinceWindowIncrease = 0;`r`n            return;`r`n        }`r`n`r`n        if (sendWindowSize < slowStartThreshold) {`r`n            sendWindowSize++;`r`n            incrementDiagnosticCounter(sendWindowGrowthEvents);`r`n            return;`r`n        }`r`n`r`n        acknowledgementsSinceWindowIncrease++;`r`n        if (acknowledgementsSinceWindowIncrease < Math.max(1, sendWindowSize)) {`r`n            return;`r`n        }`r`n`r`n        acknowledgementsSinceWindowIncrease = 0;`r`n        sendWindowSize++;`r`n        incrementDiagnosticCounter(sendWindowGrowthEvents);`r`n    }`r`n`r`n    private void noteCongestionEvent(long now) {
         long guardMs = Math.max(P2pConstants.MIN_RESEND_MS, retransmitTimeoutMs);
         if (now - lastCongestionEventAt < guardMs) {
             return;
@@ -1137,37 +1093,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         incrementDiagnosticCounter(idleRestartEvents);
     }
 
-    private void waitForPacingSlot() {
-        long intervalNanos = pacingIntervalNanos();
-        if (intervalNanos <= 0L) {
-            return;
-        }
-
-        long now = System.nanoTime();
-        if (nextPayloadSendAtNanos == 0L || now > nextPayloadSendAtNanos + (intervalNanos * 16L)) {
-            nextPayloadSendAtNanos = now;
-            pacingBurstBudget = P2pConstants.PACING_BURST_PACKETS;
-        }
-
-        if (pacingBurstBudget > 0) {
-            pacingBurstBudget--;
-            nextPayloadSendAtNanos = Math.max(nextPayloadSendAtNanos, now) + intervalNanos;
-            return;
-        }
-
-        long waitNanos = nextPayloadSendAtNanos - now;
-        if (waitNanos > 0L) {
-            incrementDiagnosticCounter(pacingWaitEvents);
-            addDiagnosticCounter(pacingWaitNanos, waitNanos);
-            observePeak(peakPacingWaitMs, TimeUnit.NANOSECONDS.toMillis(waitNanos));
-            LockSupport.parkNanos(waitNanos);
-            now = System.nanoTime();
-        }
-
-        nextPayloadSendAtNanos = Math.max(nextPayloadSendAtNanos, now) + intervalNanos;
-    }
-
-    private long pacingIntervalNanos() {
+    private void waitForPacingSlot() {`r`n        long intervalNanos = pacingIntervalNanos();`r`n        if (intervalNanos <= 0L) {`r`n            return;`r`n        }`r`n`r`n        long now = System.nanoTime();`r`n        if (nextPayloadSendAtNanos == 0L || now > nextPayloadSendAtNanos + (intervalNanos * 16L)) {`r`n            nextPayloadSendAtNanos = now;`r`n            pacingBurstBudget = Math.min(sendWindowSize / 2, 20);`r`n        }`r`n`r`n        if (pacingBurstBudget > 0) {`r`n            pacingBurstBudget--;`r`n            nextPayloadSendAtNanos = Math.max(nextPayloadSendAtNanos, now) + intervalNanos;`r`n            return;`r`n        }`r`n`r`n        long waitNanos = nextPayloadSendAtNanos - now;`r`n        if (waitNanos > 0L) {`r`n            incrementDiagnosticCounter(pacingWaitEvents);`r`n            addDiagnosticCounter(pacingWaitNanos, waitNanos);`r`n            observePeak(peakPacingWaitMs, TimeUnit.NANOSECONDS.toMillis(waitNanos));`r`n            LockSupport.parkNanos(waitNanos);`r`n            now = System.nanoTime();`r`n        }`r`n`r`n        nextPayloadSendAtNanos = Math.max(nextPayloadSendAtNanos, now) + intervalNanos;`r`n        pacingBurstBudget = Math.min(sendWindowSize / 2, 20);`r`n    }`r`n`r`n    private long pacingIntervalNanos() {
         if (!shouldPacePayloads()) {
             return 0L;
         }
@@ -1198,31 +1124,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
             Math.min(P2pConstants.MAX_PACING_INTERVAL_NANOS, intervalNanos));
     }
 
-    private void resetPacingBudget() {
-        nextPayloadSendAtNanos = 0L;
-        pacingBurstBudget = P2pConstants.PACING_BURST_PACKETS;
-    }
-
-    private boolean shouldPacePayloads() {
-        if (!opened) {
-            return false;
-        }
-
-        int pending = pendingSegments.size();
-        int backlogThreshold = Math.max(P2pConstants.PACING_BURST_PACKETS * 8, sendWindowSize / 2);
-        if (pending >= backlogThreshold) {
-            return true;
-        }
-
-        if (lastCongestionEventAt == 0L) {
-            return false;
-        }
-
-        long stableForMs = Math.max(P2pConstants.MIN_RESEND_MS, retransmitTimeoutMs);
-        return System.currentTimeMillis() - lastCongestionEventAt <= stableForMs;
-    }
-
-    private void updateReceiveRate(long nowNanos) {
+    private void resetPacingBudget() {`r`n        nextPayloadSendAtNanos = 0L;`r`n        pacingBurstBudget = Math.min(sendWindowSize / 2, 20);`r`n    }`r`n`r`n    private boolean shouldPacePayloads() {`r`n        if (!opened) {`r`n            return false;`r`n        }`r`n`r`n        if (sendWindowSize >= P2pConstants.INITIAL_SEND_WINDOW_SIZE) {`r`n            return true;`r`n        }`r`n`r`n        int pending = pendingSegments.size();`r`n        int backlogThreshold = Math.max(P2pConstants.PACING_BURST_PACKETS * 8, sendWindowSize / 2);`r`n        if (pending >= backlogThreshold) {`r`n            return true;`r`n        }`r`n`r`n        if (lastCongestionEventAt == 0L) {`r`n            return false;`r`n        }`r`n`r`n        long stableForMs = Math.max(P2pConstants.MIN_RESEND_MS, retransmitTimeoutMs);`r`n        return System.currentTimeMillis() - lastCongestionEventAt <= stableForMs;`r`n    }`r`n`r`n    private void updateReceiveRate(long nowNanos) {
         if (lastReceiveTimeNanos > 0L) {
             long intervalNanos = nowNanos - lastReceiveTimeNanos;
             if (receiveIntervalNanos == 0L) {
@@ -1566,3 +1468,4 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
     }
 }
+
