@@ -118,7 +118,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.textFieldServerAddress == null) {
             return;
         }
-        this.textFieldServerAddress.setSuggestion(this.safra$p2pEnabled ? "ABC123" : null);
+        this.textFieldServerAddress.setSuggestion(this.safra$p2pEnabled ? "" : null);
     }
 
     @Unique

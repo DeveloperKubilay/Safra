@@ -120,7 +120,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setSuggestion(this.safra$p2pEnabled ? "ABC123" : null);
+        this.addressField.setSuggestion(this.safra$p2pEnabled ? "" : null);
     }
 
     @Unique
