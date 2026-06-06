@@ -7,17 +7,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class P2pRuntime {
     private static final AtomicInteger THREAD_COUNTER = new AtomicInteger();
-    private static final ThreadFactory THREAD_FACTORY = createThreadFactory();
+    private static final ThreadFactory SCHEDULER_THREAD_FACTORY = createSchedulerThreadFactory();
 
     private P2pRuntime() {
     }
 
     public static ScheduledExecutorService singleScheduler() {
-        return Executors.newSingleThreadScheduledExecutor(THREAD_FACTORY);
+        return Executors.newSingleThreadScheduledExecutor(SCHEDULER_THREAD_FACTORY);
     }
 
     public static ScheduledExecutorService schedulerPool(int size) {
-        return Executors.newScheduledThreadPool(size, THREAD_FACTORY);
+        return Executors.newScheduledThreadPool(size, SCHEDULER_THREAD_FACTORY);
     }
 
     public static Thread start(String name, Runnable runnable) {
@@ -37,18 +37,9 @@ public final class P2pRuntime {
         return thread;
     }
 
-    private static ThreadFactory createThreadFactory() {
-        try {
-            Object builder = Thread.class.getMethod("ofVirtual").invoke(null);
-            Object factory = builder.getClass().getMethod("factory").invoke(builder);
-            if (factory instanceof ThreadFactory) {
-                return (ThreadFactory) factory;
-            }
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-        }
-
+    private static ThreadFactory createSchedulerThreadFactory() {
         return runnable -> {
-            Thread thread = new Thread(runnable, "safra-p2p-" + THREAD_COUNTER.incrementAndGet());
+            Thread thread = new Thread(runnable, "safra-p2p-scheduler-" + THREAD_COUNTER.incrementAndGet());
             thread.setDaemon(true);
             return thread;
         };

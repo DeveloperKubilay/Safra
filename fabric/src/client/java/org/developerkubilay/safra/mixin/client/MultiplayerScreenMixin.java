@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
@@ -46,11 +47,9 @@ abstract class MultiplayerScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    MinecraftClient.getInstance().openScreen(new DisconnectedScreen(
-                        this.parent,
-                        new TranslatableText("connect.failed"),
-                        new TranslatableText("safra.p2p.prepare_failed", message)
-                    ));
+                    MinecraftClient.getInstance().openScreen(
+                        this.safra$createDisconnectedScreen(new TranslatableText("safra.p2p.prepare_failed", message))
+                    );
                     return;
                 }
 
@@ -58,5 +57,23 @@ abstract class MultiplayerScreenMixin {
             })
         );
         ci.cancel();
+    }
+
+    private Screen safra$createDisconnectedScreen(Text reason) {
+        try {
+            return DisconnectedScreen.class
+                .getConstructor(Screen.class, String.class, Text.class)
+                .newInstance(this.parent, "connect.failed", reason);
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            return DisconnectedScreen.class
+                .getConstructor(Screen.class, Text.class, Text.class)
+                .newInstance(this.parent, new TranslatableText("connect.failed"), reason);
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        return this.parent == null ? new net.minecraft.client.gui.screen.TitleScreen() : this.parent;
     }
 }

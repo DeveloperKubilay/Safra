@@ -1,7 +1,6 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.server.integrated.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
@@ -195,7 +194,7 @@ public final class P2pManager {
         ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
         rewritten.copyFrom(originalServerInfo);
         rewritten.address = localAddress;
-        return new RewriteResult(ServerAddress.parse(rewritten.address), rewritten);
+        return new RewriteResult(rewritten);
     }
 
     public synchronized void shutdown() {
@@ -262,6 +261,6 @@ public final class P2pManager {
         }
     }
 
-    public record RewriteResult(ServerAddress serverAddress, ServerInfo serverInfo) {
+    public record RewriteResult(ServerInfo serverInfo) {
     }
 }

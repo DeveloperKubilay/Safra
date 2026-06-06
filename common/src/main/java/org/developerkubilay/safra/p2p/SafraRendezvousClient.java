@@ -14,6 +14,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.WebSocketHandshakeException;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -29,6 +30,7 @@ import java.util.function.Consumer;
 final class SafraRendezvousClient implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
+    private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 350, 1000};
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
         .build();
@@ -36,14 +38,14 @@ final class SafraRendezvousClient implements AutoCloseable {
     private WebSocket webSocket;
     private volatile boolean closed;
 
-    static HostSession startHost(int tcpPort, int tunnelToken, String preferredRendezvousCode, Collection<InetSocketAddress> publicEndpoints,
+    static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, Collection<InetSocketAddress> publicEndpoints,
                                  Consumer<InetSocketAddress> punchHandler,
                                  Consumer<InetSocketAddress> voicePunchHandler) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
         HostListener listener = new HostListener(punchHandler, voicePunchHandler);
         try {
             String peerId = "host-" + UUID.randomUUID();
-            client.connect(webSocketUri("/v1/host", peerId, preferredRendezvousCode), listener);
+            client.connectHost(peerId, preferredCode, listener);
             String code = listener.codeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null) {
@@ -94,7 +96,8 @@ final class SafraRendezvousClient implements AutoCloseable {
             client.send(ready);
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(), client, listener);
+            return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(),
+                resolvedHost.minecraftTcpPort(), client, listener);
         } catch (Exception exception) {
             client.close();
             throw asIOException("Safra rendezvous join setup failed", exception);
@@ -135,15 +138,48 @@ final class SafraRendezvousClient implements AutoCloseable {
     }
 
     private void connect(URI uri, WebSocket.Listener listener) throws Exception {
-        WebSocket.Builder builder = httpClient.newWebSocketBuilder();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
+        Exception lastException = null;
+        for (int attempt = 0; attempt < CONNECT_RETRY_DELAYS_MS.length; attempt++) {
+            if (CONNECT_RETRY_DELAYS_MS[attempt] > 0) {
+                sleepQuietly(CONNECT_RETRY_DELAYS_MS[attempt]);
+            }
+
+            try {
+                WebSocket.Builder builder = httpClient.newWebSocketBuilder();
+                String token = P2pConstants.rendezvousToken();
+                if (!token.isBlank()) {
+                    builder.header("Authorization", "Bearer " + token);
+                }
+
+                webSocket = builder
+                    .buildAsync(uri, listener)
+                    .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                return;
+            } catch (Exception exception) {
+                lastException = exception;
+                if (!isRetryableConnectFailure(exception) || attempt + 1 >= CONNECT_RETRY_DELAYS_MS.length) {
+                    throw exception;
+                }
+                LOGGER.warn("Safra rendezvous websocket connect retry {} for {} after {}", attempt + 1, uri, describeConnectFailure(exception));
+            }
         }
 
-        webSocket = builder
-            .buildAsync(uri, listener)
-            .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        if (lastException != null) {
+            throw lastException;
+        }
+    }
+
+    private void connectHost(String peerId, String preferredCode, WebSocket.Listener listener) throws Exception {
+        String normalizedPreferredCode = P2pShareCode.normalizeRendezvousCode(preferredCode);
+        try {
+            connect(webSocketUri("/v1/host", peerId, normalizedPreferredCode), listener);
+        } catch (Exception exception) {
+            if (normalizedPreferredCode != null && isActiveCodeConflict(exception)) {
+                connect(webSocketUri("/v1/host", peerId, null), listener);
+                return;
+            }
+            throw exception;
+        }
     }
 
     private void send(JsonObject message) {
@@ -182,8 +218,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
         };
 
-        StringBuilder uri = new StringBuilder()
-            .append(scheme)
+        StringBuilder uri = new StringBuilder(scheme)
             .append("://")
             .append(baseUri.getAuthority())
             .append(path)
@@ -193,22 +228,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             uri.append("&fixedCode=").append(encode(fixedCode));
         }
         return URI.create(uri.toString());
-    }
-
-    private static URI httpUri(String path) {
-        String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
-        if (base.isBlank()) {
-            throw new IllegalStateException("rendezvous URL is not configured");
-        }
-        URI baseUri = URI.create(base);
-        String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
-            case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            case "ws" -> "http";
-            case "wss" -> "https";
-            default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
-        };
-
-        return URI.create(scheme + "://" + baseUri.getAuthority() + path);
     }
 
     private static String encode(String value) {
@@ -249,7 +268,52 @@ final class SafraRendezvousClient implements AutoCloseable {
         if (cause instanceof TimeoutException) {
             return new IOException(message + ": timeout", cause);
         }
+        if (cause instanceof WebSocketHandshakeException handshakeException) {
+            int status = handshakeException.getResponse().statusCode();
+            return new IOException(message + ": websocket handshake failed with HTTP " + status, cause);
+        }
         return new IOException(message + ": " + cause.getMessage(), cause);
+    }
+
+    private static boolean isActiveCodeConflict(Exception exception) {
+        Throwable cause = exception instanceof java.util.concurrent.ExecutionException executionException
+            ? executionException.getCause()
+            : exception;
+        return cause instanceof WebSocketHandshakeException handshakeException
+            && handshakeException.getResponse().statusCode() == 409;
+    }
+
+    private static boolean isRetryableConnectFailure(Exception exception) {
+        Throwable cause = exception instanceof java.util.concurrent.ExecutionException executionException
+            ? executionException.getCause()
+            : exception;
+        if (cause instanceof TimeoutException || cause instanceof IOException) {
+            return true;
+        }
+        if (cause instanceof WebSocketHandshakeException handshakeException) {
+            int status = handshakeException.getResponse().statusCode();
+            return status == 429 || status >= 500;
+        }
+        return false;
+    }
+
+    private static String describeConnectFailure(Exception exception) {
+        Throwable cause = exception instanceof java.util.concurrent.ExecutionException executionException
+            ? executionException.getCause()
+            : exception;
+        if (cause instanceof WebSocketHandshakeException handshakeException) {
+            return "HTTP " + handshakeException.getResponse().statusCode();
+        }
+        return cause == null ? "unknown" : cause.toString();
+    }
+
+    private static void sleepQuietly(long delayMs) throws Exception {
+        try {
+            TimeUnit.MILLISECONDS.sleep(delayMs);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw exception;
+        }
     }
 
     private static JsonObject joinMetadata() {
@@ -395,7 +459,9 @@ final class SafraRendezvousClient implements AutoCloseable {
                     fail(new IOException("rendezvous host endpoint is missing"));
                     return;
                 }
-                resolvedHostFuture.complete(new ResolvedHost(endpoint, token));
+                JsonObject metadata = message.getAsJsonObject("metadata");
+                int minecraftTcpPort = minecraftTcpPort(metadata);
+                resolvedHostFuture.complete(new ResolvedHost(endpoint, token, minecraftTcpPort));
                 return;
             }
 
@@ -479,6 +545,14 @@ final class SafraRendezvousClient implements AutoCloseable {
         return integer(object.get("token"), 0);
     }
 
+    private static int minecraftTcpPort(JsonObject object) {
+        if (object == null) {
+            return 0;
+        }
+
+        return integer(object.get("minecraftTcpPort"), 0);
+    }
+
     private static int integer(JsonElement element, int fallback) {
         if (element == null || element.isJsonNull()) {
             return fallback;
@@ -521,13 +595,16 @@ final class SafraRendezvousClient implements AutoCloseable {
         private final String code;
         private final InetSocketAddress hostAddress;
         private final int tunnelToken;
+        private final int hostTcpPort;
         private final SafraRendezvousClient client;
         private final JoinListener listener;
 
-        JoinSession(String code, InetSocketAddress hostAddress, int tunnelToken, SafraRendezvousClient client, JoinListener listener) {
+        JoinSession(String code, InetSocketAddress hostAddress, int tunnelToken, int hostTcpPort,
+                    SafraRendezvousClient client, JoinListener listener) {
             this.code = code;
             this.hostAddress = hostAddress;
             this.tunnelToken = tunnelToken;
+            this.hostTcpPort = hostTcpPort;
             this.client = client;
             this.listener = listener;
         }
@@ -544,6 +621,10 @@ final class SafraRendezvousClient implements AutoCloseable {
             return tunnelToken;
         }
 
+        int hostTcpPort() {
+            return hostTcpPort;
+        }
+
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
             return client.resolveVoice(listener, publicEndpoints);
         }
@@ -554,7 +635,7 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
-    private record ResolvedHost(InetSocketAddress address, int tunnelToken) {
+    private record ResolvedHost(InetSocketAddress address, int tunnelToken, int minecraftTcpPort) {
     }
 
     private record ResolvedVoiceHost(InetSocketAddress address) {

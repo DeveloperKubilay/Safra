@@ -22,7 +22,7 @@ public final class P2pHostService implements AutoCloseable {
 
     private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
     private final P2pStunClient stunClient = new P2pStunClient();
-    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
+    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(4);
     private final int tcpPort;
     private final int token;
     private final InetAddress targetAddress;

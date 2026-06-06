@@ -5,7 +5,6 @@ import net.minecraft.client.gui.screen.DirectConnectScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
@@ -133,7 +132,31 @@ abstract class DirectConnectScreenMixin extends Screen {
         String address = this.addressField.getText();
         this.selectServerButton.active = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
-            : ServerAddress.parse(address) != null;
+            : safra$isValidDirectAddress(address);
+    }
+
+    @Unique
+    private boolean safra$isValidDirectAddress(String address) {
+        if (address == null) {
+            return false;
+        }
+        String trimmed = address.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        int separator = trimmed.lastIndexOf(':');
+        if (separator < 0) {
+            return true;
+        }
+        if (separator == trimmed.length() - 1) {
+            return false;
+        }
+        try {
+            int port = Integer.parseInt(trimmed.substring(separator + 1));
+            return port >= 1 && port <= 65535;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     @Unique

@@ -4,8 +4,6 @@ import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.server.integrated.IntegratedServer;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
@@ -170,10 +168,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         Text shareText = new LiteralText(shareCodeText)
             .setStyle(Style.EMPTY
                 .withColor(Formatting.AQUA)
-                .withUnderline(true)
-                .withInsertion(shareCodeText)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TranslatableText("safra.p2p.copy_hint"))));
+            );
         this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));
         this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.copied"));
         this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.instructions"));

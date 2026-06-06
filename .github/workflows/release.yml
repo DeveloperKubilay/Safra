@@ -3,8 +3,27 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      release_scope:
+        description: Release scope
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - single
+      mc_version:
+        description: Minecraft version for single release mode
+        required: true
+        default: 1.16.5
+        type: choice
+        options:
+          - 1.16.1
+          - 1.16.2
+          - 1.16.3
+          - 1.16.4
+          - 1.16.5
       version_number:
-        description: Version number
+        description: Mod version
         required: true
         type: string
       prerelease:
@@ -17,13 +36,62 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.release_scope }}-${{ github.event.inputs.mc_version }}-${{ github.event.inputs.version_number }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    outputs:
+      versions_json: ${{ steps.prepare.outputs.versions_json }}
+      release_tag: ${{ steps.prepare.outputs.release_tag }}
+      release_title: ${{ steps.prepare.outputs.release_title }}
+      release_versions_label: ${{ steps.prepare.outputs.release_versions_label }}
+      version_number: ${{ steps.prepare.outputs.version_number }}
+
+    steps:
+      - name: Resolve release plan
+        id: prepare
+        shell: bash
+        run: |
+          release_scope="${{ github.event.inputs.release_scope }}"
+          mc_version="${{ github.event.inputs.mc_version }}"
+          version_number="${{ github.event.inputs.version_number }}"
+          supported_versions='["1.16.1","1.16.2","1.16.3","1.16.4","1.16.5"]'
+
+          if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
+            echo "Invalid version_number: $version_number"
+            exit 1
+          fi
+
+          if [[ "$release_scope" == "all" ]]; then
+            versions_json="$supported_versions"
+            release_tag="Safra-1.16.x-$version_number"
+            release_title="Safra 1.16.x-$version_number"
+            release_versions_label="1.16.x"
+          else
+            versions_json="[\"$mc_version\"]"
+            release_tag="Safra-$mc_version-$version_number"
+            release_title="Safra $mc_version-$version_number"
+            release_versions_label="$mc_version"
+          fi
+
+          {
+            echo "versions_json=$versions_json"
+            echo "release_tag=$release_tag"
+            echo "release_title=$release_title"
+            echo "release_versions_label=$release_versions_label"
+            echo "version_number=$version_number"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        mc_version: ${{ fromJson(needs.prepare.outputs.versions_json) }}
 
     steps:
       - name: Check out repository
@@ -37,7 +105,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Gradle 9.4.0
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make Gradle wrapper executable
@@ -48,39 +116,155 @@ jobs:
         run: |
           echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
-      - name: Resolve release version
+      - name: Resolve build plan
         shell: bash
         run: |
-          branch_name="${GITHUB_REF_NAME}"
-          minecraft_version="${branch_name#Safra-}"
-          version_number="${{ github.event.inputs.version_number }}"
-          if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
-            echo "Invalid version_number: $version_number"
-            exit 1
-          fi
-          if [[ -z "$minecraft_version" ]]; then
-            echo "Could not resolve Minecraft version from branch name: $branch_name"
-            exit 1
-          fi
-
-          echo "SAFRA_MINECRAFT_VERSION=$minecraft_version" >> "$GITHUB_ENV"
-          echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
-          echo "SAFRA_TAG=Safra-$minecraft_version" >> "$GITHUB_ENV"
+          mc_version="${{ matrix.mc_version }}"
+          case "$mc_version" in
+            1.16.1)
+              echo "SAFRA_BUILD_ARGS=build -PfabricOnly" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=Forge 1.16.1 artifacti yayinlanmiyor; bu surum sadece Fabric olarak cikiyor." >> "$GITHUB_ENV"
+              ;;
+            1.16.2)
+              echo "SAFRA_BUILD_ARGS=build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, Forge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
+              ;;
+            1.16.3)
+              echo "SAFRA_BUILD_ARGS=build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, Forge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
+              ;;
+            1.16.4)
+              echo "SAFRA_BUILD_ARGS=build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, Forge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
+              ;;
+            1.16.5)
+              echo "SAFRA_BUILD_ARGS=build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, Forge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unsupported mc_version: $mc_version"
+              exit 1
+              ;;
+          esac
 
       - name: Build release artifacts
-        run: ./gradlew build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
+        shell: bash
+        run: |
+          ./gradlew clean ${{ env.SAFRA_BUILD_ARGS }} --stacktrace \
+            -Pmc_profile="${{ matrix.mc_version }}" \
+            -Pmod_version="${{ needs.prepare.outputs.version_number }}"
+
+      - name: Collect release artifacts
+        shell: bash
+        run: |
+          artifact_dir="build/${{ matrix.mc_version }}/root/libs"
+          if [[ ! -d "$artifact_dir" ]]; then
+            echo "Artifact directory not found: $artifact_dir"
+            exit 1
+          fi
+
+          mkdir -p dist
+          shopt -s nullglob
+          jars=("$artifact_dir"/*.jar)
+          if [ "${#jars[@]}" -eq 0 ]; then
+            echo "No jars found in $artifact_dir"
+            exit 1
+          fi
+
+          for jar in "${jars[@]}"; do
+            name="$(basename "$jar")"
+            if [[ "$name" == *-dev.jar || "$name" == *-srg.jar ]]; then
+              continue
+            fi
+            cp "$jar" dist/
+          done
+
+          cat > "dist/build-info-${{ matrix.mc_version }}.txt" <<EOF
+          Minecraft version: ${{ matrix.mc_version }}
+          Included loaders: ${{ env.SAFRA_LOADERS }}
+          ${{ env.SAFRA_RELEASE_NOTE }}
+          EOF
+
+          ls -la dist
+
+      - name: Verify artifact names
+        shell: bash
+        run: |
+          shopt -s nullglob
+          jars=(dist/*.jar)
+          if [ "${#jars[@]}" -eq 0 ]; then
+            echo "No jars found in dist"
+            exit 1
+          fi
+
+          expected_suffix="-${{ matrix.mc_version }}-${{ needs.prepare.outputs.version_number }}"
+          for jar in "${jars[@]}"; do
+            name="$(basename "$jar")"
+            if [[ "$name" != *"$expected_suffix"* ]]; then
+              echo "Artifact version mismatch: $name does not contain $expected_suffix"
+              exit 1
+            fi
+          done
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.mc_version }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: release-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(dist/*)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No release artifacts were downloaded."
+            exit 1
+          fi
+          ls -la dist
 
       - name: Prepare release notes
         shell: bash
         run: |
           cat > release-notes.md <<EOF
-          Safra ${{ env.SAFRA_VERSION }} for Minecraft ${{ env.SAFRA_MINECRAFT_VERSION }}
+          Safra ${{ needs.prepare.outputs.version_number }} for Minecraft ${{ needs.prepare.outputs.release_versions_label }}
 
           Included artifacts:
-          - Fabric
-          - Forge
+          - 1.16.1: Fabric
+          - 1.16.2: Fabric, Forge
+          - 1.16.3: Fabric, Forge
+          - 1.16.4: Fabric, Forge
+          - 1.16.5: Fabric, Forge
 
-          Files are attached from the workflow build output.
+          Notes:
+          - Each Minecraft version is built separately with its own dependency profile.
+          - 1.16.1 Forge build intentionally not released.
           EOF
 
       - name: Ensure release tag is new
@@ -88,8 +272,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          if gh release view "${{ env.SAFRA_TAG }}" >/dev/null 2>&1; then
-            echo "Release ${{ env.SAFRA_TAG }} already exists."
+          if gh release view "${{ needs.prepare.outputs.release_tag }}" >/dev/null 2>&1; then
+            echo "Release ${{ needs.prepare.outputs.release_tag }} already exists."
             exit 1
           fi
 
@@ -103,8 +287,7 @@ jobs:
             prerelease_flag="--prerelease"
           fi
 
-          gh release create "${{ env.SAFRA_TAG }}" build/libs/* \
-            --target "${GITHUB_SHA}" \
-            --title "Safra ${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}" \
+          gh release create "${{ needs.prepare.outputs.release_tag }}" dist/* \
+            --title "${{ needs.prepare.outputs.release_title }}" \
             --notes-file release-notes.md \
             $prerelease_flag

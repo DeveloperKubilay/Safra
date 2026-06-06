@@ -31,11 +31,6 @@ public final class P2pConstants {
     static final long ACK_REINFORCE_DELAY_MS = 8L;
     static final long DELAYED_ACK_MS = 2L;
     static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
-    static final long MICRO_BATCH_MIN_WAIT_NANOS = 350_000L;
-    static final long MICRO_BATCH_WAIT_NANOS = 900_000L;
-    static final long MICRO_BATCH_MAX_WAIT_NANOS = 1_500_000L;
-    static final long MICRO_BATCH_POLL_NANOS = 100_000L;
-
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;
     static final long WINDOW_STALL_WARN_MS = 150L;
@@ -57,7 +52,6 @@ public final class P2pConstants {
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
-    private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -171,20 +165,6 @@ public final class P2pConstants {
         }
 
         return false;
-    }
-
-    static boolean turnEnabled() {
-        String property = System.getProperty(TURN_ENABLED_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_TURN_ENABLED");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return true;
     }
 
     public static int turnCredentialTtlSeconds() {

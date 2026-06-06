@@ -2,8 +2,96 @@ plugins {
     id 'base'
 }
 
+import java.util.Locale
+
+ext.mcProfiles = [
+    '1.16.1': [
+        release_minecraft_line       : '1.16.1',
+        minecraft_version            : '1.16.1',
+        yarn_mappings                : '1.16.1+build.1',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.16.0+build.384-1.16.1',
+        minecraft_version_range      : '[1.16.1]',
+        forge_version                : '32.0.108',
+        forge_mappings               : '20200514-1.16',
+        forge_version_range          : '[32,)',
+        forge_loader_version_range   : '[32,)',
+        forge_minecraft_version_range: '[1.16.1]'
+    ],
+    '1.16.2': [
+        release_minecraft_line       : '1.16.2',
+        minecraft_version            : '1.16.2',
+        yarn_mappings                : '1.16.2+build.22',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.42.0+1.16',
+        minecraft_version_range      : '[1.16.2]',
+        forge_version                : '33.0.61',
+        forge_mappings               : '20200916-1.16.2',
+        forge_version_range          : '[33,)',
+        forge_loader_version_range   : '[33,)',
+        forge_minecraft_version_range: '[1.16.2]'
+    ],
+    '1.16.3': [
+        release_minecraft_line       : '1.16.3',
+        minecraft_version            : '1.16.3',
+        yarn_mappings                : '1.16.3+build.41',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.42.0+1.16',
+        minecraft_version_range      : '[1.16.3]',
+        forge_version                : '34.1.42',
+        forge_mappings               : '20201028-1.16.3',
+        forge_version_range          : '[34,)',
+        forge_loader_version_range   : '[34,)',
+        forge_minecraft_version_range: '[1.16.3]'
+    ],
+    '1.16.4': [
+        release_minecraft_line       : '1.16.4',
+        minecraft_version            : '1.16.4',
+        yarn_mappings                : '1.16.4+build.1',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.42.0+1.16',
+        minecraft_version_range      : '[1.16.4]',
+        forge_version                : '35.1.15',
+        forge_mappings               : '20201028-1.16.3',
+        forge_version_range          : '[35,)',
+        forge_loader_version_range   : '[35,)',
+        forge_minecraft_version_range: '[1.16.4]'
+    ],
+    '1.16.5': [
+        release_minecraft_line       : '1.16.5',
+        minecraft_version            : '1.16.5',
+        yarn_mappings                : '1.16.5+build.10',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.42.0+1.16',
+        minecraft_version_range      : '[1.16.5]',
+        forge_version                : '36.2.39',
+        forge_mappings               : '20210309-1.16.5',
+        forge_version_range          : '[36,)',
+        forge_loader_version_range   : '[36,)',
+        forge_minecraft_version_range: '[1.16.5]'
+    ]
+]
+
+def requestedMcProfile = (
+    gradle.startParameter.projectProperties['mc_profile']
+        ?: findProperty('mc_profile')
+        ?: findProperty('default_mc_profile')
+        ?: '1.16.5'
+).toString()
+def selectedMcProfile = ext.mcProfiles[requestedMcProfile]
+if (selectedMcProfile == null) {
+    throw new GradleException("Unknown mc_profile '${requestedMcProfile}'. Supported profiles: ${ext.mcProfiles.keySet().join(', ')}")
+}
+
+selectedMcProfile.each { key, value ->
+    ext.set(key, value)
+}
+ext.set('selected_mc_profile', requestedMcProfile)
+ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
+layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
+
 group = project.maven_group
-version = "${project.minecraft_version}-${project.mod_version}"
+version = "${ext.release_minecraft_line}-${project.mod_version}"
 def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it == ':runClient' }
 
 ext.devRunUsername = { Project targetProject ->
@@ -31,6 +119,28 @@ allprojects {
     version = rootProject.version
 }
 subprojects {
+    rootProject.ext.properties.findAll { key, value ->
+        key in [
+            'selected_mc_profile',
+            'release_minecraft_line',
+            'build_directory_suffix',
+            'minecraft_version',
+            'yarn_mappings',
+            'loader_version',
+            'fabric_version',
+            'minecraft_version_range',
+            'forge_version',
+            'forge_mappings',
+            'forge_version_range',
+            'forge_loader_version_range',
+            'forge_minecraft_version_range'
+        ]
+    }.each { key, value ->
+        ext.set(key, value)
+    }
+
+    layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.build_directory_suffix}/${project.name}"))
+
     repositories {
         mavenCentral()
         maven {
@@ -48,30 +158,38 @@ subprojects {
     }
 }
 
-project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
+def fabricProject = findProject(':fabric')
+def forgeProject = findProject(':forge')
+
+forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
     onlyIf { !rootRunClientRequested }
 }
 
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':forge:build')
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
     include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+
+    if (fabricProject != null) {
+        dependsOn(':fabric:build')
+        from(fabricProject.layout.buildDirectory.dir('libs'))
+    }
+    if (forgeProject != null) {
+        dependsOn(':forge:build')
+        from(forgeProject.layout.buildDirectory.dir('libs'))
+    }
 
     doFirst {
         delete(layout.buildDirectory.dir('libs').get().asFile)
     }
     doLast {
-        def launcherForgeProject = findProject(':forge')
-        if (launcherForgeProject == null) {
+        if (forgeProject == null) {
             return
         }
 
         def rootLibsDir = layout.buildDirectory.dir('libs').get().asFile
         def rootForgeJar = new File(rootLibsDir, "${project.archives_base_name}-forge-${project.version}.jar")
-        def forgeDevJar = launcherForgeProject.layout.buildDirectory.file("libs/${project.archives_base_name}-forge-${project.version}-dev.jar").get().asFile
+        def forgeDevJar = forgeProject.layout.buildDirectory.file("libs/${project.archives_base_name}-forge-${project.version}-dev.jar").get().asFile
 
         if (!forgeDevJar.isFile()) {
             return
@@ -91,10 +209,33 @@ tasks.register('collectBuildLibs', Copy) {
 
 tasks.register('runClient') {
     group = 'application'
-    description = 'Runs the Fabric client from the root project.'
-    dependsOn(':fabric:runClient')
+    description = 'Runs the available client from the root project.'
+    if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    } else if (forgeProject != null) {
+        dependsOn(':forge:runClient')
+    }
 }
 
 tasks.named('build') {
     dependsOn(tasks.named('collectBuildLibs'))
+}
+
+def releaseTaskNames = []
+ext.mcProfiles.each { profileName, profileConfig ->
+    def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
+    releaseTaskNames << taskName
+    tasks.register(taskName, Exec) {
+        group = 'release'
+        description = "Builds the ${profileName} release line."
+        workingDir rootProject.projectDir
+        def wrapperExecutable = System.getProperty('os.name', '').toLowerCase(Locale.ROOT).contains('win') ? 'gradlew.bat' : './gradlew'
+        commandLine(wrapperExecutable, 'clean', 'build', '--no-daemon', '--console=plain', "-Pmc_profile=${profileName}")
+    }
+}
+
+tasks.register('buildReleaseMatrix') {
+    group = 'release'
+    description = 'Builds every configured Minecraft release line.'
+    dependsOn(releaseTaskNames.collect { tasks.named(it) })
 }
