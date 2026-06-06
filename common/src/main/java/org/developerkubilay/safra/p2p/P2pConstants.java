@@ -4,19 +4,19 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 1;
     static final int HEADER_SIZE = 18;
-    static final int MAX_PAYLOAD_SIZE = 1000;
+    static final int MAX_PAYLOAD_SIZE = 1100;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
     static final int SEND_WINDOW_SIZE = 32;
-    static final int INITIAL_SEND_WINDOW_SIZE = 48;
+    static final int INITIAL_SEND_WINDOW_SIZE = 32;
     static final int MAX_SEND_WINDOW_SIZE = 128;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
-    static final long MAINTENANCE_TICK_MS = 100L;
+    static final long MAINTENANCE_TICK_MS = 25L;
     static final long OPEN_RESEND_MS = 500L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
     static final long INITIAL_RESEND_MS = 150L;
-    static final long MIN_RESEND_MS = 180L;
-    static final long MAX_RESEND_MS = 1_200L;
+    static final long MIN_RESEND_MS = 90L;
+    static final long MAX_RESEND_MS = 450L;
     static final long KEEP_ALIVE_MS = 10_000L;
     static final long CONNECTION_TIMEOUT_MS = 30_000L;
     static final int SELECTIVE_ACK_BITS = 32;
@@ -27,8 +27,8 @@ public final class P2pConstants {
     static final int CLIENT_MICRO_BATCH_THRESHOLD_BYTES = 0;
     static final int FAST_RETRANSMIT_DUP_ACKS = 3;
     static final long FAST_RETRANSMIT_GUARD_MS = 60L;
-    static final long NEGATIVE_ACK_REPEAT_MS = 80L;
-    static final long ACK_REINFORCE_DELAY_MS = 12L;
+    static final long NEGATIVE_ACK_REPEAT_MS = 30L;
+    static final long ACK_REINFORCE_DELAY_MS = 8L;
     static final long DELAYED_ACK_MS = 2L;
     static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
     static final long MICRO_BATCH_MIN_WAIT_NANOS = 350_000L;
@@ -226,3 +226,4 @@ public final class P2pConstants {
     }
 
 }
+
