@@ -13,6 +13,7 @@ import java.util.Optional;
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
     private ButtonWidget allowCommandsButton;
+    private ButtonWidget fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
         super(new TranslatableText("safra.p2p.server_settings"));
@@ -21,19 +22,23 @@ public final class SafraLanServerSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        this.allowCommandsButton = this.addButton(new ButtonWidget(this.width / 2 - 100, this.height / 4 + 24, 200, 20, this.getAllowCommandsText(), button -> {
+        int top = this.height / 4 - 20;
+        this.allowCommandsButton = this.addButton(new ButtonWidget(this.width / 2 - 100, top + 24, 200, 20, this.getAllowCommandsText(), button -> {
                 FabricLanSessionState.setAllowCommandsEnabled(!FabricLanSessionState.isAllowCommandsEnabled());
                 button.setMessage(this.getAllowCommandsText());
             }));
 
-        this.addButton(new ButtonWidget(this.width / 2 - 100, this.height / 4 + 48, 200, 20, new TranslatableText("safra.p2p.server_settings.reset"), button -> {
-                FabricLanSessionState.resetServerSettings();
-                if (this.allowCommandsButton != null) {
-                    this.allowCommandsButton.setMessage(this.getAllowCommandsText());
-                }
+        this.fixedCodeButton = this.addButton(new ButtonWidget(this.width / 2 - 100, top + 48, 200, 20, this.getFixedCodeText(), button -> {
+                FabricLanSessionState.setFixedCodeEnabled(!FabricLanSessionState.isFixedCodeEnabled());
+                button.setMessage(this.getFixedCodeText());
             }));
 
-        this.addButton(new ButtonWidget(this.width / 2 - 100, this.height / 4 + 72, 200, 20, new TranslatableText("safra.p2p.game_rules"), button -> {
+        this.addButton(new ButtonWidget(this.width / 2 - 100, top + 72, 200, 20, new TranslatableText("safra.p2p.fixed_code.refresh"), button -> {
+                FabricLanSessionState.regenerateFixedCode();
+                this.setFocused(null);
+            }));
+
+        this.addButton(new ButtonWidget(this.width / 2 - 100, top + 96, 200, 20, new TranslatableText("safra.p2p.game_rules"), button -> {
                 if (this.client == null || this.client.world == null) {
                     return;
                 }
@@ -41,8 +46,13 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 this.client.openScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             }));
 
-        this.addButton(new ButtonWidget(this.width / 2 - 100, this.height / 4 + 120, 98, 20, new TranslatableText("gui.done"), button -> this.onClose()));
-        this.addButton(new ButtonWidget(this.width / 2 + 2, this.height / 4 + 120, 98, 20, new LiteralText("Back"), button -> this.onClose()));
+        this.addButton(new ButtonWidget(this.width / 2 - 100, top + 120, 200, 20, new TranslatableText("safra.p2p.game_rules.reset"), button -> {
+                FabricLanSessionState.resetGameRules();
+                this.setFocused(null);
+            }));
+
+        this.addButton(new ButtonWidget(this.width / 2 - 100, top + 168, 98, 20, new TranslatableText("gui.done"), button -> this.onClose()));
+        this.addButton(new ButtonWidget(this.width / 2 + 2, top + 168, 98, 20, new LiteralText("Back"), button -> this.onClose()));
     }
 
     @Override
@@ -55,7 +65,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
         fill(matrices, 0, 0, this.width, this.height, 0xC0101010);
-        drawCenteredText(matrices, this.textRenderer, this.title, this.width / 2, this.height / 4, 0xFFFFFF);
+        drawCenteredText(matrices, this.textRenderer, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
         super.render(matrices, mouseX, mouseY, delta);
     }
 
@@ -64,6 +74,14 @@ public final class SafraLanServerSettingsScreen extends Screen {
             FabricLanSessionState.isAllowCommandsEnabled()
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
+        );
+    }
+
+    private TranslatableText getFixedCodeText() {
+        return new TranslatableText(
+            FabricLanSessionState.isFixedCodeEnabled()
+                ? "safra.p2p.fixed_code.on"
+                : "safra.p2p.fixed_code.off"
         );
     }
 
