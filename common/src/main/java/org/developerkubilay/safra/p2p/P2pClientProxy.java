@@ -136,6 +136,9 @@ public final class P2pClientProxy implements AutoCloseable {
             if (samePublicIp(matchingLocalEndpoint.publicAddress(), remoteAddress)) {
                 LOGGER.debug("Safra P2P host and joiner resolved to the same public IP {}; attempting NAT hairpin/self-connect path", remoteAddress.getAddress());
             }
+            if (P2pConstants.forceDirectThenTurnRelay()) {
+                throw new IOException("Safra test modu direct P2P yolunu bilincli olarak kesti; TURN fallback denenecek");
+            }
         }
 
         LOGGER.debug("Safra P2P rendezvous code {} resolved to {}", shareCode.rendezvousCode(), remoteAddress);
