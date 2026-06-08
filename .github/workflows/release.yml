@@ -32,12 +32,21 @@ on:
         required: false
         default: false
         type: boolean
+      build_mode:
+        description: Network test mode
+        required: true
+        default: off
+        type: choice
+        options:
+          - off
+          - forceTurn
+          - directThenTurn
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.release_scope }}-${{ github.event.inputs.mc_version }}-${{ github.event.inputs.version_number }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.release_scope }}-${{ github.event.inputs.mc_version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
   cancel-in-progress: false
 
 jobs:
@@ -50,6 +59,7 @@ jobs:
       release_scope: ${{ steps.prepare.outputs.release_scope }}
       release_versions_label: ${{ steps.prepare.outputs.release_versions_label }}
       version_number: ${{ steps.prepare.outputs.version_number }}
+      build_mode: ${{ steps.prepare.outputs.build_mode }}
 
     steps:
       - name: Resolve release plan
@@ -59,10 +69,16 @@ jobs:
           release_scope="${{ github.event.inputs.release_scope }}"
           mc_version="${{ github.event.inputs.mc_version }}"
           version_number="${{ github.event.inputs.version_number }}"
+          build_mode="${{ github.event.inputs.build_mode }}"
           supported_versions='["1.20","1.20.1","1.20.2","1.20.3","1.20.4","1.20.6"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
+            exit 1
+          fi
+
+          if [[ "$build_mode" != "off" && "$build_mode" != "forceTurn" && "$build_mode" != "directThenTurn" ]]; then
+            echo "Invalid build_mode: $build_mode"
             exit 1
           fi
 
@@ -78,6 +94,11 @@ jobs:
             release_versions_label="$mc_version"
           fi
 
+          if [[ "$build_mode" != "off" ]]; then
+            release_tag="${release_tag}-${build_mode}"
+            release_title="${release_title} (${build_mode})"
+          fi
+
           {
             echo "versions_json=$versions_json"
             echo "release_tag=$release_tag"
@@ -85,6 +106,7 @@ jobs:
             echo "release_scope=$release_scope"
             echo "release_versions_label=$release_versions_label"
             echo "version_number=$version_number"
+            echo "build_mode=$build_mode"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -193,6 +215,29 @@ jobs:
               ;;
           esac
 
+      - name: Resolve build mode
+        shell: bash
+        run: |
+          build_mode="${{ needs.prepare.outputs.build_mode }}"
+          case "$build_mode" in
+            off)
+              echo "SAFRA_BUILD_MODE_LABEL=off" >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_MODE_ARGS=" >> "$GITHUB_ENV"
+              ;;
+            forceTurn)
+              echo "SAFRA_BUILD_MODE_LABEL=forceTurn" >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_MODE_ARGS=-PforceTurn=true" >> "$GITHUB_ENV"
+              ;;
+            directThenTurn)
+              echo "SAFRA_BUILD_MODE_LABEL=directThenTurn" >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_MODE_ARGS=-PforceDirectThenTurn=true" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unknown build mode: $build_mode"
+              exit 1
+              ;;
+          esac
+
       - name: Build release artifacts
         shell: bash
         run: |
@@ -200,7 +245,8 @@ jobs:
             -Pmc_profile="${{ env.SAFRA_MC_PROFILE }}" \
             -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
             -Penable_neoforge="${{ env.SAFRA_ENABLE_NEOFORGE }}" \
-            -Penable_forge="${{ env.SAFRA_ENABLE_FORGE }}"
+            -Penable_forge="${{ env.SAFRA_ENABLE_FORGE }}" \
+            $SAFRA_BUILD_MODE_ARGS
 
       - name: Collect release artifacts
         shell: bash
@@ -248,6 +294,7 @@ jobs:
           Minecraft version: ${{ matrix.mc_version }}
           Minecraft profile: ${{ env.SAFRA_MC_PROFILE }}
           Included loaders: ${{ env.SAFRA_LOADERS }}
+          Build mode: $SAFRA_BUILD_MODE_LABEL
           ${{ env.SAFRA_RELEASE_NOTE }}
           EOF
 
@@ -323,6 +370,9 @@ jobs:
           - 1.20.3: Fabric, NeoForge
           - 1.20.4: Fabric, Forge, NeoForge
           - 1.20.6: Fabric, Forge, NeoForge
+
+          Build mode:
+          - ${{ needs.prepare.outputs.build_mode }}
 
           Notes:
           - 1.20.3 Forge build intentionally not released.
