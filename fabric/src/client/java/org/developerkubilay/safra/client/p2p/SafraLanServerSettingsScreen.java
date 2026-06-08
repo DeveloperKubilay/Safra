@@ -54,7 +54,6 @@ public final class SafraLanServerSettingsScreen extends Screen {
         this.addDrawableChild(new ButtonWidget(this.width / 2 + 2, top + 168, 98, 20, FabricClientCompat.screenBack(), button -> this.close()));
     }
 
-    @Override
     public void close() {
         if (this.client != null) {
             this.client.setScreen(this.parent);

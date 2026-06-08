@@ -17,7 +17,11 @@ on:
         default: 1.19.2
         type: choice
         options:
+          - 1.18
+          - 1.18.1
           - 1.18.2
+          - 1.19
+          - 1.19.1
           - 1.19.2
       version_number:
         description: Mod version
@@ -54,7 +58,7 @@ jobs:
           release_scope="${{ github.event.inputs.release_scope }}"
           mc_version="${{ github.event.inputs.mc_version }}"
           version_number="${{ github.event.inputs.version_number }}"
-          supported_versions='["1.18.2","1.19.2"]'
+          supported_versions='["1.18","1.18.1","1.18.2","1.19","1.19.1","1.19.2"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
@@ -63,9 +67,9 @@ jobs:
 
           if [[ "$release_scope" == "all" ]]; then
             versions_json="$supported_versions"
-            release_tag="Safra-1.18.2-1.19.2-$version_number"
-            release_title="Safra 1.18.2-1.19.2-$version_number"
-            release_versions_label="1.18.2-1.19.2"
+            release_tag="Safra-1.18-1.19.2-$version_number"
+            release_title="Safra 1.18-1.19.2-$version_number"
+            release_versions_label="1.18-1.19.2"
           else
             versions_json="[\"$mc_version\"]"
             release_tag="Safra-$mc_version-$version_number"
