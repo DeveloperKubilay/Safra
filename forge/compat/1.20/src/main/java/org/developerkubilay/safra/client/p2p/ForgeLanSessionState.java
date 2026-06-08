@@ -30,9 +30,13 @@ public final class ForgeLanSessionState {
 
     public static void initializeGameRules(Minecraft client) {
         if (defaultGameRuleSnapshot.isEmpty()) {
-            defaultGameRuleSnapshot = new LinkedHashMap<>(ForgeLanGameRules.createDefaultSnapshot(client));
+            try {
+                defaultGameRuleSnapshot = new LinkedHashMap<>(ForgeLanGameRules.createDefaultSnapshot(client));
+            } catch (RuntimeException ignored) {
+                defaultGameRuleSnapshot = Map.of();
+            }
         }
-        if (gameRuleSnapshot.isEmpty()) {
+        if (gameRuleSnapshot.isEmpty() && !defaultGameRuleSnapshot.isEmpty()) {
             gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
         }
     }

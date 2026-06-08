@@ -22,7 +22,6 @@ on:
           - 1.20.2
           - 1.20.3
           - 1.20.4
-          - 1.20.5
           - 1.20.6
       version_number:
         description: Mod version
@@ -60,7 +59,7 @@ jobs:
           release_scope="${{ github.event.inputs.release_scope }}"
           mc_version="${{ github.event.inputs.mc_version }}"
           version_number="${{ github.event.inputs.version_number }}"
-          supported_versions='["1.20","1.20.1","1.20.2","1.20.3","1.20.4","1.20.5","1.20.6"]'
+          supported_versions='["1.20","1.20.1","1.20.2","1.20.3","1.20.4","1.20.6"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
@@ -153,24 +152,33 @@ jobs:
               echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
               ;;
             1.20.3)
-              echo "SAFRA_MC_PROFILE=1.20.3" >> "$GITHUB_ENV"
+              echo "SAFRA_MC_PROFILE=1.20.3-1.20.4" >> "$GITHUB_ENV"
               echo "SAFRA_ARTIFACT_VERSION=1.20.3" >> "$GITHUB_ENV"
-              echo "SAFRA_ENABLE_NEOFORGE=false" >> "$GITHUB_ENV"
+              echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_FORGE=false" >> "$GITHUB_ENV"
-              echo "SAFRA_BUILD_TASKS=:fabric:build" >> "$GITHUB_ENV"
-              echo "SAFRA_LOADERS=Fabric" >> "$GITHUB_ENV"
-              echo "SAFRA_RELEASE_NOTE=Forge ve NeoForge 1.20.3 icin kasitli olarak yayinlanmiyor; bu surum Fabric-only olarak cikiyor." >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_TASKS=:fabric:build :neoforge:build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, NeoForge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=Forge 1.20.3 artifacti kasitli olarak yayinlanmiyor; bu surum Fabric ve NeoForge olarak cikiyor." >> "$GITHUB_ENV"
               ;;
             1.20.4)
               echo "SAFRA_MC_PROFILE=1.20.3-1.20.4" >> "$GITHUB_ENV"
               echo "SAFRA_ARTIFACT_VERSION=1.20.4" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_FORGE=true" >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_TASKS=:fabric:build :forge:build :neoforge:build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, Forge, NeoForge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
+              ;;
+            1.20.5)
+              echo "SAFRA_MC_PROFILE=1.20.5-1.20.6" >> "$GITHUB_ENV"
+              echo "SAFRA_ARTIFACT_VERSION=$mc_version" >> "$GITHUB_ENV"
+              echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
+              echo "SAFRA_ENABLE_FORGE=false" >> "$GITHUB_ENV"
               echo "SAFRA_BUILD_TASKS=:fabric:build :neoforge:build" >> "$GITHUB_ENV"
               echo "SAFRA_LOADERS=Fabric, NeoForge" >> "$GITHUB_ENV"
-              echo "SAFRA_RELEASE_NOTE=Forge artifact for 1.20.4 is intentionally not published; this release ships with Fabric and NeoForge only." >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=Forge artifact for 1.20.5 is intentionally not published because Forge 1.20.5 is not available." >> "$GITHUB_ENV"
               ;;
-            1.20.5|1.20.6)
+            1.20.6)
               echo "SAFRA_MC_PROFILE=1.20.5-1.20.6" >> "$GITHUB_ENV"
               echo "SAFRA_ARTIFACT_VERSION=$mc_version" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
@@ -312,14 +320,13 @@ jobs:
           - 1.20: Fabric, Forge
           - 1.20.1: Fabric, Forge
           - 1.20.2: Fabric, Forge
-          - 1.20.3: Fabric
-          - 1.20.4: Fabric, NeoForge
-          - 1.20.5: Fabric, Forge, NeoForge
+          - 1.20.3: Fabric, NeoForge
+          - 1.20.4: Fabric, Forge, NeoForge
           - 1.20.6: Fabric, Forge, NeoForge
 
           Notes:
-          - 1.20.3 Forge and Neoforge builds are intentionally not released.
-          - 1.20.4 Forge build intentionally not released.
+          - 1.20.3 Forge build intentionally not released.
+          - 1.20.5 Forge build intentionally not released because Forge 1.20.5 is not available.
           EOF
 
       - name: Ensure release tag is new

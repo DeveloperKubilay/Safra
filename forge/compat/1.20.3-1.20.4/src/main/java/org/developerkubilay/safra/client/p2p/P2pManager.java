@@ -123,8 +123,6 @@ public final class P2pManager {
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         ServerData snapshot = ForgeVersionCompat.copyServerData(originalServerInfo, ForgeVersionCompat.getServerAddress(originalServerInfo));
-        LOGGER.info("Safra P2P rewrite scheduled for address {}", ForgeVersionCompat.getServerAddress(snapshot));
-
         long generation;
         synchronized (this) {
             generation = ++rewriteGeneration;
@@ -133,7 +131,6 @@ public final class P2pManager {
 
         CompletableFuture<RewriteResult> future = CompletableFuture.supplyAsync(() -> {
             try {
-                LOGGER.info("Safra P2P rewrite started for address {}", ForgeVersionCompat.getServerAddress(snapshot));
                 return createRewrite(snapshot, generation);
             } catch (IOException exception) {
                 throw new CompletionException(exception);
@@ -197,7 +194,6 @@ public final class P2pManager {
             rewriteFuture = null;
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        LOGGER.info("Safra P2P rewrite resolved {} -> {}", ForgeVersionCompat.getServerAddress(originalServerInfo), localAddress);
         ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, localAddress);
         return new RewriteResult(ForgeVersionCompat.parseServerAddress(ForgeVersionCompat.getServerAddress(rewritten)), rewritten);
     }

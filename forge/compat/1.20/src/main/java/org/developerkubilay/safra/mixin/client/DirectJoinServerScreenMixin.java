@@ -2,14 +2,14 @@ package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.DirectJoinServerScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.ForgeButtonCompat;
 import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
+import org.developerkubilay.safra.client.p2p.ForgeScreenCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -26,16 +26,19 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     private Button safra$p2pButton;
 
     @Unique
-    private boolean safra$p2pEnabled;
+    private boolean safra$p2pEnabled = true;
 
     @Unique
     private boolean safra$p2pInitialized;
+
+    @Unique
+    private boolean safra$syncingAddress;
 
     protected DirectJoinServerScreenMixin(Component title) {
         super(title);
     }
 
-    @Inject(method = "init", at = @At("TAIL"))
+    @Inject(method = "m_7856_", at = @At("TAIL"), remap = false)
     private void safra$initP2pUi(CallbackInfo ci) {
         EditBox ipEdit = this.safra$ipEdit();
         Button selectButton = this.safra$selectButton();
@@ -46,8 +49,9 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         safra$call(ipEdit, new Class<?>[]{int.class}, new Object[]{200}, "setMaxLength", "m_94199_");
         String currentAddress = safra$getEditValue(ipEdit);
         boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
@@ -55,46 +59,47 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
         }
 
-        Button cancelButton = this.safra$findSecondaryButton(selectButton);
-        if (cancelButton != null) {
-            this.safra$moveButton(selectButton, this.safra$screenWidth() / 2 - 100, this.safra$screenHeight() / 4 + 108, 98);
-            this.safra$moveButton(cancelButton, this.safra$screenWidth() / 2 + 2, this.safra$screenHeight() / 4 + 108, 98);
-        }
-
-        this.safra$p2pButton = this.addRenderableWidget(
-            Button.builder(this.safra$getToggleText(), button -> {
-                    this.safra$p2pEnabled = !this.safra$p2pEnabled;
-                    SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-                    button.setMessage(this.safra$getToggleText());
-                    this.safra$refreshAddressField();
-                    this.safra$updateValidation();
-                })
-                .bounds(this.safra$screenWidth() / 2 - 100, this.safra$screenHeight() / 4 + 132, 200, 20)
-                .build()
-        );
+        this.safra$p2pButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
+            this.safra$getToggleText(),
+            button -> {
+                this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+                ForgeButtonCompat.setMessage(button, this.safra$getToggleText());
+                this.safra$refreshAddressField();
+                this.safra$updateValidation();
+            },
+            this.safra$screenWidth() / 2 - 100,
+            this.safra$screenHeight() / 4 + 84,
+            200,
+            20
+        ));
 
         this.safra$p2pInitialized = true;
         this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
-    @Inject(method = "updateSelectButtonStatus", at = @At("TAIL"))
+    @Inject(method = "m_95986_", at = @At("TAIL"), remap = false)
     private void safra$overrideValidation(CallbackInfo ci) {
         this.safra$updateValidation();
     }
 
-    @Inject(method = "onSelect", at = @At("HEAD"))
+    @Inject(method = "m_95987_", at = @At("HEAD"), remap = false)
     private void safra$storeP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
 
-    @Inject(method = {"onClose", "removed"}, at = @At("HEAD"))
+    @Inject(method = "m_7379_", at = @At("HEAD"), remap = false)
     private void safra$storeLastP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
 
     @Unique
     private void safra$persistStoredAddress() {
+        if (this.safra$syncingAddress || !this.safra$p2pInitialized) {
+            return;
+        }
+
         EditBox ipEdit = this.safra$ipEdit();
         ServerData serverData = this.safra$serverData();
         if (ipEdit == null || serverData == null) {
@@ -102,9 +107,19 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         }
 
         SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-        String address = safra$getEditValue(ipEdit);
+        String currentValue = safra$getEditValue(ipEdit);
+        String address = currentValue;
         if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
-            address = P2pManager.toStoredAddress(address);
+            address = P2pManager.toDisplayAddress(address);
+        }
+
+        if (!address.equals(currentValue)) {
+            this.safra$syncingAddress = true;
+            try {
+                safra$setEditValue(ipEdit, address);
+            } finally {
+                this.safra$syncingAddress = false;
+            }
         }
         safra$setServerAddress(serverData, address);
     }
@@ -169,23 +184,6 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private static boolean safra$isValidServerAddress(String address) {
         return address != null && !address.trim().isEmpty() && !address.contains(" ");
-    }
-
-    @Unique
-    private Button safra$findSecondaryButton(Button primaryButton) {
-        Button candidate = null;
-        for (GuiEventListener element : this.children()) {
-            if (element instanceof Button button && button != primaryButton) {
-                candidate = button;
-            }
-        }
-        return candidate;
-    }
-
-    @Unique
-    private void safra$moveButton(Button button, int x, int y, int width) {
-        button.setWidth(width);
-        button.setPosition(x, y);
     }
 
     @Unique

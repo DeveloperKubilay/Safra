@@ -60,53 +60,43 @@ abstract class ShareToLanScreenMixin extends Screen {
             safra$call(portEdit, new Class<?>[]{int.class}, new Object[]{70}, "setWidth", "m_93674_");
         }
 
-        if (this.safra$p2pButton == null) {
-            this.safra$p2pButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
-                this.safra$getToggleText(),
-                button -> {
-                    ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
-                    button.setMessage(this.safra$getToggleText());
-                },
-                this.width / 2 - 5,
-                156,
-                85,
-                20
-            ));
-        } else {
-            this.safra$p2pButton.setMessage(this.safra$getToggleText());
-        }
+        this.safra$p2pButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
+            this.safra$getToggleText(),
+            button -> {
+                ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
+                button.setMessage(this.safra$getToggleText());
+            },
+            this.width / 2 - 5,
+            156,
+            85,
+            20
+        ));
 
-        if (this.safra$onlineModeButton == null) {
-            this.safra$onlineModeButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
-                this.safra$getOnlineModeText(),
-                button -> {
-                    ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
-                    button.setMessage(this.safra$getOnlineModeText());
-                },
-                this.width / 2 - 100,
-                180,
-                98,
-                20
-            ));
-        } else {
-            this.safra$onlineModeButton.setMessage(this.safra$getOnlineModeText());
-        }
+        this.safra$onlineModeButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
+            this.safra$getOnlineModeText(),
+            button -> {
+                ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
+                button.setMessage(this.safra$getOnlineModeText());
+            },
+            this.width / 2 - 100,
+            180,
+            98,
+            20
+        ));
 
-        if (this.safra$serverSettingsButton == null) {
-            this.safra$serverSettingsButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
-                ForgeComponentCompat.translatable("safra.p2p.server_settings.short"),
-                button -> {
-                    Minecraft currentMinecraft = this.safra$minecraft();
-                    if (currentMinecraft != null) {
-                        currentMinecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this));
-                    }
-                },
-                this.width / 2 + 2,
-                180,
-                98,
-                20
-            ));
-        }
+        this.safra$serverSettingsButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
+            ForgeComponentCompat.translatable("safra.p2p.server_settings.short"),
+            button -> {
+                Minecraft currentMinecraft = this.safra$minecraft();
+                if (currentMinecraft != null) {
+                    currentMinecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this));
+                }
+            },
+            this.width / 2 + 2,
+            180,
+            98,
+            20
+        ));
 
         this.safra$p2pInitialized = true;
     }

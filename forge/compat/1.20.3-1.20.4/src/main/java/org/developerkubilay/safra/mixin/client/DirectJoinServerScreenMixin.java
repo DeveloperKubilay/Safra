@@ -122,7 +122,6 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
             address = P2pManager.toStoredAddress(address);
         }
-        SAFRA_LOGGER.info("Safra Direct Join stored address {} (p2pEnabled={})", address, this.safra$p2pEnabled);
         safra$setEditValue(ipEdit, address);
         ForgeVersionCompat.setServerAddress((net.minecraft.client.multiplayer.ServerData) serverData, address);
     }

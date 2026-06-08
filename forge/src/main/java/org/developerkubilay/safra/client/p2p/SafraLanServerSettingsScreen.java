@@ -60,6 +60,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     public void onClose() {
         if (this.minecraft != null) {
+            this.parent.resize(
+                this.minecraft,
+                this.minecraft.getWindow().getGuiScaledWidth(),
+                this.minecraft.getWindow().getGuiScaledHeight()
+            );
             this.minecraft.setScreen(this.parent);
         }
     }

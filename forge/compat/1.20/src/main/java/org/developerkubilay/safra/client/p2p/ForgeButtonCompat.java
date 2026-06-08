@@ -7,12 +7,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.util.function.Consumer;
 
 public final class ForgeButtonCompat {
     private ForgeButtonCompat() {
     }
 
-    public static Button create(Component message, Button.OnPress onPress, int x, int y, int width, int height) {
+    public static Button create(Component message, Consumer<Button> onPressAction, int x, int y, int width, int height) {
+        Button.OnPress onPress = createOnPress(onPressAction);
         Object builder = createBuilder(message, onPress);
         if (builder != null) {
             configureBuilder(builder, x, y, width, height);
@@ -28,6 +31,35 @@ public final class ForgeButtonCompat {
         }
 
         throw new IllegalStateException("Could not resolve a compatible Button builder");
+    }
+
+    public static void setMessage(Button button, Component message) {
+        for (Class<?> type = button.getClass(); type != null; type = type.getSuperclass()) {
+            for (String name : new String[]{"setMessage", "m_93666_"}) {
+                try {
+                    Method method = type.getDeclaredMethod(name, Component.class);
+                    method.setAccessible(true);
+                    method.invoke(button, message);
+                    return;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+        }
+
+        throw new IllegalStateException("Could not resolve a compatible Button#setMessage");
+    }
+
+    private static Button.OnPress createOnPress(Consumer<Button> onPressAction) {
+        return (Button.OnPress) Proxy.newProxyInstance(
+            Button.OnPress.class.getClassLoader(),
+            new Class<?>[]{Button.OnPress.class},
+            (proxy, method, args) -> {
+                if (args != null && args.length == 1 && args[0] instanceof Button button) {
+                    onPressAction.accept(button);
+                }
+                return null;
+            }
+        );
     }
 
     private static Object createBuilder(Component message, Button.OnPress onPress) {

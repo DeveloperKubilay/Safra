@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameType;
+import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -16,6 +17,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
@@ -52,12 +56,12 @@ abstract class IntegratedServerMixin {
 
         IntegratedServer server = (IntegratedServer) (Object) this;
         ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
-        int tcpPort = safra$getServerPort(server);
+        int tcpPort = port;
         Minecraft client = safra$getClientInstance();
         if (client == null) {
             return;
         }
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));
+        safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
@@ -74,12 +78,12 @@ abstract class IntegratedServerMixin {
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
-        client.keyboardHandler.setClipboard(shareCodeText);
+        safra$copyToClipboard(client, shareCodeText);
 
-        Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.started", shareText));
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.instructions"));
+        Component shareText = ForgeComponentCompat.copyableLiteral(shareCodeText, "safra.p2p.copy_hint");
+        safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.started", shareText));
+        safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.copied"));
+        safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.instructions"));
     }
 
     private static void safra$publishStartFailure(Minecraft client, int tcpPort, Throwable throwable) {
@@ -92,9 +96,7 @@ abstract class IntegratedServerMixin {
 
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
-        client.gui.getChat().addMessage(
-            Component.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED)
-        );
+        safra$pushClientMessage(client, ForgeComponentCompat.style(ForgeComponentCompat.translatable("safra.p2p.host.failed", message), ChatFormatting.RED));
     }
 
     private static void safra$callBooleanSetter(Object target, boolean value, String... names) {
@@ -124,14 +126,61 @@ abstract class IntegratedServerMixin {
         return false;
     }
 
-    private static int safra$getServerPort(IntegratedServer server) {
-        Object value = safra$call(server, new Class<?>[0], new Object[0], "getPort", "getServerPort", "m_295500_");
-        return value instanceof Integer integer ? integer : -1;
-    }
-
     private static Minecraft safra$getClientInstance() {
         Object value = safra$call(Minecraft.class, new Class<?>[0], new Object[0], "getInstance", "m_91087_");
         return value instanceof Minecraft client ? client : null;
+    }
+
+    private static void safra$copyToClipboard(Minecraft client, String text) {
+        Object keyboard = safra$getField(client, "keyboard", "keyboardHandler", "f_90867_", "f_91068_");
+        if (keyboard != null) {
+            safra$invoke(keyboard, new Class<?>[]{String.class}, new Object[]{text}, "setClipboard", "m_90911_");
+            for (Method method : keyboard.getClass().getMethods()) {
+                if (method.getParameterCount() == 1
+                    && method.getParameterTypes()[0] == String.class
+                    && method.getName().toLowerCase().contains("clipboard")) {
+                    try {
+                        method.setAccessible(true);
+                        method.invoke(keyboard, text);
+                        break;
+                    } catch (ReflectiveOperationException ignored) {
+                    }
+                }
+            }
+        }
+
+        try {
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void safra$pushClientMessage(Minecraft client, Component message) {
+        Object player = safra$getField(client, "player", "f_91074_");
+        if (player == null) {
+            return;
+        }
+
+        if (safra$invoke(player, new Class<?>[]{Component.class, boolean.class}, new Object[]{message, false}, "displayClientMessage", "m_5661_")) {
+            return;
+        }
+        safra$invoke(player, new Class<?>[]{Component.class}, new Object[]{message}, "sendSystemMessage", "m_213846_");
+    }
+
+    private static Object safra$getField(Object target, String... names) {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            for (String name : names) {
+                try {
+                    Field field = type.getDeclaredField(name);
+                    field.setAccessible(true);
+                    return field.get(target);
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            type = type.getSuperclass();
+        }
+        return null;
     }
 
     private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {
@@ -146,5 +195,20 @@ abstract class IntegratedServerMixin {
             }
         }
         return null;
+    }
+
+    private static boolean safra$invoke(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {
+        Class<?> type = target instanceof Class<?> clazz ? clazz : target.getClass();
+        Object instance = target instanceof Class<?> ? null : target;
+        for (String name : names) {
+            try {
+                Method method = type.getMethod(name, parameterTypes);
+                method.setAccessible(true);
+                method.invoke(instance, args);
+                return true;
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return false;
     }
 }

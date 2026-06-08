@@ -122,7 +122,7 @@ public final class P2pManager {
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        ServerData snapshot = ForgeVersionCompat.copyServerData(originalServerInfo, originalServerInfo.ip);
+        ServerData snapshot = ForgeVersionCompat.copyServerData(originalServerInfo, ForgeVersionCompat.getServerAddress(originalServerInfo));
 
         long generation;
         synchronized (this) {
@@ -151,7 +151,8 @@ public final class P2pManager {
 
     private RewriteResult createRewrite(ServerData originalServerInfo, long generation) throws IOException {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
-        P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.ip);
+        String originalAddress = ForgeVersionCompat.getServerAddress(originalServerInfo);
+        P2pShareCode shareCode = P2pShareCode.parse(originalAddress);
 
         P2pClientProxy[] proxyRef = new P2pClientProxy[1];
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
@@ -196,7 +197,7 @@ public final class P2pManager {
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, localAddress);
-        return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
+        return new RewriteResult(ForgeVersionCompat.parseServerAddress(ForgeVersionCompat.getServerAddress(rewritten)), rewritten);
     }
 
     public synchronized void shutdown() {
@@ -210,13 +211,16 @@ public final class P2pManager {
             return;
         }
 
-        IntegratedServer server = client.getSingleplayerServer();
+        IntegratedServer server = ForgeLanGameRules.getSingleplayerServer(client);
         if (server == null) {
             stopHosting();
             return;
         }
 
-        int currentPort = server.getPort();
+        int currentPort = ForgeLanGameRules.getServerPort(server);
+        if (currentPort < 1024 || currentPort > 65535) {
+            return;
+        }
         if (currentPort != service.tcpPort()) {
             LOGGER.info("Safra P2P host service stopping because LAN port changed from {} to {}", service.tcpPort(), currentPort);
             stopHosting();
@@ -225,6 +229,18 @@ public final class P2pManager {
 
     public static boolean isP2pStoredAddress(String address) {
         return P2pShareCode.isStoredAddress(address);
+    }
+
+    public static boolean isLikelyP2pAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+
+        if (isP2pStoredAddress(address)) {
+            return true;
+        }
+
+        return org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(address) != null;
     }
 
     public static boolean isValidP2pAddress(String address) {

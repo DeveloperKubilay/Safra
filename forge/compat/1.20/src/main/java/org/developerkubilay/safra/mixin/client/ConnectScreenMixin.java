@@ -7,7 +7,7 @@ import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
-import net.minecraft.network.chat.Component;
+import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
 import org.developerkubilay.safra.client.p2p.ForgeVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,14 +25,15 @@ abstract class ConnectScreenMixin {
     @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
                                                    ServerData serverInfo, boolean quickPlay, CallbackInfo ci) {
-        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.ip)) {
+        if (serverInfo == null || !P2pManager.isLikelyP2pAddress(ForgeVersionCompat.getServerAddress(serverInfo))) {
             return;
         }
 
         ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStart(Component.translatable("connect.connecting"));
-        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
-        client.setScreen(progressScreen);
+        safra$setProgressText(progressScreen,
+            ForgeComponentCompat.translatable("connect.connecting"),
+            ForgeComponentCompat.translatable("safra.p2p.prepare_message"));
+        ForgeVersionCompat.setScreen(client, progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
@@ -44,10 +45,10 @@ abstract class ConnectScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    client.setScreen(new DisconnectedScreen(
+                    ForgeVersionCompat.setScreen(client, new DisconnectedScreen(
                         parent,
-                        Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        ForgeComponentCompat.translatable("connect.failed"),
+                        ForgeComponentCompat.translatable("safra.p2p.prepare_failed", message)
                     ));
                     return;
                 }
@@ -60,5 +61,23 @@ abstract class ConnectScreenMixin {
             })
         );
         ci.cancel();
+    }
+
+    private static void safra$setProgressText(ProgressScreen progressScreen, net.minecraft.network.chat.Component header,
+                                              net.minecraft.network.chat.Component stage) {
+        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{header}, "progressStart", "m_6308_");
+        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{stage}, "progressStage", "m_6307_");
+    }
+
+    private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {
+        for (String name : names) {
+            try {
+                java.lang.reflect.Method method = target.getClass().getMethod(name, parameterTypes);
+                method.setAccessible(true);
+                return method.invoke(target, args);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
     }
 }

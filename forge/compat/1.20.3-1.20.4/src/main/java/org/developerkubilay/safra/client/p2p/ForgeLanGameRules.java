@@ -66,7 +66,10 @@ public final class ForgeLanGameRules {
             return;
         }
         for (ServerLevel level : levels(server)) {
-            apply(level.getGameRules(), snapshot, server);
+            GameRules rules = getLevelRules(level);
+            if (rules != null) {
+                apply(rules, snapshot, server);
+            }
         }
     }
 
@@ -115,7 +118,7 @@ public final class ForgeLanGameRules {
         }
 
         ServerLevel level = firstLevel(server);
-        return level == null ? null : level.getGameRules();
+        return getLevelRules(level);
     }
 
     private static GameRules copyRules(GameRules rules) {
@@ -159,6 +162,14 @@ public final class ForgeLanGameRules {
             return level;
         }
         return null;
+    }
+
+    private static GameRules getLevelRules(ServerLevel level) {
+        if (level == null) {
+            return null;
+        }
+        Object rules = call(level, new Class<?>[0], new Object[0], "getGameRules", "m_46469_");
+        return rules instanceof GameRules gameRules ? gameRules : null;
     }
 
     @SuppressWarnings("unchecked")

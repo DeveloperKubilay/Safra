@@ -1,11 +1,12 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.GameRules;
 
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,11 +16,16 @@ public final class ForgeLanGameRules {
 
     public static GameRules createEditableGameRules(Minecraft client, Map<String, String> snapshot) {
         IntegratedServer server = client.getSingleplayerServer();
-        if (server == null || client.level == null) {
+        if (server == null) {
             throw new IllegalStateException("Integrated server is not available");
         }
 
-        GameRules copy = server.overworld().getGameRules().copy();
+        GameRules rules = getServerRules(server);
+        if (rules == null) {
+            throw new IllegalStateException("Integrated server game rules are not available");
+        }
+
+        GameRules copy = copyRules(rules);
         if (!snapshot.isEmpty()) {
             apply(copy, snapshot, null);
         }
@@ -27,10 +33,14 @@ public final class ForgeLanGameRules {
     }
 
     public static Map<String, String> createDefaultSnapshot(Minecraft client) {
-        if (client.level == null) {
-            throw new IllegalStateException("Client level is not available");
+        IntegratedServer server = client.getSingleplayerServer();
+        if (server != null) {
+            GameRules rules = getServerRules(server);
+            if (rules != null) {
+                return serialize(copyRules(rules));
+            }
         }
-        return serialize(new GameRules());
+        return Map.of();
     }
 
     public static Map<String, String> serialize(GameRules rules) {
@@ -49,7 +59,10 @@ public final class ForgeLanGameRules {
             return;
         }
         for (ServerLevel level : server.getAllLevels()) {
-            apply(level.getGameRules(), snapshot, server);
+            GameRules rules = getLevelRules(level);
+            if (rules != null) {
+                apply(rules, snapshot, server);
+            }
         }
     }
 
@@ -73,5 +86,41 @@ public final class ForgeLanGameRules {
                 }
             }
         });
+    }
+
+    private static GameRules getServerRules(MinecraftServer server) {
+        Object rules = call(server, "getGameRules", "m_129900_");
+        if (rules instanceof GameRules gameRules) {
+            return gameRules;
+        }
+        return getLevelRules(server.overworld());
+    }
+
+    private static GameRules getLevelRules(ServerLevel level) {
+        if (level == null) {
+            return null;
+        }
+        Object rules = call(level, "getGameRules", "m_46469_");
+        return rules instanceof GameRules gameRules ? gameRules : null;
+    }
+
+    private static GameRules copyRules(GameRules rules) {
+        Object copy = call(rules, "copy", "m_46202_");
+        if (copy instanceof GameRules gameRules) {
+            return gameRules;
+        }
+        throw new IllegalStateException("GameRules copy accessor is not available");
+    }
+
+    private static Object call(Object target, String... names) {
+        for (String name : names) {
+            try {
+                Method method = target.getClass().getMethod(name);
+                method.setAccessible(true);
+                return method.invoke(target);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
     }
 }

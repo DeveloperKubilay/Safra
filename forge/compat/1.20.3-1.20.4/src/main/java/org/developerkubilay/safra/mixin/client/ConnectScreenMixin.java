@@ -37,8 +37,6 @@ abstract class ConnectScreenMixin {
         if (!P2pManager.isP2pStoredAddress(address)) {
             return;
         }
-        SAFRA_LOGGER.info("Safra ConnectScreen intercepted stored address {}", address);
-
         ProgressScreen progressScreen = new ProgressScreen(false);
         safra$setProgressText(progressScreen,
             ForgeComponentCompat.translatable("connect.connecting"),
@@ -66,9 +64,6 @@ abstract class ConnectScreenMixin {
                     ));
                     return;
                 }
-
-                SAFRA_LOGGER.info("Safra ConnectScreen rewrite complete for {} -> {}", address,
-                    ForgeVersionCompat.getServerAddress(rewriteResult.serverInfo()));
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
                     client.execute(() ->
                         ForgeVersionCompat.startConnect(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay)
@@ -81,8 +76,10 @@ abstract class ConnectScreenMixin {
 
     private static void safra$setProgressText(ProgressScreen progressScreen, net.minecraft.network.chat.Component header,
                                               net.minecraft.network.chat.Component stage) {
-        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{header}, "progressStart", "m_98822_");
-        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{stage}, "progressStage", "m_98825_");
+        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{header},
+            "progressStart", "m_98822_", "m_6308_");
+        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{stage},
+            "progressStage", "m_98825_", "m_6307_");
     }
 
     private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {

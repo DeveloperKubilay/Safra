@@ -14,7 +14,7 @@ public final class P2pConstants {
     static final long MAINTENANCE_TICK_MS = 25L;
     static final long OPEN_RESEND_MS = 500L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
-    static final long INITIAL_RESEND_MS = 160L;
+    static final long INITIAL_RESEND_MS = 150L;
     static final long MIN_RESEND_MS = 90L;
     static final long MAX_RESEND_MS = 450L;
     static final long KEEP_ALIVE_MS = 10_000L;

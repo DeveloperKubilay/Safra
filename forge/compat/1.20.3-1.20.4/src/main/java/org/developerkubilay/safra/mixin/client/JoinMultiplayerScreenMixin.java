@@ -39,8 +39,6 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
         if (!P2pManager.isP2pStoredAddress(address)) {
             return;
         }
-        SAFRA_LOGGER.info("Safra JoinMultiplayer intercepted stored address {}", address);
-
         ProgressScreen progressScreen = new ProgressScreen(false);
         safra$setProgressText(progressScreen,
             ForgeComponentCompat.translatable("connect.connecting"),
@@ -69,9 +67,6 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     ));
                     return;
                 }
-
-                SAFRA_LOGGER.info("Safra JoinMultiplayer rewrite complete for {} -> {}", address,
-                    ForgeVersionCompat.getServerAddress(rewriteResult.serverInfo()));
                 ForgeVersionCompat.startConnect((Screen) (Object) this, minecraft, rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
             })
         );
@@ -80,8 +75,10 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
 
     private static void safra$setProgressText(ProgressScreen progressScreen, net.minecraft.network.chat.Component header,
                                               net.minecraft.network.chat.Component stage) {
-        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{header}, "progressStart", "m_98822_");
-        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{stage}, "progressStage", "m_98825_");
+        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{header},
+            "progressStart", "m_98822_", "m_6308_");
+        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{stage},
+            "progressStage", "m_98825_", "m_6307_");
     }
 
     private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {

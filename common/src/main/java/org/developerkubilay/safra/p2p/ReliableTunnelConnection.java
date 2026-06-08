@@ -1051,11 +1051,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void maybeGrowSendWindow() {
-        if (sendWindowSize >= P2pConstants.MAX_SEND_WINDOW_SIZE) {
-            acknowledgementsSinceWindowIncrease = 0;
-            return;
-        }
-
         if (maxBandwidthBytesPerSecond > 0L && smoothedRoundTripTimeMs > 0.0D) {
             int targetCwnd;
             if (bbrState == BbrState.PROBE_RTT) {
