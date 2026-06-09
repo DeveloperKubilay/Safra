@@ -193,6 +193,38 @@ ext.devBooleanProperty = { String name ->
     return value != null && Boolean.parseBoolean(value)
 }
 
+ext.buildTestMode = {
+    def normalize = { Object raw ->
+        def value = raw == null ? '' : raw.toString().trim()
+        if (value.isEmpty()) {
+            return 'off'
+        }
+
+        def normalized = value.toLowerCase(Locale.ROOT)
+        if (normalized == 'off' || normalized == 'forceturn' || normalized == 'directthenturn') {
+            return normalized
+        }
+
+        throw new GradleException("Unsupported build test mode '${value}'. Supported values: off, forceTurn, directThenTurn")
+    }
+
+    def explicitMode = gradle.startParameter.projectProperties['build_mode']
+        ?: findProperty('build_mode')
+    if (explicitMode != null) {
+        return normalize(explicitMode)
+    }
+
+    if (ext.devBooleanProperty('forceDirectThenTurn')) {
+        return 'directthenturn'
+    }
+
+    if (ext.devBooleanProperty('forceTurn')) {
+        return 'forceturn'
+    }
+
+    return 'off'
+}.call()
+
 
 allprojects {
     group = rootProject.group

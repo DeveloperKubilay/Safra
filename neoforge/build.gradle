@@ -78,6 +78,7 @@ def modDescription = rootProject.ext.selected_mc_profile == '1.20.3'
 
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 def targetJavaVersion = rootProject.ext.java_target_version as int
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
@@ -149,6 +150,9 @@ neoForge {
             if (forceTurn) {
                 systemProperty 'safra.p2p.forceTurn', 'true'
             }
+            if (forceDirectThenTurn) {
+                systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
+            }
             programArgument '--username'
             programArgument devUsername
         }
@@ -183,6 +187,7 @@ processResources {
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', modDescription
+    inputs.property 'test_mode', rootProject.ext.buildTestMode
     filteringCharset = 'UTF-8'
 
     filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
@@ -205,7 +210,8 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
-            loader_version: project.neo_version
+            loader_version: project.neo_version,
+            test_mode: rootProject.ext.buildTestMode
         )
     }
 }
