@@ -53,6 +53,8 @@ public final class P2pConstants {
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
     private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
+    private static final String TEST_MODE_FORCE_TURN = "forceturn";
+    private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -143,7 +145,7 @@ public final class P2pConstants {
             return Boolean.parseBoolean(property.trim());
         }
 
-        return false;
+        return TEST_MODE_FORCE_TURN.equals(buildTestMode());
     }
 
     static long diagnosticsSummaryMs() {
@@ -165,7 +167,11 @@ public final class P2pConstants {
             return Boolean.parseBoolean(environment.trim());
         }
 
-        return false;
+        return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
+    }
+
+    private static String buildTestMode() {
+        return SafraBuildInfo.testMode().trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     static boolean forceDirectThenTurnRelay() {

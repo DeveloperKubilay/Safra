@@ -75,6 +75,7 @@ processResources {
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'test_mode', rootProject.ext.buildTestMode
     inputs.property 'pack_format', project.pack_format
     inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
@@ -95,7 +96,8 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'fabric',
-            loader_version: project.loader_version
+            loader_version: project.loader_version,
+            test_mode: rootProject.ext.buildTestMode
         )
     }
 
