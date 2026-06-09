@@ -33,12 +33,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
         void remove(int connectionId);
     }
 
-    private enum BbrState {
-        STARTUP, DRAIN, PROBE_BW, PROBE_RTT
-    }
-
-    private static final double[] PACING_GAIN_CYCLE = {1.25D, 0.75D, 1.0D, 1.0D, 1.0D, 1.0D, 1.0D, 1.0D};
-
     private final Logger logger;
     private final String side;
     private final int token;
@@ -155,6 +149,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile int adaptiveMicroBatchThresholdBytes = P2pConstants.MICRO_BATCH_THRESHOLD_BYTES;
     private volatile int microBatchWarmupSamples;
     private volatile long microBatchWarmupBytes;
+
+    private enum BbrState {
+        STARTUP, DRAIN, PROBE_BW, PROBE_RTT
+    }
+
+    private static final double[] PACING_GAIN_CYCLE = {1.25D, 0.75D, 1.0D, 1.0D, 1.0D, 1.0D, 1.0D, 1.0D};
 
     private volatile BbrState bbrState = BbrState.STARTUP;
     private volatile int pacingGainCycleIndex = 0;
@@ -305,6 +305,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
                 updateReceiveRate(System.nanoTime());
                 waitForReceivePacingSlot();
+
                 outputStream.write(payload);
                 addDiagnosticCounter(tcpWriteBytes, payload.length);
                 addDiagnosticCounter(inboundQueueBytes, -payload.length);
@@ -462,6 +463,10 @@ final class ReliableTunnelConnection implements AutoCloseable {
         observeMaintenanceTickGap(now);
         if (initiator && !opened) {
             if (now - openStartedAt > P2pConstants.OPEN_TIMEOUT_MS) {
+                if (P2pConstants.forceDirectThenTurnRelay()) {
+                    logger.warn("Safra test modu {} connection {} open timeout remote={} openPacketsSent={} lastOpenAgeMs={}",
+                        side, connectionId, remoteAddress, openPacketsSent, now - lastOpenPacketAt);
+                }
                 logger.debug("{} connection {} could not open UDP tunnel to {} within {} ms", side, connectionId, remoteAddress, P2pConstants.OPEN_TIMEOUT_MS);
                 closeLocally("open timeout");
                 return;
@@ -509,6 +514,10 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
         openPacketsSent++;
         lastOpenPacketAt = now;
+        if (P2pConstants.forceDirectThenTurnRelay()) {
+            logger.info("Safra test modu {} connection {} OPEN gonderdi attempt={} remote={}",
+                side, connectionId, openPacketsSent, remoteAddress);
+        }
         sendPacket(P2pPacket.open(token, connectionId), now);
     }
 
@@ -559,6 +568,10 @@ final class ReliableTunnelConnection implements AutoCloseable {
             updateRetransmitTimeout(now - openStartedAt);
         }
         openLatch.countDown();
+        if (P2pConstants.forceDirectThenTurnRelay()) {
+            logger.info("Safra test modu {} connection {} OPEN_ACK aldi remote={} elapsedMs={}",
+                side, connectionId, remoteAddress, now - openStartedAt);
+        }
         logger.debug("{} connection {} UDP tunnel opened with {}", side, connectionId, remoteAddress);
     }
 
@@ -615,6 +628,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
         pendingSegments.clear();
         receiveBuffer.clear();
         removalCallback.remove(connectionId);
+        if (P2pConstants.forceDirectThenTurnRelay()) {
+            logger.info("Safra test modu {} connection {} kapandi reason={} remote={}", side, connectionId, reason, remoteAddress);
+        }
         logger.debug("{} connection {} closed: {}", side, connectionId, reason);
     }
 
@@ -1247,85 +1263,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
         nextReceiveWriteAtNanos = Math.max(nextReceiveWriteAtNanos, System.nanoTime()) + receiveIntervalNanos;
     }
 
-    private void updateBandwidthEstimate(int ackedSeq, long ackedBytes, long nowNanos) {
-        if (ackedBytes <= 0) {
-            return;
-        }
-
-        if (firstSentTimeNanos == 0L) {
-            firstSentTimeNanos = nowNanos;
-            deliveredTimeNanos = nowNanos;
-            bbrRoundStartSeq = ackedSeq;
-            return;
-        }
-
-        deliveredBytes += ackedBytes;
-        long elapsedNanos = nowNanos - deliveredTimeNanos;
-        if (elapsedNanos <= 0L) {
-            return;
-        }
-
-        deliveryRateBytesPerSecond = (ackedBytes * 1_000_000_000L) / elapsedNanos;
-        if (deliveryRateBytesPerSecond > maxBandwidthBytesPerSecond) {
-            maxBandwidthBytesPerSecond = deliveryRateBytesPerSecond;
-        }
-
-        deliveredTimeNanos = nowNanos;
-
-        if (ackedSeq >= bbrRoundStartSeq) {
-            bbrRoundStartSeq = nextSendSequence.get();
-            bbrRoundCount++;
-
-            if (bbrState == BbrState.STARTUP) {
-                if (maxBandwidthBytesPerSecond > (priorMaxBandwidth * 1.25D)) {
-                    priorMaxBandwidth = maxBandwidthBytesPerSecond;
-                    bandwidthPlateauCount = 0;
-                } else {
-                    bandwidthPlateauCount++;
-                }
-            }
-        }
-
-        updateBbrState();
-    }
-
-    private void updateBbrState() {
-        long nowMs = System.currentTimeMillis();
-
-        switch (bbrState) {
-            case STARTUP:
-                if (bandwidthPlateauCount >= 3) {
-                    bbrState = BbrState.DRAIN;
-                }
-                break;
-            case DRAIN:
-                if (pendingSegments.size() <= (maxBandwidthBytesPerSecond * minRttMs / 1000.0D / P2pConstants.MAX_PAYLOAD_SIZE)) {
-                    bbrState = BbrState.PROBE_BW;
-                    pacingGainCycleStartTimeNanos = System.nanoTime();
-                }
-                break;
-            case PROBE_BW:
-                long elapsedNanos = System.nanoTime() - pacingGainCycleStartTimeNanos;
-                if (elapsedNanos > (minRttMs * 1_000_000L)) {
-                    pacingGainCycleIndex = (pacingGainCycleIndex + 1) % PACING_GAIN_CYCLE.length;
-                    pacingGainCycleStartTimeNanos = System.nanoTime();
-                }
-
-                if (nowMs - lastProbeRttTimeMs > 20000L) {
-                    bbrState = BbrState.PROBE_RTT;
-                    probeRttStartTimeMs = nowMs;
-                }
-                break;
-            case PROBE_RTT:
-                if (nowMs - probeRttStartTimeMs > 200L) {
-                    bbrState = BbrState.PROBE_BW;
-                    lastProbeRttTimeMs = nowMs;
-                    pacingGainCycleStartTimeNanos = System.nanoTime();
-                }
-                break;
-        }
-    }
-
     private int coalesceTcpPayload(InputStream inputStream, byte[] buffer, int read) throws IOException {
         int totalRead = read;
         observeMicroBatchWarmup(read);
@@ -1539,6 +1476,85 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         return microBatchEndBytes.get() / hits;
+    }
+
+    private void updateBandwidthEstimate(int ackedSeq, long ackedBytes, long nowNanos) {
+        if (ackedBytes <= 0) {
+            return;
+        }
+
+        if (firstSentTimeNanos == 0L) {
+            firstSentTimeNanos = nowNanos;
+            deliveredTimeNanos = nowNanos;
+            bbrRoundStartSeq = ackedSeq;
+            return;
+        }
+
+        deliveredBytes += ackedBytes;
+        long elapsedNanos = nowNanos - deliveredTimeNanos;
+        if (elapsedNanos <= 0L) {
+            return;
+        }
+
+        deliveryRateBytesPerSecond = (ackedBytes * 1_000_000_000L) / elapsedNanos;
+        if (deliveryRateBytesPerSecond > maxBandwidthBytesPerSecond) {
+            maxBandwidthBytesPerSecond = deliveryRateBytesPerSecond;
+        }
+
+        deliveredTimeNanos = nowNanos;
+
+        if (ackedSeq >= bbrRoundStartSeq) {
+            bbrRoundStartSeq = nextSendSequence.get();
+            bbrRoundCount++;
+
+            if (bbrState == BbrState.STARTUP) {
+                if (maxBandwidthBytesPerSecond > (priorMaxBandwidth * 1.25D)) {
+                    priorMaxBandwidth = maxBandwidthBytesPerSecond;
+                    bandwidthPlateauCount = 0;
+                } else {
+                    bandwidthPlateauCount++;
+                }
+            }
+        }
+
+        updateBbrState();
+    }
+
+    private void updateBbrState() {
+        long nowMs = System.currentTimeMillis();
+
+        switch (bbrState) {
+            case STARTUP:
+                if (bandwidthPlateauCount >= 3) {
+                    bbrState = BbrState.DRAIN;
+                }
+                break;
+            case DRAIN:
+                if (pendingSegments.size() <= (maxBandwidthBytesPerSecond * minRttMs / 1000.0D / P2pConstants.MAX_PAYLOAD_SIZE)) {
+                    bbrState = BbrState.PROBE_BW;
+                    pacingGainCycleStartTimeNanos = System.nanoTime();
+                }
+                break;
+            case PROBE_BW:
+                long elapsedNanos = System.nanoTime() - pacingGainCycleStartTimeNanos;
+                if (elapsedNanos > (minRttMs * 1_000_000L)) {
+                    pacingGainCycleIndex = (pacingGainCycleIndex + 1) % PACING_GAIN_CYCLE.length;
+                    pacingGainCycleStartTimeNanos = System.nanoTime();
+                }
+
+                if (nowMs - lastProbeRttTimeMs > 20000L) {
+                    bbrState = BbrState.PROBE_RTT;
+                    probeRttStartTimeMs = nowMs;
+                }
+                break;
+            case PROBE_RTT:
+                if (nowMs - probeRttStartTimeMs > 200L) {
+                    bbrState = BbrState.PROBE_BW;
+                    lastProbeRttTimeMs = nowMs;
+                    pacingGainCycleStartTimeNanos = System.nanoTime();
+                }
+                break;
+        }
     }
 
     private String roundTripMetric(double metric) {
