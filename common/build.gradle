@@ -30,6 +30,7 @@ processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'loader_name', 'common'
     inputs.property 'loader_version', 'unknown'
+    inputs.property 'test_mode', rootProject.ext.buildTestMode
     filteringCharset = 'UTF-8'
 
     filesMatching('safra-build.properties') {
@@ -37,7 +38,8 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'common',
-            loader_version: 'unknown'
+            loader_version: 'unknown',
+            test_mode: rootProject.ext.buildTestMode
         )
     }
 }
