@@ -12,12 +12,20 @@ on:
         required: false
         default: false
         type: boolean
+      build_mode:
+        description: Network test mode
+        required: true
+        default: off
+        type: choice
+        options:
+          - off
+          - forceTurn
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
   cancel-in-progress: false
 
 jobs:
@@ -54,6 +62,7 @@ jobs:
           branch_name="${GITHUB_REF_NAME}"
           minecraft_version="${branch_name#Safra-}"
           version_number="${{ github.event.inputs.version_number }}"
+          build_mode="${{ github.event.inputs.build_mode }}"
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
             exit 1
@@ -62,13 +71,33 @@ jobs:
             echo "Could not resolve Minecraft version from branch name: $branch_name"
             exit 1
           fi
+          if [[ "$build_mode" != "off" && "$build_mode" != "forceTurn" ]]; then
+            echo "Invalid build_mode: $build_mode"
+            exit 1
+          fi
+
+          release_tag="Safra-$minecraft_version-$version_number"
+          release_title="Safra $minecraft_version-$version_number"
+          build_mode_args=""
+          if [[ "$build_mode" == "forceTurn" ]]; then
+            release_tag="${release_tag}-${build_mode}"
+            release_title="${release_title} (${build_mode})"
+            build_mode_args="-PforceTurn=true"
+          fi
 
           echo "SAFRA_MINECRAFT_VERSION=$minecraft_version" >> "$GITHUB_ENV"
           echo "SAFRA_VERSION=$version_number" >> "$GITHUB_ENV"
-          echo "SAFRA_TAG=Safra-$minecraft_version-$version_number" >> "$GITHUB_ENV"
+          echo "SAFRA_TAG=$release_tag" >> "$GITHUB_ENV"
+          echo "SAFRA_RELEASE_TITLE=$release_title" >> "$GITHUB_ENV"
+          echo "SAFRA_BUILD_MODE=$build_mode" >> "$GITHUB_ENV"
+          echo "SAFRA_BUILD_MODE_ARGS=$build_mode_args" >> "$GITHUB_ENV"
 
       - name: Build release artifacts
-        run: ./gradlew clean build --stacktrace -Pmod_version=${{ env.SAFRA_VERSION }}
+        shell: bash
+        run: |
+          ./gradlew clean build --stacktrace \
+            -Pmod_version=${{ env.SAFRA_VERSION }} \
+            $SAFRA_BUILD_MODE_ARGS
 
       - name: Prepare release notes
         shell: bash
@@ -80,6 +109,9 @@ jobs:
           - Fabric
           - NeoForge
           - Forge
+          
+          Build mode:
+          - ${{ env.SAFRA_BUILD_MODE }}
 
           Files are attached from the workflow build output.
           EOF
@@ -106,6 +138,6 @@ jobs:
 
           gh release create "${{ env.SAFRA_TAG }}" build/libs/* \
             --target "${GITHUB_SHA}" \
-            --title "Safra ${{ env.SAFRA_MINECRAFT_VERSION }}-${{ env.SAFRA_VERSION }}" \
+            --title "${{ env.SAFRA_RELEASE_TITLE }}" \
             --notes-file release-notes.md \
             $prerelease_flag
