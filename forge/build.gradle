@@ -40,6 +40,8 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 def targetJavaVersion = 25
 def mixinMinecraftVersion = (project.findProperty('minecraft_version') ?: project.findProperty('forge_minecraft_version'))?.toString()
@@ -171,6 +173,12 @@ minecraft {
             systemProperty 'safra.p2p.diagnostics', 'true'
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'java.net.preferIPv4Stack', 'false'
+            if (forceTurn) {
+                systemProperty 'safra.p2p.forceTurn', 'true'
+            }
+            if (forceDirectThenTurn) {
+                systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
+            }
             args '--username', devUsername
         }
 
@@ -211,6 +219,7 @@ processResources {
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'test_mode', rootProject.ext.buildTestMode
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/mods.toml') {
@@ -232,7 +241,8 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'forge',
-            loader_version: project.forge_version
+            loader_version: project.forge_version,
+            test_mode: rootProject.ext.buildTestMode
         )
     }
 }

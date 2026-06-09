@@ -130,7 +130,7 @@ public final class P2pTurnCredentialClient {
         String query = "mode=" + encode(turnOnly ? "turn-only" : "auto")
             + "&ttl=" + P2pConstants.turnCredentialTtlSeconds()
             + "&customIdentifier=" + encode(identifier);
-        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v2/turn/credentials?" + query);
+        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v3/turn/credentials?" + query);
     }
 
     private static void addUdpServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers) {

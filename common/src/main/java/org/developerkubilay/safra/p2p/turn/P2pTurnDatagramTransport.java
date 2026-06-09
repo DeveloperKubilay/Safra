@@ -71,6 +71,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     credentials.credential()
                 );
                 transport.start(credentials.ttlSeconds());
+                if (forceDirectThenTurnRelay()) {
+                    logger.info("Safra test modu TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
+                }
                 logger.debug("Safra TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
                 return transport;
             } catch (IOException exception) {
@@ -346,6 +349,16 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         } finally {
             pendingTransactions.remove(key);
         }
+    }
+
+    private static boolean forceDirectThenTurnRelay() {
+        String property = System.getProperty("safra.p2p.forceDirectThenTurn");
+        if (property != null && !property.isBlank()) {
+            return Boolean.parseBoolean(property.trim());
+        }
+
+        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
+        return environment != null && !environment.isBlank() && Boolean.parseBoolean(environment.trim());
     }
 
     private record ReceivedDatagram(InetSocketAddress remoteAddress, byte[] data) {
