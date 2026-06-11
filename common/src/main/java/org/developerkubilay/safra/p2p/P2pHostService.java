@@ -29,9 +29,10 @@ public final class P2pHostService implements AutoCloseable {
     private final String preferredRendezvousCode;
 
     private P2pDatagramTransport transport;
+    private volatile P2pDatagramTransport relayFallbackTransport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
-    private volatile boolean relayTransport;
+    private volatile boolean primaryTransportRelay;
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
@@ -60,7 +61,11 @@ public final class P2pHostService implements AutoCloseable {
 
         P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort);
         transport = binding.transport();
-        relayTransport = binding.relay();
+        primaryTransportRelay = binding.relay();
+        if (P2pConstants.forceDirectThenTurnRelay()) {
+            LOGGER.info("Safra test modu host ilk binding relay={} endpoints={} stunFamilies={}",
+                binding.relay(), binding.publicEndpoints(), binding.stunEndpoints().keySet());
+        }
         if (closed) {
             binding.close();
             throw new IOException("Safra P2P host service was stopped");
@@ -79,8 +84,8 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("genel UDP ucu bulunamadi");
         }
 
-        P2pRuntime.start("safra-p2p-host-recv", this::receiveLoop);
-        if (!relayTransport && !discoveredEndpoints.isEmpty()) {
+        P2pRuntime.start("safra-p2p-host-recv", () -> receiveLoop(transport, primaryTransportRelay));
+        if (!primaryTransportRelay && !discoveredEndpoints.isEmpty()) {
             scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
                 P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
         }
@@ -88,7 +93,7 @@ public final class P2pHostService implements AutoCloseable {
         InetAddress address = publishedEndpoint.getAddress();
         String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
         LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
-            relayTransport ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
+            primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
         P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
 
         try {
@@ -98,13 +103,18 @@ public final class P2pHostService implements AutoCloseable {
                 preferredRendezvousCode,
                 binding.publicEndpoints(),
                 this::punchRemoteEndpoint,
-                SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint
+                SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint,
+                this::ensureRelayAvailable
             );
             SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
+            if (P2pConstants.forceDirectThenTurnRelay()) {
+                LOGGER.info("Safra test modu host rendezvous code={} publishedEndpoint={} primaryRelay={}",
+                    rendezvousSession.code(), publishedEndpoint, primaryTransportRelay);
+            }
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
-            if (relayTransport) {
+            if (primaryTransportRelay) {
                 LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
                 throw exception;
             }
@@ -134,10 +144,18 @@ public final class P2pHostService implements AutoCloseable {
         if (transport != null && !transport.isClosed()) {
             transport.close();
         }
+        if (relayFallbackTransport != null && !relayFallbackTransport.isClosed()) {
+            relayFallbackTransport.close();
+            relayFallbackTransport = null;
+        }
         LOGGER.debug("Safra P2P host UDP transport closed for local Minecraft TCP port {}", tcpPort);
     }
 
     private void punchRemoteEndpoint(InetSocketAddress remoteAddress) {
+        punchRemoteEndpoint(transport, remoteAddress);
+    }
+
+    private void punchRemoteEndpoint(P2pDatagramTransport activeTransport, InetSocketAddress remoteAddress) {
         if (closed || remoteAddress == null || remoteAddress.isUnresolved()) {
             return;
         }
@@ -146,7 +164,7 @@ public final class P2pHostService implements AutoCloseable {
         long[] delays = {0L, 100L, 250L, 500L, 1_000L};
         for (long delay : delays) {
             try {
-                scheduler.schedule(() -> sendPacket(P2pPacket.ack(token, 0, 0), remoteAddress), delay, TimeUnit.MILLISECONDS);
+                scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.ack(token, 0, 0), remoteAddress), delay, TimeUnit.MILLISECONDS);
             } catch (RuntimeException exception) {
                 if (!closed) {
                     LOGGER.debug("Could not schedule UDP punch packet: {}", exception.toString());
@@ -156,7 +174,7 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void refreshStunMapping() {
-        if (closed || relayTransport || discoveredEndpoints.isEmpty()) {
+        if (closed || primaryTransportRelay || discoveredEndpoints.isEmpty()) {
             return;
         }
 
@@ -175,12 +193,12 @@ public final class P2pHostService implements AutoCloseable {
         }
     }
 
-    private void receiveLoop() {
+    private void receiveLoop(P2pDatagramTransport activeTransport, boolean relayTransportActive) {
         byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
         while (!closed) {
             DatagramPacket datagramPacket = new DatagramPacket(buffer, buffer.length);
             try {
-                transport.receive(datagramPacket);
+                activeTransport.receive(datagramPacket);
             } catch (SocketTimeoutException ignored) {
                 continue;
             } catch (IOException exception) {
@@ -190,8 +208,8 @@ public final class P2pHostService implements AutoCloseable {
                 return;
             }
 
-            P2pStunClient.DiscoveredEndpoint stunEndpoint = relayTransport ? null : matchingStunEndpoint(datagramPacket.getSocketAddress());
-            if (!relayTransport && stunEndpoint != null) {
+            P2pStunClient.DiscoveredEndpoint stunEndpoint = relayTransportActive ? null : matchingStunEndpoint(datagramPacket.getSocketAddress());
+            if (!relayTransportActive && stunEndpoint != null) {
                 P2pStunClient.DiscoveredEndpoint refreshed = stunClient.tryParseResponse(datagramPacket);
                 if (refreshed != null) {
                     discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
@@ -213,7 +231,7 @@ public final class P2pHostService implements AutoCloseable {
 
             InetSocketAddress remoteAddress = new InetSocketAddress(datagramPacket.getAddress(), datagramPacket.getPort());
             if (packet.type() == P2pPacket.Type.OPEN) {
-                handleOpen(packet, remoteAddress);
+                handleOpen(packet, remoteAddress, activeTransport);
                 continue;
             }
 
@@ -224,7 +242,16 @@ public final class P2pHostService implements AutoCloseable {
         }
     }
 
-    private void handleOpen(P2pPacket packet, InetSocketAddress remoteAddress) {
+    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {
+        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
+            if (endpoint.matches(remoteAddress)) {
+                return endpoint;
+            }
+        }
+        return null;
+    }
+
+    private void handleOpen(P2pPacket packet, InetSocketAddress remoteAddress, P2pDatagramTransport activeTransport) {
         ReliableTunnelConnection existing = connections.get(packet.connectionId());
         if (existing != null) {
             existing.sendOpenAck();
@@ -241,7 +268,7 @@ public final class P2pHostService implements AutoCloseable {
                 packet.connectionId(),
                 remoteAddress,
                 tcpSocket,
-                this::sendPacket,
+                (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress),
                 connections::remove,
                 scheduler,
                 false
@@ -262,26 +289,80 @@ public final class P2pHostService implements AutoCloseable {
         }
     }
 
-    private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
-        if (closed || transport == null || transport.isClosed()) {
+    private void sendPacket(P2pDatagramTransport activeTransport, P2pPacket packet, InetSocketAddress remoteAddress) {
+        if (closed || activeTransport == null || activeTransport.isClosed()) {
             return;
         }
 
         byte[] encoded = packet.encode();
         try {
-            transport.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
+            activeTransport.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
         } catch (IOException exception) {
             LOGGER.debug("Host UDP send failed: {}", exception.toString());
         }
     }
 
-    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {
-        for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
-            if (endpoint.matches(remoteAddress)) {
-                return endpoint;
+    private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
+        sendPacket(transport, packet, remoteAddress);
+    }
+
+    private synchronized void ensureRelayAvailable(InetSocketAddress joinerRelayAddress) {
+        if (closed || primaryTransportRelay) {
+            return;
+        }
+
+        if (relayFallbackTransport != null && !relayFallbackTransport.isClosed()) {
+            if (P2pConstants.forceDirectThenTurnRelay()) {
+                LOGGER.info("Safra test modu host relay zaten hazir, tekrar publish ediliyor joinerRelay={}", joinerRelayAddress);
+            }
+            publishRelayReady();
+            if (joinerRelayAddress != null) {
+                punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
+            }
+            return;
+        }
+
+        try {
+            if (P2pConstants.forceDirectThenTurnRelay()) {
+                LOGGER.info("Safra test modu host yeni TURN relay provision baslatti joinerRelay={}", joinerRelayAddress);
+            }
+            P2pTransportBinding relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "host");
+            relayFallbackTransport = relayBinding.transport();
+            P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
+            publishRelayReady(relayBinding.publicEndpoints());
+            if (joinerRelayAddress != null) {
+                punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
+            }
+        } catch (IOException exception) {
+            LOGGER.warn("Safra P2P host relay provisioning patladi", exception);
+            if (rendezvousSession != null) {
+                rendezvousSession.publishRelayFailure("auto", exception.getMessage());
             }
         }
-        return null;
+    }
+
+    private void publishRelayReady() {
+        if (!(relayFallbackTransport instanceof org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport)) {
+            return;
+        }
+        org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport turnTransport =
+            (org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport) relayFallbackTransport;
+        publishRelayReady(java.util.Collections.singletonList(turnTransport.relayAddress()));
+    }
+
+    private void publishRelayReady(Collection<InetSocketAddress> publicEndpoints) {
+        if (rendezvousSession == null || publicEndpoints == null || publicEndpoints.isEmpty()) {
+            return;
+        }
+
+        try {
+            if (P2pConstants.forceDirectThenTurnRelay()) {
+                LOGGER.info("Safra test modu host relay-ready publish endpoints={}", publicEndpoints);
+            }
+            rendezvousSession.publishRelay(publicEndpoints, "auto");
+        } catch (IOException exception) {
+            LOGGER.warn("Safra P2P host relay publish patladi", exception);
+        }
     }
 
     private InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {

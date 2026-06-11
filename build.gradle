@@ -26,6 +26,16 @@ ext.devBooleanProperty = { String name ->
     def value = gradle.startParameter.projectProperties[name]
     return value != null && Boolean.parseBoolean(value)
 }
+
+ext.devBuildTestMode = { Project targetProject ->
+    if (ext.devBooleanProperty('forceDirectThenTurn')) {
+        return 'directthenturn'
+    }
+    if (ext.devBooleanProperty('forceTurn')) {
+        return 'forceturn'
+    }
+    return 'off'
+}
 allprojects {
     group = rootProject.group
     version = rootProject.version

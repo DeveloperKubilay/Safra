@@ -18,6 +18,7 @@ base {
 def targetJavaVersion = 8
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
+def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 configurations {
     embed
@@ -39,6 +40,12 @@ minecraft {
     runs {
         client {
             property 'safra.p2p.diagnostics', 'true'
+            if (forceTurn) {
+                property 'safra.p2p.forceTurn', 'true'
+            }
+            if (forceDirectThenTurn) {
+                property 'safra.p2p.forceDirectThenTurn', 'true'
+            }
             workingDirectory project.file('run')
             arg '--username'
             arg devUsername
@@ -98,6 +105,7 @@ processResources {
     inputs.property 'forge_version', project.forge_version
     inputs.property 'forge_version_range', project.forge_version_range
     inputs.property 'loader_name', 'forge'
+    inputs.property 'test_mode', rootProject.ext.devBuildTestMode(project)
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
@@ -124,7 +132,8 @@ processResources {
             mod_version: project.mod_version,
             minecraft_version: project.minecraft_version,
             loader_name: 'forge',
-            loader_version: project.forge_version
+            loader_version: project.forge_version,
+            test_mode: rootProject.ext.devBuildTestMode(project)
         )
     }
 }

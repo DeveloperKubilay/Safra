@@ -1146,7 +1146,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long now = System.nanoTime();
         if (nextPayloadSendAtNanos == 0L || now > nextPayloadSendAtNanos + (intervalNanos * 16L)) {
             nextPayloadSendAtNanos = now;
-            pacingBurstBudget = P2pConstants.PACING_BURST_PACKETS;
+            pacingBurstBudget = Math.min(sendWindowSize / 2, 20);
         }
 
         if (pacingBurstBudget > 0) {
@@ -1165,6 +1165,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         nextPayloadSendAtNanos = Math.max(nextPayloadSendAtNanos, now) + intervalNanos;
+        pacingBurstBudget = Math.min(sendWindowSize / 2, 20);
     }
 
     private long pacingIntervalNanos() {
@@ -1200,12 +1201,16 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
     private void resetPacingBudget() {
         nextPayloadSendAtNanos = 0L;
-        pacingBurstBudget = P2pConstants.PACING_BURST_PACKETS;
+        pacingBurstBudget = Math.min(sendWindowSize / 2, 20);
     }
 
     private boolean shouldPacePayloads() {
         if (!opened) {
             return false;
+        }
+
+        if (sendWindowSize >= P2pConstants.INITIAL_SEND_WINDOW_SIZE) {
+            return true;
         }
 
         int pending = pendingSegments.size();

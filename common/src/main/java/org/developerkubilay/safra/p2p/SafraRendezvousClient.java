@@ -18,9 +18,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -41,12 +41,13 @@ final class SafraRendezvousClient implements AutoCloseable {
 
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredRendezvousCode, Collection<InetSocketAddress> publicEndpoints,
                                  Consumer<InetSocketAddress> punchHandler,
-                                 Consumer<InetSocketAddress> voicePunchHandler) throws IOException {
+                                 Consumer<InetSocketAddress> voicePunchHandler,
+                                 Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
         SafraRendezvousClient client = new SafraRendezvousClient();
-        HostListener listener = new HostListener(punchHandler, voicePunchHandler);
+        HostListener listener = new HostListener(punchHandler, voicePunchHandler, relayRequestHandler);
         try {
             String peerId = "host-" + UUID.randomUUID();
-            client.connect(webSocketUri("/v1/host", peerId, preferredRendezvousCode), listener);
+            client.connect(webSocketUri("/v3/host", peerId, preferredRendezvousCode), listener);
             String code = listener.codeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null) {
@@ -82,7 +83,7 @@ final class SafraRendezvousClient implements AutoCloseable {
         JoinListener listener = new JoinListener();
         try {
             String peerId = "joiner-" + UUID.randomUUID();
-            client.connect(webSocketUri("/v1/join/" + encode(code), peerId), listener);
+            client.connect(webSocketUri("/v3/join/" + encode(code), peerId), listener);
             listener.welcomeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null) {
@@ -97,10 +98,52 @@ final class SafraRendezvousClient implements AutoCloseable {
             client.send(ready);
 
             ResolvedHost resolvedHost = listener.resolvedHostFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            return new JoinSession(code, resolvedHost.address(), resolvedHost.tunnelToken(), client, listener);
+            return new JoinSession(code, resolvedHost.address(), resolvedHost.relayAddress(), resolvedHost.tunnelToken(),
+                resolvedHost.minecraftTcpPort(), client, listener);
         } catch (Exception exception) {
             client.close();
             throw asIOException("Safra rendezvous join setup failed", exception);
+        }
+    }
+
+    static SessionStatus fetchSessionStatus(String code) throws IOException {
+        if (!P2pConstants.hasRendezvousUrl()) {
+            throw new IOException("rendezvous URL is not configured");
+        }
+
+        Request.Builder builder = new Request.Builder()
+            .url(httpUri("/v3/sessions/" + encode(code)).toString())
+            .get();
+        String token = P2pConstants.rendezvousToken();
+        if (!token.trim().isEmpty()) {
+            builder.header("Authorization", "Bearer " + token);
+        }
+
+        Response response = httpClientForStatus().newCall(builder.build()).execute();
+        try {
+            if (response.code() == 404) {
+                return new SessionStatus(false, false, null);
+            }
+            if (response.code() < 200 || response.code() >= 300) {
+                throw new IOException("rendezvous status request failed with HTTP " + response.code());
+            }
+
+            String body = response.body() != null ? response.body().string() : "";
+            JsonObject message;
+            try {
+                message = new JsonParser().parse(body).getAsJsonObject();
+            } catch (RuntimeException exception) {
+                throw new IOException("rendezvous status response was invalid", exception);
+            }
+
+            JsonObject relay = object(message, "relay");
+            return new SessionStatus(
+                booleanValue(message, "active"),
+                "ready".equals(string(message, "relayStatus")) && relay != null && endpoint(object(relay, "udp")) != null,
+                relay
+            );
+        } finally {
+            response.close();
         }
     }
 
@@ -145,6 +188,13 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
 
         webSocket = httpClient.newWebSocket(requestBuilder.build(), listener);
+    }
+
+    private static OkHttpClient httpClientForStatus() {
+        return new OkHttpClient.Builder()
+            .connectTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            .readTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            .build();
     }
 
     private void send(JsonObject message) {
@@ -335,10 +385,13 @@ final class SafraRendezvousClient implements AutoCloseable {
         private final CompletableFuture<Void> readyFuture = new CompletableFuture<>();
         private final Consumer<InetSocketAddress> punchHandler;
         private final Consumer<InetSocketAddress> voicePunchHandler;
+        private final Consumer<InetSocketAddress> relayRequestHandler;
 
-        private HostListener(Consumer<InetSocketAddress> punchHandler, Consumer<InetSocketAddress> voicePunchHandler) {
+        private HostListener(Consumer<InetSocketAddress> punchHandler, Consumer<InetSocketAddress> voicePunchHandler,
+                             Consumer<InetSocketAddress> relayRequestHandler) {
             this.punchHandler = punchHandler;
             this.voicePunchHandler = voicePunchHandler;
+            this.relayRequestHandler = relayRequestHandler;
         }
 
         @Override
@@ -375,6 +428,12 @@ final class SafraRendezvousClient implements AutoCloseable {
                 return;
             }
 
+            if ("server:relay-requested".equals(type)) {
+                InetSocketAddress joinerRelayAddress = relayEndpoint(object(message, "joinerRelay"));
+                relayRequestHandler.accept(joinerRelayAddress);
+                return;
+            }
+
             if ("server:error".equals(type)) {
                 fail(new IOException(string(message, "message")));
             }
@@ -390,7 +449,14 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static final class JoinListener extends JsonListener {
         private final CompletableFuture<Void> welcomeFuture = new CompletableFuture<>();
         private final CompletableFuture<ResolvedHost> resolvedHostFuture = new CompletableFuture<>();
+        private volatile CompletableFuture<ResolvedRelay> resolvedRelayFuture;
         private volatile CompletableFuture<ResolvedVoiceHost> resolvedVoiceFuture;
+
+        CompletableFuture<ResolvedRelay> prepareRelayFuture() {
+            CompletableFuture<ResolvedRelay> future = new CompletableFuture<>();
+            resolvedRelayFuture = future;
+            return future;
+        }
 
         CompletableFuture<ResolvedVoiceHost> prepareVoiceFuture() {
             CompletableFuture<ResolvedVoiceHost> future = new CompletableFuture<>();
@@ -408,12 +474,34 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             if ("server:host-ready".equals(type)) {
                 InetSocketAddress endpoint = endpoint(message.getAsJsonObject("udp"));
+                InetSocketAddress relayAddress = relayEndpoint(object(message, "relay"));
                 int token = tunnelToken(message.getAsJsonObject("tunnel"));
                 if (endpoint == null) {
                     fail(new IOException("rendezvous host endpoint is missing"));
                     return;
                 }
-                resolvedHostFuture.complete(new ResolvedHost(endpoint, token));
+                JsonObject metadata = message.getAsJsonObject("metadata");
+                int minecraftTcpPort = minecraftTcpPort(metadata);
+                resolvedHostFuture.complete(new ResolvedHost(endpoint, relayAddress, token, minecraftTcpPort));
+                if (relayAddress != null) {
+                    completeRelayFuture(new ResolvedRelay(relayAddress, token));
+                }
+                return;
+            }
+
+            if ("server:relay-ready".equals(type)) {
+                InetSocketAddress relayAddress = relayEndpoint(object(message, "relay"));
+                int token = tunnelToken(message.getAsJsonObject("tunnel"));
+                if (relayAddress == null) {
+                    completeRelayFutureExceptionally(new IOException("rendezvous relay endpoint is missing"));
+                    return;
+                }
+                completeRelayFuture(new ResolvedRelay(relayAddress, token));
+                return;
+            }
+
+            if ("server:relay-failed".equals(type)) {
+                completeRelayFutureExceptionally(new IOException(string(message, "message")));
                 return;
             }
 
@@ -458,9 +546,26 @@ final class SafraRendezvousClient implements AutoCloseable {
         protected void fail(Throwable throwable) {
             welcomeFuture.completeExceptionally(throwable);
             resolvedHostFuture.completeExceptionally(throwable);
+            completeRelayFutureExceptionally(throwable);
             CompletableFuture<ResolvedVoiceHost> future = resolvedVoiceFuture;
             if (future != null) {
                 future.completeExceptionally(throwable);
+            }
+        }
+
+        private void completeRelayFuture(ResolvedRelay relay) {
+            CompletableFuture<ResolvedRelay> future = resolvedRelayFuture;
+            if (future != null) {
+                future.complete(relay);
+                resolvedRelayFuture = null;
+            }
+        }
+
+        private void completeRelayFutureExceptionally(Throwable throwable) {
+            CompletableFuture<ResolvedRelay> future = resolvedRelayFuture;
+            if (future != null) {
+                future.completeExceptionally(throwable);
+                resolvedRelayFuture = null;
             }
         }
     }
@@ -468,6 +573,16 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static String string(JsonObject object, String key) {
         JsonElement element = object.get(key);
         return element == null || element.isJsonNull() ? "" : element.getAsString();
+    }
+
+    private static JsonObject object(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
+    }
+
+    private static boolean booleanValue(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        return element != null && !element.isJsonNull() && element.getAsBoolean();
     }
 
     private static InetSocketAddress endpoint(JsonObject object) {
@@ -495,6 +610,18 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
 
         return integer(object.get("token"), 0);
+    }
+
+    private static InetSocketAddress relayEndpoint(JsonObject relayObject) {
+        return relayObject == null ? null : endpoint(object(relayObject, "udp"));
+    }
+
+    private static int minecraftTcpPort(JsonObject object) {
+        if (object == null) {
+            return 0;
+        }
+
+        return integer(object.get("minecraftTcpPort"), 0);
     }
 
     private static int integer(JsonElement element, int fallback) {
@@ -529,6 +656,30 @@ final class SafraRendezvousClient implements AutoCloseable {
             client.publishVoice(publicEndpoints);
         }
 
+        void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException {
+            InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
+            if (primaryEndpoint == null) {
+                throw new IOException("rendezvous relay host requires at least one UDP candidate");
+            }
+
+            JsonObject relay = new JsonObject();
+            relay.addProperty("type", "host:relay-ready");
+            relay.add("udp", UdpEndpoint.from(primaryEndpoint).toJson());
+            relay.add("udpCandidates", UdpEndpoint.toJsonArray(publicEndpoints));
+            relay.addProperty("mode", mode == null || mode.trim().isEmpty() ? "auto" : mode);
+            client.send(relay);
+        }
+
+        void publishRelayFailure(String mode, String message) {
+            JsonObject relay = new JsonObject();
+            relay.addProperty("type", "host:relay-failed");
+            relay.addProperty("mode", mode == null || mode.trim().isEmpty() ? "auto" : mode);
+            if (message != null && !message.trim().isEmpty()) {
+                relay.addProperty("message", message);
+            }
+            client.send(relay);
+        }
+
         @Override
         public void close() {
             client.close();
@@ -538,14 +689,19 @@ final class SafraRendezvousClient implements AutoCloseable {
     static final class JoinSession implements AutoCloseable {
         private final String code;
         private final InetSocketAddress hostAddress;
+        private final InetSocketAddress relayAddress;
         private final int tunnelToken;
+        private final int hostTcpPort;
         private final SafraRendezvousClient client;
         private final JoinListener listener;
 
-        JoinSession(String code, InetSocketAddress hostAddress, int tunnelToken, SafraRendezvousClient client, JoinListener listener) {
+        JoinSession(String code, InetSocketAddress hostAddress, InetSocketAddress relayAddress, int tunnelToken, int hostTcpPort,
+                    SafraRendezvousClient client, JoinListener listener) {
             this.code = code;
             this.hostAddress = hostAddress;
+            this.relayAddress = relayAddress;
             this.tunnelToken = tunnelToken;
+            this.hostTcpPort = hostTcpPort;
             this.client = client;
             this.listener = listener;
         }
@@ -554,16 +710,54 @@ final class SafraRendezvousClient implements AutoCloseable {
             return code;
         }
 
-        InetSocketAddress hostAddress() {
-            return hostAddress;
+        InetSocketAddress hostAddress(boolean relayPreferred) {
+            if (relayPreferred && relayAddress != null) {
+                return relayAddress;
+            }
+            return relayPreferred ? null : hostAddress;
         }
 
         int tunnelToken() {
             return tunnelToken;
         }
 
+        int hostTcpPort() {
+            return hostTcpPort;
+        }
+
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
             return client.resolveVoice(listener, publicEndpoints);
+        }
+
+        ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
+            if (relayAddress != null) {
+                return new ResolvedRelay(relayAddress, tunnelToken);
+            }
+
+            CompletableFuture<ResolvedRelay> future = listener.prepareRelayFuture();
+            JsonObject request = new JsonObject();
+            request.addProperty("type", "join:direct-failed");
+            if (relayEndpoints != null && !relayEndpoints.isEmpty()) {
+                InetSocketAddress primaryRelayEndpoint = preferredEndpoint(relayEndpoints);
+                if (primaryRelayEndpoint != null) {
+                    JsonObject relay = new JsonObject();
+                    relay.add("udp", UdpEndpoint.from(primaryRelayEndpoint).toJson());
+                    relay.add("udpCandidates", UdpEndpoint.toJsonArray(relayEndpoints));
+                    relay.addProperty("mode", "auto");
+                    relay.addProperty("status", "ready");
+                    request.add("relay", relay);
+                }
+            }
+            client.send(request);
+            if (P2pConstants.forceDirectThenTurnRelay()) {
+                LOGGER.info("Safra test modu join rendezvous relay istegi gonderdi code={} relayEndpoints={}",
+                    code, relayEndpoints == null ? Collections.emptyList() : relayEndpoints);
+            }
+            try {
+                return future.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (Exception exception) {
+                throw asIOException("Safra rendezvous relay fallback failed", exception);
+            }
         }
 
         @Override
@@ -572,11 +766,69 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
     }
 
+    static final class SessionStatus {
+        private final boolean active;
+        private final boolean relayReady;
+        private final JsonObject relay;
+
+        SessionStatus(boolean active, boolean relayReady, JsonObject relay) {
+            this.active = active;
+            this.relayReady = relayReady;
+            this.relay = relay;
+        }
+
+        boolean active() {
+            return active;
+        }
+
+        boolean relayReady() {
+            return relayReady;
+        }
+
+        JsonObject relay() {
+            return relay;
+        }
+
+        String describeRelay() {
+            return relay == null ? "-" : GSON.toJson(relay);
+        }
+    }
+
     private static final class ResolvedHost {
+        private final InetSocketAddress address;
+        private final InetSocketAddress relayAddress;
+        private final int tunnelToken;
+        private final int minecraftTcpPort;
+
+        ResolvedHost(InetSocketAddress address, InetSocketAddress relayAddress, int tunnelToken, int minecraftTcpPort) {
+            this.address = address;
+            this.relayAddress = relayAddress;
+            this.tunnelToken = tunnelToken;
+            this.minecraftTcpPort = minecraftTcpPort;
+        }
+
+        InetSocketAddress address() {
+            return address;
+        }
+
+        InetSocketAddress relayAddress() {
+            return relayAddress;
+        }
+
+        int tunnelToken() {
+            return tunnelToken;
+        }
+
+        int minecraftTcpPort() {
+            return minecraftTcpPort;
+        }
+    }
+
+    static final class ResolvedRelay {
         private final InetSocketAddress address;
         private final int tunnelToken;
 
-        ResolvedHost(InetSocketAddress address, int tunnelToken) {
+        ResolvedRelay(InetSocketAddress address, int tunnelToken) {
             this.address = address;
             this.tunnelToken = tunnelToken;
         }
