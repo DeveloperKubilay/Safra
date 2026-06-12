@@ -84,7 +84,7 @@ ext.mcProfiles = [
         yarn_mappings                : '1.20.3+build.1',
         loader_version               : '0.19.2',
         fabric_version               : '0.91.1+1.20.3',
-        enable_neoforge              : 'true',
+        enable_neoforge              : 'false',
         enable_forge                 : 'true',
         minecraft_version_range      : '[1.20.3]',
         neo_version                  : '20.3.8-beta',

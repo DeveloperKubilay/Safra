@@ -109,11 +109,11 @@ public final class P2pClientProxy implements AutoCloseable {
                 }
                 LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
                 try {
+                    P2pTransportBinding turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
                     SafraRendezvousClient.ResolvedRelay relay = rendezvousSession == null
                         ? null
-                        : rendezvousSession.requestRelayFallback();
+                        : rendezvousSession.requestRelayFallback(turnBinding.publicEndpoints());
                     if (relay != null && relay.address() != null) {
-                        P2pTransportBinding turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
                         try {
                             remoteAddress = relay.address();
                             if (relay.tunnelToken() != 0) {
@@ -130,6 +130,7 @@ public final class P2pClientProxy implements AutoCloseable {
                             throw exception2;
                         }
                     }
+                    turnBinding.close();
                 } catch (IOException relayException) {
                     LOGGER.debug("Safra join relay istegi basarisiz oldu, klasik TURN fallback deneniyor: {}", relayException.toString());
                 }

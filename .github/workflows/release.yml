@@ -174,13 +174,13 @@ jobs:
               echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
               ;;
             1.20.3)
-              echo "SAFRA_MC_PROFILE=1.20.3-1.20.4" >> "$GITHUB_ENV"
+              echo "SAFRA_MC_PROFILE=1.20.3" >> "$GITHUB_ENV"
               echo "SAFRA_ARTIFACT_VERSION=1.20.3" >> "$GITHUB_ENV"
-              echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
+              echo "SAFRA_ENABLE_NEOFORGE=false" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_FORGE=false" >> "$GITHUB_ENV"
-              echo "SAFRA_BUILD_TASKS=:fabric:build :neoforge:build" >> "$GITHUB_ENV"
-              echo "SAFRA_LOADERS=Fabric, NeoForge" >> "$GITHUB_ENV"
-              echo "SAFRA_RELEASE_NOTE=Forge 1.20.3 artifacti kasitli olarak yayinlanmiyor; bu surum Fabric ve NeoForge olarak cikiyor." >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_TASKS=:fabric:build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=1.20.3 hattinda su an yalnizca Fabric artifacti yayinlaniyor; Forge ve NeoForge bu surumde kapali." >> "$GITHUB_ENV"
               ;;
             1.20.4)
               echo "SAFRA_MC_PROFILE=1.20.3-1.20.4" >> "$GITHUB_ENV"
@@ -367,7 +367,7 @@ jobs:
           - 1.20: Fabric, Forge
           - 1.20.1: Fabric, Forge
           - 1.20.2: Fabric, Forge
-          - 1.20.3: Fabric, NeoForge
+          - 1.20.3: Fabric
           - 1.20.4: Fabric, Forge, NeoForge
           - 1.20.6: Fabric, Forge, NeoForge
 
@@ -375,7 +375,7 @@ jobs:
           - ${{ needs.prepare.outputs.build_mode }}
 
           Notes:
-          - 1.20.3 Forge build intentionally not released.
+          - 1.20.3 Forge and NeoForge builds intentionally not released.
           - 1.20.5 Forge build intentionally not released because Forge 1.20.5 is not available.
           EOF
 
