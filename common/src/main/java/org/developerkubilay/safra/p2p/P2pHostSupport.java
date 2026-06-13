@@ -29,7 +29,8 @@ public final class P2pHostSupport {
             tcpPort,
             createShareToken(),
             resolveTargetAddress(serverIp, logger),
-            preferredRendezvousCode
+            preferredRendezvousCode,
+            false
         );
         try {
             return new HostStartResult(service, service.start());

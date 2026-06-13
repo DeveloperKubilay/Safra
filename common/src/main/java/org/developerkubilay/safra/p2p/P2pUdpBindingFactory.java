@@ -20,14 +20,18 @@ final class P2pUdpBindingFactory {
     }
 
     static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort) throws IOException {
-        if (P2pConstants.forceTurnRelay()) {
+        return createBestHostBinding(logger, stunClient, preferredPort, true);
+    }
+
+    static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort, boolean allowRelayFallback) throws IOException {
+        if (allowRelayFallback && P2pConstants.forceTurnRelay()) {
             return createTurnBinding(logger, "host");
         }
 
         try {
             return createDirectHostBinding(stunClient, preferredPort);
         } catch (IOException exception) {
-            if (!P2pConstants.turnEnabled()) {
+            if (!allowRelayFallback || !P2pConstants.turnEnabled()) {
                 throw exception;
             }
             logger.debug("Safra host STUN acilamadi, TURN relay denenecek: {}", exception.toString());
