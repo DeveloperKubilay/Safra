@@ -42,9 +42,13 @@ public final class P2pManager {
     }
 
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
+        return startHostingAsync(tcpPort, null);
+    }
+
+    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode) {
         stopHosting();
         final int token = P2pHostSupport.createShareToken();
-        final P2pHostService service = new P2pHostService(tcpPort, token);
+        final P2pHostService service = new P2pHostService(tcpPort, token, org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(fixedCode));
         final long generation = ++hostStartGeneration;
         startingHostService = service;
 

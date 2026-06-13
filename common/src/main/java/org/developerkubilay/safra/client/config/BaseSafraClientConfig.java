@@ -23,7 +23,7 @@ public abstract class BaseSafraClientConfig {
     protected boolean openToLanP2pEnabled = true;
     protected boolean openToLanOnlineModeEnabled = false;
     protected boolean openToLanAllowCommandsEnabled = false;
-    protected boolean openToLanFixedCodeEnabled = false;
+    protected boolean openToLanFixedCodeEnabled = true;
     protected String openToLanFixedCode = "";
     protected Map<String, String> openToLanGameRules = new LinkedHashMap<>();
     protected boolean directConnectP2pEnabled = true;
