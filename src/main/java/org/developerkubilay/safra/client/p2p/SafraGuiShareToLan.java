@@ -110,7 +110,8 @@ public final class SafraGuiShareToLan extends GuiScreen {
 
         final int tcpPort = server.getServerPort();
         this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.starting"));
-        P2pManager.getInstance().startHostingAsync(tcpPort).whenComplete((shareCode, throwable) -> mc.func_152344_a(new Runnable() {
+        String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> mc.func_152344_a(new Runnable() {
             @Override
             public void run() {
                 if (throwable != null) {

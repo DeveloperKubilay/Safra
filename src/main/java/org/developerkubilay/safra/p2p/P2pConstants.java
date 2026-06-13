@@ -55,6 +55,8 @@ public final class P2pConstants {
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
     static final String ADDRESS_SCHEME = "p2p://";
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
+    private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
+    private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
     private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
     static final String[][] STUN_SERVER_GROUPS = {
@@ -150,6 +152,14 @@ public final class P2pConstants {
         return false;
     }
 
+    static long diagnosticsSummaryMs() {
+        return longProperty(DIAGNOSTICS_INTERVAL_PROPERTY, DIAGNOSTIC_SUMMARY_MS);
+    }
+
+    static long diagnosticsTickDriftWarnMs() {
+        return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
+    }
+
     static boolean forceTurnRelay() {
         String property = System.getProperty(FORCE_TURN_PROPERTY);
         if (property != null && !property.isBlank()) {
@@ -203,5 +213,17 @@ public final class P2pConstants {
         }
     }
 
-}
+    private static long longProperty(String key, long fallback) {
+        String property = System.getProperty(key);
+        if (property == null || property.isBlank()) {
+            return fallback;
+        }
 
+        try {
+            return Long.parseLong(property.trim());
+        } catch (RuntimeException exception) {
+            return fallback;
+        }
+    }
+
+}

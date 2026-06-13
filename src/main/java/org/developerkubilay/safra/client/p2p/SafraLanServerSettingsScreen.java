@@ -7,6 +7,7 @@ import net.minecraft.client.resources.I18n;
 public final class SafraLanServerSettingsScreen extends GuiScreen {
     private final GuiScreen parent;
     private GuiButton allowCommandsButton;
+    private GuiButton fixedCodeButton;
 
     public SafraLanServerSettingsScreen(GuiScreen parent) {
         this.parent = parent;
@@ -16,9 +17,11 @@ public final class SafraLanServerSettingsScreen extends GuiScreen {
     public void initGui() {
         this.buttonList.clear();
         this.buttonList.add(this.allowCommandsButton = new GuiButton(0, this.width / 2 - 100, this.height / 4 + 24, 200, 20, getAllowCommandsText()));
-        this.buttonList.add(new GuiButton(1, this.width / 2 - 100, this.height / 4 + 48, 200, 20, I18n.format("safra.p2p.server_settings.reset")));
-        this.buttonList.add(new GuiButton(2, this.width / 2 - 100, this.height / 4 + 96, 98, 20, I18n.format("gui.done")));
-        this.buttonList.add(new GuiButton(3, this.width / 2 + 2, this.height / 4 + 96, 98, 20, I18n.format("gui.back")));
+        this.buttonList.add(this.fixedCodeButton = new GuiButton(1, this.width / 2 - 100, this.height / 4 + 48, 200, 20, getFixedCodeText()));
+        this.buttonList.add(new GuiButton(2, this.width / 2 - 100, this.height / 4 + 72, 200, 20, I18n.format("safra.p2p.fixed_code.refresh")));
+        this.buttonList.add(new GuiButton(3, this.width / 2 - 100, this.height / 4 + 96, 200, 20, I18n.format("safra.p2p.server_settings.reset")));
+        this.buttonList.add(new GuiButton(4, this.width / 2 - 100, this.height / 4 + 144, 98, 20, I18n.format("gui.done")));
+        this.buttonList.add(new GuiButton(5, this.width / 2 + 2, this.height / 4 + 144, 98, 20, I18n.format("gui.back")));
     }
 
     @Override
@@ -27,11 +30,19 @@ public final class SafraLanServerSettingsScreen extends GuiScreen {
             ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
             button.displayString = getAllowCommandsText();
         } else if (button.id == 1) {
+            ForgeLanSessionState.setFixedCodeEnabled(!ForgeLanSessionState.isFixedCodeEnabled());
+            button.displayString = getFixedCodeText();
+        } else if (button.id == 2) {
+            ForgeLanSessionState.regenerateFixedCode();
+        } else if (button.id == 3) {
             ForgeLanSessionState.resetServerSettings();
             if (allowCommandsButton != null) {
                 allowCommandsButton.displayString = getAllowCommandsText();
             }
-        } else if (button.id == 2 || button.id == 3) {
+            if (fixedCodeButton != null) {
+                fixedCodeButton.displayString = getFixedCodeText();
+            }
+        } else if (button.id == 4 || button.id == 5) {
             this.mc.displayGuiScreen(parent);
         }
     }
@@ -45,5 +56,9 @@ public final class SafraLanServerSettingsScreen extends GuiScreen {
 
     private String getAllowCommandsText() {
         return I18n.format(ForgeLanSessionState.isAllowCommandsEnabled() ? "safra.p2p.allow_commands.on" : "safra.p2p.allow_commands.off");
+    }
+
+    private String getFixedCodeText() {
+        return I18n.format(ForgeLanSessionState.isFixedCodeEnabled() ? "safra.p2p.fixed_code.on" : "safra.p2p.fixed_code.off");
     }
 }
