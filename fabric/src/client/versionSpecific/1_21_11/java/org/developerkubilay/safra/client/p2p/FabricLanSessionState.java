@@ -106,10 +106,10 @@ public final class FabricLanSessionState {
 
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
-        fixedCodeEnabled = false;
+        fixedCodeEnabled = true;
         resetGameRules();
         SafraClientConfig config = SafraClientConfig.get();
         config.setOpenToLanAllowCommandsEnabled(false);
-        config.setOpenToLanFixedCodeEnabled(false);
+        config.setOpenToLanFixedCodeEnabled(true);
     }
 }
