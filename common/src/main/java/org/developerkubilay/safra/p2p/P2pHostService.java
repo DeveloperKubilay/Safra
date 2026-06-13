@@ -27,6 +27,7 @@ public final class P2pHostService implements AutoCloseable {
     private final int token;
     private final InetAddress targetAddress;
     private final String preferredRendezvousCode;
+    private final boolean allowRelayFallback;
 
     private P2pDatagramTransport transport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
@@ -35,22 +36,27 @@ public final class P2pHostService implements AutoCloseable {
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
-        this(tcpPort, token, P2pSockets.loopbackAddress(), null);
+        this(tcpPort, token, P2pSockets.loopbackAddress(), null, true);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress) {
-        this(tcpPort, token, targetAddress, null);
+        this(tcpPort, token, targetAddress, null, true);
     }
 
     public P2pHostService(int tcpPort, int token, String preferredRendezvousCode) {
-        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode);
+        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode) {
+        this(tcpPort, token, targetAddress, preferredRendezvousCode, true);
+    }
+
+    public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback) {
         this.tcpPort = tcpPort;
         this.token = token;
         this.targetAddress = targetAddress;
         this.preferredRendezvousCode = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        this.allowRelayFallback = allowRelayFallback;
     }
 
     public P2pShareCode start() throws IOException {
@@ -58,7 +64,7 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort);
+        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort, allowRelayFallback);
         transport = binding.transport();
         relayTransport = binding.relay();
         if (closed) {
