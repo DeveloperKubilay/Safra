@@ -7,6 +7,7 @@ import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
+import org.developerkubilay.safra.p2p.P2pRuntime;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +22,7 @@ import java.util.concurrent.Executor;
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
     private static final P2pManager INSTANCE = new P2pManager();
-    private static final Executor BACKGROUND_EXECUTOR = command -> {
-        Thread thread = new Thread(command, "safra-p2p-background");
-        thread.setDaemon(true);
-        thread.start();
-    };
+    private static final Executor BACKGROUND_EXECUTOR = command -> P2pRuntime.start("safra-p2p-background", command);
 
     private volatile P2pHostService hostService;
     private volatile P2pHostService startingHostService;
