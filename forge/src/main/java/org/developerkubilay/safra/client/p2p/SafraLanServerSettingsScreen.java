@@ -7,6 +7,7 @@ import net.minecraft.util.text.TranslationTextComponent;
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
     private Button allowCommandsButton;
+    private Button fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
         super(new TranslationTextComponent("safra.p2p.server_settings"));
@@ -27,9 +28,30 @@ public final class SafraLanServerSettingsScreen extends Screen {
             }
         ));
 
-        this.addButton(new Button(
+        this.fixedCodeButton = this.addButton(new Button(
             this.width / 2 - 100,
             this.height / 4 + 48,
+            200,
+            20,
+            this.getFixedCodeText(),
+            button -> {
+                ForgeLanSessionState.setFixedCodeEnabled(!ForgeLanSessionState.isFixedCodeEnabled());
+                button.setMessage(this.getFixedCodeText());
+            }
+        ));
+
+        this.addButton(new Button(
+            this.width / 2 - 100,
+            this.height / 4 + 72,
+            200,
+            20,
+            new TranslationTextComponent("safra.p2p.fixed_code.refresh").getString(),
+            button -> ForgeLanSessionState.regenerateFixedCode()
+        ));
+
+        this.addButton(new Button(
+            this.width / 2 - 100,
+            this.height / 4 + 96,
             200,
             20,
             new TranslationTextComponent("safra.p2p.server_settings.reset").getString(),
@@ -38,12 +60,15 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 if (this.allowCommandsButton != null) {
                     this.allowCommandsButton.setMessage(this.getAllowCommandsText());
                 }
+                if (this.fixedCodeButton != null) {
+                    this.fixedCodeButton.setMessage(this.getFixedCodeText());
+                }
             }
         ));
 
         this.addButton(new Button(
             this.width / 2 - 100,
-            this.height / 4 + 96,
+            this.height / 4 + 144,
             98,
             20,
             new TranslationTextComponent("gui.done").getString(),
@@ -51,7 +76,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
         ));
         this.addButton(new Button(
             this.width / 2 + 2,
-            this.height / 4 + 96,
+            this.height / 4 + 144,
             98,
             20,
             new TranslationTextComponent("gui.back").getString(),
@@ -78,6 +103,14 @@ public final class SafraLanServerSettingsScreen extends Screen {
             ForgeLanSessionState.isAllowCommandsEnabled()
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
+        ).getString();
+    }
+
+    private String getFixedCodeText() {
+        return new TranslationTextComponent(
+            ForgeLanSessionState.isFixedCodeEnabled()
+                ? "safra.p2p.fixed_code.on"
+                : "safra.p2p.fixed_code.off"
         ).getString();
     }
 }
