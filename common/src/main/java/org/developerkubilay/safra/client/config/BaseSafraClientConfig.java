@@ -161,8 +161,9 @@ public abstract class BaseSafraClientConfig {
         }
     }
 
-    public synchronized void resetOpenToLanGameRules() {
-        boolean changed = !openToLanGameRules.isEmpty();
+    public synchronized void resetOpenToLanServerSettings() {
+        boolean changed = openToLanAllowCommandsEnabled || !openToLanGameRules.isEmpty();
+        openToLanAllowCommandsEnabled = false;
         openToLanGameRules = new LinkedHashMap<>();
         if (changed) {
             save();
