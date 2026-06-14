@@ -56,7 +56,7 @@ public final class P2pConstants {
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
-    private static final String FORCE_TURN_PROPERTY = "safra.p2p.forceTurn";
+    private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
     private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
     static final String[][] STUN_SERVER_GROUPS = {
         {
@@ -71,12 +71,17 @@ public final class P2pConstants {
     };
 
     private static volatile String runtimeRendezvousUrl;
+    private static volatile boolean runtimeNeverUseRelayServer;
 
     private P2pConstants() {
     }
 
     public static void setRuntimeRendezvousUrl(String url) {
         runtimeRendezvousUrl = isValidRendezvousUrl(url) ? url.trim() : null;
+    }
+
+    public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
+        runtimeNeverUseRelayServer = neverUseRelayServer;
     }
 
     public static boolean hasRendezvousUrl() {
@@ -159,18 +164,18 @@ public final class P2pConstants {
         return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
     }
 
-    static boolean forceTurnRelay() {
-        String property = System.getProperty(FORCE_TURN_PROPERTY);
+    static boolean neverUseRelayServer() {
+        String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
         if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
-        String environment = System.getenv("SAFRA_FORCE_TURN");
+        String environment = System.getenv("SAFRA_NEVER_USE_RELAY_SERVER");
         if (environment != null && !environment.trim().isEmpty()) {
             return Boolean.parseBoolean(environment.trim());
         }
 
-        return false;
+        return runtimeNeverUseRelayServer;
     }
 
     static boolean turnEnabled() {
