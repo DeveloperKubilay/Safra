@@ -52,7 +52,7 @@
       いつでも GitHub Issue を立てられます。<br /><br />
       ❤️ オープンソースのプロジェクトはこちら<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 どう動くのか見てみますか？</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ja/how_it_works.md">👀 どう動くのか見てみますか？</a>
     </td>
   </tr>
 </table>

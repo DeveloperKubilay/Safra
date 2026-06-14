@@ -52,7 +52,7 @@
       언제든 GitHub 이슈를 열 수 있습니다.<br /><br />
       ❤️ 오픈소스 프로젝트는 여기 있습니다<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 어떻게 작동하는지 볼래요?</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ko/how_it_works.md">👀 어떻게 작동하는지 볼래요?</a>
     </td>
   </tr>
 </table>

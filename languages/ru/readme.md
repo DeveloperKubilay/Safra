@@ -52,7 +52,7 @@
       Можешь в любой момент открыть issue на GitHub.<br /><br />
       ❤️ Open-source проект живет здесь<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Хочешь узнать, как это работает?</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ru/how_it_works.md">👀 Хочешь узнать, как это работает?</a>
     </td>
   </tr>
 </table>

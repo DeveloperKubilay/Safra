@@ -52,7 +52,7 @@
       你随时都可以在 GitHub 上开 issue。<br /><br />
       ❤️ 这个开源项目在这里<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 想看看它是怎么工作的吗？</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/zh-cn/how_it_works.md">👀 想看看它是怎么工作的吗？</a>
     </td>
   </tr>
 </table>

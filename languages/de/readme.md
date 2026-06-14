@@ -52,7 +52,7 @@ Unterstützt **Fabric**, **Forge** und **NeoForge**.
       Du kannst jederzeit ein GitHub-Issue erstellen.<br /><br />
       ❤️ Das Open-Source-Projekt lebt hier<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Willst du sehen, wie es funktioniert?</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/de/how_it_works.md">👀 Willst du sehen, wie es funktioniert?</a>
     </td>
   </tr>
 </table>
