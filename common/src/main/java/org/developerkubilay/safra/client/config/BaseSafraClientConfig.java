@@ -26,6 +26,7 @@ public abstract class BaseSafraClientConfig {
     protected String openToLanFixedCode = "";
     protected Map<String, String> openToLanGameRules = new LinkedHashMap<>();
     protected boolean directConnectP2pEnabled = true;
+    protected boolean neverUseRelayServer = false;
     protected String rendezvousUrl = "";
     protected String siteApiVersion = "1.0";
 
@@ -60,6 +61,18 @@ public abstract class BaseSafraClientConfig {
     public synchronized void setDirectConnectP2pEnabled(boolean directConnectP2pEnabled) {
         if (this.directConnectP2pEnabled != directConnectP2pEnabled) {
             this.directConnectP2pEnabled = directConnectP2pEnabled;
+            save();
+        }
+    }
+
+    public synchronized boolean isNeverUseRelayServer() {
+        return neverUseRelayServer;
+    }
+
+    public synchronized void setNeverUseRelayServer(boolean neverUseRelayServer) {
+        if (this.neverUseRelayServer != neverUseRelayServer) {
+            this.neverUseRelayServer = neverUseRelayServer;
+            P2pConstants.setRuntimeNeverUseRelayServer(neverUseRelayServer);
             save();
         }
     }

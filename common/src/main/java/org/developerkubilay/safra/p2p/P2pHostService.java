@@ -313,7 +313,7 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private synchronized void ensureRelayAvailable(InetSocketAddress joinerRelayAddress) {
-        if (closed || primaryTransportRelay || !allowRelayFallback) {
+        if (closed || primaryTransportRelay || !allowRelayFallback || P2pConstants.neverUseRelayServer()) {
             return;
         }
 

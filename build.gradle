@@ -31,9 +31,6 @@ ext.devBuildTestMode = { Project targetProject ->
     if (ext.devBooleanProperty('forceDirectThenTurn')) {
         return 'directthenturn'
     }
-    if (ext.devBooleanProperty('forceTurn')) {
-        return 'forceturn'
-    }
     return 'off'
 }
 allprojects {
