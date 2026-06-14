@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 final class P2pPacket {
+    private static final ThreadLocal<ByteBuffer> ENCODE_BUFFER = ThreadLocal.withInitial(
+        () -> ByteBuffer.allocate(P2pConstants.HEADER_SIZE + P2pConstants.MAX_PAYLOAD_SIZE)
+    );
     private final Type type;
     private final int token;
     private final int connectionId;
@@ -81,7 +84,8 @@ final class P2pPacket {
     }
 
     byte[] encode() {
-        ByteBuffer buffer = ByteBuffer.allocate(P2pConstants.HEADER_SIZE + payload.length);
+        ByteBuffer buffer = ENCODE_BUFFER.get();
+        buffer.clear();
         buffer.put(P2pConstants.PROTOCOL_VERSION);
         buffer.put((byte) type.id);
         buffer.putInt(token);
@@ -89,7 +93,8 @@ final class P2pPacket {
         buffer.putInt(sequence);
         buffer.putInt(acknowledgement);
         buffer.put(payload);
-        return buffer.array();
+        int length = buffer.position();
+        return Arrays.copyOf(buffer.array(), length);
     }
 
     static P2pPacket decode(byte[] buffer, int length) {
