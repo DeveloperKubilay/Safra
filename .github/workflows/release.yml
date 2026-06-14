@@ -19,7 +19,6 @@ on:
         type: choice
         options:
           - off
-          - forceTurn
 
 permissions:
   contents: write
@@ -71,7 +70,7 @@ jobs:
             echo "Could not resolve Minecraft version from branch name: $branch_name"
             exit 1
           fi
-          if [[ "$build_mode" != "off" && "$build_mode" != "forceTurn" ]]; then
+          if [[ "$build_mode" != "off" ]]; then
             echo "Invalid build_mode: $build_mode"
             exit 1
           fi

@@ -40,7 +40,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 def targetJavaVersion = 25
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
@@ -108,9 +107,6 @@ neoForge {
     runs {
         client {
             systemProperty 'safra.p2p.diagnostics', 'true'
-            if (forceTurn) {
-                systemProperty 'safra.p2p.forceTurn', 'true'
-            }
             client()
             programArgument '--username'
             programArgument devUsername

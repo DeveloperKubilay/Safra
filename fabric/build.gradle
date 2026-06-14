@@ -15,7 +15,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 loom {
     splitEnvironmentSourceSets()
@@ -30,9 +29,6 @@ loom {
     runs {
         client {
             property 'safra.p2p.diagnostics', 'true'
-            if (forceTurn) {
-                property 'safra.p2p.forceTurn', 'true'
-            }
             programArg '--username'
             programArg devUsername
         }

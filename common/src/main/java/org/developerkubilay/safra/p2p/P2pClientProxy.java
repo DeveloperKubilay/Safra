@@ -101,6 +101,11 @@ public final class P2pClientProxy implements AutoCloseable {
             transport = binding.transport();
         } catch (IOException exception) {
             if (!binding.relay()) {
+                if (P2pConstants.neverUseRelayServer()) {
+                    binding.close();
+                    discardRendezvousSession();
+                    throw exception;
+                }
                 if (P2pConstants.forceDirectThenTurnRelay()) {
                     LOGGER.info("Safra test modu direct P2P yolunu bilincli olarak kesti; TURN fallback deneniyor");
                 }

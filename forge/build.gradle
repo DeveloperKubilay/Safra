@@ -40,7 +40,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 def targetJavaVersion = 25
 def mixinMinecraftVersion = (project.findProperty('minecraft_version') ?: project.findProperty('forge_minecraft_version'))?.toString()
@@ -170,9 +169,6 @@ minecraft {
 
         register('client') {
             systemProperty 'safra.p2p.diagnostics', 'true'
-            if (forceTurn) {
-                systemProperty 'safra.p2p.forceTurn', 'true'
-            }
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'io.netty.transport.noNative', 'true'
             systemProperty 'java.net.preferIPv4Stack', 'false'
