@@ -70,7 +70,6 @@ def modDescription = rootProject.ext.selected_mc_profile == '1.20.3'
     : project.mod_description
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 def rootRunClientRequested = gradle.startParameter.taskNames.any {
     it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
@@ -168,9 +167,6 @@ minecraft {
                 systemProperty 'io.netty.transport.noNative', 'true'
                 systemProperty 'java.net.preferIPv4Stack', 'false'
                 systemProperty 'safra.p2p.diagnostics', 'true'
-                if (forceTurn) {
-                    systemProperty 'safra.p2p.forceTurn', 'true'
-                }
                 if (forceDirectThenTurn) {
                     systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
                 }

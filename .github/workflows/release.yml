@@ -38,8 +38,7 @@ on:
         default: off
         type: choice
         options:
-          - off
-          - forceTurn
+          - off
           - directThenTurn
 
 permissions:
@@ -77,7 +76,7 @@ jobs:
             exit 1
           fi
 
-          if [[ "$build_mode" != "off" && "$build_mode" != "forceTurn" && "$build_mode" != "directThenTurn" ]]; then
+          if [[ "$build_mode" != "off" && "$build_mode" != "directThenTurn" ]]; then
             echo "Invalid build_mode: $build_mode"
             exit 1
           fi
@@ -223,10 +222,6 @@ jobs:
             off)
               echo "SAFRA_BUILD_MODE_LABEL=off" >> "$GITHUB_ENV"
               echo "SAFRA_BUILD_MODE_ARGS=" >> "$GITHUB_ENV"
-              ;;
-            forceTurn)
-              echo "SAFRA_BUILD_MODE_LABEL=forceTurn" >> "$GITHUB_ENV"
-              echo "SAFRA_BUILD_MODE_ARGS=-PforceTurn=true" >> "$GITHUB_ENV"
               ;;
             directThenTurn)
               echo "SAFRA_BUILD_MODE_LABEL=directThenTurn" >> "$GITHUB_ENV"
