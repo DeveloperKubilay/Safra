@@ -22,10 +22,6 @@ final class P2pUdpBindingFactory {
     }
 
     static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort, boolean allowRelayFallback) throws IOException {
-        if (allowRelayFallback && P2pConstants.forceTurnRelay()) {
-            return createTurnBinding(logger, "host");
-        }
-
         try {
             return createDirectHostBinding(stunClient, preferredPort);
         } catch (IOException exception) {
@@ -38,14 +34,13 @@ final class P2pUdpBindingFactory {
     }
 
     static P2pTransportBinding createBestJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
-        if (P2pConstants.forceTurnRelay()) {
-            return createTurnBinding(logger, "join");
-        }
-
         try {
             return createDirectJoinBinding(stunClient);
         } catch (IOException exception) {
             if (!P2pConstants.turnEnabled()) {
+                throw exception;
+            }
+            if (P2pConstants.neverUseRelayServer()) {
                 throw exception;
             }
             logger.debug("Safra join STUN acilamadi, TURN relay denenecek: {}", exception.toString());
@@ -54,7 +49,10 @@ final class P2pUdpBindingFactory {
     }
 
     static P2pTransportBinding createTurnBinding(Logger logger, String role) throws IOException {
-        P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, P2pConstants.forceTurnRelay());
+        if (P2pConstants.neverUseRelayServer()) {
+            throw new IOException("TURN relay configde kapali");
+        }
+        P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, false);
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
         return new P2pTransportBinding(
             transport,
