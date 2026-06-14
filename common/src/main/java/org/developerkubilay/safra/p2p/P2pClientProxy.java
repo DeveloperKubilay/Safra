@@ -96,7 +96,7 @@ public final class P2pClientProxy implements AutoCloseable {
             resolveRendezvousShareCode(binding);
             transport = binding.transport();
         } catch (IOException exception) {
-            if (!binding.relay() && P2pConstants.turnEnabled()) {
+            if (!binding.relay() && P2pConstants.turnEnabled() && !P2pConstants.neverUseRelayServer()) {
                 LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
                 binding.close();
                 discardRendezvousSession();
