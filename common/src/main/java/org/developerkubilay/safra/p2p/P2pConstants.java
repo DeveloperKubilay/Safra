@@ -67,6 +67,7 @@ public final class P2pConstants {
     };
 
     private static volatile String runtimeRendezvousUrl;
+    private static volatile boolean runtimeNeverUseRelayServer;
 
     private P2pConstants() {
     }
