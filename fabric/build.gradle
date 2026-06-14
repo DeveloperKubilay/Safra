@@ -21,6 +21,7 @@ def splitEnvironmentSources = !project.minecraft_version.startsWith('1.17')
 if (!splitEnvironmentSources) {
     sourceSets.main.java.srcDir('src/client/java')
     sourceSets.main.resources.srcDir('src/client/resources')
+    sourceSets.main.java.exclude('org/developerkubilay/safra/client/SafraDataGenerator.java')
 }
 
 loom {

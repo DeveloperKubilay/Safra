@@ -17,6 +17,7 @@ on:
         default: 1.17.1
         type: choice
         options:
+          - 1.17
           - 1.17.1
           - 1.18
           - 1.18.1
@@ -69,7 +70,7 @@ jobs:
           mc_version="${{ github.event.inputs.mc_version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
-          supported_versions='["1.17.1","1.18","1.18.1","1.18.2","1.19","1.19.1","1.19.2"]'
+          supported_versions='["1.17","1.17.1","1.18","1.18.1","1.18.2","1.19","1.19.1","1.19.2"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
@@ -83,9 +84,9 @@ jobs:
 
           if [[ "$release_scope" == "all" ]]; then
             versions_json="$supported_versions"
-            release_tag="Safra-1.17.x-$version_number"
-            release_title="Safra 1.17.x-$version_number"
-            release_versions_label="1.17.x"
+            release_tag="Safra-1.17.x-1.19.x-$version_number"
+            release_title="Safra 1.17.x-1.19.x-$version_number"
+            release_versions_label="1.17.x-1.19.x"
           else
             versions_json="[\"$mc_version\"]"
             release_tag="Safra-$mc_version-$version_number"
@@ -143,6 +144,14 @@ jobs:
         shell: bash
         run: |
           build_mode="${{ needs.prepare.outputs.build_mode }}"
+          if [[ "${{ matrix.mc_version }}" == "1.17" ]]; then
+            echo "SAFRA_INCLUDED_LOADERS=Fabric" >> "$GITHUB_ENV"
+            echo "SAFRA_LOADER_BUILD_ARGS=-PfabricOnly=true" >> "$GITHUB_ENV"
+          else
+            echo "SAFRA_INCLUDED_LOADERS=Fabric, Forge" >> "$GITHUB_ENV"
+            echo "SAFRA_LOADER_BUILD_ARGS=" >> "$GITHUB_ENV"
+          fi
+
           case "$build_mode" in
             off)
               echo "SAFRA_BUILD_MODE_LABEL=off" >> "$GITHUB_ENV"
@@ -164,6 +173,7 @@ jobs:
           ./gradlew clean build --stacktrace \
             -Pmc_profile="${{ matrix.mc_version }}" \
             -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
+            $SAFRA_LOADER_BUILD_ARGS \
             $SAFRA_BUILD_MODE_ARGS
 
       - name: Collect release artifacts
@@ -193,7 +203,7 @@ jobs:
 
           cat > "dist/build-info-${{ matrix.mc_version }}.txt" <<EOF
           Minecraft version: ${{ matrix.mc_version }}
-          Included loaders: Fabric, Forge
+          Included loaders: $SAFRA_INCLUDED_LOADERS
           Build mode: $SAFRA_BUILD_MODE_LABEL
           EOF
 
@@ -263,8 +273,8 @@ jobs:
           Safra ${{ needs.prepare.outputs.version_number }} for Minecraft ${{ needs.prepare.outputs.release_versions_label }}
 
           Included artifacts:
-          - Fabric
-          - Forge
+          - 1.17: Fabric
+          - 1.17.1-1.19.2: Fabric, Forge
 
           Build mode:
           - ${{ needs.prepare.outputs.build_mode }}

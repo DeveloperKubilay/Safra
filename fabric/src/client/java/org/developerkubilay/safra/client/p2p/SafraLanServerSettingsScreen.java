@@ -6,6 +6,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 import net.minecraft.world.GameRules;
+import org.developerkubilay.safra.client.FabricScreenCompat;
 
 import java.util.Optional;
 
@@ -42,7 +43,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
                     return;
                 }
                 GameRules editableRules = FabricLanGameRules.createEditableGameRules(this.client, FabricLanSessionState.getGameRuleSnapshot());
-                this.client.setScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
+                FabricScreenCompat.open(this.client, new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             }));
 
         this.addDrawableChild(new ButtonWidget(this.width / 2 - 100, top + 120, 200, 20, FabricClientCompat.translatable("safra.p2p.game_rules.reset"), button -> {
@@ -56,7 +57,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
 
     public void close() {
         if (this.client != null) {
-            this.client.setScreen(this.parent);
+            FabricScreenCompat.open(this.client, this.parent);
         }
     }
 
@@ -90,7 +91,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private void handleGameRulesClose(Optional<GameRules> rules) {
         rules.ifPresent(gameRules -> FabricLanSessionState.setGameRuleSnapshot(FabricLanGameRules.serialize(gameRules)));
         if (this.client != null) {
-            this.client.setScreen(this);
+            FabricScreenCompat.open(this.client, this);
         }
     }
 }

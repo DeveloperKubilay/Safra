@@ -28,6 +28,12 @@ if (localPropertiesFile.isFile()) {
     localPropertiesFile.withInputStream { localProperties.load(it) }
 }
 
+def requestedMcProfile = (
+    gradle.startParameter.projectProperties['mc_profile']
+        ?: localProperties.getProperty('default_mc_profile')
+        ?: '1.17.1'
+).toString()
+
 def taskNames = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
 def currentDirName = gradle.startParameter.currentDir?.name?.toLowerCase(Locale.ROOT)
 def touchesOnly = { List<String> prefixes ->
@@ -46,9 +52,10 @@ def currentDirForgeOnly = currentDirName == 'forge'
 
 def forceFabricOnly = gradle.startParameter.projectProperties.containsKey('fabricOnly')
 def forceForgeOnly = gradle.startParameter.projectProperties.containsKey('forgeOnly')
+def profileDisablesForge = requestedMcProfile == '1.17'
 
 def includeFabric = !(forceForgeOnly || autoForgeOnly || currentDirForgeOnly)
-def includeForge = !(forceFabricOnly || autoFabricOnly || currentDirFabricOnly)
+def includeForge = !profileDisablesForge && !(forceFabricOnly || autoFabricOnly || currentDirFabricOnly)
 
 if (includeFabric) {
     include 'fabric'

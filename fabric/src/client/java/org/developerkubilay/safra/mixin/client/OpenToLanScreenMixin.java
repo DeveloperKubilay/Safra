@@ -10,6 +10,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.developerkubilay.safra.client.FabricScreenCompat;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricClientCompat;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
@@ -91,7 +92,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         );
         this.safra$serverSettingsButton = this.addDrawableChild(
             new ButtonWidget(this.width / 2 - 49, 172, 98, 20, FabricClientCompat.translatable("safra.p2p.server_settings.short"), button ->
-                this.client.setScreen(new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
+                FabricScreenCompat.open(this.client, new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             )
         );
         this.safra$p2pInitialized = true;
