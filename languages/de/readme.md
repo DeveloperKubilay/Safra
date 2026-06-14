@@ -13,35 +13,34 @@
 
 # Safra 🚀
 
-Sunucu kurma derdiyle ya da gereksiz ekstra adimlarla ugrasma  
-Minecraft sunucunu **2 tikla** ac, direkt oyuna gir
+Verschwende keine Zeit mit Server-Setup oder unnötigen Extras.  
+Starte deinen Minecraft-Server mit **2 Klicks** und spring direkt ins Spiel.
 
-✅ Karmaşık arayüz yok 😌  
-✅ Saçma sapan sistemler yok 🚫  
-✅ Hafif ve optimize yapı ⚡  
-✅ **500 KB'dan bile az** yer kaplar 📦
+✅ Keine komplizierte Oberfläche 😌  
+✅ Keine unnötigen Systeme 🚫  
+✅ Leichtgewichtig und optimiert ⚡  
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> On izleme gorselinde **TLauncher** kullanilmistir (alternatif baslaticilar desteklenir)  
-> **Voice chat** destegi vardir (mod destegi)
+> In der Vorschau wird **TLauncher** verwendet (andere Launcher werden ebenfalls unterstützt)  
+> Enthält **Voice-Chat**-Support (Mod-Unterstützung)
 
-## Mod Destegi
+## Mod-Unterstützung
 
-Senin ve arkadaslarinin kurdugu modlarla rahatca oynayabilirsin  
-**Fabric**, **Forge** ve **NeoForge** desteklenir
+Du kannst ganz einfach mit den Mods spielen, die du und deine Freunde installiert habt.  
+Unterstützt **Fabric**, **Forge** und **NeoForge**.
 
-## Not ⚠️
+## Hinweis ⚠️
 
-> TLauncher veya diğer başlatıcılarla girilecekse, oyunu paylaşmadan önce sunucuyu başlatan kişinin `online-mode=false` yapması yeterlidir.
+> Wenn Spieler mit TLauncher oder einem anderen Launcher beitreten, reicht es, wenn die Person, die den Server startet, vor dem Freigeben `online-mode=false` setzt.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
-> Eğer oluşturulan kodu sabit yapmak istiyorsanız, Ayarlardan `Use Fixed Code=on` yapmanız yeterlidir.
+> Wenn der erzeugte Code fest bleiben soll, stelle in den Einstellungen einfach `Use Fixed Code=on` ein.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
 
-## SSS 🤔
+## FAQ 🤔
 
 <table>
   <tr>
@@ -49,11 +48,11 @@ Senin ve arkadaslarinin kurdugu modlarla rahatca oynayabilirsin
       <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/emoji1.png" alt="faq emoji" width="100%" />
     </td>
     <td width="70%" align="left">
-      ✨ Ozellik istiyorsan, surum fikrin varsa ya da bug bulduysan<br />
-      GitHub'da istedigin zaman issue acabilirsin<br /><br />
-      ❤️ Acik kaynak proje burada<br />
+      ✨ Du brauchst ein Feature, hast eine Versionsidee oder einen Bug gefunden?<br />
+      Du kannst jederzeit ein GitHub-Issue erstellen.<br /><br />
+      ❤️ Das Open-Source-Projekt lebt hier<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works_tr.md">👀 Nasil calisiyor ogrenmek ister misin?</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Willst du sehen, wie es funktioniert?</a>
     </td>
   </tr>
 </table>
