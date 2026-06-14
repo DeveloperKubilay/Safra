@@ -183,7 +183,7 @@ jobs:
               echo "SAFRA_RELEASE_NOTE=1.20.3 hattinda su an yalnizca Fabric artifacti yayinlaniyor; Forge ve NeoForge bu surumde kapali." >> "$GITHUB_ENV"
               ;;
             1.20.4)
-              echo "SAFRA_MC_PROFILE=1.20.3-1.20.4" >> "$GITHUB_ENV"
+              echo "SAFRA_MC_PROFILE=1.20.4" >> "$GITHUB_ENV"
               echo "SAFRA_ARTIFACT_VERSION=1.20.4" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_FORGE=true" >> "$GITHUB_ENV"

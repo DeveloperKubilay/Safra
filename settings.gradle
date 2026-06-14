@@ -40,7 +40,7 @@ def mcProfileDefaults = [
     '1.20.1'        : [enable_neoforge: 'false', enable_forge: 'true'],
     '1.20.2'        : [enable_neoforge: 'false', enable_forge: 'true'],
     '1.20.3'        : [enable_neoforge: 'false', enable_forge: 'true'],
-    '1.20.3-1.20.4' : [enable_neoforge: 'true', enable_forge: 'true'],
+    '1.20.4'        : [enable_neoforge: 'true', enable_forge: 'true'],
     '1.20.5-1.20.6' : [enable_neoforge: 'true', enable_forge: 'true']
 ]
 

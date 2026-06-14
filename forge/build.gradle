@@ -65,8 +65,7 @@ base {
     archivesName = "${project.archives_base_name}-forge"
 }
 
-def modDescription = (rootProject.ext.selected_mc_profile == '1.20.3'
-    || rootProject.ext.selected_mc_profile == '1.20.3-1.20.4')
+def modDescription = rootProject.ext.selected_mc_profile == '1.20.3'
     ? 'Forge 1.20.3 ve 1.20.4 tarafini simdilik rafa kaldirdik. Duzelecek, ama bu buildde destek acik degil.'
     : project.mod_description
 
