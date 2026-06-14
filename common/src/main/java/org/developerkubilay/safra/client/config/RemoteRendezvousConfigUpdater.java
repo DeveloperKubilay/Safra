@@ -12,5 +12,6 @@ public final class RemoteRendezvousConfigUpdater {
         }
 
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
+        P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
     }
 }

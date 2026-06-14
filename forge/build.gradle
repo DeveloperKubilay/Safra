@@ -17,7 +17,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 
 def targetJavaVersion = 17
 
@@ -49,11 +48,7 @@ minecraft {
         }
 
         register('client') {
-            systemProperty 'safra.p2p.diagnostics', 'true'
-            if (forceTurn) {
-                systemProperty 'safra.p2p.forceTurn', 'true'
-            }
-            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+            systemProperty 'safra.p2p.diagnostics', 'true'            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'io.netty.transport.noNative', 'true'
             systemProperty 'java.net.preferIPv4Stack', 'false'
             args '--username', devUsername
