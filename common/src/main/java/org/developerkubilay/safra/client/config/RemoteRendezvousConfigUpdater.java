@@ -9,6 +9,7 @@ public final class RemoteRendezvousConfigUpdater {
     public static void initialize(BaseSafraClientConfig config) {
         if (config != null) {
             P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
+        P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
         }
     }
 }
