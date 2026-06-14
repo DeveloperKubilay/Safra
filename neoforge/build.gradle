@@ -44,7 +44,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 def targetJavaVersion = 21
@@ -119,9 +118,6 @@ neoForge {
         client {
             client()
             systemProperty 'safra.p2p.diagnostics', 'true'
-            if (forceTurn) {
-                systemProperty 'safra.p2p.forceTurn', 'true'
-            }
             if (forceDirectThenTurn) {
                 systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
             }
