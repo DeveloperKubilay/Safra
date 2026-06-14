@@ -6,7 +6,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.client.server.IntegratedServer;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
@@ -174,7 +173,6 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withColor(ChatFormatting.AQUA)
                 .withUnderlined(true)
                 .withInsertion(shareCodeText)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("safra.p2p.copy_hint"))));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
