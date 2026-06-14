@@ -1,8 +1,8 @@
 package org.developerkubilay.safra.server;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.fmlserverevents.FMLServerStartedEvent;
+import net.minecraftforge.fmlserverevents.FMLServerStoppingEvent;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.CachedRendezvousConfigLoader;
 import org.developerkubilay.safra.p2p.ConsoleShareCodePrinter;
@@ -22,7 +22,7 @@ public final class DedicatedP2pServerManager {
     private DedicatedP2pServerManager() {
     }
 
-    public static synchronized void serverStarted(ServerStartedEvent event) {
+    public static synchronized void serverStarted(FMLServerStartedEvent event) {
         MinecraftServer server = event.getServer();
         if (!server.isDedicatedServer()) {
             return;
@@ -47,7 +47,7 @@ public final class DedicatedP2pServerManager {
         }
     }
 
-    public static synchronized void serverStopping(ServerStoppingEvent event) {
+    public static synchronized void serverStopping(FMLServerStoppingEvent event) {
         if (event.getServer().isDedicatedServer()) {
             stopHosting();
         }

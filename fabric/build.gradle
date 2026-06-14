@@ -17,14 +17,24 @@ base {
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceTurn = rootProject.ext.devBooleanProperty('forceTurn')
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
+def splitEnvironmentSources = !project.minecraft_version.startsWith('1.17')
+
+if (!splitEnvironmentSources) {
+    sourceSets.main.java.srcDir('src/client/java')
+    sourceSets.main.resources.srcDir('src/client/resources')
+}
 
 loom {
-    splitEnvironmentSourceSets()
+    if (splitEnvironmentSources) {
+        splitEnvironmentSourceSets()
+    }
 
     mods {
         "${project.mod_id}" {
             sourceSet sourceSets.main
-            sourceSet sourceSets.client
+            if (splitEnvironmentSources) {
+                sourceSet sourceSets.client
+            }
         }
     }
 

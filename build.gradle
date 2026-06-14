@@ -6,6 +6,20 @@ plugins {
 }
 
 ext.mcProfiles = [
+    '1.17.1': [
+        release_minecraft_line       : '1.17.1',
+        minecraft_version            : '1.17.1',
+        minecraft_dependency         : '=1.17.1',
+        fabric_minecraft_version     : '1.17.1',
+        fabric_mod_minecraft_version : '1.17.1',
+        yarn_mappings                : '1.17.1+build.64',
+        loader_version               : '0.16.10',
+        fabric_version               : '0.46.1+1.17',
+        forge_version                : '37.1.1',
+        forge_version_range          : '[37,)',
+        forge_loader_version_range   : '[37,)',
+        forge_minecraft_version_range: '[1.17.1,1.18)'
+    ],
     '1.18': [
         release_minecraft_line       : '1.18',
         minecraft_version            : '1.18',
@@ -96,7 +110,7 @@ def requestedMcProfile = (
     gradle.startParameter.projectProperties['mc_profile']
         ?: findProperty('mc_profile')
         ?: findProperty('default_mc_profile')
-        ?: '1.19.2'
+        ?: '1.17.1'
 ).toString()
 def selectedMcProfile = ext.mcProfiles[requestedMcProfile]
 if (selectedMcProfile == null) {
