@@ -9,6 +9,8 @@
     "DirectJoinServerScreenMixin",
     "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
+    "ManageServerScreenMixin",
+    "ServerStatusPingerMixin",
     "ShareToLanScreenMixin"
   ],
   "injectors": {

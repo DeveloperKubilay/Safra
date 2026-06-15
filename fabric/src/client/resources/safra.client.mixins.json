@@ -6,7 +6,9 @@
   "client": [
     "ConnectScreenMixin",
     "DirectConnectScreenMixin",
+    "ManageServerScreenMixin",
     "MultiplayerScreenMixin",
+    "ServerStatusPingerMixin",
     "OpenToLanScreenMixin"
   ],
   "injectors": {
