@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
@@ -82,6 +83,13 @@ abstract class IntegratedServerMixin {
 
         Component shareText = ForgeComponentCompat.copyableLiteral(shareCodeText, "safra.p2p.copy_hint");
         safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.started", shareText));
+        if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
+            safra$pushClientMessage(
+                client,
+                ForgeComponentCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).copy().withStyle(ChatFormatting.YELLOW)
+            );
+        }
+
         safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.copied"));
         safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.instructions"));
     }

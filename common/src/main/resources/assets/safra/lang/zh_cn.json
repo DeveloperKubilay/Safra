@@ -27,5 +27,6 @@
   "safra.p2p.online_mode.short.on": "在线：开",
   "safra.p2p.server_settings.short": "设置",
   "safra.p2p.server_list_motd": "Safra P2P server",
-  "safra.p2p.server_list_status": "P2P"
+  "safra.p2p.server_list_status": "P2P",
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }
