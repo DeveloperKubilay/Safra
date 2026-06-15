@@ -1,6 +1,6 @@
 {
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "Введите код Safra",
+  "safra.p2p.placeholder": "Пример: ABC123",
   "safra.p2p.prepare_failed": "Не удалось подготовить прокси Safra P2P: %s",
   "safra.p2p.button.on": "P2P: ВКЛ",
   "safra.p2p.button.off": "P2P: ВЫКЛ",
@@ -25,5 +25,7 @@
   "safra.p2p.fixed_code.refresh": "Обновить постоянный код",
   "safra.p2p.server_settings.reset": "Сбросить правила игры",
   "safra.p2p.online_mode.short.on": "Онлайн: ВКЛ",
-  "safra.p2p.server_settings.short": "Настройки"
+  "safra.p2p.server_settings.short": "Настройки",
+  "safra.p2p.server_list_motd": "P2P-server Safra",
+  "safra.p2p.server_list_status": "P2P"
 }
