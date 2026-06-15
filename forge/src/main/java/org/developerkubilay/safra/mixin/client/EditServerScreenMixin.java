@@ -2,7 +2,7 @@ package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.ManageServerScreen;
+import net.minecraft.client.gui.screens.EditServerScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(ManageServerScreen.class)
+@Mixin(EditServerScreen.class)
 abstract class EditServerScreenMixin extends Screen {
     @Shadow private Button addButton;
     @Shadow private EditBox ipEdit;
