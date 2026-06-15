@@ -13,6 +13,8 @@
   "safra.p2p.host.narration": "Safra P2P share code is %s",
   "safra.p2p.host.failed": "Safra P2P could not start: %s",
   "safra.p2p.copy_hint": "Click to copy the P2P share code",
+  "safra.p2p.server_list_motd": "Safra P2P server",
+  "safra.p2p.server_list_status": "P2P",
   "safra.p2p.prepare_message": "Preparing the Safra P2P connection...",
   "safra.p2p.server_settings": "Server Settings",
   "safra.p2p.game_rules": "Game Rules",
