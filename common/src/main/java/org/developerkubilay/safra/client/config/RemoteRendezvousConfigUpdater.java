@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,7 @@ public final class RemoteRendezvousConfigUpdater {
         .readTimeout(5, TimeUnit.SECONDS)
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
+    private static volatile String latestModVersion = "";
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -71,6 +73,7 @@ public final class RemoteRendezvousConfigUpdater {
             }
 
             JsonObject json = new JsonParser().parse(body).getAsJsonObject();
+            latestModVersion = parseLatestModVersion(json);
             String key = "api-" + config.getSiteApiVersion();
             JsonElement urlElement = json.get(key);
             if (urlElement == null || urlElement.isJsonNull()) {
@@ -89,5 +92,47 @@ public final class RemoteRendezvousConfigUpdater {
         } catch (RuntimeException exception) {
             LOGGER.debug("Safra remote rendezvous config could not be applied: {}", exception.toString());
         }
+    }
+
+    public static String latestModVersion() {
+        return latestModVersion;
+    }
+
+    public static boolean hasNewerModVersion() {
+        String latest = latestModVersion;
+        if (latest == null || latest.isBlank()) {
+            return false;
+        }
+
+        String current = SafraBuildInfo.modVersion();
+        if (current == null || current.isBlank() || "unknown".equalsIgnoreCase(current)) {
+            return false;
+        }
+
+        return !latest.trim().equals(current.trim());
+    }
+
+    private static String parseLatestModVersion(JsonObject json) {
+        if (json == null) {
+            return "";
+        }
+
+        JsonElement latestElement = json.get("latest");
+        if (latestElement == null || latestElement.isJsonNull() || !latestElement.isJsonObject()) {
+            return "";
+        }
+
+        String minecraftVersion = SafraBuildInfo.minecraftVersion();
+        if (minecraftVersion == null || minecraftVersion.isBlank() || "unknown".equalsIgnoreCase(minecraftVersion)) {
+            return "";
+        }
+
+        JsonElement versionElement = latestElement.getAsJsonObject().get(minecraftVersion.trim());
+        if (versionElement == null || versionElement.isJsonNull()) {
+            return "";
+        }
+
+        String remoteVersion = versionElement.getAsString();
+        return remoteVersion == null ? "" : remoteVersion.trim();
     }
 }

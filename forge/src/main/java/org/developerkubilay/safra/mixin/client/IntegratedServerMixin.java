@@ -7,6 +7,7 @@ import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.GameType;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -75,6 +76,11 @@ abstract class IntegratedServerMixin {
 
         ITextComponent shareText = new StringTextComponent(shareCodeText).applyTextStyle(TextFormatting.AQUA);
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.started", shareText));
+        if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
+            client.ingameGUI.getChatGUI().printChatMessage(
+                new TranslationTextComponent("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).mergeStyle(TextFormatting.YELLOW)
+            );
+        }
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.copied"));
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.instructions"));
     }

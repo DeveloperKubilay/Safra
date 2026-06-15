@@ -9,6 +9,7 @@ import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
@@ -180,6 +181,11 @@ abstract class OpenToLanScreenMixin extends Screen {
 
         Text shareText = new LiteralText(shareCodeText).formatted(Formatting.AQUA);
         this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));
+        if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
+            this.minecraft.inGameHud.getChatHud().addMessage(
+                new TranslatableText("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).formatted(Formatting.YELLOW)
+            );
+        }
         this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.copied"));
         this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.instructions"));
         NarratorManager.INSTANCE.narrate(new TranslatableText("safra.p2p.host.narration", shareCodeText).getString());
