@@ -25,5 +25,6 @@
   "safra.p2p.fixed_code.refresh": "고정 코드 새로 만들기",
   "safra.p2p.server_settings.reset": "게임 규칙 초기화",
   "safra.p2p.online_mode.short.on": "온라인: 켜짐",
-  "safra.p2p.server_settings.short": "설정"
+  "safra.p2p.server_settings.short": "설정",
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }

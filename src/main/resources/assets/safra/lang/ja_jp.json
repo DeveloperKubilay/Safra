@@ -25,5 +25,6 @@
   "safra.p2p.fixed_code.refresh": "固定コードを再生成",
   "safra.p2p.server_settings.reset": "ゲームルールをリセット",
   "safra.p2p.online_mode.short.on": "オンライン: オン",
-  "safra.p2p.server_settings.short": "設定"
+  "safra.p2p.server_settings.short": "設定",
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }

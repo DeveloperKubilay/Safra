@@ -25,5 +25,6 @@
   "safra.p2p.online_mode.short.off": "Online: OFF",
   "safra.p2p.server_settings.reset": "Reset Game Rules",
   "safra.p2p.online_mode.short.on": "Online: ON",
-  "safra.p2p.server_settings.short": "Settings"
+  "safra.p2p.server_settings.short": "Settings",
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }

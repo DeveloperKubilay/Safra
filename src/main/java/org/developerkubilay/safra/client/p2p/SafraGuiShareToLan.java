@@ -9,6 +9,7 @@ import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.world.WorldSettings;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 
 import java.util.concurrent.CancellationException;
@@ -134,6 +135,12 @@ public final class SafraGuiShareToLan extends GuiScreen {
         ChatComponentText display = new ChatComponentText(shareCodeText);
         display.setChatStyle(new ChatStyle().setColor(EnumChatFormatting.AQUA).setUnderlined(Boolean.TRUE));
         this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.started", display));
+        if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
+            this.mc.ingameGUI.getChatGUI().printChatMessage(
+                new ChatComponentTranslation("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
+                    .setChatStyle(new ChatStyle().setColor(EnumChatFormatting.YELLOW))
+            );
+        }
         this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.copied"));
         this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.instructions"));
     }

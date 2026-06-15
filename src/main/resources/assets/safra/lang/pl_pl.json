@@ -25,5 +25,6 @@
   "safra.p2p.fixed_code.refresh": "Odswiez staly kod",
   "safra.p2p.server_settings.reset": "Resetuj zasady gry",
   "safra.p2p.online_mode.short.on": "Online: WL",
-  "safra.p2p.server_settings.short": "Ustawienia"
+  "safra.p2p.server_settings.short": "Ustawienia",
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }
