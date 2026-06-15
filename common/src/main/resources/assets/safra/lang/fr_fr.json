@@ -1,6 +1,6 @@
 {
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "Entrer le code Safra",
+  "safra.p2p.placeholder": "Exemple : ABC123",
   "safra.p2p.prepare_failed": "Le proxy P2P de Safra n'a pas pu être préparé : %s",
   "safra.p2p.button.on": "P2P : ACTIVÉ",
   "safra.p2p.button.off": "P2P : DÉSACTIVÉ",
@@ -25,5 +25,7 @@
   "safra.p2p.fixed_code.refresh": "Renouveler le code fixe",
   "safra.p2p.server_settings.reset": "Reinitialiser les regles du jeu",
   "safra.p2p.online_mode.short.on": "Online : OUI",
-  "safra.p2p.server_settings.short": "Parametres"
+  "safra.p2p.server_settings.short": "Parametres",
+  "safra.p2p.server_list_motd": "Serveur P2P Safra",
+  "safra.p2p.server_list_status": "P2P"
 }
