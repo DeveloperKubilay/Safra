@@ -1,0 +1,25 @@
+{
+  "name": "p2p_nodejs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DeveloperKubilay/Safra.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DeveloperKubilay/Safra/issues"
+  },
+  "homepage": "https://github.com/DeveloperKubilay/Safra#readme",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "fastify": "^5.8.5"
+  }
+}
