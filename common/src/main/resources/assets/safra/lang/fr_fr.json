@@ -25,5 +25,7 @@
   "safra.p2p.fixed_code.refresh": "Renouveler le code fixe",
   "safra.p2p.server_settings.reset": "Reinitialiser les regles du jeu",
   "safra.p2p.online_mode.short.on": "Online : OUI",
-  "safra.p2p.server_settings.short": "Parametres"
+  "safra.p2p.server_settings.short": "Parametres",
+  "safra.p2p.server_list_motd": "Serveur P2P Safra",
+  "safra.p2p.server_list_status": "P2P"
 }
