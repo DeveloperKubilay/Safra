@@ -27,5 +27,6 @@
   "safra.p2p.online_mode.short.on": "Онлайн: ВКЛ",
   "safra.p2p.server_settings.short": "Настройки",
   "safra.p2p.server_list_motd": "P2P-server Safra",
-  "safra.p2p.server_list_status": "P2P"
+  "safra.p2p.server_list_status": "P2P",
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }

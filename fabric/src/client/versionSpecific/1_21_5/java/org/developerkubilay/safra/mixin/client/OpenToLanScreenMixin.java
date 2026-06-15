@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
@@ -177,6 +178,14 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
                 .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
+            this.safra$addClientSystemMessage(
+                Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
+                    .copy()
+                    .withStyle(ChatFormatting.YELLOW)
+            );
+        }
+
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
         this.minecraft.getNarrator().sayNow(Component.translatable("safra.p2p.host.narration", shareText));

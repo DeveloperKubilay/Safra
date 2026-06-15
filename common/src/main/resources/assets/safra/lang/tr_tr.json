@@ -27,5 +27,6 @@
   "safra.p2p.online_mode.short.on": "Online: Acik",
   "safra.p2p.server_settings.short": "Ayarlar",
   "safra.p2p.server_list_motd": "Safra P2P sunucusu",
-  "safra.p2p.server_list_status": "P2P"
+  "safra.p2p.server_list_status": "P2P",
+  "safra.p2p.host.update_available": "Safra modunun daha guncel bir surumu var: %s"
 }
