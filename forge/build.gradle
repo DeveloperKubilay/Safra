@@ -9,6 +9,15 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
+        if (project.selected_mc_profile == '1.17.1') {
+            java.srcDir('src/forge1171/java')
+            java.exclude('org/developerkubilay/safra/server/DedicatedP2pServerManager.java')
+            java.exclude('org/developerkubilay/safra/server/SafraForgeServerEvents.java')
+        } else if (project.selected_mc_profile in ['1.18', '1.18.1', '1.18.2', '1.19', '1.19.1', '1.19.2']) {
+            java.srcDir('src/forge118plus/java')
+            java.exclude('org/developerkubilay/safra/server/DedicatedP2pServerManager.java')
+            java.exclude('org/developerkubilay/safra/server/SafraForgeServerEvents.java')
+        }
     }
 }
 
