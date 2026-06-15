@@ -151,7 +151,7 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.8,1.21.9)'
     ],
     '1.21.9' : [
-        sourceBucket              : '1_21_2',
+        sourceBucket              : '1_21_9',
         forgeEventSourceDir       : '1_21_6_plus',
         fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
@@ -167,7 +167,7 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.9,1.21.11)'
     ],
     '1.21.10': [
-        sourceBucket              : '1_21_2',
+        sourceBucket              : '1_21_9',
         forgeEventSourceDir       : '1_21_6_plus',
         fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
