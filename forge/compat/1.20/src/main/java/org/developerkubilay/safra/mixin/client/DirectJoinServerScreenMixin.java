@@ -110,7 +110,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         String currentValue = safra$getEditValue(ipEdit);
         String address = currentValue;
         if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
-            address = P2pManager.toDisplayAddress(address);
+            address = P2pManager.toStoredAddress(address);
         }
 
         if (!address.equals(currentValue)) {
