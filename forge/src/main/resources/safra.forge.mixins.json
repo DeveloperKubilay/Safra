@@ -8,8 +8,10 @@
     "AddressCheckMixin",
     "ConnectScreenMixin",
     "DirectJoinServerScreenMixin",
+    "EditServerScreenMixin",
     "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
+    "ServerStatusPingerMixin",
     "ServerNameResolverMixin",
     "ShareToLanScreenMixin"
   ],
