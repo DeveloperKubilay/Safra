@@ -1,6 +1,6 @@
 {
   "safra.p2p.toggle": "P2P",
-  "safra.p2p.placeholder": "",
+  "safra.p2p.placeholder": "Ornek: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P ara proxy'si hazirlanamadi: %s",
   "safra.p2p.button.on": "P2P: Acik",
   "safra.p2p.button.off": "P2P: Kapali",
@@ -25,5 +25,7 @@
   "safra.p2p.online_mode.short.off": "Online: Kapali",
   "safra.p2p.server_settings.reset": "Oyun Kurallarini Sifirla",
   "safra.p2p.online_mode.short.on": "Online: Acik",
-  "safra.p2p.server_settings.short": "Ayarlar"
+  "safra.p2p.server_settings.short": "Ayarlar",
+  "safra.p2p.server_list_motd": "Safra P2P sunucusu",
+  "safra.p2p.server_list_status": "P2P"
 }

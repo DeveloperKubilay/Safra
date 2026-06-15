@@ -4,9 +4,11 @@
   "package": "org.developerkubilay.safra.mixin.client",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "AddServerScreenMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",
-    "OpenToLanScreenMixin"
+    "OpenToLanScreenMixin",
+    "ServerStatusPingerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
