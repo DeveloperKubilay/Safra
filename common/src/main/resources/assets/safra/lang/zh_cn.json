@@ -25,5 +25,7 @@
   "safra.p2p.fixed_code.refresh": "刷新固定代码",
   "safra.p2p.server_settings.reset": "重置游戏规则",
   "safra.p2p.online_mode.short.on": "在线：开",
-  "safra.p2p.server_settings.short": "设置"
+  "safra.p2p.server_settings.short": "设置",
+  "safra.p2p.server_list_motd": "Safra P2P server",
+  "safra.p2p.server_list_status": "P2P"
 }

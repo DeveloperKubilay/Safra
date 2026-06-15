@@ -25,5 +25,7 @@
   "safra.p2p.fixed_code.refresh": "Обновить постоянный код",
   "safra.p2p.server_settings.reset": "Сбросить правила игры",
   "safra.p2p.online_mode.short.on": "Онлайн: ВКЛ",
-  "safra.p2p.server_settings.short": "Настройки"
+  "safra.p2p.server_settings.short": "Настройки",
+  "safra.p2p.server_list_motd": "P2P-server Safra",
+  "safra.p2p.server_list_status": "P2P"
 }
