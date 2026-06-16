@@ -463,10 +463,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
         observeMaintenanceTickGap(now);
         if (initiator && !opened) {
             if (now - openStartedAt > P2pConstants.OPEN_TIMEOUT_MS) {
-                if (P2pConstants.forceDirectThenTurnRelay()) {
-                    logger.warn("Safra test modu {} connection {} open timeout remote={} openPacketsSent={} lastOpenAgeMs={}",
-                        side, connectionId, remoteAddress, openPacketsSent, now - lastOpenPacketAt);
-                }
                 logger.debug("{} connection {} could not open UDP tunnel to {} within {} ms", side, connectionId, remoteAddress, P2pConstants.OPEN_TIMEOUT_MS);
                 closeLocally("open timeout");
                 return;
@@ -514,10 +510,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
         openPacketsSent++;
         lastOpenPacketAt = now;
-        if (P2pConstants.forceDirectThenTurnRelay()) {
-            logger.info("Safra test modu {} connection {} OPEN gonderdi attempt={} remote={}",
-                side, connectionId, openPacketsSent, remoteAddress);
-        }
         sendPacket(P2pPacket.open(token, connectionId), now);
     }
 
@@ -568,10 +560,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
             updateRetransmitTimeout(now - openStartedAt);
         }
         openLatch.countDown();
-        if (P2pConstants.forceDirectThenTurnRelay()) {
-            logger.info("Safra test modu {} connection {} OPEN_ACK aldi remote={} elapsedMs={}",
-                side, connectionId, remoteAddress, now - openStartedAt);
-        }
         logger.debug("{} connection {} UDP tunnel opened with {}", side, connectionId, remoteAddress);
     }
 
@@ -628,9 +616,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
         pendingSegments.clear();
         receiveBuffer.clear();
         removalCallback.remove(connectionId);
-        if (P2pConstants.forceDirectThenTurnRelay()) {
-            logger.info("Safra test modu {} connection {} kapandi reason={} remote={}", side, connectionId, reason, remoteAddress);
-        }
         logger.debug("{} connection {} closed: {}", side, connectionId, reason);
     }
 

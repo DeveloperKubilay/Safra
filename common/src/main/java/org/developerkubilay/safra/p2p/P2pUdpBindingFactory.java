@@ -26,6 +26,10 @@ final class P2pUdpBindingFactory {
         try {
             return createDirectHostBinding(stunClient, preferredPort);
         } catch (IOException exception) {
+            if (P2pConstants.useApi30Rendezvous()) {
+                logger.debug("Safra host STUN acilamadi, relay-required akisi denenecek: {}", exception.toString());
+                return createLocalHostBinding(preferredPort);
+            }
             if (!(allowRelayFallback && !P2pConstants.neverUseRelayServer())) {
                 throw exception;
             }
@@ -39,6 +43,10 @@ final class P2pUdpBindingFactory {
         try {
             return createDirectJoinBinding(stunClient);
         } catch (IOException exception) {
+            if (P2pConstants.useApi30Rendezvous()) {
+                logger.debug("Safra join STUN acilamadi, relay-required akisi denenecek: {}", exception.toString());
+                return createLocalJoinBinding();
+            }
             if (P2pConstants.neverUseRelayServer()) {
                 throw exception;
             }
@@ -52,6 +60,13 @@ final class P2pUdpBindingFactory {
             throw new IOException("TURN relay configde kapali");
         }
         P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, false);
+        return createTurnBinding(logger, role, credentials);
+    }
+
+    static P2pTransportBinding createTurnBinding(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
+        if (P2pConstants.neverUseRelayServer()) {
+            throw new IOException("TURN relay configde kapali");
+        }
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
         return new P2pTransportBinding(
             transport,
@@ -111,5 +126,25 @@ final class P2pUdpBindingFactory {
         } catch (BindException ignored) {
             return P2pSockets.datagramSocket();
         }
+    }
+
+    private static P2pTransportBinding createLocalHostBinding(int preferredPort) throws IOException {
+        DatagramSocket socket = bindSocket(preferredPort);
+        return new P2pTransportBinding(
+            new P2pDirectDatagramTransport(socket),
+            List.of(),
+            Map.of(),
+            false
+        );
+    }
+
+    private static P2pTransportBinding createLocalJoinBinding() throws IOException {
+        DatagramSocket socket = P2pSockets.datagramSocket();
+        return new P2pTransportBinding(
+            new P2pDirectDatagramTransport(socket),
+            List.of(),
+            Map.of(),
+            false
+        );
     }
 }
