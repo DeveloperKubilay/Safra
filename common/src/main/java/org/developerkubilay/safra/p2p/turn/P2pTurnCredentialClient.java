@@ -63,6 +63,10 @@ public final class P2pTurnCredentialClient {
             throw new IOException("TURN credential cevabi gecersiz JSON", exception);
         }
 
+        return parse(json);
+    }
+
+    public static P2pTurnCredentials parse(JsonObject json) throws IOException {
         JsonArray iceServers = json.getAsJsonArray("iceServers");
         if (iceServers == null || iceServers.size() == 0) {
             throw new IOException("TURN credential cevabinda iceServers yok");
