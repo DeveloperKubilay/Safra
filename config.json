@@ -1,6 +1,9 @@
 {
   "api-1.0":"https://safra.developerkubilay.workers.dev",
-  "api-3.0":"http://localhost:3000",
+  "api-3.0":{
+    "client":"http://localhost:3000",
+    "dedicated":"http://localhost:3000"
+  },
   "latest": {
   "1.16": "2.6",
   "1.16.1": "2.6",
