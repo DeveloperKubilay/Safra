@@ -40,6 +40,7 @@ public final class P2pConstants {
     static final long MAX_PACING_INTERVAL_NANOS = 1_000_000L;
     static final long STUN_REFRESH_MS = 20_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
+    static final long VOICE_HOST_WAIT_MS = 5_000L;
     public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
@@ -52,8 +53,11 @@ public final class P2pConstants {
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
+    private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
+    private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
+    private static final String TEST_MODE_HOST_FAIL_SAFE = "hostfailsafe";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -68,6 +72,7 @@ public final class P2pConstants {
 
     private static volatile String runtimeRendezvousUrl;
     private static volatile boolean runtimeNeverUseRelayServer;
+    private static volatile String runtimeSiteApiVersion;
 
     private P2pConstants() {
     }
@@ -80,8 +85,27 @@ public final class P2pConstants {
         return !rendezvousUrl().isBlank();
     }
 
+    public static boolean hasExplicitRendezvousUrlOverride() {
+        String property = System.getProperty("safra.rendezvousUrl");
+        if (property != null && !property.isBlank()) {
+            return true;
+        }
+
+        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
+        if (environment != null && !environment.isBlank()) {
+            return true;
+        }
+
+        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
+        return legacyEnvironment != null && !legacyEnvironment.isBlank();
+    }
+
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
         runtimeNeverUseRelayServer = neverUseRelayServer;
+    }
+
+    public static void setRuntimeSiteApiVersion(String siteApiVersion) {
+        runtimeSiteApiVersion = normalizeSiteApiVersion(siteApiVersion);
     }
 
     public static boolean isValidRendezvousUrl(String url) {
@@ -143,6 +167,29 @@ public final class P2pConstants {
         return "";
     }
 
+    public static String siteApiVersion() {
+        String property = System.getProperty(SITE_API_VERSION_PROPERTY);
+        if (property != null && !property.isBlank()) {
+            return normalizeSiteApiVersion(property);
+        }
+
+        String environment = System.getenv("SAFRA_SITE_API_VERSION");
+        if (environment != null && !environment.isBlank()) {
+            return normalizeSiteApiVersion(environment);
+        }
+
+        String runtime = runtimeSiteApiVersion;
+        if (runtime != null && !runtime.isBlank()) {
+            return normalizeSiteApiVersion(runtime);
+        }
+
+        return "3.0";
+    }
+
+    public static boolean useApi30Rendezvous() {
+        return "3.0".equals(siteApiVersion());
+    }
+
     static boolean diagnosticsEnabled() {
         String property = System.getProperty(DIAGNOSTICS_PROPERTY);
         if (property != null && !property.isBlank()) {
@@ -159,6 +206,7 @@ public final class P2pConstants {
     static long diagnosticsTickDriftWarnMs() {
         return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
     }
+
     static boolean forceDirectThenTurnRelay() {
         String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
         if (property != null && !property.isBlank()) {
@@ -171,6 +219,20 @@ public final class P2pConstants {
         }
 
         return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
+    }
+
+    static boolean forceHostFailSafeRelay() {
+        String property = System.getProperty(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY);
+        if (property != null && !property.isBlank()) {
+            return Boolean.parseBoolean(property.trim());
+        }
+
+        String environment = System.getenv("SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
+        if (environment != null && !environment.isBlank()) {
+            return Boolean.parseBoolean(environment.trim());
+        }
+
+        return TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
     }
 
     static boolean neverUseRelayServer() {
@@ -229,4 +291,10 @@ public final class P2pConstants {
         }
     }
 
+    private static String normalizeSiteApiVersion(String siteApiVersion) {
+        if (siteApiVersion == null || siteApiVersion.isBlank()) {
+            return "3.0";
+        }
+        return "3.0";
+    }
 }
