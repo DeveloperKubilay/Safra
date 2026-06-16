@@ -30,7 +30,7 @@ public final class DedicatedP2pServerManager {
 
         stopHosting();
         CachedRendezvousConfigLoader.initialize(Paths.get("config", "safra-client.json"));
-        RemoteRendezvousBootstrap.initialize();
+        RemoteRendezvousBootstrap.initializeDedicated();
 
         int tcpPort = server.getServerPort();
         SafraClientConfig config = SafraClientConfig.get();

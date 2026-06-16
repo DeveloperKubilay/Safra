@@ -3,8 +3,10 @@ package org.developerkubilay.safra.p2p;
 import com.google.common.net.HostAndPort;
 
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 public record P2pShareCode(String host, int port, int token, String rendezvousCode) {
@@ -80,6 +82,16 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
         return new P2pShareCode("", 0, 0, code);
     }
 
+    public static int rendezvousTunnelToken(String code) {
+        String normalized = normalizeRendezvousCode(code);
+        if (normalized == null) {
+            throw new IllegalArgumentException("rendezvous code is invalid");
+        }
+
+        int token = java.util.Arrays.hashCode(normalized.getBytes(StandardCharsets.UTF_8));
+        return token == 0 ? 0x51F15EED : token;
+    }
+
     public static String createRendezvousCode() {
         return createRendezvousCode(DEFAULT_RENDEZVOUS_CODE_LENGTH);
     }
@@ -89,7 +101,7 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
             throw new IllegalArgumentException("rendezvous code length out of range");
         }
 
-        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        ThreadLocalRandom random = ThreadLocalRandom.current();
         StringBuilder builder = new StringBuilder(length);
         for (int index = 0; index < length; index++) {
             builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(random.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
