@@ -12,6 +12,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
@@ -24,6 +27,7 @@ public final class RemoteRendezvousConfigUpdater {
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
+    private static volatile List<String> latestModVersions = List.of();
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -61,7 +65,9 @@ public final class RemoteRendezvousConfigUpdater {
             }
 
             JsonObject json = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
-            latestModVersion = parseLatestModVersion(json);
+            List<String> latestVersions = parseLatestModVersions(json);
+            latestModVersions = latestVersions;
+            latestModVersion = String.join(", ", latestVersions);
             String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
@@ -81,8 +87,8 @@ public final class RemoteRendezvousConfigUpdater {
     }
 
     public static boolean hasNewerModVersion() {
-        String latest = latestModVersion;
-        if (latest == null || latest.isBlank()) {
+        List<String> latest = latestModVersions;
+        if (latest == null || latest.isEmpty()) {
             return false;
         }
 
@@ -91,30 +97,59 @@ public final class RemoteRendezvousConfigUpdater {
             return false;
         }
 
-        return !latest.trim().equals(current.trim());
+        String normalizedCurrent = current.trim();
+        for (String version : latest) {
+            if (normalizedCurrent.equals(version)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    private static String parseLatestModVersion(JsonObject json) {
+    private static List<String> parseLatestModVersions(JsonObject json) {
         if (json == null) {
-            return "";
+            return List.of();
         }
 
         JsonElement latestElement = json.get("latest");
         if (latestElement == null || latestElement.isJsonNull() || !latestElement.isJsonObject()) {
-            return "";
+            return List.of();
         }
 
         String minecraftVersion = SafraBuildInfo.minecraftVersion();
         if (minecraftVersion == null || minecraftVersion.isBlank() || "unknown".equalsIgnoreCase(minecraftVersion)) {
-            return "";
+            return List.of();
         }
 
         JsonElement versionElement = latestElement.getAsJsonObject().get(minecraftVersion.trim());
         if (versionElement == null || versionElement.isJsonNull()) {
-            return "";
+            return List.of();
+        }
+
+        LinkedHashSet<String> versions = new LinkedHashSet<>();
+        if (versionElement.isJsonPrimitive()) {
+            addVersion(versions, versionElement);
+        } else if (versionElement.isJsonArray()) {
+            versionElement.getAsJsonArray().forEach(element -> addVersion(versions, element));
+        }
+
+        return versions.isEmpty() ? List.of() : new ArrayList<>(versions);
+    }
+
+    private static void addVersion(LinkedHashSet<String> versions, JsonElement versionElement) {
+        if (versionElement == null || versionElement.isJsonNull() || !versionElement.isJsonPrimitive()) {
+            return;
         }
 
         String remoteVersion = versionElement.getAsString();
-        return remoteVersion == null ? "" : remoteVersion.trim();
+        if (remoteVersion == null) {
+            return;
+        }
+
+        String normalized = remoteVersion.trim();
+        if (!normalized.isBlank()) {
+            versions.add(normalized);
+        }
     }
 }
