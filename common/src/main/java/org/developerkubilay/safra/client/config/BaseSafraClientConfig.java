@@ -28,7 +28,7 @@ public abstract class BaseSafraClientConfig {
     protected boolean directConnectP2pEnabled = true;
     protected boolean neverUseRelayServer = false;
     protected String rendezvousUrl = "";
-    protected String siteApiVersion = "1.0";
+    protected String siteApiVersion = "3.0";
 
     protected abstract Path configPath();
 
@@ -97,6 +97,7 @@ public abstract class BaseSafraClientConfig {
         String normalized = normalizeSiteApiVersion(siteApiVersion);
         if (!this.siteApiVersion.equals(normalized)) {
             this.siteApiVersion = normalized;
+            P2pConstants.setRuntimeSiteApiVersion(normalized);
             save();
         }
     }
@@ -161,9 +162,8 @@ public abstract class BaseSafraClientConfig {
         }
     }
 
-    public synchronized void resetOpenToLanServerSettings() {
-        boolean changed = openToLanAllowCommandsEnabled || !openToLanGameRules.isEmpty();
-        openToLanAllowCommandsEnabled = false;
+    public synchronized void resetOpenToLanGameRules() {
+        boolean changed = !openToLanGameRules.isEmpty();
         openToLanGameRules = new LinkedHashMap<>();
         if (changed) {
             save();
@@ -220,12 +220,12 @@ public abstract class BaseSafraClientConfig {
             rendezvousUrl = normalizedRendezvousUrl;
             changed = true;
         }
-
         String normalizedSiteApiVersion = normalizeSiteApiVersion(siteApiVersion);
         if (!normalizedSiteApiVersion.equals(siteApiVersion)) {
             siteApiVersion = normalizedSiteApiVersion;
             changed = true;
         }
+
         return changed;
     }
 
@@ -234,9 +234,10 @@ public abstract class BaseSafraClientConfig {
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
-        return siteApiVersion == null || siteApiVersion.isBlank()
-            ? "1.0"
-            : siteApiVersion.trim();
+        if (siteApiVersion == null || siteApiVersion.isBlank()) {
+            return "3.0";
+        }
+        return "3.0";
     }
 
     private static String normalizeOpenToLanFixedCode(String openToLanFixedCode) {

@@ -63,6 +63,10 @@ public final class P2pTurnCredentialClient {
             throw new IOException("TURN credential cevabi gecersiz JSON", exception);
         }
 
+        return parse(json);
+    }
+
+    public static P2pTurnCredentials parse(JsonObject json) throws IOException {
         JsonArray iceServers = json.getAsJsonArray("iceServers");
         if (iceServers == null || iceServers.size() == 0) {
             throw new IOException("TURN credential cevabinda iceServers yok");
@@ -130,7 +134,7 @@ public final class P2pTurnCredentialClient {
         String query = "mode=" + encode(turnOnly ? "turn-only" : "auto")
             + "&ttl=" + P2pConstants.turnCredentialTtlSeconds()
             + "&customIdentifier=" + encode(identifier);
-        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v2/turn/credentials?" + query);
+        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v3/turn/credentials?" + query);
     }
 
     private static void addUdpServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers) {
