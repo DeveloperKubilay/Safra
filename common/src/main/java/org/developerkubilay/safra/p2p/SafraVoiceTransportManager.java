@@ -1,5 +1,8 @@
 package org.developerkubilay.safra.p2p;
 
+import java.net.InetSocketAddress;
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -83,5 +86,41 @@ public final class SafraVoiceTransportManager {
         for (SafraVoiceServerSocket socket : serverSockets) {
             P2pRuntime.start("safra-voice-punch", () -> socket.punchRemoteEndpoint(remoteAddress));
         }
+    }
+
+    public Collection<InetSocketAddress> awaitHostVoiceEndpoints(int preferredPort, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + Math.max(0L, timeoutMs);
+        Collection<InetSocketAddress> endpoints = hostVoiceEndpointsSnapshot(preferredPort);
+        while (endpoints.isEmpty() && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(50L);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            endpoints = hostVoiceEndpointsSnapshot(preferredPort);
+        }
+        return endpoints;
+    }
+
+    public Collection<InetSocketAddress> hostVoiceEndpointsSnapshot(int preferredPort) {
+        if (preferredPort > 0) {
+            for (SafraVoiceServerSocket socket : serverSockets) {
+                if (socket.localPortSnapshot() != preferredPort) {
+                    continue;
+                }
+                Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
+                if (!endpoints.isEmpty()) {
+                    return List.copyOf(endpoints);
+                }
+            }
+        }
+        for (SafraVoiceServerSocket socket : serverSockets) {
+            Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
+            if (!endpoints.isEmpty()) {
+                return List.copyOf(endpoints);
+            }
+        }
+        return List.of();
     }
 }

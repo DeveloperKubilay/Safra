@@ -71,9 +71,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     credentials.credential()
                 );
                 transport.start(credentials.ttlSeconds());
-                if (forceDirectThenTurnRelay()) {
-                    logger.info("Safra test modu TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
-                }
                 logger.debug("Safra TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
                 return transport;
             } catch (IOException exception) {

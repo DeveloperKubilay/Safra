@@ -15,7 +15,6 @@ import java.time.Duration;
 public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousBootstrap.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final String DEFAULT_SITE_API_VERSION = "3.0";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -71,6 +70,6 @@ public final class RemoteRendezvousBootstrap {
 
     private static String siteApiVersion() {
         String resolved = P2pConstants.siteApiVersion();
-        return resolved == null || resolved.isBlank() ? DEFAULT_SITE_API_VERSION : resolved;
+        return resolved == null || resolved.isBlank() ? "3.0" : resolved;
     }
 }

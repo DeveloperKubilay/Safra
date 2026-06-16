@@ -48,11 +48,12 @@ final class SafraRendezvousClient implements AutoCloseable {
     private volatile boolean closed;
 
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, Collection<InetSocketAddress> publicEndpoints,
+                                 Collection<InetSocketAddress> voicePublicEndpoints,
                                  Consumer<InetSocketAddress> punchHandler,
                                  Consumer<InetSocketAddress> voicePunchHandler,
                                  Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
         if (P2pConstants.useApi30Rendezvous()) {
-            return Api3Support.startHost(tcpPort, tunnelToken, preferredCode, publicEndpoints,
+            return Api3Support.startHost(tcpPort, tunnelToken, preferredCode, publicEndpoints, voicePublicEndpoints,
                 punchHandler, voicePunchHandler, relayRequestHandler);
         }
 
@@ -167,13 +168,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
 
         JsonObject relay = object(message, "relay");
-        if (P2pConstants.forceDirectThenTurnRelay()) {
-            LOGGER.info("Safra test modu session status code={} active={} relayStatus={} relay={}",
-                code,
-                booleanValue(message, "active"),
-                string(message, "relayStatus"),
-                relay == null ? "-" : GSON.toJson(relay));
-        }
         return new SessionStatus(
             booleanValue(message, "active"),
             "ready".equals(string(message, "relayStatus")) && relay != null && endpoint(object(relay, "udp")) != null,
@@ -514,9 +508,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             if ("server:relay-requested".equals(type)) {
                 InetSocketAddress joinerRelayAddress = relayEndpoint(object(message, "joinerRelay"));
-                if (P2pConstants.forceDirectThenTurnRelay()) {
-                    LOGGER.info("Safra test modu host websocket relay istegi aldi joinerRelay={}", joinerRelayAddress);
-                }
                 relayRequestHandler.accept(joinerRelayAddress);
                 return;
             }
@@ -563,10 +554,6 @@ final class SafraRendezvousClient implements AutoCloseable {
                 InetSocketAddress endpoint = endpoint(message.getAsJsonObject("udp"));
                 InetSocketAddress relayAddress = relayEndpoint(object(message, "relay"));
                 int token = tunnelToken(message.getAsJsonObject("tunnel"));
-                if (P2pConstants.forceDirectThenTurnRelay()) {
-                    LOGGER.info("Safra test modu join websocket host-ready udp={} relay={} token={} tcpPort={}",
-                        endpoint, relayAddress, token, minecraftTcpPort(message.getAsJsonObject("metadata")));
-                }
                 if (endpoint == null) {
                     fail(new IOException("rendezvous host endpoint is missing"));
                     return;
@@ -583,9 +570,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             if ("server:relay-ready".equals(type)) {
                 InetSocketAddress relayAddress = relayEndpoint(object(message, "relay"));
                 int token = tunnelToken(message.getAsJsonObject("tunnel"));
-                if (P2pConstants.forceDirectThenTurnRelay()) {
-                    LOGGER.info("Safra test modu join websocket relay-ready relay={} token={}", relayAddress, token);
-                }
                 if (relayAddress == null) {
                     completeRelayFutureExceptionally(new IOException("rendezvous relay endpoint is missing"));
                     return;
@@ -595,9 +579,6 @@ final class SafraRendezvousClient implements AutoCloseable {
             }
 
             if ("server:relay-failed".equals(type)) {
-                if (P2pConstants.forceDirectThenTurnRelay()) {
-                    LOGGER.warn("Safra test modu join websocket relay-failed message={}", string(message, "message"));
-                }
                 completeRelayFutureExceptionally(new IOException(string(message, "message")));
                 return;
             }
@@ -859,9 +840,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         @Override
         public ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
             if (relayAddress != null) {
-                if (P2pConstants.forceDirectThenTurnRelay()) {
-                    LOGGER.info("Safra test modu join mevcut relay endpointini tekrar kullaniyor {}", relayAddress);
-                }
                 return new ResolvedRelay(relayAddress, tunnelToken, null);
             }
 
@@ -880,10 +858,6 @@ final class SafraRendezvousClient implements AutoCloseable {
                 }
             }
             client.send(request);
-            if (P2pConstants.forceDirectThenTurnRelay()) {
-                LOGGER.info("Safra test modu join rendezvous relay istegi gonderdi code={} relayEndpoints={}",
-                    codeForLog(), relayEndpoints == null ? List.of() : relayEndpoints);
-            }
             try {
                 return future.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (Exception exception) {
@@ -984,6 +958,7 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
 
         static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, Collection<InetSocketAddress> publicEndpoints,
+                                     Collection<InetSocketAddress> voicePublicEndpoints,
                                      Consumer<InetSocketAddress> punchHandler,
                                      Consumer<InetSocketAddress> voicePunchHandler,
                                      Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
@@ -994,7 +969,13 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             Api3HostSessionBackend backend = new Api3HostSessionBackend(punchHandler, voicePunchHandler, relayRequestHandler);
             try {
-                String code = backend.open(tcpPort, tunnelToken, preferredCode, primaryEndpoint);
+                String code = backend.open(
+                    tcpPort,
+                    tunnelToken,
+                    preferredCode,
+                    primaryEndpoint,
+                    preferredEndpoint(voicePublicEndpoints)
+                );
                 return new HostSession(code, backend);
             } catch (IOException exception) {
                 backend.close();
@@ -1036,10 +1017,14 @@ final class SafraRendezvousClient implements AutoCloseable {
                 this.relayRequestHandler = relayRequestHandler;
             }
 
-            private String open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint) throws IOException {
+            private String open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint,
+                                InetSocketAddress voiceEndpoint) throws IOException {
                 JsonObject request = new JsonObject();
                 if (endpoint != null && !P2pConstants.forceHostFailSafeRelay()) {
                     request.add("network", toNetwork(endpoint));
+                }
+                if (voiceEndpoint != null) {
+                    request.add("voicechat", toNetwork(voiceEndpoint));
                 }
                 request.addProperty("tunnelToken", tunnelToken);
                 request.addProperty("minecraftTcpPort", tcpPort);
@@ -1066,7 +1051,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 }
 
                 stream = response.body();
-                streamThread = P2pRuntime.start("safra-api3-host-events", this::readEvents);
+                streamThread = P2pRuntime.start("safra-rendezvous-host-events", this::readEvents);
                 try {
                     return codeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
                 } catch (Exception exception) {
@@ -1076,7 +1061,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             @Override
             public void publishVoice(Collection<InetSocketAddress> publicEndpoints) {
-                LOGGER.debug("Safra backend voice publish endpoint yok; host voice candidate publish atlandi");
             }
 
             @Override
@@ -1178,6 +1162,13 @@ final class SafraRendezvousClient implements AutoCloseable {
                     }
                     return;
                 }
+                if ("voicechat-updated".equals(event)) {
+                    InetSocketAddress voiceJoiner = fromNetwork(array(data, "voiceHost"));
+                    if (voiceJoiner != null) {
+                        voicePunchHandler.accept(voiceJoiner);
+                    }
+                    return;
+                }
                 if ("relay-assigned".equals(event)) {
                     pendingRelayCredentials = P2pTurnCredentialClient.parse(wrapIceServers(data));
                     relayAssigned = true;
@@ -1190,7 +1181,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     return;
                 }
                 relayRequestQueued = true;
-                relayRequestThread = P2pRuntime.start("safra-api3-host-relay-request", this::requestRelayAssignment);
+                relayRequestThread = P2pRuntime.start("safra-rendezvous-host-relay-request", this::requestRelayAssignment);
             }
 
             private void requestRelayAssignment() {
@@ -1224,6 +1215,7 @@ final class SafraRendezvousClient implements AutoCloseable {
 
         private static final class Api3JoinSessionBackend implements JoinSessionBackend {
             private final String code;
+            private InetSocketAddress joinAddress;
             private InetSocketAddress hostAddress;
             private InetSocketAddress voiceAddress;
             private InetSocketAddress relayAddress;
@@ -1234,6 +1226,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             }
 
             private void open(InetSocketAddress endpoint) throws IOException {
+                joinAddress = endpoint;
                 JsonObject request = new JsonObject();
                 request.addProperty("code", code);
                 if (endpoint != null) {
@@ -1278,6 +1271,11 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             @Override
             public InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+                InetSocketAddress localVoiceEndpoint = preferredEndpoint(publicEndpoints);
+                if (localVoiceEndpoint != null) {
+                    publishVoiceUpdate(localVoiceEndpoint);
+                }
+
                 if (voiceAddress != null) {
                     return voiceAddress;
                 }
@@ -1285,7 +1283,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_TIMEOUT_MS;
                 while (System.currentTimeMillis() < deadline) {
                     sleepQuietly(200L);
-                    refreshHostState(preferredEndpoint(publicEndpoints));
+                    refreshHostState(joinAddress);
                     if (voiceAddress != null) {
                         return voiceAddress;
                     }
@@ -1397,6 +1395,19 @@ final class SafraRendezvousClient implements AutoCloseable {
                     if (refreshedCredentials != null) {
                         relayCredentials = refreshedCredentials;
                     }
+                }
+            }
+
+            private void publishVoiceUpdate(InetSocketAddress endpoint) throws IOException {
+                JsonObject request = new JsonObject();
+                request.addProperty("code", code);
+                request.add("voicechat", toNetwork(endpoint));
+                HttpResponse<String> response = sendText(requestBuilder(httpUri("/voicechat-update"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
+                    .build());
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    throw new IOException("Safra voice update istegi HTTP " + response.statusCode() + " dondu");
                 }
             }
         }

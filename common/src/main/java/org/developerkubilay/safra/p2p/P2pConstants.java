@@ -40,6 +40,7 @@ public final class P2pConstants {
     static final long MAX_PACING_INTERVAL_NANOS = 1_000_000L;
     static final long STUN_REFRESH_MS = 20_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
+    static final long VOICE_HOST_WAIT_MS = 1_500L;
     public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
@@ -257,9 +258,9 @@ public final class P2pConstants {
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
-        return siteApiVersion == null || siteApiVersion.isBlank()
-            ? "3.0"
-            : siteApiVersion.trim();
+        if (siteApiVersion == null || siteApiVersion.isBlank()) {
+            return "3.0";
+        }
+        return "3.0";
     }
-
 }

@@ -220,12 +220,12 @@ public abstract class BaseSafraClientConfig {
             rendezvousUrl = normalizedRendezvousUrl;
             changed = true;
         }
-
         String normalizedSiteApiVersion = normalizeSiteApiVersion(siteApiVersion);
         if (!normalizedSiteApiVersion.equals(siteApiVersion)) {
             siteApiVersion = normalizedSiteApiVersion;
             changed = true;
         }
+
         return changed;
     }
 
@@ -237,9 +237,7 @@ public abstract class BaseSafraClientConfig {
         if (siteApiVersion == null || siteApiVersion.isBlank()) {
             return "3.0";
         }
-
-        String normalized = siteApiVersion.trim();
-        return "1.0".equals(normalized) ? "3.0" : normalized;
+        return "3.0";
     }
 
     private static String normalizeOpenToLanFixedCode(String openToLanFixedCode) {
