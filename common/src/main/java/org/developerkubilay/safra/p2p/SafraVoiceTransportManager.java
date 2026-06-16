@@ -114,6 +114,7 @@ public final class SafraVoiceTransportManager {
                     return List.copyOf(endpoints);
                 }
             }
+            return List.of();
         }
         for (SafraVoiceServerSocket socket : serverSockets) {
             Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();

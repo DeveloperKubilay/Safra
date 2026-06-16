@@ -2,8 +2,8 @@ package org.developerkubilay.safra.client.config;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,15 +60,9 @@ public final class RemoteRendezvousConfigUpdater {
                 return;
             }
 
-            JsonObject json = new JsonParser().parse(body).getAsJsonObject();
+            JsonObject json = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
             latestModVersion = parseLatestModVersion(json);
-            String key = "api-" + config.getSiteApiVersion();
-            JsonElement urlElement = json.get(key);
-            if (urlElement == null || urlElement.isJsonNull()) {
-                return;
-            }
-
-            String remoteUrl = urlElement.getAsString();
+            String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
                 P2pConstants.setRuntimeRendezvousUrl(null);
