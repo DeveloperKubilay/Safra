@@ -106,11 +106,11 @@ ext.buildTestMode = {
         }
 
         def normalized = value.toLowerCase(Locale.ROOT)
-        if (normalized == 'off' || normalized == 'directthenturn') {
+        if (normalized == 'off' || normalized == 'directthenturn' || normalized == 'hostfailsafe') {
             return normalized
         }
 
-        throw new GradleException("Unsupported build test mode '${value}'. Supported values: off, directThenTurn")
+        throw new GradleException("Unsupported build test mode '${value}'. Supported values: off, directThenTurn, hostFailSafe")
     }
 
     def explicitMode = gradle.startParameter.projectProperties['build_mode']

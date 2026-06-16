@@ -2,6 +2,7 @@ package org.developerkubilay.safra.p2p;
 
 import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
 import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
+import org.developerkubilay.safra.p2p.turn.P2pTurnCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +85,7 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
         InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
-        if (publishedEndpoint == null) {
+        if (publishedEndpoint == null && !P2pConstants.useApi30Rendezvous()) {
             binding.close();
             throw new IOException("genel UDP ucu bulunamadi");
         }
@@ -95,11 +96,17 @@ public final class P2pHostService implements AutoCloseable {
                 P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
         }
 
-        InetAddress address = publishedEndpoint.getAddress();
-        String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
-        LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
-            primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
-        P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
+        P2pShareCode directShareCode = null;
+        if (publishedEndpoint != null) {
+            InetAddress address = publishedEndpoint.getAddress();
+            String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
+            LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
+                primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
+            directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
+        } else {
+            LOGGER.debug("Safra P2P host UDP {} transport local port {}, STUN endpoint yok; relay-required host akisi denenecek",
+                primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort());
+        }
 
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
@@ -117,10 +124,16 @@ public final class P2pHostService implements AutoCloseable {
                 LOGGER.info("Safra test modu host rendezvous code={} publishedEndpoint={} primaryRelay={}",
                     rendezvousSession.code(), publishedEndpoint, primaryTransportRelay);
             }
+            if (P2pConstants.forceHostFailSafeRelay()) {
+                LOGGER.info("Safra test modu host fail-safe aktif; relay-required eventi bekleniyor code={}", rendezvousSession.code());
+            }
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
             if (primaryTransportRelay) {
                 LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
+                throw exception;
+            }
+            if (directShareCode == null) {
                 throw exception;
             }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
@@ -328,10 +341,10 @@ public final class P2pHostService implements AutoCloseable {
         }
 
         try {
-            if (P2pConstants.forceDirectThenTurnRelay()) {
-                LOGGER.info("Safra test modu host yeni TURN relay provision baslatti joinerRelay={}", joinerRelayAddress);
-            }
-            P2pTransportBinding relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "host");
+            P2pTurnCredentials pendingCredentials = rendezvousSession == null ? null : rendezvousSession.consumePendingRelayCredentials();
+            P2pTransportBinding relayBinding = pendingCredentials == null
+                ? P2pUdpBindingFactory.createTurnBinding(LOGGER, "host")
+                : P2pUdpBindingFactory.createTurnBinding(LOGGER, "host", pendingCredentials);
             relayFallbackTransport = relayBinding.transport();
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());

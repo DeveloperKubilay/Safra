@@ -39,10 +39,6 @@ public final class P2pTurnCredentialClient {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
             .GET();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
 
         HttpResponse<String> response;
         try {
@@ -63,6 +59,10 @@ public final class P2pTurnCredentialClient {
             throw new IOException("TURN credential cevabi gecersiz JSON", exception);
         }
 
+        return parse(json);
+    }
+
+    public static P2pTurnCredentials parse(JsonObject json) throws IOException {
         JsonArray iceServers = json.getAsJsonArray("iceServers");
         if (iceServers == null || iceServers.size() == 0) {
             throw new IOException("TURN credential cevabinda iceServers yok");
