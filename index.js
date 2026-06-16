@@ -55,9 +55,10 @@ const eventMessage = (event, data) => `event: ${event}\ndata: ${JSON.stringify(d
 
 app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile beraber yollanır
     if (activeSessionsByIp.get(req.ip) >= config.MAX_ACTIVE_SESSIONS_PER_IP) return res.code(429).send("Too many active sessions from your IP");
-    const networkValidation = networkControl(req.body.network);
-    if (networkValidation) return res.code(400).send(networkValidation);
-
+    if (req.body.network != null) {
+        const networkValidation = networkControl(req.body.network);
+        if (networkValidation) return res.code(400).send(networkValidation);
+    }
 
     if (req.body.hasOwnProperty("voicechat")) {
         const networkValidation = networkControl(req.body.voicechat);
@@ -96,7 +97,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
     });
 
     eventStream(res);
-    res.raw.write(eventMessage("session-created", { code: req.body.code }));
+    res.raw.write(eventMessage("session-created", { code: req.body.code, relayRequired: req.body.network == null }));
     res.raw.on("close", () => {
         state.alive = false;
         sessions.delete(req.body.code);
@@ -104,12 +105,22 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
     });
 })
 
-app.post("/session-join/:code", async (req, res) => {
+app.post("/voicechat-update", async (req, res) => {
+    if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
+    const networkValidation = networkControl(req.body.voicechat);
+    if (networkValidation) return res.code(400).send(networkValidation);
+    const session = sessions.get(req.body.code);
+    if (!session) return res.code(404).send("Session not found");
+    session.write(eventMessage("voicechat-updated", { voiceHost: req.body.voicechat }));
+    res.send({ ok: true });
+});
+
+app.post("/session-join", async (req, res) => {
     const networkValidation = networkControl(req.body.network);
     if (networkValidation) return res.code(400).send(networkValidation);
 
-    if (codeCheck(req.params.code)) return res.code(400).send("Invalid session code");
-    const session = sessions.get(req.params.code);
+    if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
+    const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
 
     session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
@@ -124,16 +135,6 @@ app.post("/session-join/:code", async (req, res) => {
     });
 });
 
-app.post("/voicechat-update", async (req, res) => {
-    if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
-    const networkValidation = networkControl(req.body.voicechat);
-    if (networkValidation) return res.code(400).send(networkValidation);
-    const session = sessions.get(req.body.code);
-    if (!session) return res.code(404).send("Session not found");
-    session.write(eventMessage("voicechat-updated", { voiceHost: req.body.voicechat }));
-    res.send({ ok: true });
-});
-
 app.post("/relay-request", async (req, res) => {
     if (activeSessionsByIp.get(req.ip) >= config.MAX_ACTIVE_SESSIONS_PER_IP) return res.code(429).send("Too many active sessions from your IP");
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
@@ -142,6 +143,7 @@ app.post("/relay-request", async (req, res) => {
     if (session.relay) return res.code(409).send("Relay already assigned for this session");
     const turnCredentials = await getTurnCredentials();
     session.write(eventMessage("relay-assigned", turnCredentials));
+    session.relay = turnCredentials;
     eventStream(res);
     const state = { alive: true, ip: req.ip };
     function writeandClose(data) {
@@ -158,13 +160,15 @@ app.post("/relay-request", async (req, res) => {
 
 app.post("/relay-accept", async (req, res) => {
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
-    const networkValidation = networkControl(req.body.network);
-    if (networkValidation) return res.code(400).send(networkValidation);
+    if (req.body.network != null) {
+        const networkValidation = networkControl(req.body.network);
+        if (networkValidation) return res.code(400).send(networkValidation);
+    }
 
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");//server dicek açtım ben yeni ip bu
-    session.relay = req.body.network;
-    session.relayWaiters.forEach(write => write(eventMessage("relay-accepted", { network: req.body.network })));
+    session.relay.network = req.body.network;
+    session.relayWaiters.forEach(write => write(eventMessage("relay-accepted", session )));
     session.relayWaiters.length = 0;
     res.send({ ok: true });
 });
@@ -193,7 +197,8 @@ setInterval(() => {//gc
             activeSessionsByIp.delete(ip);
         }
     });
-    console.log(`Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}`);
+    const turnAssigned = [...sessions.values()].filter(s => s.relay).length;
+    console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}, Turn assigned: ${turnAssigned}`);
 }, 10 * 1000)
 
 app.listen({ port: process.env.PORT || 3000 }, (err, address) => {
