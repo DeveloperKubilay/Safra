@@ -125,7 +125,6 @@ app.post("/session-join", async (req, res) => {
 
     session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
         host: req.body.network,
-        voiceHost: req.body.voicechat || null
     }));
 
     res.send({//Joinere hostun datası iletilir
@@ -168,7 +167,7 @@ app.post("/relay-accept", async (req, res) => {
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");//server dicek açtım ben yeni ip bu
     session.relay.network = req.body.network;
-    session.relayWaiters.forEach(write => write(eventMessage("relay-accepted", session )));
+    session.relayWaiters.forEach(write => write(eventMessage("relay-accepted", session)));
     session.relayWaiters.length = 0;
     res.send({ ok: true });
 });
