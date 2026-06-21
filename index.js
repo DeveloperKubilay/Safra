@@ -1,5 +1,6 @@
 require("dotenv").config({ quiet: true });
 const Fastify = require("fastify");
+const elenora = require('elenora');
 const { randomBytes } = require("node:crypto");
 
 const app = Fastify({ logger: false });
@@ -9,6 +10,14 @@ const RelayWaiters = [];
 const SessionWaiters = [];//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
 const activeSessionsByIp = new Map();//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
 const config = require("./config.json");
+
+elenora.connect(console, {
+	filename: 'logs/app.log',
+	maxSize: 5 * 1024 * 1024, // 5 MB
+	backupCount: 3,
+	continueFromLast: false,
+	interval: 10000 
+});
 
 function networkControl(network) {
     if (!Array.isArray(network) || network.length !== 3) return "Network must be in the format protocol:ip:port";
