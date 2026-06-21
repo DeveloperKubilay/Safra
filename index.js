@@ -88,7 +88,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
             voiceHost: req.body.voicechat || null,
             relay: null,
             relayWaiters: [],
-            write: (data) => res.raw.write(data)
+            write: res.raw.write.bind(res.raw)
         });
     activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 0) + 1);
 
