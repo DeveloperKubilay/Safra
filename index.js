@@ -67,7 +67,12 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
 
     if (codeCheck(req.body.code) || sessions.has(req.body.code)) {
         for (let i = 0; i < 10; i++) {//Eğer sabit kod seçili değilse code bilgisi iletilmicek
-            const code = [...randomBytes(12)].map(b => ABC[b % ABC.length]).join("");
+            const bytes = randomBytes(12);
+            let code = "";
+
+            for (let i = 0; i < bytes.length; i++) {
+                code += ABC[bytes[i] % ABC.length];
+            }
             if (!sessions.has(code)) {
                 req.body.code = code;
                 break;
@@ -87,22 +92,23 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         });
     activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 0) + 1);
 
+    function endSession(disconnect = false) {
+        if(state.alive === false) return;
+        state.alive = false;//SessionWaiters silinmesi için alive false yapıyoz
+        sessions.delete(req.body.code);
+        activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 1) - 1);
+        if(disconnect) res?.raw.end();
+    }
+
     SessionWaiters.push({
         time: Date.now() + config.MAX_SESSION_TIME,
-        end: (x) => {
-            if (x) state.sessionipsetted = true;
-            res?.raw.end()
-        },
+        end: endSession,
         state
     });
 
     eventStream(res);
     res.raw.write(eventMessage("session-created", { code: req.body.code, relayRequired: req.body.network == null }));
-    res.raw.on("close", () => {
-        state.alive = false;
-        sessions.delete(req.body.code);
-        if (!state.sessionipsetted) activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 1) - 1);
-    });
+    res.raw.on("close", endSession);
 })
 
 app.post("/voicechat-update", async (req, res) => {
@@ -146,6 +152,7 @@ app.post("/relay-request", async (req, res) => {
     eventStream(res);
     const state = { alive: true, ip: req.ip };
     function writeandClose(data) {
+        if (state.alive === false) return;
         state.alive = false;
         res.raw.write(data);
         session.relayWaiters.splice(session.relayWaiters.indexOf(writeandClose), 1);
@@ -184,10 +191,7 @@ setInterval(() => {//gc
     for (let i = SessionWaiters.length - 1; i >= 0; i--) {
         const waiter = SessionWaiters[i];
         if (waiter.state.alive === false || waiter.time < now) {
-            if (waiter.state.alive !== false) {
-                waiter.end(true);
-                activeSessionsByIp.set(waiter.state.ip, (activeSessionsByIp.get(waiter.state.ip) || 1) - 1);
-            }
+            if (waiter.state.alive !== false) waiter.end(true);
             SessionWaiters.splice(i, 1);
         }
     }
@@ -196,8 +200,8 @@ setInterval(() => {//gc
             activeSessionsByIp.delete(ip);
         }
     });
-    const turnAssigned = [...sessions.values()].filter(s => s.relay).length;
-    console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}, Turn assigned: ${turnAssigned}`);
+
+    console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}`);
 }, 10 * 1000)
 
 app.listen({ port: process.env.PORT || 3000 }, (err, address) => {
