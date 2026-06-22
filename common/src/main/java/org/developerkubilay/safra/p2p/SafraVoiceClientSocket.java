@@ -55,7 +55,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
 
         Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);
         if (publicEndpoints.isEmpty()) {
-            throw new IOException("Safra voice joiner genel UDP ucu bulunamadi");
+            throw new IOException("Safra voice joiner Could not find a public UDP endpoint");
         }
 
         return joinSession.resolveVoice(publicEndpoints);

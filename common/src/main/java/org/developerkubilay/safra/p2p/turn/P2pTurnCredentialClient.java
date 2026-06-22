@@ -48,7 +48,7 @@ public final class P2pTurnCredentialClient {
         Response response = HTTP_CLIENT.newCall(builder.build()).execute();
         try {
             if (response.code() < 200 || response.code() >= 300) {
-                throw new IOException("TURN credential istegi HTTP " + response.code() + " dondu");
+                throw new IOException("TURN credential request returned HTTP " + response.code()");
             }
 
             String body = response.body() != null ? response.body().string() : "";
@@ -56,12 +56,12 @@ public final class P2pTurnCredentialClient {
             try {
                 json = new JsonParser().parse(body).getAsJsonObject();
             } catch (RuntimeException exception) {
-                throw new IOException("TURN credential cevabi gecersiz JSON", exception);
+                throw new IOException("TURN credential response is invalid JSON", exception);
             }
 
             JsonArray iceServers = json.getAsJsonArray("iceServers");
             if (iceServers == null || iceServers.size() == 0) {
-                throw new IOException("TURN credential cevabinda iceServers yok");
+                throw new IOException("TURN credential response did not include iceServers");
             }
 
             Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
@@ -99,10 +99,10 @@ public final class P2pTurnCredentialClient {
             }
 
             if (username.trim().isEmpty() || credential.trim().isEmpty()) {
-                throw new IOException("TURN credential cevabinda username/credential eksik");
+                throw new IOException("TURN credential response did not include username or credential");
             }
             if (udpServers.isEmpty()) {
-                throw new IOException("TURN credential cevabinda UDP TURN sunucusu yok");
+                throw new IOException("TURN credential response did not include a UDP TURN server");
             }
 
             return new P2pTurnCredentials(

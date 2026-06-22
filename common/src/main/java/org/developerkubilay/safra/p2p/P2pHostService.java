@@ -70,7 +70,7 @@ public final class P2pHostService implements AutoCloseable {
         transport = binding.transport();
         primaryTransportRelay = binding.relay();
         if (P2pConstants.forceDirectThenTurnRelay()) {
-            LOGGER.info("Safra test modu host ilk binding relay={} endpoints={} stunFamilies={}",
+            LOGGER.info("Safra test mode host first binding relay={} endpoints={} stunFamilies={}",
                 binding.relay(), binding.publicEndpoints(), binding.stunEndpoints().keySet());
         }
         if (closed) {
@@ -88,7 +88,7 @@ public final class P2pHostService implements AutoCloseable {
         InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
         if (publishedEndpoint == null) {
             binding.close();
-            throw new IOException("genel UDP ucu bulunamadi");
+            throw new IOException("Could not find a public UDP endpoint");
         }
 
         P2pRuntime.start("safra-p2p-host-recv", () -> receiveLoop(transport, primaryTransportRelay));
@@ -120,13 +120,13 @@ public final class P2pHostService implements AutoCloseable {
             SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             if (P2pConstants.forceDirectThenTurnRelay()) {
-                LOGGER.info("Safra test modu host rendezvous code={} publishedEndpoint={} primaryRelay={}",
+                LOGGER.info("Safra test mode host rendezvous code={} publishedEndpoint={} primaryRelay={}",
                     rendezvousSession.code(), publishedEndpoint, primaryTransportRelay);
             }
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
             if (primaryTransportRelay) {
-                LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
+                LOGGER.warn("Safra P2P rendezvous registration failed while TURN relay was active", exception);
                 throw exception;
             }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
@@ -324,7 +324,7 @@ public final class P2pHostService implements AutoCloseable {
 
         if (relayFallbackTransport != null && !relayFallbackTransport.isClosed()) {
             if (P2pConstants.forceDirectThenTurnRelay()) {
-                LOGGER.info("Safra test modu host relay zaten hazir, tekrar publish ediliyor joinerRelay={}", joinerRelayAddress);
+                LOGGER.info("Safra test mode host relay already ready, republishing joinerRelay={}", joinerRelayAddress);
             }
             publishRelayReady();
             if (joinerRelayAddress != null) {
@@ -335,7 +335,7 @@ public final class P2pHostService implements AutoCloseable {
 
         try {
             if (P2pConstants.forceDirectThenTurnRelay()) {
-                LOGGER.info("Safra test modu host yeni TURN relay provision baslatti joinerRelay={}", joinerRelayAddress);
+                LOGGER.info("Safra test mode host started new TURN relay provision joinerRelay={}", joinerRelayAddress);
             }
             P2pTransportBinding relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "host");
             relayFallbackTransport = relayBinding.transport();
@@ -345,7 +345,7 @@ public final class P2pHostService implements AutoCloseable {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }
         } catch (IOException exception) {
-            LOGGER.warn("Safra P2P host relay provisioning patladi", exception);
+            LOGGER.warn("Safra P2P host relay provisioning failed", exception);
             if (rendezvousSession != null) {
                 rendezvousSession.publishRelayFailure("auto", exception.getMessage());
             }
@@ -368,11 +368,11 @@ public final class P2pHostService implements AutoCloseable {
 
         try {
             if (P2pConstants.forceDirectThenTurnRelay()) {
-                LOGGER.info("Safra test modu host relay-ready publish endpoints={}", publicEndpoints);
+                LOGGER.info("Safra test mode host relay-ready publish endpoints={}", publicEndpoints);
             }
             rendezvousSession.publishRelay(publicEndpoints, "auto");
         } catch (IOException exception) {
-            LOGGER.warn("Safra P2P host relay publish patladi", exception);
+            LOGGER.warn("Safra P2P host relay publish failed", exception);
         }
     }
 
