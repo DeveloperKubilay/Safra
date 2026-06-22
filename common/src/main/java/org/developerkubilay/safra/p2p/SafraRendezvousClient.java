@@ -964,7 +964,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                                      Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
             InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null && !P2pConstants.useApi30Rendezvous()) {
-                throw new IOException("Safra host en az bir UDP ucu istiyor");
+                throw new IOException("Safra host requires at least one UDP endpoint");
             }
 
             Api3HostSessionBackend backend = new Api3HostSessionBackend(punchHandler, voicePunchHandler, relayRequestHandler);
@@ -986,7 +986,7 @@ final class SafraRendezvousClient implements AutoCloseable {
         static JoinSession join(String code, Collection<InetSocketAddress> publicEndpoints) throws IOException {
             InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null) {
-                throw new IOException("Safra join en az bir UDP ucu istiyor");
+                throw new IOException("Safra join requires at least one UDP endpoint");
             }
 
             Api3JoinSessionBackend backend = new Api3JoinSessionBackend(code);
@@ -1039,7 +1039,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 try {
                     return codeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
                 } catch (Exception exception) {
-                    throw asIOException("Safra host kurulumu basarisiz", exception);
+                    throw asIOException("Safra host setup failed", exception);
                 }
             }
 
@@ -1051,7 +1051,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             public void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException {
                 InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
                 if (primaryEndpoint == null || code == null || code.isBlank()) {
-                    throw new IOException("Safra relay host etkin oturum ve UDP ucu istiyor");
+                    throw new IOException("Safra relay host requires an active session and UDP endpoint");
                 }
 
                 JsonObject request = new JsonObject();
@@ -1062,7 +1062,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra relay publish HTTP " + response.statusCode() + " dondu");
+                    throw new IOException("Safra relay publish returned HTTP " + response.statusCode());
                 }
             }
 
@@ -1104,11 +1104,11 @@ final class SafraRendezvousClient implements AutoCloseable {
                     response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();
-                    throw new IOException("Safra host istegi kesildi", exception);
+                    throw new IOException("Safra host request was interrupted", exception);
                 }
 
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra host istegi HTTP " + response.statusCode() + " dondu");
+                    throw new IOException("Safra host request returned HTTP " + response.statusCode());
                 }
 
                 stream = response.body();
@@ -1119,7 +1119,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     try {
                         readCurrentEventStream();
                         if (!closed) {
-                            throw new IOException("Safra host event stream kapandi");
+                            throw new IOException("Safra host event stream closed");
                         }
                         return;
                     } catch (IOException exception) {
@@ -1170,7 +1170,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     while ((line = reader.readLine()) != null) {
                         if (line.isEmpty()) {
                             if (!event.isBlank()) {
-                                handleEvent(event, parseApi3Object(data.toString(), "Safra event payload gecersiz"));
+                                handleEvent(event, parseApi3Object(data.toString(), "Safra event payload is invalid"));
                             }
                             event = "";
                             data.setLength(0);
@@ -1260,7 +1260,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 try {
                     HttpResponse<InputStream> response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
                     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                        throw new IOException("Safra host relay istegi HTTP " + response.statusCode() + " dondu");
+                        throw new IOException("Safra host relay request returned HTTP " + response.statusCode());
                     }
 
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -1271,7 +1271,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     Thread.currentThread().interrupt();
                 } catch (IOException exception) {
                     if (!closed) {
-                        LOGGER.warn("Safra host relay istegi patladi: {}", exception.toString());
+                        LOGGER.warn("Safra host relay request failed: {}", exception.toString());
                     }
                 }
             }
@@ -1301,17 +1301,17 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra join istegi HTTP " + response.statusCode() + " dondu");
+                    throw new IOException("Safra join request returned HTTP " + response.statusCode());
                 }
 
-                JsonObject json = parseApi3Object(response.body(), "Safra join cevabi gecersiz");
+                JsonObject json = parseApi3Object(response.body(), "Safra join response is invalid");
                 hostAddress = fromNetwork(array(json, "host"));
                 voiceAddress = fromNetwork(array(json, "voiceHost"));
                 JsonObject relay = object(json, "relay");
                 relayAddress = relayNetwork(relay);
                 relayCredentials = relayCredentials(relay);
                 if (hostAddress == null && relayAddress == null) {
-                    throw new IOException("Safra join cevabinda host adresi yok");
+                    throw new IOException("Safra join response did not include a host address");
                 }
             }
 
@@ -1353,7 +1353,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     }
                 }
 
-                throw new IOException("Safra voice endpoint zamaninda gelmedi");
+                throw new IOException("Safra voice endpoint was not received in time");
             }
 
             @Override
@@ -1379,10 +1379,10 @@ final class SafraRendezvousClient implements AutoCloseable {
                     response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();
-                    throw new IOException("Safra relay istegi kesildi", exception);
+                    throw new IOException("Safra relay request was interrupted", exception);
                 }
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra relay istegi HTTP " + response.statusCode() + " dondu");
+                    throw new IOException("Safra relay request returned HTTP " + response.statusCode());
                 }
 
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -1392,13 +1392,13 @@ final class SafraRendezvousClient implements AutoCloseable {
                     while ((line = reader.readLine()) != null) {
                         if (line.isEmpty()) {
                             if (!event.isBlank()) {
-                                JsonObject json = parseApi3Object(data.toString(), "Safra relay payload gecersiz");
+                                JsonObject json = parseApi3Object(data.toString(), "Safra relay payload is invalid");
                                 if ("relay-accepted".equals(event)) {
                                     JsonObject relay = object(json, "relay");
                                     relayAddress = relay != null ? relayNetwork(relay) : fromNetwork(array(json, "network"));
                                     relayCredentials = relay != null ? relayCredentials(relay) : relayCredentials;
                                     if (relayAddress == null) {
-                                        throw new IOException("Safra relay cevabinda network yok");
+                                        throw new IOException("Safra relay response did not include a network endpoint");
                                     }
                                     return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code), relayCredentials);
                                 }
@@ -1421,7 +1421,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     }
                 }
 
-                throw new IOException("Safra relay event stream kapandi");
+                throw new IOException("Safra relay event stream closed");
             }
 
             @Override
@@ -1446,7 +1446,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     return;
                 }
 
-                JsonObject json = parseApi3Object(response.body(), "Safra join refresh cevabi gecersiz");
+                JsonObject json = parseApi3Object(response.body(), "Safra join refresh response is invalid");
                 InetSocketAddress refreshedVoice = fromNetwork(array(json, "voiceHost"));
                 if (refreshedVoice != null) {
                     voiceAddress = refreshedVoice;
@@ -1471,7 +1471,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra voice update istegi HTTP " + response.statusCode() + " dondu");
+                    throw new IOException("Safra voice update request returned HTTP " + response.statusCode());
                 }
             }
         }
@@ -1486,7 +1486,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IOException("Safra istegi kesildi", exception);
+                throw new IOException("Safra request was interrupted", exception);
             }
         }
 
@@ -1588,7 +1588,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 TimeUnit.MILLISECONDS.sleep(delayMs);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IOException("Safra bekleme kesildi", exception);
+                throw new IOException("Safra wait was interrupted", exception);
             }
         }
     }
