@@ -3,24 +3,34 @@ package org.developerkubilay.safra.client.config;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
+    private static final Logger LOGGER = SafraLogger.get(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final int TIMEOUT_MS = 5000;
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
+    private static volatile List<String> latestModVersions = java.util.Collections.emptyList();
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -36,36 +46,28 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        Thread thread = new Thread(() -> {
-            try {
-                String body = httpGet(REMOTE_CONFIG_URL);
-                applyRemoteConfig(config, body);
-            } catch (Exception throwable) {
-                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", throwable.toString());
+        Request request = new Request.Builder()
+            .url(REMOTE_CONFIG_URL)
+            .get()
+            .build();
+
+        HTTP_CLIENT.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException exception) {
+                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", exception.toString());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        applyRemoteConfig(config, response.body().string());
+                    }
+                } finally {
+                    response.close();
+                }
             }
         });
-        thread.setDaemon(true);
-        thread.setName("safra-config-updater");
-        thread.start();
-    }
-
-    private static String httpGet(String urlStr) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(urlStr).openConnection();
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(TIMEOUT_MS);
-        connection.setReadTimeout(TIMEOUT_MS);
-        int code = connection.getResponseCode();
-        if (code < 200 || code >= 300) {
-            return "";
-        }
-        StringBuilder result = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                result.append(line);
-            }
-        }
-        return result.toString();
     }
 
     private static void applyRemoteConfig(BaseSafraClientConfig config, String body) {
@@ -75,14 +77,10 @@ public final class RemoteRendezvousConfigUpdater {
             }
 
             JsonObject json = new JsonParser().parse(body).getAsJsonObject();
-            latestModVersion = parseLatestModVersion(json);
-            String key = "api-" + config.getSiteApiVersion();
-            JsonElement urlElement = json.get(key);
-            if (urlElement == null || urlElement.isJsonNull()) {
-                return;
-            }
-
-            String remoteUrl = urlElement.getAsString();
+            List<String> latestVersions = parseLatestModVersions(json);
+            latestModVersions = latestVersions;
+            latestModVersion = String.join(", ", latestVersions);
+            String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
                 P2pConstants.setRuntimeRendezvousUrl(null);
@@ -101,8 +99,8 @@ public final class RemoteRendezvousConfigUpdater {
     }
 
     public static boolean hasNewerModVersion() {
-        String latest = latestModVersion;
-        if (latest == null || latest.trim().isEmpty()) {
+        List<String> latest = latestModVersions;
+        if (latest == null || latest.isEmpty()) {
             return false;
         }
 
@@ -111,30 +109,60 @@ public final class RemoteRendezvousConfigUpdater {
             return false;
         }
 
-        return !latest.trim().equals(current.trim());
+        String normalizedCurrent = current.trim();
+        for (String version : latest) {
+            if (normalizedCurrent.equals(version)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    private static String parseLatestModVersion(JsonObject json) {
+    private static List<String> parseLatestModVersions(JsonObject json) {
         if (json == null) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         JsonElement latestElement = json.get("latest");
         if (latestElement == null || latestElement.isJsonNull() || !latestElement.isJsonObject()) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         String minecraftVersion = SafraBuildInfo.minecraftVersion();
         if (minecraftVersion == null || minecraftVersion.trim().isEmpty() || "unknown".equalsIgnoreCase(minecraftVersion)) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         JsonElement versionElement = latestElement.getAsJsonObject().get(minecraftVersion.trim());
         if (versionElement == null || versionElement.isJsonNull()) {
-            return "";
+            return java.util.Collections.emptyList();
+        }
+
+        LinkedHashSet<String> versions = new LinkedHashSet<>();
+        if (versionElement.isJsonPrimitive()) {
+            addVersion(versions, versionElement);
+        } else if (versionElement.isJsonArray()) {
+            for (JsonElement element : versionElement.getAsJsonArray()) {
+                addVersion(versions, element);
+            }
+        }
+
+        return versions.isEmpty() ? java.util.Collections.<String>emptyList() : new ArrayList<>(versions);
+    }
+
+    private static void addVersion(LinkedHashSet<String> versions, JsonElement versionElement) {
+        if (versionElement == null || versionElement.isJsonNull() || !versionElement.isJsonPrimitive()) {
+            return;
         }
 
         String remoteVersion = versionElement.getAsString();
-        return remoteVersion == null ? "" : remoteVersion.trim();
+        if (remoteVersion == null) {
+            return;
+        }
+
+        String normalized = remoteVersion.trim();
+        if (!normalized.trim().isEmpty()) {
+            versions.add(normalized);
+        }
     }
 }
