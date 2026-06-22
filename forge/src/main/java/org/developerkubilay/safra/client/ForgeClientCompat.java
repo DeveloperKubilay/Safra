@@ -24,7 +24,7 @@ public final class ForgeClientCompat {
             Constructor<?> constructor = legacyClass.getConstructor(String.class, Object[].class);
             return (Component) constructor.newInstance(key, args);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Compatible translatable component olusturulamadi", exception);
+            throw new IllegalStateException("Could not create compatible translatable component", exception);
         }
     }
 
@@ -42,7 +42,7 @@ public final class ForgeClientCompat {
             Constructor<?> constructor = legacyClass.getConstructor(String.class);
             return (Component) constructor.newInstance(value);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Compatible literal component olusturulamadi", exception);
+            throw new IllegalStateException("Could not create compatible literal component", exception);
         }
     }
 
