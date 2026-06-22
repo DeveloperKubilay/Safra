@@ -22,12 +22,12 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
     @Override
     public void receive(DatagramPacket packet) throws IOException {
-        throw new IOException("TURN transport kapali");
+        throw new IOException("TURN transport is closed");
     }
 
     @Override
     public void send(DatagramPacket packet) throws IOException {
-        throw new IOException("TURN transport kapali");
+        throw new IOException("TURN transport is closed");
     }
 
     @Override
