@@ -1,74 +1,57 @@
 package org.developerkubilay.safra.p2p;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.logging.log4j.Logger;
 import org.developerkubilay.safra.util.SafraLogger;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = SafraLogger.get(RemoteRendezvousBootstrap.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final String DEFAULT_SITE_API_VERSION = "1.0";
-    private static final int TIMEOUT_MS = 5000;
+    private static final String DEFAULT_SITE_API_VERSION = "3.0";
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build();
 
     private RemoteRendezvousBootstrap() {
     }
 
-    public static void initialize() {
-        if (P2pConstants.hasRendezvousUrl()) {
+    public static void initializeDedicated() {
+        if (hasExplicitRendezvousUrlOverride()) {
             return;
         }
 
         try {
-            HttpURLConnection connection = (HttpURLConnection) new URL(REMOTE_CONFIG_URL).openConnection();
-            connection.setRequestMethod("GET");
-            connection.setConnectTimeout(TIMEOUT_MS);
-            connection.setReadTimeout(TIMEOUT_MS);
-            int statusCode = connection.getResponseCode();
-            if (statusCode < 200 || statusCode >= 300) {
-                LOGGER.debug("Safra remote rendezvous config request returned HTTP {}", statusCode);
-                return;
-            }
+            Request request = new Request.Builder()
+                .url(REMOTE_CONFIG_URL)
+                .get()
+                .build();
 
-            StringBuilder bodyBuilder = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    bodyBuilder.append(line);
+            Response response = HTTP_CLIENT.newCall(request).execute();
+            try {
+                if (!response.isSuccessful()) {
+                    LOGGER.debug("Safra remote rendezvous config request returned HTTP {}", response.code());
+                    return;
                 }
-            }
 
-            String remoteUrl = parseRemoteUrl(bodyBuilder.toString(), siteApiVersion());
-            if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
-                LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion());
-                return;
-            }
+                String body = response.body() != null ? response.body().string() : "";
+                String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(body, siteApiVersion(), "dedicated");
+                if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
+                    LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion());
+                    return;
+                }
 
-            P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
+                P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
+            } finally {
+                response.close();
+            }
         } catch (Exception exception) {
             LOGGER.debug("Safra remote rendezvous bootstrap skipped: {}", exception.toString());
         }
-    }
-
-    private static String parseRemoteUrl(String body, String siteApiVersion) {
-        if (body == null || body.trim().isEmpty()) {
-            return "";
-        }
-
-        JsonObject json = new JsonParser().parse(body).getAsJsonObject();
-        JsonElement urlElement = json.get("api-" + siteApiVersion);
-        if (urlElement == null || urlElement.isJsonNull()) {
-            return "";
-        }
-
-        return urlElement.getAsString();
     }
 
     private static String siteApiVersion() {
@@ -83,5 +66,20 @@ public final class RemoteRendezvousBootstrap {
         }
 
         return DEFAULT_SITE_API_VERSION;
+    }
+
+    private static boolean hasExplicitRendezvousUrlOverride() {
+        String property = System.getProperty("safra.rendezvousUrl");
+        if (property != null && !property.trim().isEmpty()) {
+            return true;
+        }
+
+        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
+        if (environment != null && !environment.trim().isEmpty()) {
+            return true;
+        }
+
+        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
+        return legacyEnvironment != null && !legacyEnvironment.trim().isEmpty();
     }
 }

@@ -11,6 +11,7 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -23,6 +24,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     private DatagramSocket socket;
     private volatile boolean closed = true;
     private volatile InetSocketAddress safraRemoteAddress;
+    private volatile SocketAddress logicalRemoteAddress;
 
     @Override
     public synchronized void open() throws Exception {
@@ -51,13 +53,12 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             return null;
         }
 
-        if (stunMappings.discoverPublicEndpoints(discoverySocket).isEmpty()) {
+        Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);
+        if (publicEndpoints.isEmpty()) {
             throw new IOException("Safra voice joiner genel UDP ucu bulunamadi");
         }
 
-        InetSocketAddress resolvedRemoteAddress = joinSession.resolveVoice(stunMappings.publicEndpoints());
-        LOGGER.debug("Safra voice join resolved to {}", resolvedRemoteAddress);
-        return resolvedRemoteAddress;
+        return joinSession.resolveVoice(publicEndpoints);
     }
 
     private void refreshStunMapping() {
@@ -77,13 +78,21 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
         }
 
         byte[] buffer = new byte[8192];
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        currentSocket.receive(packet);
-        return new SafraRawUdpPacket(
-            Arrays.copyOf(packet.getData(), packet.getLength()),
-            packet.getSocketAddress(),
-            System.currentTimeMillis()
-        );
+        while (true) {
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            currentSocket.receive(packet);
+            if (handleStunPacket(packet)) {
+                continue;
+            }
+            if (isPunchPacket(packet)) {
+                continue;
+            }
+            return new SafraRawUdpPacket(
+                Arrays.copyOf(packet.getData(), packet.getLength()),
+                logicalRemoteAddress != null ? logicalRemoteAddress : packet.getSocketAddress(),
+                System.currentTimeMillis()
+            );
+        }
     }
 
     @Override
@@ -91,6 +100,10 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
         DatagramSocket currentSocket = socket;
         if (currentSocket == null || currentSocket.isClosed()) {
             return;
+        }
+
+        if (address != null) {
+            logicalRemoteAddress = address;
         }
 
         SocketAddress target = safraRemoteAddress;
@@ -108,6 +121,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
 
         closed = true;
         safraRemoteAddress = null;
+        logicalRemoteAddress = null;
         stunMappings.clear();
         scheduler.shutdownNow();
         if (socket != null) {
@@ -118,5 +132,13 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     @Override
     public boolean isClosed() {
         return closed || socket == null || socket.isClosed();
+    }
+
+    private boolean handleStunPacket(DatagramPacket packet) {
+        return stunMappings.rememberResponse(packet);
+    }
+
+    private boolean isPunchPacket(DatagramPacket packet) {
+        return packet.getLength() == 1 && packet.getData()[packet.getOffset()] == 0;
     }
 }

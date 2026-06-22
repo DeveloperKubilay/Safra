@@ -45,6 +45,10 @@ public final class SafraBuildInfo {
         return loaderVersion;
     }
 
+    public static String testMode() {
+        return value(new Properties(), "testMode");
+    }
+
     private static String value(Properties properties, String key) {
         String value = properties.getProperty(key);
         if (value == null || value.trim().isEmpty()) {

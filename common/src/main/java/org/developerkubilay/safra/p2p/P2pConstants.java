@@ -4,7 +4,7 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 1;
     static final int HEADER_SIZE = 18;
-    static final int MAX_PAYLOAD_SIZE = 1000;
+    static final int MAX_PAYLOAD_SIZE = 1100;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
     static final int SEND_WINDOW_SIZE = 32;
     static final int INITIAL_SEND_WINDOW_SIZE = 32;
@@ -44,7 +44,10 @@ public final class P2pConstants {
     static final long MIN_PACING_INTERVAL_NANOS = 50_000L;
     static final long MAX_PACING_INTERVAL_NANOS = 1_000_000L;
     static final long STUN_REFRESH_MS = 20_000L;
+    static final long VOICE_HOST_WAIT_MS = 5_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
+    static final long RENDEZVOUS_RECONNECT_WINDOW_MS = 120_000L;
+    static final long RENDEZVOUS_RECONNECT_DELAY_MS = 5_000L;
     public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
@@ -56,7 +59,9 @@ public final class P2pConstants {
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
+    private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
+    private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
     private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
     static final String[][] STUN_SERVER_GROUPS = {
         {
@@ -164,6 +169,20 @@ public final class P2pConstants {
         return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
     }
 
+    static boolean forceDirectThenTurnRelay() {
+        String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
+        if (property != null && !property.trim().isEmpty()) {
+            return Boolean.parseBoolean(property.trim());
+        }
+
+        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
+        if (environment != null && !environment.trim().isEmpty()) {
+            return Boolean.parseBoolean(environment.trim());
+        }
+
+        return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
+    }
+
     static boolean neverUseRelayServer() {
         String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
         if (property != null && !property.trim().isEmpty()) {
@@ -190,6 +209,10 @@ public final class P2pConstants {
         }
 
         return true;
+    }
+
+    private static String buildTestMode() {
+        return SafraBuildInfo.testMode().trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     public static int turnCredentialTtlSeconds() {
