@@ -2,8 +2,8 @@ package org.developerkubilay.safra.p2p;
 
 import de.maxhenkel.voicechat.api.RawUdpPacket;
 import de.maxhenkel.voicechat.api.VoicechatSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -14,14 +14,16 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SafraVoiceServerSocket implements VoicechatSocket {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceServerSocket.class);
+    private static final Logger LOGGER = SafraLogger.get(SafraVoiceServerSocket.class);
 
-    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
+    private ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final P2pStunMappings stunMappings = new P2pStunMappings();
 
     private DatagramSocket socket;
@@ -30,14 +32,21 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
 
     @Override
     public synchronized void open(int port, String bindAddress) throws Exception {
-        if (socket != null && !socket.isClosed()) {
-            throw new IllegalStateException("Voice socket already opened");
+        boolean reopening = socket != null && !socket.isClosed() && !closed;
+        if (reopening) {
+            resetCurrentSocket(false);
+        } else if (scheduler.isShutdown()) {
+            scheduler = P2pRuntime.singleScheduler();
         }
 
         socket = openSocket(port, bindAddress);
         closed = false;
         requestStunDiscovery();
-        SafraVoiceTransportManager.getInstance().registerServerSocket(this);
+        if (reopening) {
+            P2pRuntime.start("safra-voice-refresh", this::refreshSafraBinding);
+        } else {
+            SafraVoiceTransportManager.getInstance().registerServerSocket(this);
+        }
         scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
             P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
     }
@@ -51,9 +60,8 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         SafraVoiceTransportManager manager = SafraVoiceTransportManager.getInstance();
         SafraRendezvousClient.HostSession session = manager.hostSession();
         String code = manager.hostCode();
-        if (session == null || code == null || code.isBlank()) {
+        if (session == null || code == null || code.trim().isEmpty()) {
             publishedCode = null;
-            stunMappings.clear();
             return;
         }
 
@@ -75,7 +83,6 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         try {
             session.publishVoice(stunMappings.publicEndpoints());
             publishedCode = code;
-            LOGGER.debug("Safra voice host published {} UDP candidate(s) for session {}", stunMappings.size(), code);
         } catch (IOException exception) {
             LOGGER.warn("Safra voice host could not publish UDP candidates for session {}", code, exception);
         }
@@ -122,6 +129,20 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         }
     }
 
+    synchronized Collection<InetSocketAddress> publicEndpointsSnapshot() {
+        if (closed || socket == null || socket.isClosed() || stunMappings.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return new ArrayList<>(stunMappings.publicEndpoints());
+    }
+
+    synchronized int localPortSnapshot() {
+        if (closed || socket == null || socket.isClosed()) {
+            return -1;
+        }
+        return socket.getLocalPort();
+    }
+
     @Override
     public RawUdpPacket read() throws Exception {
         DatagramSocket currentSocket = socket;
@@ -166,14 +187,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
             return;
         }
 
-        closed = true;
-        publishedCode = null;
-        stunMappings.clear();
-        SafraVoiceTransportManager.getInstance().unregisterServerSocket(this);
-        scheduler.shutdownNow();
-        if (socket != null) {
-            socket.close();
-        }
+        resetCurrentSocket(true);
     }
 
     @Override
@@ -202,7 +216,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         try {
             return createSocket(port, address);
         } catch (BindException exception) {
-            if (address == null || bindAddress == null || bindAddress.isBlank()) {
+            if (address == null || bindAddress == null || bindAddress.trim().isEmpty()) {
                 throw exception;
             }
 
@@ -212,7 +226,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
     }
 
     private static InetAddress parseBindAddress(String bindAddress) throws UnknownHostException {
-        if (bindAddress == null || bindAddress.isBlank()) {
+        if (bindAddress == null || bindAddress.trim().isEmpty()) {
             return null;
         }
         return InetAddress.getByName(bindAddress);
@@ -232,5 +246,22 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         } catch (SocketException ignored) {
         }
         return created;
+    }
+
+    private void resetCurrentSocket(boolean unregister) {
+        closed = true;
+        publishedCode = null;
+        stunMappings.clear();
+        if (unregister) {
+            SafraVoiceTransportManager.getInstance().unregisterServerSocket(this);
+        }
+        scheduler.shutdownNow();
+        if (socket != null) {
+            socket.close();
+            socket = null;
+        }
+        if (!unregister) {
+            scheduler = P2pRuntime.singleScheduler();
+        }
     }
 }

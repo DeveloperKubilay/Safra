@@ -29,10 +29,6 @@ sourceSets {
             ]
             exclude 'org/developerkubilay/safra/mixin/**'
             exclude 'org/developerkubilay/safra/voicechat/**'
-            exclude 'org/developerkubilay/safra/p2p/SafraVoiceClientSocket.java'
-            exclude 'org/developerkubilay/safra/p2p/SafraVoiceServerSocket.java'
-            exclude 'org/developerkubilay/safra/p2p/SafraPassthroughVoiceClientSocket.java'
-            exclude 'org/developerkubilay/safra/p2p/SafraRawUdpPacket.java'
         }
         resources {
             srcDirs = [
@@ -59,11 +55,18 @@ minecraft {
 
 repositories {
     mavenCentral()
+    maven {
+        url = 'https://maven.maxhenkel.de/repository/public'
+    }
 }
 
 dependencies {
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:2.6.13"
     embed("org.java-websocket:Java-WebSocket:${project.java_websocket_version}") {
         transitive = false
+    }
+    embed("com.squareup.okhttp3:okhttp:3.12.13") {
+        transitive = true
     }
     embed("org.slf4j:slf4j-api:1.7.25") {
         transitive = false

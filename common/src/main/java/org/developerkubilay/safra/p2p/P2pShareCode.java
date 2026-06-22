@@ -3,6 +3,7 @@ package org.developerkubilay.safra.p2p;
 import com.google.common.net.HostAndPort;
 
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -23,28 +24,44 @@ public final class P2pShareCode {
     }
 
     public P2pShareCode(String host, int port, int token, String rendezvousCode) {
-        String normalizedCode = normalizeRendezvousCode(rendezvousCode);
-        if (!P2pText.isBlank(normalizedCode)) {
-            if (normalizedCode == null) {
+        if (rendezvousCode != null && !rendezvousCode.trim().isEmpty()) {
+            rendezvousCode = normalizeRendezvousCode(rendezvousCode);
+            if (rendezvousCode == null) {
                 throw new IllegalArgumentException("rendezvous code is invalid");
             }
             this.host = "";
             this.port = 0;
             this.token = 0;
-            this.rendezvousCode = normalizedCode;
+            this.rendezvousCode = rendezvousCode;
         } else {
             Objects.requireNonNull(host, "host");
-            if (P2pText.isBlank(host)) {
+            if (host.trim().isEmpty()) {
                 throw new IllegalArgumentException("host is blank");
             }
             if (port < 1 || port > 65535) {
                 throw new IllegalArgumentException("port out of range");
             }
-            this.host = host.trim();
+            this.host = host;
             this.port = port;
             this.token = token;
-            this.rendezvousCode = null;
+            this.rendezvousCode = rendezvousCode;
         }
+    }
+
+    public String host() {
+        return host;
+    }
+
+    public int port() {
+        return port;
+    }
+
+    public int token() {
+        return token;
+    }
+
+    public String rendezvousCode() {
+        return rendezvousCode;
     }
 
     public static boolean isStoredAddress(String address) {
@@ -79,7 +96,7 @@ public final class P2pShareCode {
 
         HostAndPort hostAndPort = HostAndPort.fromString(endpointPart).withDefaultPort(25565);
         String host = hostAndPort.getHostText().trim();
-        if (P2pText.isBlank(host)) {
+        if (host.trim().isEmpty()) {
             throw new IllegalArgumentException("host is blank");
         }
 
@@ -88,6 +105,16 @@ public final class P2pShareCode {
 
     public static P2pShareCode rendezvous(String code) {
         return new P2pShareCode("", 0, 0, code);
+    }
+
+    public static int rendezvousTunnelToken(String code) {
+        String normalized = normalizeRendezvousCode(code);
+        if (normalized == null) {
+            throw new IllegalArgumentException("rendezvous code is invalid");
+        }
+
+        int token = java.util.Arrays.hashCode(normalized.getBytes(StandardCharsets.UTF_8));
+        return token == 0 ? 0x51F15EED : token;
     }
 
     public static String createRendezvousCode() {
@@ -108,7 +135,7 @@ public final class P2pShareCode {
     }
 
     public boolean isRendezvous() {
-        return !P2pText.isBlank(rendezvousCode);
+        return rendezvousCode != null && !rendezvousCode.trim().isEmpty();
     }
 
     public String toStoredAddress() {
@@ -142,21 +169,5 @@ public final class P2pShareCode {
         }
 
         return code;
-    }
-
-    public String host() {
-        return host;
-    }
-
-    public int port() {
-        return port;
-    }
-
-    public int token() {
-        return token;
-    }
-
-    public String rendezvousCode() {
-        return rendezvousCode;
     }
 }

@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pShareCode;
-import org.developerkubilay.safra.p2p.P2pText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +28,7 @@ public abstract class BaseSafraClientConfig {
     protected boolean directConnectP2pEnabled = true;
     protected boolean neverUseRelayServer = false;
     protected String rendezvousUrl = "";
-    protected String siteApiVersion = "1.0";
+    protected String siteApiVersion = "3.0";
 
     protected abstract Path configPath();
 
@@ -138,7 +137,7 @@ public abstract class BaseSafraClientConfig {
 
     public synchronized String ensureOpenToLanFixedCode() {
         String normalized = normalizeOpenToLanFixedCode(openToLanFixedCode);
-        if (P2pText.isBlank(normalized)) {
+        if (normalized.trim().isEmpty()) {
             normalized = P2pShareCode.createRendezvousCode(P2pShareCode.FIXED_RENDEZVOUS_CODE_LENGTH);
         }
         if (!normalized.equals(openToLanFixedCode)) {
@@ -235,8 +234,8 @@ public abstract class BaseSafraClientConfig {
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
-        return P2pText.isBlank(siteApiVersion)
-            ? "1.0"
+        return siteApiVersion == null || siteApiVersion.trim().isEmpty()
+            ? "3.0"
             : siteApiVersion.trim();
     }
 

@@ -21,6 +21,7 @@ java {
 dependencies {
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
+    compileOnly 'com.squareup.okhttp3:okhttp:3.12.13'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
