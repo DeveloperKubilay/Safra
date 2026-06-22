@@ -96,7 +96,7 @@ final class P2pTurnProtocol {
         InetAddress[] addresses = InetAddress.getAllByName(server.host());
         Arrays.sort(addresses, (left, right) -> Boolean.compare(!(left instanceof Inet4Address), !(right instanceof Inet4Address)));
         if (addresses.length == 0) {
-            throw new IOException("TURN sunucusu cozulmedi: " + server.host());
+            throw new IOException("Could not resolve TURN server: " + server.host());
         }
         return new InetSocketAddress(addresses[0], server.port());
     }
@@ -144,7 +144,7 @@ final class P2pTurnProtocol {
         }
         int errorCode = response.errorCode();
         String reason = response.errorReason();
-        return new IOException("TURN " + type + " patladi: " + errorCode + (Java8Compat.isBlank(reason) ? "" : " " + reason));
+        return new IOException("TURN " + type + " failed: " + errorCode + (Java8Compat.isBlank(reason) ? "" : " " + reason));
     }
 
     static String transactionKey(byte[] transactionId) {
