@@ -119,6 +119,10 @@ public final class RemoteRendezvousConfigUpdater {
             return "";
         }
 
+        if (versionElement.isJsonArray()) {
+            return versionElement.getAsJsonArray().get(versionElement.getAsJsonArray().size() - 1).getAsString();
+        }
+
         String remoteVersion = versionElement.getAsString();
         return remoteVersion == null ? "" : remoteVersion.trim();
     }
