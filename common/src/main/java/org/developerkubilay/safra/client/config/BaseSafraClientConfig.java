@@ -28,7 +28,7 @@ public abstract class BaseSafraClientConfig {
     protected boolean directConnectP2pEnabled = true;
     protected boolean neverUseRelayServer = false;
     protected String rendezvousUrl = "";
-    protected String siteApiVersion = "1.0";
+    protected String siteApiVersion = "3.0";
 
     protected abstract Path configPath();
 
@@ -235,7 +235,7 @@ public abstract class BaseSafraClientConfig {
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
         return siteApiVersion == null || siteApiVersion.trim().isEmpty()
-            ? "1.0"
+            ? "3.0"
             : siteApiVersion.trim();
     }
 

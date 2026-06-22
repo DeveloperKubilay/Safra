@@ -1,21 +1,17 @@
 package org.developerkubilay.safra.p2p;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousBootstrap.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final String DEFAULT_SITE_API_VERSION = "1.0";
+    private static final String DEFAULT_SITE_API_VERSION = "3.0";
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(5, TimeUnit.SECONDS)
@@ -24,8 +20,8 @@ public final class RemoteRendezvousBootstrap {
     private RemoteRendezvousBootstrap() {
     }
 
-    public static void initialize() {
-        if (P2pConstants.hasRendezvousUrl()) {
+    public static void initializeDedicated() {
+        if (hasExplicitRendezvousUrlOverride()) {
             return;
         }
 
@@ -43,7 +39,7 @@ public final class RemoteRendezvousBootstrap {
                 }
 
                 String body = response.body() != null ? response.body().string() : "";
-                String remoteUrl = parseRemoteUrl(body, siteApiVersion());
+                String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(body, siteApiVersion(), "dedicated");
                 if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                     LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", siteApiVersion());
                     return;
@@ -58,20 +54,6 @@ public final class RemoteRendezvousBootstrap {
         }
     }
 
-    private static String parseRemoteUrl(String body, String siteApiVersion) {
-        if (body == null || body.trim().isEmpty()) {
-            return "";
-        }
-
-        JsonObject json = new JsonParser().parse(body).getAsJsonObject();
-        JsonElement urlElement = json.get("api-" + siteApiVersion);
-        if (urlElement == null || urlElement.isJsonNull()) {
-            return "";
-        }
-
-        return urlElement.getAsString();
-    }
-
     private static String siteApiVersion() {
         String property = System.getProperty("safra.siteApiVersion");
         if (property != null && !property.trim().isEmpty()) {
@@ -84,5 +66,20 @@ public final class RemoteRendezvousBootstrap {
         }
 
         return DEFAULT_SITE_API_VERSION;
+    }
+
+    private static boolean hasExplicitRendezvousUrlOverride() {
+        String property = System.getProperty("safra.rendezvousUrl");
+        if (property != null && !property.trim().isEmpty()) {
+            return true;
+        }
+
+        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
+        if (environment != null && !environment.trim().isEmpty()) {
+            return true;
+        }
+
+        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
+        return legacyEnvironment != null && !legacyEnvironment.trim().isEmpty();
     }
 }

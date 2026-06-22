@@ -78,7 +78,7 @@ abstract class IntegratedServerMixin {
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.started", shareText));
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.ingameGUI.getChatGUI().printChatMessage(
-                new TranslationTextComponent("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).mergeStyle(TextFormatting.YELLOW)
+                new TranslationTextComponent("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).applyTextStyle(TextFormatting.YELLOW)
             );
         }
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.copied"));

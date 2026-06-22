@@ -65,7 +65,8 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort, allowRelayFallback);
+        int preferredUdpPort = P2pOptionalIntegrations.isVoiceChatAvailable() ? 0 : tcpPort;
+        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, preferredUdpPort, allowRelayFallback);
         transport = binding.transport();
         primaryTransportRelay = binding.relay();
         if (P2pConstants.forceDirectThenTurnRelay()) {
@@ -101,6 +102,9 @@ public final class P2pHostService implements AutoCloseable {
         LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
             primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
         P2pShareCode directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
+        Collection<InetSocketAddress> voicePublicEndpoints = P2pOptionalIntegrations.isVoiceChatAvailable()
+            ? SafraVoiceTransportManager.getInstance().awaitHostVoiceEndpoints(tcpPort, P2pConstants.VOICE_HOST_WAIT_MS)
+            : java.util.Collections.<InetSocketAddress>emptyList();
 
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
@@ -108,6 +112,7 @@ public final class P2pHostService implements AutoCloseable {
                 token,
                 preferredRendezvousCode,
                 binding.publicEndpoints(),
+                voicePublicEndpoints,
                 this::punchRemoteEndpoint,
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint,
                 this::ensureRelayAvailable

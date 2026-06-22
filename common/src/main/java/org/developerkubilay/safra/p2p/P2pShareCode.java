@@ -3,6 +3,7 @@ package org.developerkubilay.safra.p2p;
 import com.google.common.net.HostAndPort;
 
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -104,6 +105,16 @@ public final class P2pShareCode {
 
     public static P2pShareCode rendezvous(String code) {
         return new P2pShareCode("", 0, 0, code);
+    }
+
+    public static int rendezvousTunnelToken(String code) {
+        String normalized = normalizeRendezvousCode(code);
+        if (normalized == null) {
+            throw new IllegalArgumentException("rendezvous code is invalid");
+        }
+
+        int token = java.util.Arrays.hashCode(normalized.getBytes(StandardCharsets.UTF_8));
+        return token == 0 ? 0x51F15EED : token;
     }
 
     public static String createRendezvousCode() {

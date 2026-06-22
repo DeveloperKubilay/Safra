@@ -9,11 +9,15 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -26,6 +30,7 @@ public final class RemoteRendezvousConfigUpdater {
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
+    private static volatile List<String> latestModVersions = java.util.Collections.emptyList();
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -48,16 +53,15 @@ public final class RemoteRendezvousConfigUpdater {
 
         HTTP_CLIENT.newCall(request).enqueue(new Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", e.toString());
+            public void onFailure(Call call, IOException exception) {
+                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", exception.toString());
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 try {
                     if (response.isSuccessful() && response.body() != null) {
-                        String body = response.body().string();
-                        applyRemoteConfig(config, body);
+                        applyRemoteConfig(config, response.body().string());
                     }
                 } finally {
                     response.close();
@@ -73,14 +77,14 @@ public final class RemoteRendezvousConfigUpdater {
             }
 
             JsonObject json = new JsonParser().parse(body).getAsJsonObject();
-            latestModVersion = parseLatestModVersion(json);
-            String key = "api-" + config.getSiteApiVersion();
-            JsonElement urlElement = json.get(key);
-            if (urlElement == null || urlElement.isJsonNull()) {
-                return;
+            List<String> latestVersions = parseLatestModVersions(json);
+            latestModVersions = latestVersions;
+            if (latestVersions.isEmpty()) {
+                latestModVersion = "";
+            } else {
+                latestModVersion = latestVersions.get(latestVersions.size() - 1);
             }
-
-            String remoteUrl = urlElement.getAsString();
+            String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
                 P2pConstants.setRuntimeRendezvousUrl(null);
@@ -99,40 +103,70 @@ public final class RemoteRendezvousConfigUpdater {
     }
 
     public static boolean hasNewerModVersion() {
-        String latest = latestModVersion;
-        if (latest == null || latest.isBlank()) {
+        List<String> latest = latestModVersions;
+        if (latest == null || latest.isEmpty()) {
             return false;
         }
 
         String current = SafraBuildInfo.modVersion();
-        if (current == null || current.isBlank() || "unknown".equalsIgnoreCase(current)) {
+        if (current == null || current.trim().isEmpty() || "unknown".equalsIgnoreCase(current)) {
             return false;
         }
 
-        return !latest.trim().equals(current.trim());
+        String normalizedCurrent = current.trim();
+        for (String version : latest) {
+            if (normalizedCurrent.equals(version)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    private static String parseLatestModVersion(JsonObject json) {
+    private static List<String> parseLatestModVersions(JsonObject json) {
         if (json == null) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         JsonElement latestElement = json.get("latest");
         if (latestElement == null || latestElement.isJsonNull() || !latestElement.isJsonObject()) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         String minecraftVersion = SafraBuildInfo.minecraftVersion();
-        if (minecraftVersion == null || minecraftVersion.isBlank() || "unknown".equalsIgnoreCase(minecraftVersion)) {
-            return "";
+        if (minecraftVersion == null || minecraftVersion.trim().isEmpty() || "unknown".equalsIgnoreCase(minecraftVersion)) {
+            return java.util.Collections.emptyList();
         }
 
         JsonElement versionElement = latestElement.getAsJsonObject().get(minecraftVersion.trim());
         if (versionElement == null || versionElement.isJsonNull()) {
-            return "";
+            return java.util.Collections.emptyList();
+        }
+
+        LinkedHashSet<String> versions = new LinkedHashSet<>();
+        if (versionElement.isJsonPrimitive()) {
+            addVersion(versions, versionElement);
+        } else if (versionElement.isJsonArray()) {
+            for (JsonElement element : versionElement.getAsJsonArray()) {
+                addVersion(versions, element);
+            }
+        }
+
+        return versions.isEmpty() ? java.util.Collections.<String>emptyList() : new ArrayList<>(versions);
+    }
+
+    private static void addVersion(LinkedHashSet<String> versions, JsonElement versionElement) {
+        if (versionElement == null || versionElement.isJsonNull() || !versionElement.isJsonPrimitive()) {
+            return;
         }
 
         String remoteVersion = versionElement.getAsString();
-        return remoteVersion == null ? "" : remoteVersion.trim();
+        if (remoteVersion == null) {
+            return;
+        }
+
+        String normalized = remoteVersion.trim();
+        if (!normalized.trim().isEmpty()) {
+            versions.add(normalized);
+        }
     }
 }
