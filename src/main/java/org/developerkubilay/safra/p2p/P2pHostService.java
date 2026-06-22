@@ -82,7 +82,7 @@ public final class P2pHostService implements AutoCloseable {
         InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
         if (publishedEndpoint == null) {
             binding.close();
-            throw new IOException("genel UDP ucu bulunamadi");
+            throw new IOException("Could not find a public UDP endpoint");
         }
 
         P2pRuntime.start("safra-p2p-host-recv", this::receiveLoop);
@@ -111,7 +111,7 @@ public final class P2pHostService implements AutoCloseable {
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
             if (relayTransport) {
-                LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
+                LOGGER.warn("Safra P2P rendezvous registration failed while TURN relay was active", exception);
                 throw exception;
             }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);

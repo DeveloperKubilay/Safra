@@ -28,7 +28,7 @@ final class P2pUdpBindingFactory {
             if (!allowRelayFallback || !P2pConstants.turnEnabled()) {
                 throw exception;
             }
-            logger.debug("Safra host STUN acilamadi, TURN relay denenecek: {}", exception.toString());
+            logger.debug("Safra host STUN could not be opened, trying TURN relay: {}", exception.toString());
             return createTurnBinding(logger, "host");
         }
     }
@@ -43,14 +43,14 @@ final class P2pUdpBindingFactory {
             if (P2pConstants.neverUseRelayServer()) {
                 throw exception;
             }
-            logger.debug("Safra join STUN acilamadi, TURN relay denenecek: {}", exception.toString());
+            logger.debug("Safra join STUN could not be opened, trying TURN relay: {}", exception.toString());
             return createTurnBinding(logger, "join");
         }
     }
 
     static P2pTransportBinding createTurnBinding(Logger logger, String role) throws IOException {
         if (P2pConstants.neverUseRelayServer()) {
-            throw new IOException("TURN relay configde kapali");
+            throw new IOException("TURN relay is disabled in config");
         }
         P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, false);
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
@@ -68,7 +68,7 @@ final class P2pUdpBindingFactory {
         try {
             Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {
-                throw new IOException("STUN ile genel UDP ucu bulunamadi");
+                throw new IOException("Could not discover a public UDP endpoint with STUN");
             }
             success = true;
             return new P2pTransportBinding(
@@ -90,7 +90,7 @@ final class P2pUdpBindingFactory {
         try {
             Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {
-                throw new IOException("STUN ile joiner genel UDP ucu bulunamadi");
+                throw new IOException("Could not discover a public joiner UDP endpoint with STUN");
             }
             success = true;
             return new P2pTransportBinding(

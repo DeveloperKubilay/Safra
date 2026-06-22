@@ -97,7 +97,7 @@ public final class P2pClientProxy implements AutoCloseable {
             transport = binding.transport();
         } catch (IOException exception) {
             if (!binding.relay() && P2pConstants.turnEnabled() && !P2pConstants.neverUseRelayServer()) {
-                LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
+                LOGGER.debug("Safra join direct path failed, trying TURN relay fallback: {}", exception.toString());
                 binding.close();
                 discardRendezvousSession();
                 P2pTransportBinding turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
@@ -122,13 +122,13 @@ public final class P2pClientProxy implements AutoCloseable {
         remoteAddress = rendezvousSession.hostAddress();
         tunnelToken = rendezvousSession.tunnelToken();
         if (tunnelToken == 0) {
-            throw new IOException("Rendezvous sunucusu gecersiz tunel token'i dondurdu");
+            throw new IOException("Rendezvous server returned an invalid tunnel token");
         }
 
         if (!binding.relay()) {
             P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = binding.stunEndpoints().get(P2pSockets.addressFamily(remoteAddress));
             if (matchingLocalEndpoint == null) {
-                throw new IOException("Host ve joiner farkli IP ailesi kullaniyor ("
+                throw new IOException("Host and joiner are using different IP families ("
                     + binding.stunEndpoints().keySet() + " / "
                     + P2pSockets.addressFamily(remoteAddress) + ")");
             }
