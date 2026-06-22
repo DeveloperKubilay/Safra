@@ -1003,6 +1003,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             private volatile Thread streamThread;
             private volatile Thread relayRequestThread;
             private volatile boolean closed;
+            private volatile JsonObject hostRequest;
             private volatile String code;
             private volatile InetSocketAddress lastJoinerAddress;
             private volatile P2pTurnCredentials pendingRelayCredentials;
@@ -1032,25 +1033,8 @@ final class SafraRendezvousClient implements AutoCloseable {
                     request.addProperty("code", preferredCode);
                 }
 
-                HttpRequest httpRequest = requestBuilder(httpUri("/session-create"))
-                    .header("Accept", "text/event-stream")
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
-                    .build();
-
-                HttpResponse<InputStream> response;
-                try {
-                    response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Safra host istegi kesildi", exception);
-                }
-
-                if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra host istegi HTTP " + response.statusCode() + " dondu");
-                }
-
-                stream = response.body();
+                hostRequest = request;
+                openEventStream(request);
                 streamThread = P2pRuntime.start("safra-rendezvous-host-events", this::readEvents);
                 try {
                     return codeFuture.get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -1108,7 +1092,77 @@ final class SafraRendezvousClient implements AutoCloseable {
                 }
             }
 
+            private void openEventStream(JsonObject request) throws IOException {
+                HttpRequest httpRequest = requestBuilder(httpUri("/session-create"))
+                    .header("Accept", "text/event-stream")
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
+                    .build();
+
+                HttpResponse<InputStream> response;
+                try {
+                    response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Safra host istegi kesildi", exception);
+                }
+
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    throw new IOException("Safra host istegi HTTP " + response.statusCode() + " dondu");
+                }
+
+                stream = response.body();
+            }
+
             private void readEvents() {
+                while (!closed) {
+                    try {
+                        readCurrentEventStream();
+                        if (!closed) {
+                            throw new IOException("Safra host event stream kapandi");
+                        }
+                        return;
+                    } catch (IOException exception) {
+                        if (closed) {
+                            return;
+                        }
+                        LOGGER.debug("Safra host event stream closed: {}", exception.toString());
+                    }
+
+                    if (!reconnectEventStream()) {
+                        return;
+                    }
+                }
+            }
+
+            private boolean reconnectEventStream() {
+                long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_RECONNECT_WINDOW_MS;
+                int attempt = 0;
+                while (!closed && System.currentTimeMillis() < deadline) {
+                    attempt++;
+                    try {
+                        sleepQuietly(P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS);
+                        openEventStream(reconnectRequest());
+                        LOGGER.debug("Safra host event stream reconnected attempt={}", attempt);
+                        return true;
+                    } catch (IOException exception) {
+                        if (!closed) {
+                            LOGGER.debug("Safra host event stream reconnect attempt {} failed: {}",
+                                attempt,
+                                exception.toString());
+                        }
+                    }
+                }
+
+                if (!closed) {
+                    IOException exception = new IOException("Safra host event stream could not reconnect");
+                    codeFuture.completeExceptionally(exception);
+                    LOGGER.warn("Safra host event stream could not reconnect within 120 seconds");
+                }
+                return false;
+            }
+
+            private void readCurrentEventStream() throws IOException {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
                     String event = "";
                     StringBuilder data = new StringBuilder();
@@ -1131,18 +1185,28 @@ final class SafraRendezvousClient implements AutoCloseable {
                             data.append(line.substring(5).trim());
                         }
                     }
-                } catch (IOException exception) {
-                    if (!closed) {
-                        codeFuture.completeExceptionally(exception);
-                        LOGGER.debug("Safra host event stream kapandi: {}", exception.toString());
-                    }
                 }
+            }
+
+            private JsonObject reconnectRequest() {
+                JsonObject request = hostRequest == null ? new JsonObject() : hostRequest.deepCopy();
+                if (code != null && !code.isBlank()) {
+                    request.addProperty("code", code);
+                }
+                return request;
             }
 
             private void handleEvent(String event, JsonObject data) throws IOException {
                 if ("session-created".equals(event)) {
-                    code = string(data, "code");
+                    String receivedCode = string(data, "code");
+                    if (code != null && !code.isBlank() && receivedCode != null && !code.equals(receivedCode)) {
+                        throw new IOException("Safra host reconnect returned a different code");
+                    }
+                    code = receivedCode;
                     codeFuture.complete(code);
+                    if (relayAssigned) {
+                        relayRequestHandler.accept(lastJoinerAddress);
+                    }
                     if (booleanValue(data, "relayRequired")) {
                         queueRelayRequest();
                     }
