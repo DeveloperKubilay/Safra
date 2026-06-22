@@ -67,7 +67,11 @@ public final class RemoteRendezvousConfigUpdater {
             JsonObject json = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
-            latestModVersion = String.join(", ", latestVersions);
+            if (latestVersions.isEmpty()) {
+                latestModVersion = "";
+            } else {
+                latestModVersion = latestVersions.get(latestVersions.size() - 1);
+            }
             String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
