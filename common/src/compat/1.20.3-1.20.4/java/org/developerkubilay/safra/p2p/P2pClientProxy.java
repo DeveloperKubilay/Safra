@@ -44,7 +44,7 @@ public final class P2pClientProxy implements AutoCloseable {
             if (P2pOptionalIntegrations.isVoiceChatAvailable()) {
                 SafraVoiceTransportManager.getInstance().setJoinSession(rendezvousSession);
             } else {
-                LOGGER.debug("Safra voicechat modu yok; join rendezvous websocket'i eslesme sonrasi kapatiliyor");
+                LOGGER.debug("Safra voicechat is not available; closing join rendezvous session after pairing");
                 discardRendezvousSession();
             }
         } else {
@@ -105,9 +105,9 @@ public final class P2pClientProxy implements AutoCloseable {
         } catch (IOException exception) {
             if (!binding.relay()) {
                 if (P2pConstants.forceDirectThenTurnRelay()) {
-                    LOGGER.info("Safra test modu direct P2P yolunu bilincli olarak kesti; TURN fallback deneniyor");
+                    LOGGER.info("Safra test mode intentionally blocked the direct P2P path; trying TURN fallback");
                 }
-                LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
+                LOGGER.debug("Safra join direct path failed, trying TURN relay fallback: {}", exception.toString());
                 try {
                     P2pTransportBinding turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
                     SafraRendezvousClient.ResolvedRelay relay = rendezvousSession == null
@@ -122,7 +122,7 @@ public final class P2pClientProxy implements AutoCloseable {
                             transport = turnBinding.transport();
                             binding.close();
                             if (P2pConstants.forceDirectThenTurnRelay()) {
-                                LOGGER.info("Safra test modu TURN relay ile devam ediyor");
+                                LOGGER.info("Safra test mode continuing with TURN relay");
                             }
                             return;
                         } catch (RuntimeException exception2) {
@@ -132,7 +132,7 @@ public final class P2pClientProxy implements AutoCloseable {
                     }
                     turnBinding.close();
                 } catch (IOException relayException) {
-                    LOGGER.debug("Safra join relay istegi basarisiz oldu, klasik TURN fallback deneniyor: {}", relayException.toString());
+                    LOGGER.debug("Safra join relay request failed, trying classic TURN fallback: {}", relayException.toString());
                 }
 
                 binding.close();
@@ -142,7 +142,7 @@ public final class P2pClientProxy implements AutoCloseable {
                     resolveRendezvousShareCode(turnBinding);
                     transport = turnBinding.transport();
                     if (P2pConstants.forceDirectThenTurnRelay()) {
-                        LOGGER.info("Safra test modu TURN relay ile devam ediyor");
+                        LOGGER.info("Safra test mode continuing with TURN relay");
                     }
                     return;
                 } catch (IOException turnException) {
@@ -163,17 +163,17 @@ public final class P2pClientProxy implements AutoCloseable {
         tunnelToken = rendezvousSession.tunnelToken();
         if (remoteAddress == null) {
             throw new IOException(binding.relay()
-                ? "Rendezvous sunucusu relay adresi dondurmedi"
-                : "Rendezvous sunucusu host adresi dondurmedi");
+                ? "Rendezvous server did not return a relay address"
+                : "Rendezvous server did not return a host address");
         }
         if (tunnelToken == 0) {
-            throw new IOException("Rendezvous sunucusu gecersiz tunel token'i dondurdu");
+            throw new IOException("Rendezvous server returned an invalid tunnel token");
         }
 
         if (!binding.relay()) {
             P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = binding.stunEndpoints().get(P2pSockets.addressFamily(remoteAddress));
             if (matchingLocalEndpoint == null) {
-                throw new IOException("Host ve joiner farkli IP ailesi kullaniyor ("
+                throw new IOException("Host and joiner are using different IP families ("
                     + binding.stunEndpoints().keySet() + " / "
                     + P2pSockets.addressFamily(remoteAddress) + ")");
             }
@@ -182,7 +182,7 @@ public final class P2pClientProxy implements AutoCloseable {
                 LOGGER.debug("Safra P2P host and joiner resolved to the same public IP {}; attempting NAT hairpin/self-connect path", remoteAddress.getAddress());
             }
             if (P2pConstants.forceDirectThenTurnRelay()) {
-                throw new IOException("Safra test modu direct P2P yolunu bilincli olarak kesti; TURN fallback denenecek");
+                throw new IOException("Safra test mode intentionally blocked the direct P2P path; TURN fallback will be attempted");
             }
         }
 
