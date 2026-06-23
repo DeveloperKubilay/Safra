@@ -82,6 +82,10 @@ jobs:
             exit 1
           fi
 
+          if [[ -z "$build_mode" || "$build_mode" == "false" ]]; then
+            build_mode="off"
+          fi
+
           if [[ "$build_mode" != "off" && "$build_mode" != "directThenTurn" ]]; then
             echo "Invalid build_mode: $build_mode"
             exit 1
