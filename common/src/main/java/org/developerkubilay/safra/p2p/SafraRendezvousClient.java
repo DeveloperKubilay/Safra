@@ -1011,6 +1011,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             private volatile Thread streamThread;
             private volatile Thread relayRequestThread;
             private volatile boolean closed;
+            private volatile JsonObject hostRequest;
             private volatile String code;
             private volatile InetSocketAddress lastJoinerAddress;
             private volatile P2pTurnCredentials pendingRelayCredentials;
