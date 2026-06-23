@@ -53,7 +53,7 @@ public final class P2pTurnCredentialClient {
         }
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("TURN credential request returned HTTP " + response.statusCode()");
+            throw new IOException("TURN credential request returned HTTP " + response.statusCode() + "");
         }
 
         JsonObject json;
