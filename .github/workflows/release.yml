@@ -138,7 +138,9 @@ jobs:
       - name: Configure Gradle JVM for CI
         shell: bash
         run: |
-          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
+          echo "org.gradle.java.home=${JAVA_HOME}" >> gradle.properties
+          echo "org.gradle.java.installations.paths=${JAVA_HOME}" >> gradle.properties
+          echo "org.gradle.java.installations.auto-detect=false" >> gradle.properties
 
       - name: Resolve build plan
         shell: bash
@@ -236,12 +238,21 @@ jobs:
       - name: Build release artifacts
         shell: bash
         run: |
-          ./gradlew clean ${{ env.SAFRA_BUILD_TASKS }} --stacktrace \
-            -Pmc_profile="${{ env.SAFRA_MC_PROFILE }}" \
-            -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
-            -Penable_neoforge="${{ env.SAFRA_ENABLE_NEOFORGE }}" \
-            -Penable_forge="${{ env.SAFRA_ENABLE_FORGE }}" \
-            $SAFRA_BUILD_MODE_ARGS
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt"
+            ./gradlew clean ${{ env.SAFRA_BUILD_TASKS }} --stacktrace --no-daemon \
+              -Pmc_profile="${{ env.SAFRA_MC_PROFILE }}" \
+              -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
+              -Penable_neoforge="${{ env.SAFRA_ENABLE_NEOFORGE }}" \
+              -Penable_forge="${{ env.SAFRA_ENABLE_FORGE }}" \
+              $SAFRA_BUILD_MODE_ARGS && break
+            if [ $attempt -eq 3 ]; then
+              echo "All build attempts failed"
+              exit 1
+            fi
+            echo "Attempt $attempt failed, retrying in 30s..."
+            sleep 30
+          done
 
       - name: Collect release artifacts
         shell: bash
