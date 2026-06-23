@@ -74,6 +74,15 @@ abstract class DirectConnectScreenMixin extends Screen {
                     (button, value) -> {
                         this.safra$p2pEnabled = value;
                         SafraClientConfig.get().setDirectConnectP2pEnabled(value);
+
+                        if (value && this.addressField != null) {
+                            String currentAddress = this.addressField.getText();
+                            if (currentAddress != null && !currentAddress.isEmpty()
+                                && !P2pManager.isValidP2pAddress(currentAddress)) {
+                                this.addressField.setText("");
+                            }
+                        }
+
                         this.safra$refreshAddressField();
                         this.safra$updateValidation();
                     })
