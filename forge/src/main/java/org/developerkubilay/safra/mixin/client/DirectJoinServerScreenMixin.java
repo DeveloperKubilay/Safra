@@ -67,6 +67,15 @@ abstract class DirectJoinServerScreenMixin extends Screen {
                     this.safra$p2pEnabled = !this.safra$p2pEnabled;
                     SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
                     button.setMessage(this.safra$getToggleText());
+
+                    if (this.safra$p2pEnabled && this.ipEdit != null) {
+                        String currentAddress = this.ipEdit.getValue();
+                        if (currentAddress != null && !currentAddress.isEmpty()
+                            && !P2pManager.isValidP2pAddress(currentAddress)) {
+                            this.ipEdit.setValue("");
+                        }
+                    }
+
                     this.safra$refreshAddressField();
                     this.safra$updateValidation();
                 })
