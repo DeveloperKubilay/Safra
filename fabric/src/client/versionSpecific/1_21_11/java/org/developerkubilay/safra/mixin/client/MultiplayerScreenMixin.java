@@ -16,6 +16,7 @@ import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 
 @Mixin(JoinMultiplayerScreen.class)
@@ -54,7 +55,14 @@ abstract class MultiplayerScreenMixin {
                     return;
                 }
 
-                self.join(rewriteResult.serverInfo());
+                net.minecraft.client.gui.screens.ConnectScreen.startConnecting(
+                    self,
+                    Minecraft.getInstance(),
+                    ServerAddress.parseString(rewriteResult.serverInfo().ip),
+                    rewriteResult.serverInfo(),
+                    false,
+                    null
+                );
             })
         );
         ci.cancel();

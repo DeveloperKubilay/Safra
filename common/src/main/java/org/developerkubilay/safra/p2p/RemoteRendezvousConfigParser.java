@@ -13,7 +13,7 @@ public final class RemoteRendezvousConfigParser {
             return "";
         }
 
-        JsonObject json = new JsonParser().parse(body).getAsJsonObject();
+        JsonObject json = JsonParser.parseString(body).getAsJsonObject();
         return parseRemoteUrl(json, siteApiVersion, target);
     }
 

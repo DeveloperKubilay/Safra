@@ -142,10 +142,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         HttpRequest.Builder builder = HttpRequest.newBuilder(httpUri("/v3/sessions/" + encode(code)))
             .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
             .GET();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
         HttpResponse<String> response;
         try {
             response = HttpClient.newBuilder()
@@ -221,10 +217,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             try {
                 WebSocket.Builder builder = httpClient.newWebSocketBuilder();
-                String token = P2pConstants.rendezvousToken();
-                if (!token.isBlank()) {
-                    builder.header("Authorization", "Bearer " + token);
-                }
                 webSocket = builder
                     .buildAsync(uri, listener)
                     .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -1041,7 +1033,6 @@ final class SafraRendezvousClient implements AutoCloseable {
                     request.addProperty("code", preferredCode);
                 }
 
-
                 hostRequest = request;
                 openEventStream(request);
                 streamThread = P2pRuntime.start("safra-rendezvous-host-events", this::readEvents);
@@ -1060,7 +1051,7 @@ final class SafraRendezvousClient implements AutoCloseable {
             public void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException {
                 InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
                 if (primaryEndpoint == null || code == null || code.isBlank()) {
-                    throw new IOException("Safra relay host requires an active session and a UDP endpoint");
+                    throw new IOException("Safra relay host requires an active session and UDP endpoint");
                 }
 
                 JsonObject request = new JsonObject();
@@ -1071,7 +1062,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra relay publish returned HTTP " + response.statusCode() + "");
+                    throw new IOException("Safra relay publish returned HTTP " + response.statusCode());
                 }
             }
 
@@ -1101,7 +1092,6 @@ final class SafraRendezvousClient implements AutoCloseable {
                 }
             }
 
-
             private void openEventStream(JsonObject request) throws IOException {
                 HttpRequest httpRequest = requestBuilder(httpUri("/session-create"))
                     .header("Accept", "text/event-stream")
@@ -1118,7 +1108,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 }
 
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra host request returned HTTP " + response.statusCode() + "");
+                    throw new IOException("Safra host request returned HTTP " + response.statusCode());
                 }
 
                 stream = response.body();
@@ -1270,7 +1260,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                 try {
                     HttpResponse<InputStream> response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
                     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                        throw new IOException("Safra host relay request returned HTTP " + response.statusCode() + "");
+                        throw new IOException("Safra host relay request returned HTTP " + response.statusCode());
                     }
 
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -1311,7 +1301,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra join request returned HTTP " + response.statusCode() + "");
+                    throw new IOException("Safra join request returned HTTP " + response.statusCode());
                 }
 
                 JsonObject json = parseApi3Object(response.body(), "Safra join response is invalid");
@@ -1363,7 +1353,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     }
                 }
 
-                throw new IOException("Safra voice endpoint did not arrive in time");
+                throw new IOException("Safra voice endpoint was not received in time");
             }
 
             @Override
@@ -1392,7 +1382,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     throw new IOException("Safra relay request was interrupted", exception);
                 }
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra relay request returned HTTP " + response.statusCode() + "");
+                    throw new IOException("Safra relay request returned HTTP " + response.statusCode());
                 }
 
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -1481,19 +1471,14 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IOException("Safra voice update request returned HTTP " + response.statusCode() + "");
+                    throw new IOException("Safra voice update request returned HTTP " + response.statusCode());
                 }
             }
         }
 
         private static HttpRequest.Builder requestBuilder(URI uri) {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+            return HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS));
-            String token = P2pConstants.rendezvousToken();
-            if (!token.isBlank()) {
-                builder.header("Authorization", "Bearer " + token);
-            }
-            return builder;
         }
 
         private static HttpResponse<String> sendText(HttpRequest request) throws IOException {

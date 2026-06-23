@@ -314,7 +314,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         String newRealm = response.stringAttribute(P2pTurnProtocol.ATTR_REALM);
         String newNonce = response.stringAttribute(P2pTurnProtocol.ATTR_NONCE);
         if (newRealm.isBlank() || newNonce.isBlank()) {
-            throw new IOException("TURN auth challenge eksik realm/nonce");
+            throw new IOException("TURN auth challenge returned missing realm/nonce");
         }
 
         realm = newRealm;

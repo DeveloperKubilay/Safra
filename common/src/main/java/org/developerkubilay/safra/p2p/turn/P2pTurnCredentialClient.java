@@ -32,17 +32,13 @@ public final class P2pTurnCredentialClient {
 
     public static P2pTurnCredentials fetch(String role, boolean turnOnly) throws IOException {
         if (!P2pConstants.hasRendezvousUrl()) {
-            throw new IOException("TURN icin rendezvous URL gerekli");
+            throw new IOException("TURN requires a rendezvous URL");
         }
 
         URI uri = turnCredentialsUri(role, turnOnly);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
             .GET();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
 
         HttpResponse<String> response;
         try {
@@ -53,7 +49,7 @@ public final class P2pTurnCredentialClient {
         }
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("TURN credential request returned HTTP " + response.statusCode() + "");
+            throw new IOException("TURN credential request returned HTTP " + response.statusCode());
         }
 
         JsonObject json;

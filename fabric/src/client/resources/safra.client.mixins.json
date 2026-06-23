@@ -6,6 +6,7 @@
   "client": [
     "ConnectScreenMixin",
     "DirectConnectScreenMixin",
+    "ManageServerScreenMixin",
     "MultiplayerScreenMixin",
     "OpenToLanScreenMixin"
   ],
