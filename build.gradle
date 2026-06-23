@@ -153,7 +153,7 @@ def versionConfig = [
     '1.21.9' : [
         sourceBucket              : '1_21_9',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_11',
+        fabricClientSourceDir     : '1_21_9',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.134.1+1.21.9',
         packFormat                : 69,
@@ -169,7 +169,7 @@ def versionConfig = [
     '1.21.10': [
         sourceBucket              : '1_21_9',
         forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_11',
+        fabricClientSourceDir     : '1_21_9',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.136.0+1.21.10',
         packFormat                : 69,
