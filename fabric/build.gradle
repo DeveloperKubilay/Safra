@@ -25,18 +25,21 @@ sourceSets {
 
 def fabricCompatBucket = (rootProject.ext.fabric_bucket ?: '').toString()
 if (!fabricCompatBucket.isBlank()) {
-    def compatClientFiles = [
-        'org/developerkubilay/safra/client/p2p/FabricVersionCompat.java',
-        'org/developerkubilay/safra/client/p2p/SafraLanServerSettingsScreen.java',
-        'org/developerkubilay/safra/mixin/client/ConnectScreenMixin.java',
-        'org/developerkubilay/safra/mixin/client/DirectConnectScreenMixin.java',
-        'org/developerkubilay/safra/mixin/client/OpenToLanScreenMixin.java'
-    ].collect { relativePath ->
-        project.file("src/client/java/${relativePath}").canonicalFile
+    def fabricCompatClientSourceRoot = project.file("compat/${fabricCompatBucket}/src/client/java")
+    def compatClientFiles = []
+    if (fabricCompatClientSourceRoot.isDirectory()) {
+        compatClientFiles = fileTree(fabricCompatClientSourceRoot) {
+            include '**/*.java'
+        }.collect { file ->
+            fabricCompatClientSourceRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+        }.toSet()
     }
     sourceSets.matching { it.name == 'client' }.configureEach {
         java {
-            exclude { details -> compatClientFiles.contains(details.file.canonicalFile) }
+            exclude { details ->
+                def relativePath = project.file('src/client/java').toPath().relativize(details.file.toPath()).toString().replace('\\', '/')
+                compatClientFiles.contains(relativePath)
+            }
             srcDir("compat/${fabricCompatBucket}/src/client/java")
         }
     }

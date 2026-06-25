@@ -51,12 +51,20 @@ sourceSets {
 
 def forgeCompatBucket = (rootProject.ext.forge_bucket ?: '').toString()
 if (!forgeCompatBucket.isBlank()) {
-    def forgeCompatRoots = [
-        project.file('src/main/java/org/developerkubilay/safra/client/p2p').canonicalFile,
-        project.file('src/main/java/org/developerkubilay/safra/mixin/client').canonicalFile
-    ]
+    def forgeCompatSourceRoot = project.file("compat/${forgeCompatBucket}/src/main/java")
+    def forgeCompatFiles = []
+    if (forgeCompatSourceRoot.isDirectory()) {
+        forgeCompatFiles = fileTree(forgeCompatSourceRoot) {
+            include '**/*.java'
+        }.collect { file ->
+            forgeCompatSourceRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+        }.toSet()
+    }
     sourceSets.main.java {
-        exclude { details -> forgeCompatRoots.any { root -> details.file.canonicalPath.startsWith(root.canonicalPath) } }
+        exclude { details ->
+            def relativePath = project.file('src/main/java').toPath().relativize(details.file.toPath()).toString().replace('\\', '/')
+            forgeCompatFiles.contains(relativePath)
+        }
         srcDir("compat/${forgeCompatBucket}/src/main/java")
     }
 }
