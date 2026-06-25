@@ -48,7 +48,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
                     return;
                 }
                 GameRules editableRules = NeoForgeLanGameRules.createEditableGameRules(minecraft, NeoForgeLanSessionState.getGameRuleSnapshot());
-                minecraft.setScreen(new InWorldGameRulesScreen(connection, this::handleGameRulesClose, this));
+                minecraft.gui.setScreen(new InWorldGameRulesScreen(connection, this::handleGameRulesClose, this));
             })
             .bounds(this.width / 2 - 100, this.height / 4 + 72, 200, 20)
             .build());
@@ -64,7 +64,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     public void onClose() {
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.gui.setScreen(this.parent);
         }
     }
 
@@ -86,7 +86,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private void handleGameRulesClose(Optional<GameRules> rules) {
         rules.ifPresent(gameRules -> NeoForgeLanSessionState.setGameRuleSnapshot(NeoForgeLanGameRules.serialize(gameRules)));
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this);
+            this.minecraft.gui.setScreen(this);
         }
     }
 }
