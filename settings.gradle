@@ -60,9 +60,6 @@ if (enableForgeValue == null) {
     enableForgeValue = localProperties.getProperty('enable_forge', 'true')
 }
 def forgeEnabled = Boolean.parseBoolean(enableForgeValue)
-if (forgeEnabled) {
-    include 'forge'
-}
 
 def enableNeoForgeValue = gradle.startParameter.projectProperties['enable_neoforge']
 if (enableNeoForgeValue == null) {
@@ -74,7 +71,12 @@ if (enableNeoForgeValue == null) {
 if (enableNeoForgeValue == null) {
     enableNeoForgeValue = localProperties.getProperty('enable_neoforge', 'true')
 }
+def neoForgeEnabled = Boolean.parseBoolean(enableNeoForgeValue)
 
-if (forgeEnabled && Boolean.parseBoolean(enableNeoForgeValue)) {
+if (forgeEnabled || neoForgeEnabled) {
+    include 'forge'
+}
+
+if (neoForgeEnabled) {
     include 'neoforge'
 }
