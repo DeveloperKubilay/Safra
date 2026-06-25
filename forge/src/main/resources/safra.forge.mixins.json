@@ -7,7 +7,6 @@
   "client": [
     "ConnectScreenMixin",
     "DirectJoinServerScreenMixin",
-    "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
     "ManageServerScreenMixin",
     "ServerStatusPingerMixin",

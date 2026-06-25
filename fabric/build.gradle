@@ -15,6 +15,7 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
+def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 loom {
     splitEnvironmentSourceSets()
@@ -29,8 +30,15 @@ loom {
     runs {
         client {
             property 'safra.p2p.diagnostics', 'true'
+            if (forceDirectThenTurn) {
+                property 'safra.p2p.forceDirectThenTurn', 'true'
+            }
             programArg '--username'
             programArg devUsername
+        }
+        server {
+            server()
+            property 'safra.p2p.diagnostics', 'false'
         }
     }
 }
@@ -57,6 +65,7 @@ processResources {
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'test_mode', rootProject.ext.buildTestMode
     filteringCharset = 'UTF-8'
 
     filesMatching('fabric.mod.json') {
@@ -73,9 +82,10 @@ processResources {
     filesMatching('safra-build.properties') {
         expand(
             mod_version: project.mod_version,
-            minecraft_version: project.base_minecraft_version,
+            minecraft_version: project.fabric_minecraft_version,
             loader_name: 'fabric',
-            loader_version: project.loader_version
+            loader_version: project.loader_version,
+            test_mode: rootProject.ext.buildTestMode
         )
     }
 }
