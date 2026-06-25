@@ -4,7 +4,7 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 1;
     static final int HEADER_SIZE = 18;
-    static final int MAX_PAYLOAD_SIZE = 1350;
+    static final int MAX_PAYLOAD_SIZE = 1200;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
     static final int SEND_WINDOW_SIZE = 32;
     static final int INITIAL_SEND_WINDOW_SIZE = 32;
