@@ -1,0 +1,17 @@
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.neoforged.net/releases/' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+configurations { testConf }
+dependencies {
+    testConf 'net.neoforged:neoforge:26.2.+'
+    testConf 'net.minecraftforge:forge:65.+'
+}
+task showVersions {
+    doLast {
+        configurations.testConf.resolvedConfiguration.firstLevelModuleDependencies.each {
+            println "Resolved: " + it.moduleVersion
+        }
+    }
+}
