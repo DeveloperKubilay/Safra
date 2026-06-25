@@ -8,7 +8,8 @@
     "DirectConnectScreenMixin",
     "ManageServerScreenMixin",
     "MultiplayerScreenMixin",
-    "OpenToLanScreenMixin"
+    "OpenToLanScreenMixin",
+    "ServerStatusPingerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
