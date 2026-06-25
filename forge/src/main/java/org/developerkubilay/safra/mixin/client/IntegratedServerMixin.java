@@ -75,11 +75,14 @@ abstract class IntegratedServerMixin {
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
         client.keyboardHandler.setClipboard(shareCodeText);
 
-        Component shareText = ForgeComponentCompat.literal(shareCodeText).copy().withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
+        Component shareText = ForgeComponentCompat.copyableLiteral(shareCodeText, "safra.p2p.copy_hint");
         client.gui.getChat().addMessage(ForgeComponentCompat.translatable("safra.p2p.host.started", shareText));
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.gui.getChat().addMessage(
-                ForgeComponentCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).copy().withStyle(ChatFormatting.YELLOW)
+                ForgeComponentCompat.style(
+                    ForgeComponentCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()),
+                    ChatFormatting.YELLOW
+                )
             );
         }
 
@@ -98,7 +101,7 @@ abstract class IntegratedServerMixin {
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
         client.gui.getChat().addMessage(
-            ForgeComponentCompat.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED)
+            ForgeComponentCompat.style(ForgeComponentCompat.translatable("safra.p2p.host.failed", message), ChatFormatting.RED)
         );
     }
 

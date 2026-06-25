@@ -146,8 +146,8 @@ ext.mcProfiles = [
         forge_minecraft_version_range: '[1.20.5,1.20.7)',
         java_target_version          : 21,
         common_bucket                : '',
-        fabric_bucket                : '',
-        forge_bucket                 : '',
+        fabric_bucket                : '1.20.5-1.20.6',
+        forge_bucket                 : '1.20.5-1.20.6',
         neoforge_bucket              : ''
     ]
 ]

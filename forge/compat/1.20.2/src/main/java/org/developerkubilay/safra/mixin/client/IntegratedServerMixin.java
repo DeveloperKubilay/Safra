@@ -87,7 +87,10 @@ abstract class IntegratedServerMixin {
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             safra$pushClientMessage(
                 client,
-                ForgeComponentCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).copy().withStyle(ChatFormatting.YELLOW)
+                ForgeComponentCompat.style(
+                    ForgeComponentCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()),
+                    ChatFormatting.YELLOW
+                )
             );
         }
 
