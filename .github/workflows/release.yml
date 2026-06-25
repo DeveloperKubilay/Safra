@@ -19,6 +19,7 @@ on:
         type: choice
         options:
           - off
+          - directThenTurn
 
 permissions:
   contents: write
@@ -74,7 +75,7 @@ jobs:
             build_mode="off"
           fi
 
-          if [[ "$build_mode" != "off" ]]; then
+          if [[ "$build_mode" != "off" && "$build_mode" != "directThenTurn" ]]; then
             echo "Invalid build_mode: $build_mode"
             exit 1
           fi
@@ -82,10 +83,10 @@ jobs:
           release_tag="Safra-$minecraft_version-$version_number"
           release_title="Safra $minecraft_version-$version_number"
           build_mode_args=""
-          if [[ "$build_mode" == "forceTurn" ]]; then
+          if [[ "$build_mode" == "directThenTurn" ]]; then
             release_tag="${release_tag}-${build_mode}"
             release_title="${release_title} (${build_mode})"
-            build_mode_args="-PforceTurn=true"
+            build_mode_args="-PforceDirectThenTurn=true"
           fi
 
           echo "SAFRA_MINECRAFT_VERSION=$minecraft_version" >> "$GITHUB_ENV"
