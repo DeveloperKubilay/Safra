@@ -87,14 +87,71 @@ public final class ForgeComponentCompat {
             return empty();
         }
 
-        try {
-            Method method = component.getClass().getMethod("withStyle", ChatFormatting[].class);
-            method.setAccessible(true);
-            Object styled = method.invoke(component, new Object[]{formatting});
+        Object styled = callInstance(
+            component,
+            new Class<?>[]{ChatFormatting[].class},
+            new Object[]{formatting},
+            "withStyle",
+            "m_130944_"
+        );
+        if (styled instanceof Component result) {
+            return result;
+        }
+
+        Object currentComponent = component;
+        for (ChatFormatting value : formatting) {
+            styled = callInstance(
+                currentComponent,
+                new Class<?>[]{ChatFormatting.class},
+                new Object[]{value},
+                "withStyle",
+                "m_130940_"
+            );
             if (styled instanceof Component result) {
-                return result;
+                currentComponent = result;
             }
-        } catch (ReflectiveOperationException ignored) {
+        }
+        if (currentComponent instanceof Component result && currentComponent != component) {
+            return result;
+        }
+
+        for (Method method : component.getClass().getMethods()) {
+            if (!"withStyle".equals(method.getName())) {
+                continue;
+            }
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (parameterTypes.length != 1) {
+                continue;
+            }
+            if (parameterTypes[0].isArray() && parameterTypes[0].getComponentType() == ChatFormatting.class) {
+                try {
+                    method.setAccessible(true);
+                    styled = method.invoke(component, new Object[]{formatting});
+                    if (styled instanceof Component result) {
+                        return result;
+                    }
+                } catch (ReflectiveOperationException ignored) {
+                }
+                continue;
+            }
+            if (parameterTypes[0] != ChatFormatting.class || formatting.length == 0) {
+                continue;
+            }
+            try {
+                method.setAccessible(true);
+                styled = method.invoke(component, formatting[0]);
+                if (styled instanceof Component result) {
+                    Component current = result;
+                    for (int i = 1; i < formatting.length; i++) {
+                        Object next = method.invoke(current, formatting[i]);
+                        if (next instanceof Component nextComponent) {
+                            current = nextComponent;
+                        }
+                    }
+                    return current;
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
         }
 
         return component;
