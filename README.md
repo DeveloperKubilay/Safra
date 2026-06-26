@@ -4,7 +4,7 @@
   </a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/tr/readme.md">
-    <img src="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/flags/4x3/tr.svg" alt="Turkce" width="40">
+    <img src="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/flags/4x3/tr.svg" alt="Türkçe" width="40">
   </a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/de/readme.md">
@@ -42,7 +42,7 @@
   </a>
 </p>
 
-<p align="center"><strong>Download Links</strong></p>
+<p align="center"><strong>Links</strong></p>
 
 <table align="center">
   <tr>
@@ -51,6 +51,12 @@
     </td>
     <td align="center" width="180">
       <a href="https://modrinth.com/mod/safra">Modrinth</a>
+    </td>
+        <td align="center" width="180">
+      <a href="https://discord.gg/NHjBvRxDXP">Discord</a>
+    </td>
+        <td align="center" width="180">
+      <a href="https://patreon.com/DeveloperKubilay">Patreon</a>
     </td>
   </tr>
 </table>
