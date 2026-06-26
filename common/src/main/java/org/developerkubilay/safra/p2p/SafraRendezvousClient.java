@@ -142,10 +142,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         HttpRequest.Builder builder = HttpRequest.newBuilder(httpUri("/v3/sessions/" + encode(code)))
             .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
             .GET();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
         HttpResponse<String> response;
         try {
             response = HttpClient.newBuilder()
@@ -221,10 +217,6 @@ final class SafraRendezvousClient implements AutoCloseable {
 
             try {
                 WebSocket.Builder builder = httpClient.newWebSocketBuilder();
-                String token = P2pConstants.rendezvousToken();
-                if (!token.isBlank()) {
-                    builder.header("Authorization", "Bearer " + token);
-                }
                 webSocket = builder
                     .buildAsync(uri, listener)
                     .get(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -1487,13 +1479,8 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
 
         private static HttpRequest.Builder requestBuilder(URI uri) {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+            return HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS));
-            String token = P2pConstants.rendezvousToken();
-            if (!token.isBlank()) {
-                builder.header("Authorization", "Bearer " + token);
-            }
-            return builder;
         }
 
         private static HttpResponse<String> sendText(HttpRequest request) throws IOException {

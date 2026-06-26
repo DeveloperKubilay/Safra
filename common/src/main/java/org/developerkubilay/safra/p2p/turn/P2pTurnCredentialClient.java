@@ -39,10 +39,6 @@ public final class P2pTurnCredentialClient {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
             .GET();
-        String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
 
         HttpResponse<String> response;
         try {

@@ -150,25 +150,6 @@ public final class P2pConstants {
         return "";
     }
 
-    public static String rendezvousToken() {
-        String property = System.getProperty("safra.rendezvousToken");
-        if (property != null && !property.isBlank()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_TOKEN");
-        if (environment != null && !environment.isBlank()) {
-            return environment.trim();
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_TOKEN");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
-            return legacyEnvironment.trim();
-        }
-
-        return "";
-    }
-
     public static String siteApiVersion() {
         String property = System.getProperty(SITE_API_VERSION_PROPERTY);
         if (property != null && !property.isBlank()) {
