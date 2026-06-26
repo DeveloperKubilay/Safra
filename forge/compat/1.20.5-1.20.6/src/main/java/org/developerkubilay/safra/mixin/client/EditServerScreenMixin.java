@@ -1,5 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.EditServerScreen;
@@ -14,9 +16,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 @Mixin(EditServerScreen.class)
 abstract class EditServerScreenMixin extends Screen {

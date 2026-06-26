@@ -26,6 +26,7 @@ abstract class ServerStatusPingerMixin {
         serverInfo.label = Text.translatable("safra.p2p.server_list_motd");
         serverInfo.playerCountLabel = Text.translatable("safra.p2p.server_list_status");
         runnable.run();
+        completionCallback.run();
         ci.cancel();
     }
 }
