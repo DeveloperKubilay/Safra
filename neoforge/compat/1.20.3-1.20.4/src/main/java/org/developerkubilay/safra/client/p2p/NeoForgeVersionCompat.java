@@ -7,6 +7,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -23,6 +24,30 @@ public final class NeoForgeVersionCompat {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Failed to create compatible ServerData copy", exception);
         }
+    }
+
+    public static void setServerPinged(ServerData serverData, boolean pinged) {
+        setFieldValue(serverData, pinged, "pinged", "f_105369_");
+    }
+
+    public static void setServerPing(ServerData serverData, long ping) {
+        setFieldValue(serverData, ping, "ping", "f_105366_");
+    }
+
+    public static void setServerPlayers(ServerData serverData, Object players) {
+        setFieldValue(serverData, players, "players", "f_263840_");
+    }
+
+    public static void setServerPlayerList(ServerData serverData, Object playerList) {
+        setFieldValue(serverData, playerList, "playerList", "f_105370_");
+    }
+
+    public static void setServerMotd(ServerData serverData, Object motd) {
+        setFieldValue(serverData, motd, "motd", "f_105365_");
+    }
+
+    public static void setServerStatus(ServerData serverData, Object status) {
+        setFieldValue(serverData, status, "status", "f_105364_");
     }
 
     public static void startConnect(Screen parent, Minecraft client, ServerAddress serverAddress,
@@ -94,5 +119,22 @@ public final class NeoForgeVersionCompat {
             return runtimeException;
         }
         return new IllegalStateException(message, cause == null ? exception : cause);
+    }
+
+    private static boolean setFieldValue(Object target, Object value, String... names) {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            for (String name : names) {
+                try {
+                    Field field = type.getDeclaredField(name);
+                    field.setAccessible(true);
+                    field.set(target, value);
+                    return true;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            type = type.getSuperclass();
+        }
+        return false;
     }
 }

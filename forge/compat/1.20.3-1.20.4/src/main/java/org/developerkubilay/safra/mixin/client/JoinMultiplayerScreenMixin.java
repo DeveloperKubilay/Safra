@@ -19,13 +19,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Mixin(JoinMultiplayerScreen.class)
 abstract class JoinMultiplayerScreenMixin extends Screen {
-    private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger(JoinMultiplayerScreenMixin.class);
-
     protected JoinMultiplayerScreenMixin(net.minecraft.network.chat.Component title) {
         super(title);
     }
@@ -36,7 +32,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             return;
         }
         String address = ForgeVersionCompat.getServerAddress(serverData);
-        if (!P2pManager.isP2pStoredAddress(address)) {
+        if (!P2pManager.isLikelyP2pAddress(address)) {
             return;
         }
         ProgressScreen progressScreen = new ProgressScreen(false);
@@ -59,7 +55,6 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    SAFRA_LOGGER.warn("Safra JoinMultiplayer rewrite failed for {}: {}", address, message);
                     ForgeVersionCompat.setScreen(minecraft, new DisconnectedScreen(
                         (Screen) (Object) this,
                         ForgeComponentCompat.translatable("connect.failed"),

@@ -20,13 +20,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Mixin(ConnectScreen.class)
 abstract class ConnectScreenMixin {
-    private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger(ConnectScreenMixin.class);
-
     @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
                                                    ServerData serverInfo, boolean quickPlay, CallbackInfo ci) {
@@ -34,7 +30,7 @@ abstract class ConnectScreenMixin {
             return;
         }
         String address = ForgeVersionCompat.getServerAddress(serverInfo);
-        if (!P2pManager.isP2pStoredAddress(address)) {
+        if (!P2pManager.isLikelyP2pAddress(address)) {
             return;
         }
         ProgressScreen progressScreen = new ProgressScreen(false);
@@ -56,7 +52,6 @@ abstract class ConnectScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    SAFRA_LOGGER.warn("Safra ConnectScreen rewrite failed for {}: {}", address, message);
                     ForgeVersionCompat.setScreen(client, new DisconnectedScreen(
                         parent,
                         ForgeComponentCompat.translatable("connect.failed"),

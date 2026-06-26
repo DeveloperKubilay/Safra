@@ -17,7 +17,7 @@ import java.util.Optional;
 
 @Mixin(ServerNameResolver.class)
 abstract class ServerNameResolverMixin {
-    @Inject(method = "resolveAddress", at = @At("HEAD"), cancellable = true)
+    @Inject(method = {"resolveAddress", "m_171890_"}, at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private void safra$resolveLocalProxyWithoutAddressCheck(ServerAddress serverAddress, CallbackInfoReturnable<Optional<ResolvedServerAddress>> cir) {
         if (serverAddress == null) {
             return;

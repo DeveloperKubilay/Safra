@@ -11,6 +11,7 @@
     "EditServerScreenMixin",
     "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
+    "ServerSelectionListOnlineServerEntryMixin",
     "ServerStatusPingerMixin",
     "ServerNameResolverMixin",
     "ShareToLanScreenMixin"

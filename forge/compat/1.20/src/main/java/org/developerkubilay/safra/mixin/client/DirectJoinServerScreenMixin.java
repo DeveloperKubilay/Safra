@@ -56,7 +56,12 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             this.safra$p2pEnabled = true;
         }
         if (storedAddress) {
-            safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
+            try {
+                safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
+            } catch (IllegalArgumentException ignored) {
+                this.safra$p2pEnabled = false;
+                safra$setEditValue(ipEdit, "");
+            }
         }
 
         this.safra$p2pButton = ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
@@ -125,14 +130,6 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             address = P2pManager.toStoredAddress(address);
         }
 
-        if (!address.equals(currentValue)) {
-            this.safra$syncingAddress = true;
-            try {
-                safra$setEditValue(ipEdit, address);
-            } finally {
-                this.safra$syncingAddress = false;
-            }
-        }
         safra$setServerAddress(serverData, address);
     }
 

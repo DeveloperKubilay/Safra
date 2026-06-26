@@ -79,14 +79,60 @@ public final class ForgeComponentCompat {
             return empty();
         }
 
-        try {
-            Method method = component.getClass().getMethod("withStyle", ChatFormatting[].class);
-            method.setAccessible(true);
-            Object styled = method.invoke(component, new Object[]{formatting});
+        Object styled = callInstance(
+            component,
+            new Class<?>[]{ChatFormatting[].class},
+            new Object[]{formatting},
+            "withStyle",
+            "m_130944_"
+        );
+        if (styled instanceof Component result) {
+            return result;
+        }
+
+        Object currentComponent = component;
+        for (ChatFormatting value : formatting) {
+            styled = callInstance(
+                currentComponent,
+                new Class<?>[]{ChatFormatting.class},
+                new Object[]{value},
+                "withStyle",
+                "m_130940_"
+            );
             if (styled instanceof Component result) {
-                return result;
+                currentComponent = result;
             }
-        } catch (ReflectiveOperationException ignored) {
+        }
+        if (currentComponent instanceof Component result && currentComponent != component) {
+            return result;
+        }
+
+        for (Method method : component.getClass().getMethods()) {
+            if (!"withStyle".equals(method.getName())) {
+                continue;
+            }
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (parameterTypes.length == 1 && parameterTypes[0] == java.util.function.UnaryOperator.class) {
+                try {
+                    method.setAccessible(true);
+                    Object styledComponent = method.invoke(component, (java.util.function.UnaryOperator<Object>) style -> {
+                        Object current = style;
+                        for (ChatFormatting value : formatting) {
+                            current = applyStyleMethod(
+                                current,
+                                new String[]{"applyFormat", "applyLegacyFormat", "withColor", "m_131140_", "m_131157_", "m_131164_", "m_131152_"},
+                                ChatFormatting.class,
+                                value
+                            );
+                        }
+                        return current;
+                    });
+                    if (styledComponent instanceof Component result) {
+                        return result;
+                    }
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
         }
 
         return component;

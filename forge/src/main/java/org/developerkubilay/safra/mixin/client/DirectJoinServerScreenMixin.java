@@ -46,13 +46,19 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         safra$call(ipEdit, new Class<?>[]{int.class}, new Object[]{200}, "setMaxLength", "m_94199_");
         String currentAddress = safra$getEditValue(ipEdit);
         boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
         if (storedAddress) {
-            safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
+            try {
+                safra$setEditValue(ipEdit, P2pManager.toDisplayAddress(currentAddress));
+            } catch (IllegalArgumentException ignored) {
+                this.safra$p2pEnabled = false;
+                safra$setEditValue(ipEdit, "");
+            }
         }
 
         if (this.safra$p2pButton == null) {
@@ -120,7 +126,6 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
             address = P2pManager.toStoredAddress(address);
         }
-        safra$setEditValue(ipEdit, address);
         safra$setServerAddress(serverData, address);
     }
 

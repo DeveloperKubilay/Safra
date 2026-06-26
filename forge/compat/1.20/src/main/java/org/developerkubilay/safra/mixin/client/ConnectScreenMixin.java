@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 @Mixin(ConnectScreen.class)
 abstract class ConnectScreenMixin {
-    @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
+    @Inject(method = {"startConnecting", "m_278792_"}, at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
                                                    ServerData serverInfo, boolean quickPlay, CallbackInfo ci) {
         if (serverInfo == null || !P2pManager.isLikelyP2pAddress(ForgeVersionCompat.getServerAddress(serverInfo))) {

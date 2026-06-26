@@ -27,7 +27,12 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
 
     @Inject(method = "join", at = @At("HEAD"), cancellable = true)
     private void safra$rewriteP2pBeforeVanillaParse(ServerData serverData, CallbackInfo ci) {
-        if (serverData == null || !P2pManager.isP2pStoredAddress(ForgeVersionCompat.getServerAddress(serverData))) {
+        if (serverData == null || !P2pManager.isLikelyP2pAddress(ForgeVersionCompat.getServerAddress(serverData))) {
+            return;
+        }
+
+        Minecraft client = safra$getClientInstance();
+        if (client == null) {
             return;
         }
 
@@ -35,9 +40,9 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
         safra$setProgressText(progressScreen,
             ForgeComponentCompat.translatable("connect.connecting"),
             ForgeComponentCompat.translatable("safra.p2p.prepare_message"));
-        ForgeVersionCompat.setScreen(Minecraft.getInstance(), progressScreen);
+        ForgeVersionCompat.setScreen(client, progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
-            Minecraft.getInstance().execute(() -> {
+            client.execute(() -> {
                 if (throwable != null) {
                     Throwable cause = throwable instanceof CompletionException completionException
                         && completionException.getCause() != null
@@ -47,7 +52,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    ForgeVersionCompat.setScreen(Minecraft.getInstance(), new DisconnectedScreen(
+                    ForgeVersionCompat.setScreen(client, new DisconnectedScreen(
                         (Screen) (Object) this,
                         ForgeComponentCompat.translatable("connect.failed"),
                         ForgeComponentCompat.translatable("safra.p2p.prepare_failed", message)
@@ -55,7 +60,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     return;
                 }
 
-                ForgeVersionCompat.startConnect((Screen) (Object) this, Minecraft.getInstance(), rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                ForgeVersionCompat.startConnect((Screen) (Object) this, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
             })
         );
         ci.cancel();
@@ -77,5 +82,10 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             }
         }
         return null;
+    }
+
+    private static Minecraft safra$getClientInstance() {
+        Object value = safra$call(Minecraft.class, new Class<?>[0], new Object[0], "getInstance", "m_91087_");
+        return value instanceof Minecraft client ? client : null;
     }
 }

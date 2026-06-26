@@ -14,14 +14,26 @@ import java.lang.reflect.Modifier;
 
 @Mixin(targets = "net.minecraft.client.multiplayer.resolver.AddressCheck$1")
 abstract class AddressCheckMixin {
-    @Inject(method = "isAllowed(Lnet/minecraft/client/multiplayer/resolver/ServerAddress;)Z", at = @At("HEAD"), cancellable = true)
+    @Inject(
+        method = "isAllowed(Lnet/minecraft/client/multiplayer/resolver/ServerAddress;)Z",
+        at = @At("HEAD"),
+        cancellable = true,
+        remap = false,
+        require = 0
+    )
     private void safra$allowLocalProxyServerAddress(ServerAddress serverAddress, CallbackInfoReturnable<Boolean> cir) {
         if (serverAddress != null && safra$isLocalProxyHost(safra$getStringValue(serverAddress, "getHost", "m_171889_"))) {
             cir.setReturnValue(true);
         }
     }
 
-    @Inject(method = "isAllowed(Lnet/minecraft/client/multiplayer/resolver/ResolvedServerAddress;)Z", at = @At("HEAD"), cancellable = true)
+    @Inject(
+        method = "isAllowed(Lnet/minecraft/client/multiplayer/resolver/ResolvedServerAddress;)Z",
+        at = @At("HEAD"),
+        cancellable = true,
+        remap = false,
+        require = 0
+    )
     private void safra$allowLocalProxyResolvedAddress(ResolvedServerAddress resolvedServerAddress, CallbackInfoReturnable<Boolean> cir) {
         if (resolvedServerAddress != null && (
             safra$isLocalProxyHost(safra$getStringValue(resolvedServerAddress, "getHostName", "m_171889_")) ||
