@@ -49,7 +49,7 @@
     </td>
     <td width="70%" align="left">
       ✨ 기능이 필요하거나, 버전 아이디어가 있거나, 버그를 찾았나요?<br />
-      언제든 GitHub 이슈를 열 수 있습니다.<br /><br />
+      언제든 <a href="https://discord.gg/NHjBvRxDXP">Discord</a>를 통해 연락하실 수 있습니다.<br /><br />
       ❤️ 오픈소스 프로젝트는 여기 있습니다<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ko/how_it_works.md">👀 어떻게 작동하는지 볼래요?</a>

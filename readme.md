@@ -96,7 +96,7 @@ Supports **Fabric**, **Forge**, and **NeoForge**
     </td>
     <td width="70%" align="left">
       ✨ Need a feature, got a version idea, or found a bug?<br />
-      You can open an issue on GitHub anytime<br /><br />
+      You can reach us via <a href="https://discord.gg/NHjBvRxDXP">Discord</a><br /><br />
       ❤️ Open-source project lives here<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Want to learn how it works?</a>

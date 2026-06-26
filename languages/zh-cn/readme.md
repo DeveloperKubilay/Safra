@@ -49,7 +49,7 @@
     </td>
     <td width="70%" align="left">
       ✨ 你想要新功能、有版本想法，或者发现了 bug？<br />
-      你随时都可以在 GitHub 上开 issue。<br /><br />
+      你随时都可以通过 <a href="https://discord.gg/NHjBvRxDXP">Discord</a> 联系我们。<br /><br />
       ❤️ 这个开源项目在这里<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/zh-cn/how_it_works.md">👀 想看看它是怎么工作的吗？</a>

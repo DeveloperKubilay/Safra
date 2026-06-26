@@ -49,7 +49,7 @@
     </td>
     <td width="70%" align="left">
       ✨ Нужна функция, есть идея для версии или нашел баг?<br />
-      Можешь в любой момент открыть issue на GitHub.<br /><br />
+      Ты можешь связаться с нами в любое время через <a href="https://discord.gg/NHjBvRxDXP">Discord</a>.<br /><br />
       ❤️ Open-source проект живет здесь<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ru/how_it_works.md">👀 Хочешь узнать, как это работает?</a>

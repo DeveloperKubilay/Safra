@@ -49,7 +49,7 @@ Compatible avec **Fabric**, **Forge** et **NeoForge**.
     </td>
     <td width="70%" align="left">
       ✨ Tu as besoin d'une fonctionnalite, d'une idee de version ou tu as trouve un bug ?<br />
-      Tu peux ouvrir une issue sur GitHub quand tu veux.<br /><br />
+      Tu peux nous contacter à tout moment via <a href="https://discord.gg/NHjBvRxDXP">Discord</a>.<br /><br />
       ❤️ Le projet open source vit ici<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/fr/how_it_works.md">👀 Tu veux voir comment ca fonctionne ?</a>

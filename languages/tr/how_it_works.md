@@ -1,30 +1,30 @@
-# Bu sistem nasil calisir?
+# Bu sistem nasıl çalışır?
 
-Omegle ve WhatsApp gibi uygulamalar, genellikle arada sunucu olmadan iletisim kurarlar. Bu da benzer mantikla calisir.
+Omegle ve WhatsApp gibi uygulamalar, genellikle arada sunucu olmadan iletişim kurarlar. Bu da benzer mantıkla çalışır.
 
-Internet saglayicilari TCP port acmazken UDP port acmaya izin verebilir.
+Internet sağlayıcıları TCP port açmazken UDP port açmaya izin verebilir.
 
-Bu modda TCP ile calisan Minecraft sunucusunun iletisimi UDP uzerinden saglanip karsi tarafa TCP gibi gosterilir.
+Bu modda TCP ile calisan Minecraft sunucusunun iletişimi UDP uzerinden sağlanıp karsi tarafa TCP gibi gösterilir.
 
-Boylece arada hicbir sunucu gecmeden, sinirsiz ve ucretsiz sekilde arkadasinla akici oynayabilirsin.
+Böylece arada hiçbir sunucu geçmeden, sınırsız ve ücretsiz şekilde arkadaşınla akıcı oynayabilirsin.
 
 Ornek olarak benzer modlarda:
 
-`Senin bilgisayarin (Istanbul) -> relay sunucusu (Frankfurt) -> arkadasinin bilgisayari (Istanbul)`
+`Senin bilgisayarın (Istanbul) -> relay sunucusu (Frankfurt) -> arkadaşının bilgisayarı (Istanbul)`
 
 Bu modda ise:
 
-`Senin bilgisayarin (Istanbul) -> arkadasinin bilgisayari (Istanbul)`
+`Senin bilgisayarın (Istanbul) -> arkadaşının bilgisayarı (Istanbul)`
 
 Arada herhangi bir sunucu bulunmaz.
 
-Aradaki iletisim sadece aranizda olur.
+Aradaki iletişim sadece aranızda olur.
 
-Bu mod, birbirinizin IP adresini bulabilmeniz icin sadece sunucu kullanir.
+Bu mod, birbirinizin IP adresini bulabilmeniz için sadece sunucu kullanir.
 
-## Guvenlik
+## Güvenlik
 
-- CodeQL ile taramalar yapilir
-- Yeni version yuklenirken ornegin CurseForge kod taramasi yapar
-- Buildleri gorebilirsiniz
-- Kendi bilgisayarimdan alip yuklemek yerine buildler GitHub Actions ile yuklenir
+- CodeQL ile taramalar yapılır
+- Yeni versiyon yüklenirken örneğin CurseForge kod taraması yapar
+- Buildleri görebilirsiniz
+- Kendi bilgisayarımdan alip yüklemek yerine buildler GitHub Actions ile yüklenir

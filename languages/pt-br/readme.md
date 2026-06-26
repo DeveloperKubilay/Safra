@@ -49,7 +49,7 @@ Suporta **Fabric**, **Forge** e **NeoForge**.
     </td>
     <td width="70%" align="left">
       ✨ Precisa de um recurso, teve uma ideia de versao ou encontrou um bug?<br />
-      Voce pode abrir uma issue no GitHub quando quiser.<br /><br />
+      Você pode nos contatar a qualquer momento pelo <a href="https://discord.gg/NHjBvRxDXP">Discord</a>.<br /><br />
       ❤️ O projeto open source vive aqui<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/pt-br/how_it_works.md">👀 Quer ver como isso funciona?</a>
