@@ -36,11 +36,6 @@ abstract class IntegratedServerMixin {
         if (ForgeLanSessionState.isP2pEnabled()) {
             safra$callBooleanSetter(server, false, "setPreventProxyConnections", "m_295794_");
         }
-        SAFRA_LOGGER.debug(
-            "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
-            safra$callBooleanGetter(server, "usesAuthentication", "m_294395_"),
-            safra$callBooleanGetter(server, "getPreventProxyConnections", "m_295459_")
-        );
     }
 
     @Inject(method = "publishServer", at = @At("RETURN"))

@@ -31,11 +31,6 @@ abstract class IntegratedServerMixin {
         if (NeoForgeLanSessionState.isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
-        SAFRA_LOGGER.debug(
-            "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
-            server.usesAuthentication(),
-            server.getPreventProxyConnections()
-        );
     }
 
     @Inject(method = "publishServer", at = @At("RETURN"))
