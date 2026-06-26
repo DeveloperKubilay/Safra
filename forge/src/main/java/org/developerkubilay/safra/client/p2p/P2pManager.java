@@ -229,6 +229,18 @@ public final class P2pManager {
         return P2pShareCode.isStoredAddress(address);
     }
 
+    public static boolean isLikelyP2pAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+
+        if (isP2pStoredAddress(address)) {
+            return true;
+        }
+
+        return P2pShareCode.normalizeRendezvousCode(address) != null;
+    }
+
     public static boolean isValidP2pAddress(String address) {
         try {
             P2pShareCode.parse(address);
