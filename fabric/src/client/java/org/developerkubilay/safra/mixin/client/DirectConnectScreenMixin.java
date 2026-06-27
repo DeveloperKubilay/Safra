@@ -47,9 +47,11 @@ abstract class DirectConnectScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         this.addressField.setMaxLength(200);
-        boolean storedAddress = P2pManager.isP2pStoredAddress(this.addressField.getText());
+        String initialAddress = this.addressField.getText();
+        boolean storedAddress = P2pManager.isP2pStoredAddress(initialAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(initialAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }

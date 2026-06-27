@@ -48,8 +48,11 @@ public final class P2pManager {
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode) {
         stopHosting();
 
-        int token = P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token, org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(fixedCode));
+        String normalizedFixedCode = org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(fixedCode);
+        int token = normalizedFixedCode != null
+            ? org.developerkubilay.safra.p2p.P2pShareCode.rendezvousTunnelToken(normalizedFixedCode)
+            : P2pHostSupport.createShareToken();
+        P2pHostService service = new P2pHostService(tcpPort, token, normalizedFixedCode);
         long generation = ++hostStartGeneration;
         startingHostService = service;
 
@@ -150,7 +153,6 @@ public final class P2pManager {
     private RewriteResult createRewrite(ServerInfo originalServerInfo, long generation) throws IOException {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.address);
-
         P2pClientProxy[] proxyRef = new P2pClientProxy[1];
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
             synchronized (P2pManager.this) {
@@ -225,6 +227,18 @@ public final class P2pManager {
 
     public static boolean isP2pStoredAddress(String address) {
         return P2pShareCode.isStoredAddress(address);
+    }
+
+    public static boolean isLikelyP2pAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+
+        if (isP2pStoredAddress(address)) {
+            return true;
+        }
+
+        return P2pShareCode.normalizeRendezvousCode(address) != null;
     }
 
     public static boolean isValidP2pAddress(String address) {

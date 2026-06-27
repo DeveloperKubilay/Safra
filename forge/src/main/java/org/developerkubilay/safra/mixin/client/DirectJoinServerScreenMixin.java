@@ -47,9 +47,11 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         this.ipEdit.setMaxLength(200);
-        boolean storedAddress = P2pManager.isP2pStoredAddress(this.ipEdit.getValue());
+        String currentAddress = this.ipEdit.getValue();
+        boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
@@ -69,9 +71,9 @@ abstract class DirectJoinServerScreenMixin extends Screen {
                     SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
 
                     if (this.safra$p2pEnabled && this.ipEdit != null) {
-                        String currentAddress = this.ipEdit.getValue();
-                        if (currentAddress != null && !currentAddress.isEmpty()
-                            && !P2pManager.isValidP2pAddress(currentAddress)) {
+                        String typedAddress = this.ipEdit.getValue();
+                        if (typedAddress != null && !typedAddress.isEmpty()
+                            && !P2pManager.isValidP2pAddress(typedAddress)) {
                             this.ipEdit.setValue("");
                         }
                     }
@@ -124,9 +126,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.ipEdit == null) {
             return;
         }
-        this.ipEdit.setSuggestion(this.safra$p2pEnabled && this.ipEdit.getValue().isEmpty()
-            ? ForgeClientCompat.translatable("safra.p2p.placeholder").getString()
-            : null);
+        this.ipEdit.setSuggestion(null);
     }
 
     @Unique
@@ -158,4 +158,5 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         button.x = x;
         button.y = y;
     }
+
 }

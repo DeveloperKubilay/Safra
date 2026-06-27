@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class ServerStatusPingerMixin {
     @Inject(method = "pingServer", at = @At("HEAD"), cancellable = true)
     private void safra$skipP2pServerListPing(ServerData data, Runnable onPersistentDataChange, CallbackInfo ci) {
-        if (!P2pManager.isP2pStoredAddress(data.ip)) {
+        if (!P2pManager.isLikelyP2pAddress(data.ip)) {
             return;
         }
 

@@ -25,7 +25,7 @@ abstract class ConnectScreenMixin {
     @Inject(method = "startConnecting", at = @At("HEAD"), cancellable = true)
     private static void safra$rewriteP2pConnection(Screen parent, Minecraft client, ServerAddress serverAddress,
                                                    ServerData serverInfo, CallbackInfo ci) {
-        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.ip)) {
+        if (serverInfo == null || !P2pManager.isLikelyP2pAddress(serverInfo.ip)) {
             return;
         }
 

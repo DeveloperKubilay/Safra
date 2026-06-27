@@ -24,11 +24,13 @@ public final class P2pHostSupport {
     }
 
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+        String normalizedPreferredCode = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        int token = normalizedPreferredCode != null ? P2pShareCode.rendezvousTunnelToken(normalizedPreferredCode) : createShareToken();
         P2pHostService service = new P2pHostService(
             tcpPort,
-            createShareToken(),
+            token,
             resolveTargetAddress(serverIp, logger),
-            preferredRendezvousCode,
+            normalizedPreferredCode,
             false
         );
         try {

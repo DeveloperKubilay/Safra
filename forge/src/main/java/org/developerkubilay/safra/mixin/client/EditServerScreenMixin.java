@@ -35,9 +35,11 @@ abstract class EditServerScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         this.ipEdit.setMaxLength(200);
-        boolean storedAddress = P2pManager.isP2pStoredAddress(this.ipEdit.getValue());
+        String currentAddress = this.ipEdit.getValue();
+        boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
@@ -84,9 +86,7 @@ abstract class EditServerScreenMixin extends Screen {
 
     @Unique
     private void safra$refreshAddressField() {
-        this.ipEdit.setSuggestion(this.safra$p2pEnabled && this.ipEdit.getValue().isEmpty()
-            ? ForgeClientCompat.translatable("safra.p2p.placeholder").getString()
-            : null);
+        this.ipEdit.setSuggestion(null);
     }
 
     @Unique
@@ -96,4 +96,5 @@ abstract class EditServerScreenMixin extends Screen {
             ? P2pManager.isValidP2pAddress(address)
             : ServerAddress.isValidAddress(address) && !this.nameEdit.getValue().isEmpty();
     }
+
 }

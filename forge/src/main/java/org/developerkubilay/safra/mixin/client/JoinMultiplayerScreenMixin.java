@@ -26,7 +26,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
 
     @Inject(method = "join", at = @At("HEAD"), cancellable = true)
     private void safra$rewriteP2pBeforeVanillaParse(ServerData serverData, CallbackInfo ci) {
-        if (serverData == null || !P2pManager.isP2pStoredAddress(serverData.ip)) {
+        if (serverData == null || !P2pManager.isLikelyP2pAddress(serverData.ip)) {
             return;
         }
 

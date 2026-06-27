@@ -221,13 +221,21 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void acceptLoop() {
-        try (ServerSocket ignored = proxyServer) {
-            Socket localSocket = proxyServer.accept();
-            startReliableTunnel(localSocket);
-        } catch (IOException exception) {
-            if (!closed) {
-                LOGGER.debug("Proxy accept failed: {}", exception.toString());
-                close();
+        ServerSocket server = proxyServer;
+        if (server == null) {
+            return;
+        }
+
+        while (!closed) {
+            try {
+                Socket localSocket = server.accept();
+                startReliableTunnel(localSocket);
+            } catch (IOException exception) {
+                if (!closed) {
+                    LOGGER.debug("Proxy accept failed: {}", exception.toString());
+                    close();
+                }
+                return;
             }
         }
     }
