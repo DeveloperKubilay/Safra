@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class ServerStatusPingerMixin {
     @Inject(method = "add", at = @At("HEAD"), cancellable = true)
     private void safra$skipP2pServerListPing(ServerInfo serverInfo, Runnable runnable, CallbackInfo ci) throws UnknownHostException {
-        if (!P2pManager.isP2pStoredAddress(serverInfo.address)) {
+        if (!P2pManager.isLikelyP2pAddress(serverInfo.address)) {
             return;
         }
 

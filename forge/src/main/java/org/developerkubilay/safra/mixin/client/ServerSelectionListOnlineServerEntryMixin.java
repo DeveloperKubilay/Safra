@@ -16,23 +16,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerSelectionList.OnlineServerEntry.class)
 abstract class ServerSelectionListOnlineServerEntryMixin {
     @Inject(
-        method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIIIIIIZF)V",
+        method = "render",
         at = @At("HEAD"),
-        require = 1
+        require = 0
     )
-    private void safra$decorateP2pEntry(
-        GuiGraphics guiGraphics,
-        int index,
-        int top,
-        int left,
-        int width,
-        int height,
-        int mouseX,
-        int mouseY,
-        boolean hovered,
-        float partialTick,
-        CallbackInfo ci
-    ) {
+    private void safra$decorateP2pEntry(CallbackInfo ci) {
         ServerData serverData = this.safra$getServerData();
         if (serverData == null || !P2pManager.isLikelyP2pAddress(ForgeVersionCompat.getServerAddress(serverData))) {
             return;
