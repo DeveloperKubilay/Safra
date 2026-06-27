@@ -4,7 +4,7 @@ import java.net.UnknownHostException;
 import java.util.List;
 import net.minecraft.client.network.MultiplayerServerListPinger;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.text.Text;
+import org.developerkubilay.safra.client.p2p.FabricClientCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,8 +21,8 @@ abstract class ServerStatusPingerMixin {
 
         serverInfo.ping = 0L;
         serverInfo.playerListSummary = List.of();
-        serverInfo.label = Text.translatable("safra.p2p.server_list_motd");
-        serverInfo.playerCountLabel = Text.translatable("safra.p2p.server_list_status");
+        serverInfo.label = FabricClientCompat.translatable("safra.p2p.server_list_motd");
+        serverInfo.playerCountLabel = FabricClientCompat.translatable("safra.p2p.server_list_status");
         runnable.run();
         ci.cancel();
     }
