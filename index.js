@@ -16,7 +16,8 @@ elenora.connect(console, {
 	maxSize: 5 * 1024 * 1024, // 5 MB
 	backupCount: 3,
 	continueFromLast: false,
-	interval: 10000 
+	interval: 10000,
+    timestamp:false
 });
 
 function networkControl(network) {
