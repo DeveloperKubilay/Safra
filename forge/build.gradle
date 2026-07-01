@@ -22,6 +22,7 @@ configurations {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
+def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it.endsWith(':runClient') }
 
 def targetJavaVersion = 8
 def compilerJavaVersion = 17
@@ -33,26 +34,29 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release.set(targetJavaVersion)
+    sourceCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
+    targetCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
 }
 
 minecraft {
     mappings channel: 'snapshot', version: project.forge_mappings
 
-    runs {
-        client {
-            property 'safra.p2p.diagnostics', 'true'
-            if (forceDirectThenTurn) {
-                property 'safra.p2p.forceDirectThenTurn', 'true'
-            }
-            workingDirectory project.file('run')
-            arg '--username'
-            arg devUsername
-            arg '-mixin.config=safra.forge.mixins.json'
+    if (rootRunClientRequested) {
+        runs {
+            client {
+                property 'safra.p2p.diagnostics', 'true'
+                if (forceDirectThenTurn) {
+                    property 'safra.p2p.forceDirectThenTurn', 'true'
+                }
+                workingDirectory project.file('run')
+                arg '--username'
+                arg devUsername
+                arg '-mixin.config=safra.forge.mixins.json'
 
-            mods {
-                "${project.mod_id}" {
-                    source sourceSets.main
+                mods {
+                    "${project.mod_id}" {
+                        source sourceSets.main
+                    }
                 }
             }
         }

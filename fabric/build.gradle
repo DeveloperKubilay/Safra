@@ -23,6 +23,7 @@ configurations {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
+def rootRunClientRequested = gradle.startParameter.taskNames.any { it == 'runClient' || it.endsWith(':runClient') }
 loom {
     mods {
         "${project.mod_id}" {
@@ -30,14 +31,16 @@ loom {
         }
     }
 
-    runs {
-        client {
-            property 'safra.p2p.diagnostics', 'true'
-            if (forceDirectThenTurn) {
-                property 'safra.p2p.forceDirectThenTurn', 'true'
+    if (rootRunClientRequested) {
+        runs {
+            client {
+                property 'safra.p2p.diagnostics', 'true'
+                if (forceDirectThenTurn) {
+                    property 'safra.p2p.forceDirectThenTurn', 'true'
+                }
+                programArg '--username'
+                programArg devUsername
             }
-            programArg '--username'
-            programArg devUsername
         }
     }
 }
@@ -92,7 +95,8 @@ def compilerJavaVersion = 17
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release.set(targetJavaVersion)
+    sourceCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
+    targetCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
 }
 
 java {

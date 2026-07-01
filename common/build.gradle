@@ -11,7 +11,8 @@ def compilerJavaVersion = 17
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release.set(targetJavaVersion)
+    sourceCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
+    targetCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
 }
 
 java {
