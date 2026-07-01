@@ -131,10 +131,16 @@ if (selectedMcProfile == null) {
     throw new GradleException("Unknown mc_profile '${requestedMcProfile}'. Supported profiles: ${ext.mcProfiles.keySet().join(', ')}")
 }
 
+def targetJavaVersionByProfile = [
+    '1.17'  : 16,
+    '1.17.1': 16
+]
+
 selectedMcProfile.each { key, value ->
     ext.set(key, value)
 }
 ext.set('selected_mc_profile', requestedMcProfile)
+ext.set('java_target_version', targetJavaVersionByProfile.get(requestedMcProfile, 17))
 ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
 layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
 

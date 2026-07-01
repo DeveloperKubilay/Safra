@@ -28,7 +28,7 @@ base {
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
-def targetJavaVersion = 17
+def targetJavaVersion = rootProject.ext.java_target_version as int
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)

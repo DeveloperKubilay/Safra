@@ -98,7 +98,7 @@ processResources {
     }
 }
 
-def targetJavaVersion = 17
+def targetJavaVersion = rootProject.ext.java_target_version as int
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

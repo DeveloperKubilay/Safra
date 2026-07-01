@@ -127,11 +127,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Java 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: ${{ startsWith(matrix.mc_version, '1.17') && '16' || '17' }}
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
