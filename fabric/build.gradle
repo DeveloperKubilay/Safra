@@ -68,6 +68,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'minecraft_dependency', project.minecraft_dependency
+    inputs.property 'java_dependency_version', project.java_dependency_version
     inputs.property 'loader_version', project.loader_version
     inputs.property 'loader_name', 'fabric'
     inputs.property 'mod_name', project.mod_name
@@ -80,6 +81,7 @@ processResources {
         expand(
             version: project.mod_version,
             minecraft_dependency: project.minecraft_dependency,
+            java_dependency_version: project.java_dependency_version,
             loader_version: project.loader_version,
             mod_name: project.mod_name,
             mod_license: project.mod_license,

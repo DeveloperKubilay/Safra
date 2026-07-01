@@ -136,11 +136,17 @@ def targetJavaVersionByProfile = [
     '1.17.1': 16
 ]
 
+def javaDependencyVersionByProfile = [
+    '1.17'  : '>=16',
+    '1.17.1': '>=16'
+]
+
 selectedMcProfile.each { key, value ->
     ext.set(key, value)
 }
 ext.set('selected_mc_profile', requestedMcProfile)
 ext.set('java_target_version', targetJavaVersionByProfile.get(requestedMcProfile, 17))
+ext.set('java_dependency_version', javaDependencyVersionByProfile.get(requestedMcProfile, '>=17'))
 ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
 layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
 
@@ -209,6 +215,7 @@ subprojects {
             'selected_mc_profile',
             'release_minecraft_line',
             'build_directory_suffix',
+            'java_dependency_version',
             'minecraft_version',
             'minecraft_dependency',
             'fabric_minecraft_version',
