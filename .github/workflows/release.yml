@@ -127,11 +127,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Java
+      - name: Set up Java 16 toolchain for 1.17
+        if: startsWith(matrix.mc_version, '1.17')
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ startsWith(matrix.mc_version, '1.17') && '16' || '17' }}
+          java-version: '16'
+
+      - name: Set up Java 17 runtime
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -142,7 +149,11 @@ jobs:
       - name: Configure Gradle JVM for CI
         shell: bash
         run: |
-          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
+          toolchain_paths="${JAVA_HOME}"
+          if [[ "${{ matrix.mc_version }}" == 1.17* && -n "${JAVA_HOME_16_X64:-}" ]]; then
+            toolchain_paths="${toolchain_paths},${JAVA_HOME_16_X64}"
+          fi
+          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${toolchain_paths} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
       - name: Resolve build mode
         shell: bash
