@@ -1,8 +1,6 @@
 package org.developerkubilay.safra.client.p2p;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.DialogTexts;
 import net.minecraft.client.gui.screen.EditGamerulesScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.button.Button;
@@ -22,35 +20,36 @@ public final class SafraLanServerSettingsScreen extends Screen {
         this.parent = parent;
     }
 
-    @Override
     protected void init() {
-        int top = this.height / 4 - 20;
-        this.allowCommandsButton = this.addButton(new Button(
-            this.width / 2 - 100,
+        int width = ForgeScreenCompat.getWidth(this);
+        int height = ForgeScreenCompat.getHeight(this);
+        int top = height / 4 - 20;
+        this.allowCommandsButton = ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
             top + 24,
             200,
             20,
             this.getAllowCommandsText(),
             button -> {
                 ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
-                button.setMessage(this.getAllowCommandsText());
+                ForgeScreenCompat.setButtonMessage(button, this.getAllowCommandsText());
             }
         ));
 
-        this.fixedCodeButton = this.addButton(new Button(
-            this.width / 2 - 100,
+        this.fixedCodeButton = ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
             top + 48,
             200,
             20,
             this.getFixedCodeText(),
             button -> {
                 ForgeLanSessionState.setFixedCodeEnabled(!ForgeLanSessionState.isFixedCodeEnabled());
-                button.setMessage(this.getFixedCodeText());
+                ForgeScreenCompat.setButtonMessage(button, this.getFixedCodeText());
             }
         ));
 
-        this.addButton(new Button(
-            this.width / 2 - 100,
+        ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
             top + 72,
             200,
             20,
@@ -60,14 +59,14 @@ public final class SafraLanServerSettingsScreen extends Screen {
             }
         ));
 
-        this.addButton(new Button(
-            this.width / 2 - 100,
+        ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
             top + 96,
             200,
             20,
             new TranslationTextComponent("safra.p2p.game_rules"),
             button -> {
-                Minecraft minecraft = this.minecraft;
+                Minecraft minecraft = ForgeScreenCompat.getMinecraft(this);
                 if (minecraft == null || minecraft.world == null) {
                     return;
                 }
@@ -76,8 +75,8 @@ public final class SafraLanServerSettingsScreen extends Screen {
             }
         ));
 
-        this.addButton(new Button(
-            this.width / 2 - 100,
+        ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
             top + 120,
             200,
             20,
@@ -87,22 +86,15 @@ public final class SafraLanServerSettingsScreen extends Screen {
             }
         ));
 
-        this.addButton(new Button(this.width / 2 - 100, top + 168, 98, 20, DialogTexts.GUI_DONE, button -> this.onClose()));
-        this.addButton(new Button(this.width / 2 + 2, top + 168, 98, 20, DialogTexts.GUI_BACK, button -> this.onClose()));
+        ForgeScreenCompat.addButton(this, new Button(width / 2 - 100, top + 168, 98, 20, new TranslationTextComponent("gui.done"), button -> this.onClose()));
+        ForgeScreenCompat.addButton(this, new Button(width / 2 + 2, top + 168, 98, 20, new TranslationTextComponent("gui.cancel"), button -> this.onClose()));
     }
 
-    @Override
     public void onClose() {
-        if (this.minecraft != null) {
-            this.minecraft.displayGuiScreen(this.parent);
+        Minecraft minecraft = ForgeScreenCompat.getMinecraft(this);
+        if (minecraft != null) {
+            minecraft.displayGuiScreen(this.parent);
         }
-    }
-
-    @Override
-    public void render(MatrixStack matrixStack, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(matrixStack);
-        drawCenteredString(matrixStack, this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
-        super.render(matrixStack, mouseX, mouseY, partialTick);
     }
 
     private ITextComponent getAllowCommandsText() {
@@ -123,8 +115,9 @@ public final class SafraLanServerSettingsScreen extends Screen {
 
     private void handleGameRulesClose(Optional<GameRules> rules) {
         rules.ifPresent(gameRules -> ForgeLanSessionState.setGameRuleSnapshot(ForgeLanGameRules.serialize(gameRules)));
-        if (this.minecraft != null) {
-            this.minecraft.displayGuiScreen(this);
+        Minecraft minecraft = ForgeScreenCompat.getMinecraft(this);
+        if (minecraft != null) {
+            minecraft.displayGuiScreen(this);
         }
     }
 }

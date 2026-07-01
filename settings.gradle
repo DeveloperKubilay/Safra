@@ -48,10 +48,6 @@ def forceForgeOnly = gradle.startParameter.projectProperties.containsKey('forgeO
 
 def includeFabric = !(forceForgeOnly || autoForgeOnly || currentDirForgeOnly)
 def includeForge = !(forceFabricOnly || autoFabricOnly || currentDirFabricOnly)
-if (selectedMcProfile == '1.16.1' && !forceForgeOnly) {
-    includeForge = false
-}
-
 if (includeFabric) {
     include 'fabric'
 }

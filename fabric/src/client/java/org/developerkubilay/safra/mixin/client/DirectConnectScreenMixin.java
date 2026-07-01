@@ -47,9 +47,11 @@ abstract class DirectConnectScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         this.addressField.setMaxLength(200);
-        boolean storedAddress = P2pManager.isP2pStoredAddress(this.addressField.getText());
+        String currentAddress = this.addressField.getText();
+        boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
@@ -75,13 +77,13 @@ abstract class DirectConnectScreenMixin extends Screen {
                 20,
                 this.safra$getToggleText(),
                 button -> {
-                    this.safra$p2pEnabled = !this.safra$p2pEnabled;
-                    SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+                this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
 
-                    if (this.safra$p2pEnabled && this.addressField != null) {
-                        String currentAddress = this.addressField.getText();
-                        if (currentAddress != null && !currentAddress.isEmpty()
-                            && !P2pManager.isValidP2pAddress(currentAddress)) {
+                if (this.safra$p2pEnabled && this.addressField != null) {
+                        String typedAddress = this.addressField.getText();
+                        if (typedAddress != null && !typedAddress.isEmpty()
+                            && !P2pManager.isValidP2pAddress(typedAddress)) {
                             this.addressField.setText("");
                         }
                     }
@@ -129,7 +131,7 @@ abstract class DirectConnectScreenMixin extends Screen {
         if (this.addressField == null) {
             return;
         }
-        this.addressField.setSuggestion(this.safra$p2pEnabled ? "" : null);
+        this.addressField.setSuggestion(null);
     }
 
     @Unique

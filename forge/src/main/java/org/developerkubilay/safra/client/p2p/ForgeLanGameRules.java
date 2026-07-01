@@ -6,6 +6,7 @@ import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.server.ServerWorld;
 
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -19,7 +20,8 @@ public final class ForgeLanGameRules {
             throw new IllegalStateException("Integrated server is not available");
         }
 
-        GameRules copy = server.func_241755_D_().getGameRules().clone();
+        GameRules copy = new GameRules();
+        apply(copy, serialize(server.func_241755_D_().getGameRules()), null);
         if (!snapshot.isEmpty()) {
             apply(copy, snapshot, null);
         }
@@ -67,12 +69,37 @@ public final class ForgeLanGameRules {
                 if (rule instanceof GameRules.BooleanValue booleanRule) {
                     booleanRule.set(Boolean.parseBoolean(serializedValue), server);
                 } else if (rule instanceof GameRules.IntegerValue intRule) {
-                    try {
-                        intRule.parseIntValue(serializedValue);
-                    } catch (NumberFormatException ignored) {
-                    }
+                    safra$applyIntegerRule(intRule, serializedValue, server);
                 }
             }
         });
+    }
+
+    private static void safra$applyIntegerRule(GameRules.IntegerValue intRule, String serializedValue, MinecraftServer server) {
+        if (safra$invokeIntRule(intRule, "parseIntValue", serializedValue)) {
+            return;
+        }
+        if (safra$invokeIntRule(intRule, "func_223568_b", serializedValue)) {
+            return;
+        }
+
+        try {
+            int value = Integer.parseInt(serializedValue);
+            Method setMethod = intRule.getClass().getMethod("set", int.class, MinecraftServer.class);
+            setMethod.setAccessible(true);
+            setMethod.invoke(intRule, value, server);
+        } catch (ReflectiveOperationException | NumberFormatException ignored) {
+        }
+    }
+
+    private static boolean safra$invokeIntRule(GameRules.IntegerValue intRule, String methodName, String serializedValue) {
+        try {
+            Method method = intRule.getClass().getMethod(methodName, String.class);
+            method.setAccessible(true);
+            method.invoke(intRule, serializedValue);
+            return true;
+        } catch (ReflectiveOperationException ignored) {
+            return false;
+        }
     }
 }

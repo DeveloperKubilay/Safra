@@ -10,6 +10,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.client.p2p.ForgeScreenCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -47,9 +48,11 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"), remap = false)
     private void safra$initP2pUi(CallbackInfo ci) {
         this.textFieldServerAddress.setMaxStringLength(200);
-        boolean storedAddress = P2pManager.isP2pStoredAddress(this.textFieldServerAddress.getText());
+        String currentAddress = this.textFieldServerAddress.getText();
+        boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
+        boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
-            this.safra$p2pEnabled = storedAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
+            this.safra$p2pEnabled = likelyP2pAddress || SafraClientConfig.get().isDirectConnectP2pEnabled();
         } else if (storedAddress) {
             this.safra$p2pEnabled = true;
         }
@@ -58,18 +61,20 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         }
 
         Button cancelButton = this.safra$findSecondaryButton(this.buttonAddServer);
+        int width = ForgeScreenCompat.getWidth(this);
+        int height = ForgeScreenCompat.getHeight(this);
         if (cancelButton != null) {
-            this.buttonAddServer.setWidth(98);
-            this.buttonAddServer.x = this.width / 2 - 100;
-            this.buttonAddServer.y = this.height / 4 + 108;
-            cancelButton.setWidth(98);
-            cancelButton.x = this.width / 2 + 2;
-            cancelButton.y = this.height / 4 + 108;
+            ForgeScreenCompat.setButtonWidth(this.buttonAddServer, 98);
+            ForgeScreenCompat.setButtonX(this.buttonAddServer, width / 2 - 100);
+            ForgeScreenCompat.setButtonY(this.buttonAddServer, height / 4 + 108);
+            ForgeScreenCompat.setButtonWidth(cancelButton, 98);
+            ForgeScreenCompat.setButtonX(cancelButton, width / 2 + 2);
+            ForgeScreenCompat.setButtonY(cancelButton, height / 4 + 108);
         }
 
-        this.safra$p2pButton = this.addButton(new Button(
-            this.width / 2 - 100,
-            this.height / 4 + 132,
+        this.safra$p2pButton = ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
+            height / 4 + 132,
             200,
             20,
             this.safra$getToggleText(),
@@ -78,14 +83,14 @@ abstract class DirectJoinServerScreenMixin extends Screen {
                 SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
 
                 if (this.safra$p2pEnabled && this.textFieldServerAddress != null) {
-                    String currentAddress = this.textFieldServerAddress.getText();
-                    if (currentAddress != null && !currentAddress.isEmpty()
-                        && !P2pManager.isValidP2pAddress(currentAddress)) {
+                    String typedAddress = this.textFieldServerAddress.getText();
+                    if (typedAddress != null && !typedAddress.isEmpty()
+                        && !P2pManager.isValidP2pAddress(typedAddress)) {
                         this.textFieldServerAddress.setText("");
                     }
                 }
 
-                button.setMessage(this.safra$getToggleText());
+                ForgeScreenCompat.setButtonMessage(button, this.safra$getToggleText());
                 this.safra$refreshAddressField();
                 this.safra$updateValidation();
             }
@@ -127,7 +132,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         if (this.textFieldServerAddress == null) {
             return;
         }
-        this.textFieldServerAddress.setSuggestion(this.safra$p2pEnabled ? "" : null);
+        this.textFieldServerAddress.setSuggestion(null);
     }
 
     @Unique
@@ -137,15 +142,18 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         }
 
         String address = this.textFieldServerAddress.getText();
-        this.buttonAddServer.active = this.safra$p2pEnabled
-            ? P2pManager.isValidP2pAddress(address)
-            : ServerAddress.fromString(address) != null;
+        ForgeScreenCompat.setButtonActive(
+            this.buttonAddServer,
+            this.safra$p2pEnabled
+                ? P2pManager.isValidP2pAddress(address)
+                : ServerAddress.fromString(address) != null
+        );
     }
 
     @Unique
     private Button safra$findSecondaryButton(Button primaryButton) {
         Button candidate = null;
-        for (IGuiEventListener element : this.getEventListeners()) {
+        for (IGuiEventListener element : ForgeScreenCompat.getChildren(this)) {
             if (element instanceof Button) {
                 Button button = (Button) element;
                 if (button != primaryButton) {

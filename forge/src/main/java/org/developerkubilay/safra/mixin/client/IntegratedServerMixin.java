@@ -79,11 +79,14 @@ abstract class IntegratedServerMixin {
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
         client.keyboardListener.setClipboardString(shareCodeText);
 
-        ITextComponent shareText = new StringTextComponent(shareCodeText).mergeStyle(TextFormatting.AQUA, TextFormatting.UNDERLINE);
+        ITextComponent shareText = safra$withStyle(new StringTextComponent(shareCodeText), TextFormatting.AQUA, TextFormatting.UNDERLINE);
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.started", shareText));
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.ingameGUI.getChatGUI().printChatMessage(
-                new TranslationTextComponent("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).mergeStyle(TextFormatting.YELLOW)
+                safra$withStyle(
+                    new TranslationTextComponent("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()),
+                    TextFormatting.YELLOW
+                )
             );
         }
 
@@ -102,7 +105,19 @@ abstract class IntegratedServerMixin {
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
         client.ingameGUI.getChatGUI().printChatMessage(
-            new TranslationTextComponent("safra.p2p.host.failed", message).mergeStyle(TextFormatting.RED)
+            safra$withStyle(new TranslationTextComponent("safra.p2p.host.failed", message), TextFormatting.RED)
         );
+    }
+
+    private static ITextComponent safra$withStyle(ITextComponent text, TextFormatting... formats) {
+        try {
+            return (ITextComponent) text.getClass().getMethod("mergeStyle", TextFormatting[].class).invoke(text, (Object) formats);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        try {
+            return (ITextComponent) text.getClass().getMethod("func_240699_a_", TextFormatting[].class).invoke(text, (Object) formats);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return text;
     }
 }

@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.MultiplayerScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.WorkingScreen;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,7 +22,7 @@ import java.util.concurrent.CompletionException;
 abstract class JoinMultiplayerScreenMixin {
     @Inject(method = {"connectToServer", "func_146791_a"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void safra$rewriteP2pBeforeVanillaParse(ServerData serverData, CallbackInfo ci) {
-        if (serverData == null || !P2pManager.isP2pStoredAddress(serverData.serverIP)) {
+        if (serverData == null || !P2pManager.isLikelyP2pAddress(serverData.serverIP)) {
             return;
         }
 
@@ -41,11 +42,7 @@ abstract class JoinMultiplayerScreenMixin {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    client.displayGuiScreen(new DisconnectedScreen(
-                        currentScreen,
-                        new TranslationTextComponent("connect.failed"),
-                        new TranslationTextComponent("safra.p2p.prepare_failed", message)
-                    ));
+                    client.displayGuiScreen(safra$createDisconnectedScreen(currentScreen, message));
                     return;
                 }
 
@@ -53,5 +50,23 @@ abstract class JoinMultiplayerScreenMixin {
             })
         );
         ci.cancel();
+    }
+
+    private static Screen safra$createDisconnectedScreen(Screen parent, String message) {
+        TranslationTextComponent title = new TranslationTextComponent("connect.failed");
+        TranslationTextComponent reason = new TranslationTextComponent("safra.p2p.prepare_failed", message);
+        try {
+            return DisconnectedScreen.class
+                .getConstructor(Screen.class, ITextComponent.class, ITextComponent.class)
+                .newInstance(parent, title, reason);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        try {
+            return DisconnectedScreen.class
+                .getConstructor(Screen.class, String.class, ITextComponent.class)
+                .newInstance(parent, title.getString(), reason);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return parent;
     }
 }

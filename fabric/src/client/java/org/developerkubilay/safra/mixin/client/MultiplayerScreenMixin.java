@@ -28,7 +28,7 @@ abstract class MultiplayerScreenMixin {
 
     @Inject(method = "connect(Lnet/minecraft/client/network/ServerInfo;)V", at = @At("HEAD"), cancellable = true)
     private void safra$rewriteP2pBeforeVanillaParse(ServerInfo serverInfo, CallbackInfo ci) {
-        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.address)) {
+        if (serverInfo == null || !P2pManager.isLikelyP2pAddress(serverInfo.address)) {
             return;
         }
 
