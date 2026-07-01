@@ -69,6 +69,7 @@ processResources {
     inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'minecraft_dependency', project.minecraft_dependency
     inputs.property 'java_dependency_version', project.java_dependency_version
+    inputs.property 'mixin_compatibility_level', project.mixin_compatibility_level
     inputs.property 'loader_version', project.loader_version
     inputs.property 'loader_name', 'fabric'
     inputs.property 'mod_name', project.mod_name
@@ -86,6 +87,12 @@ processResources {
             mod_name: project.mod_name,
             mod_license: project.mod_license,
             mod_description: project.mod_description
+        )
+    }
+
+    filesMatching(['safra.mixins.json', 'safra.client.mixins.json']) {
+        expand(
+            mixin_compatibility_level: project.mixin_compatibility_level
         )
     }
 

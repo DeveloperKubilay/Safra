@@ -151,6 +151,7 @@ processResources {
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
+    inputs.property 'mixin_compatibility_level', project.mixin_compatibility_level
     inputs.property 'test_mode', rootProject.ext.buildTestMode
     filteringCharset = 'UTF-8'
 
@@ -175,6 +176,12 @@ processResources {
             loader_name: 'forge',
             loader_version: project.forge_version,
             test_mode: rootProject.ext.buildTestMode
+        )
+    }
+
+    filesMatching('safra.forge.mixins.json') {
+        expand(
+            mixin_compatibility_level: project.mixin_compatibility_level
         )
     }
 }
