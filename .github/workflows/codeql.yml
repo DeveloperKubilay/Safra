@@ -20,11 +20,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java 17 toolchain
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Set up Java 21 runtime
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -35,7 +41,11 @@ jobs:
       - name: Configure Gradle JVM for CI
         shell: bash
         run: |
-          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${JAVA_HOME} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
+          toolchain_paths="${JAVA_HOME}"
+          if [[ -n "${JAVA_HOME_17_X64:-}" ]]; then
+            toolchain_paths="${toolchain_paths},${JAVA_HOME_17_X64}"
+          fi
+          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${toolchain_paths} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3

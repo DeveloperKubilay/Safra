@@ -134,11 +134,17 @@ jobs:
           distribution: temurin
           java-version: '16'
 
-      - name: Set up Java 17 runtime
+      - name: Set up Java 17 toolchain
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Set up Java 21 runtime
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -152,6 +158,9 @@ jobs:
           toolchain_paths="${JAVA_HOME}"
           if [[ "${{ matrix.mc_version }}" == 1.17* && -n "${JAVA_HOME_16_X64:-}" ]]; then
             toolchain_paths="${toolchain_paths},${JAVA_HOME_16_X64}"
+          fi
+          if [[ -n "${JAVA_HOME_17_X64:-}" ]]; then
+            toolchain_paths="${toolchain_paths},${JAVA_HOME_17_X64}"
           fi
           echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${toolchain_paths} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
 
