@@ -70,8 +70,8 @@ final class P2pUdpBindingFactory {
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
         return new P2pTransportBinding(
             transport,
-            List.of(transport.relayAddress()),
-            Map.of(),
+            java.util.Collections.singletonList(transport.relayAddress()),
+            java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
             true
         );
     }
@@ -88,7 +88,7 @@ final class P2pUdpBindingFactory {
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                Map.copyOf(discovered),
+                java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<String, P2pStunClient.DiscoveredEndpoint>(discovered)),
                 false
             );
         } finally {
@@ -110,7 +110,7 @@ final class P2pUdpBindingFactory {
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                Map.copyOf(discovered),
+                java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<String, P2pStunClient.DiscoveredEndpoint>(discovered)),
                 false
             );
         } finally {
@@ -132,8 +132,8 @@ final class P2pUdpBindingFactory {
         DatagramSocket socket = bindSocket(preferredPort);
         return new P2pTransportBinding(
             new P2pDirectDatagramTransport(socket),
-            List.of(),
-            Map.of(),
+            java.util.Collections.<InetSocketAddress>emptyList(),
+            java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
             false
         );
     }
@@ -142,8 +142,8 @@ final class P2pUdpBindingFactory {
         DatagramSocket socket = P2pSockets.datagramSocket();
         return new P2pTransportBinding(
             new P2pDirectDatagramTransport(socket),
-            List.of(),
-            Map.of(),
+            java.util.Collections.<InetSocketAddress>emptyList(),
+            java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
             false
         );
     }

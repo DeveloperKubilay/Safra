@@ -2,32 +2,35 @@ package org.developerkubilay.safra.client.config;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(CONNECT_TIMEOUT)
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
-    private static volatile List<String> latestModVersions = List.of();
+    private static volatile List<String> latestModVersions = java.util.Collections.emptyList();
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -44,27 +47,37 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(java.net.URI.create(REMOTE_CONFIG_URL))
-            .timeout(REQUEST_TIMEOUT)
-            .GET()
+        Request request = new Request.Builder()
+            .url(REMOTE_CONFIG_URL)
+            .get()
             .build();
 
-        HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-            .thenApply(response -> response.statusCode() >= 200 && response.statusCode() < 300 ? response.body() : "")
-            .thenAccept(body -> applyRemoteConfig(config, body))
-            .exceptionally(throwable -> {
-                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", throwable.toString());
-                return null;
-            });
+        HTTP_CLIENT.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException exception) {
+                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", exception.toString());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        applyRemoteConfig(config, response.body().string());
+                    }
+                } finally {
+                    response.close();
+                }
+            }
+        });
     }
 
     private static void applyRemoteConfig(BaseSafraClientConfig config, String body) {
         try {
-            if (body == null || body.isBlank()) {
+            if (body == null || body.trim().isEmpty()) {
                 return;
             }
 
-            JsonObject json = new com.google.gson.JsonParser().parse(body).getAsJsonObject();
+            JsonObject json = new JsonParser().parse(body).getAsJsonObject();
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
             if (latestVersions.isEmpty()) {
@@ -97,7 +110,7 @@ public final class RemoteRendezvousConfigUpdater {
         }
 
         String current = SafraBuildInfo.modVersion();
-        if (current == null || current.isBlank() || "unknown".equalsIgnoreCase(current)) {
+        if (current == null || current.trim().isEmpty() || "unknown".equalsIgnoreCase(current)) {
             return false;
         }
 
@@ -107,38 +120,39 @@ public final class RemoteRendezvousConfigUpdater {
                 return false;
             }
         }
-
         return true;
     }
 
     private static List<String> parseLatestModVersions(JsonObject json) {
         if (json == null) {
-            return List.of();
+            return java.util.Collections.emptyList();
         }
 
         JsonElement latestElement = json.get("latest");
         if (latestElement == null || latestElement.isJsonNull() || !latestElement.isJsonObject()) {
-            return List.of();
+            return java.util.Collections.emptyList();
         }
 
         String minecraftVersion = SafraBuildInfo.minecraftVersion();
-        if (minecraftVersion == null || minecraftVersion.isBlank() || "unknown".equalsIgnoreCase(minecraftVersion)) {
-            return List.of();
+        if (minecraftVersion == null || minecraftVersion.trim().isEmpty() || "unknown".equalsIgnoreCase(minecraftVersion)) {
+            return java.util.Collections.emptyList();
         }
 
         JsonElement versionElement = latestElement.getAsJsonObject().get(minecraftVersion.trim());
         if (versionElement == null || versionElement.isJsonNull()) {
-            return List.of();
+            return java.util.Collections.emptyList();
         }
 
         LinkedHashSet<String> versions = new LinkedHashSet<>();
         if (versionElement.isJsonPrimitive()) {
             addVersion(versions, versionElement);
         } else if (versionElement.isJsonArray()) {
-            versionElement.getAsJsonArray().forEach(element -> addVersion(versions, element));
+            for (JsonElement element : versionElement.getAsJsonArray()) {
+                addVersion(versions, element);
+            }
         }
 
-        return versions.isEmpty() ? List.of() : new ArrayList<>(versions);
+        return versions.isEmpty() ? java.util.Collections.<String>emptyList() : new ArrayList<>(versions);
     }
 
     private static void addVersion(LinkedHashSet<String> versions, JsonElement versionElement) {
@@ -152,7 +166,7 @@ public final class RemoteRendezvousConfigUpdater {
         }
 
         String normalized = remoteVersion.trim();
-        if (!normalized.isBlank()) {
+        if (!normalized.trim().isEmpty()) {
             versions.add(normalized);
         }
     }

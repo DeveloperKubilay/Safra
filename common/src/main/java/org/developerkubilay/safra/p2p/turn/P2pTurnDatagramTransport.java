@@ -118,9 +118,10 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         if (closed) {
             throw new IOException("TURN transport kapali");
         }
-        if (!(packet.getSocketAddress() instanceof InetSocketAddress remoteAddress)) {
+        if (!(packet.getSocketAddress() instanceof InetSocketAddress)) {
             throw new IOException("TURN peer adresi gecersiz");
         }
+        InetSocketAddress remoteAddress = (InetSocketAddress) packet.getSocketAddress();
         ensurePermission(remoteAddress);
         byte[] payload = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
         byte[] indication = P2pTurnProtocol.buildSendIndication(random, remoteAddress, payload);
@@ -259,7 +260,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private P2pTurnMessage sendTurnRequest(int requestType, P2pTurnProtocol.AttributeWriter writer, boolean challengeFirst) throws IOException {
-        if (challengeFirst || realm.isBlank() || nonce.isBlank()) {
+        if (challengeFirst || realm.trim().isEmpty() || nonce.trim().isEmpty()) {
             P2pTurnMessage challenge = sendRequestAwait(P2pTurnProtocol.buildRequest(
                 random,
                 username,
@@ -313,7 +314,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
         String newRealm = response.stringAttribute(P2pTurnProtocol.ATTR_REALM);
         String newNonce = response.stringAttribute(P2pTurnProtocol.ATTR_NONCE);
-        if (newRealm.isBlank() || newNonce.isBlank()) {
+        if (newRealm.trim().isEmpty() || newNonce.trim().isEmpty()) {
             throw new IOException("TURN auth challenge eksik realm/nonce dondu");
         }
 
@@ -337,8 +338,8 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             throw new IOException("TURN istegi yarida kesildi", exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
-            if (cause instanceof IOException ioException) {
-                throw ioException;
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
             }
             throw new IOException("TURN istegi basarisiz", cause);
         } catch (TimeoutException exception) {
@@ -350,14 +351,29 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
     private static boolean forceDirectThenTurnRelay() {
         String property = System.getProperty("safra.p2p.forceDirectThenTurn");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
         String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        return environment != null && !environment.isBlank() && Boolean.parseBoolean(environment.trim());
+        return environment != null && !environment.trim().isEmpty() && Boolean.parseBoolean(environment.trim());
     }
 
-    private record ReceivedDatagram(InetSocketAddress remoteAddress, byte[] data) {
+    private static final class ReceivedDatagram {
+        private final InetSocketAddress remoteAddress;
+        private final byte[] data;
+
+        private ReceivedDatagram(InetSocketAddress remoteAddress, byte[] data) {
+            this.remoteAddress = remoteAddress;
+            this.data = data;
+        }
+
+        private InetSocketAddress remoteAddress() {
+            return remoteAddress;
+        }
+
+        private byte[] data() {
+            return data;
+        }
     }
 }

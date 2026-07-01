@@ -107,7 +107,7 @@ public final class P2pHostService implements AutoCloseable {
 
         Collection<InetSocketAddress> voicePublicEndpoints = P2pOptionalIntegrations.isVoiceChatAvailable()
             ? SafraVoiceTransportManager.getInstance().awaitHostVoiceEndpoints(tcpPort, P2pConstants.VOICE_HOST_WAIT_MS)
-            : java.util.List.of();
+            : java.util.Collections.<InetSocketAddress>emptyList();
 
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
@@ -197,7 +197,8 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             }
             try {
-                if (transport instanceof P2pDirectDatagramTransport directTransport) {
+                if (transport instanceof P2pDirectDatagramTransport) {
+                    P2pDirectDatagramTransport directTransport = (P2pDirectDatagramTransport) transport;
                     stunClient.sendKeepAlive(directTransport.socket(), endpoint.stunServer());
                 }
             } catch (IOException exception) {
@@ -352,10 +353,12 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void publishRelayReady() {
-        if (!(relayFallbackTransport instanceof org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport turnTransport)) {
+        if (!(relayFallbackTransport instanceof org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport)) {
             return;
         }
-        publishRelayReady(java.util.List.of(turnTransport.relayAddress()));
+        org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport turnTransport =
+            (org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport) relayFallbackTransport;
+        publishRelayReady(java.util.Collections.singletonList(turnTransport.relayAddress()));
     }
 
     private void publishRelayReady(Collection<InetSocketAddress> publicEndpoints) {

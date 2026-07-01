@@ -10,7 +10,29 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-record P2pTurnMessage(int type, byte[] transactionId, Map<Integer, byte[]> attributes) {
+final class P2pTurnMessage {
+    private final int type;
+    private final byte[] transactionId;
+    private final Map<Integer, byte[]> attributes;
+
+    P2pTurnMessage(int type, byte[] transactionId, Map<Integer, byte[]> attributes) {
+        this.type = type;
+        this.transactionId = transactionId;
+        this.attributes = attributes;
+    }
+
+    int type() {
+        return type;
+    }
+
+    byte[] transactionId() {
+        return transactionId;
+    }
+
+    Map<Integer, byte[]> attributes() {
+        return attributes;
+    }
+
     static P2pTurnMessage parse(byte[] payload, int length) {
         if (length < P2pTurnProtocol.STUN_HEADER_SIZE) {
             return null;

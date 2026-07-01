@@ -55,7 +55,7 @@ public final class ForgeScreenCompat {
             List<IGuiEventListener> list = (List<IGuiEventListener>) value;
             return list;
         }
-        return List.of();
+        return java.util.Collections.emptyList();
     }
 
     public static void setButtonWidth(Button button, int width) {

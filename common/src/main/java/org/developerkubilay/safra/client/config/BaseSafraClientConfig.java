@@ -138,7 +138,7 @@ public abstract class BaseSafraClientConfig {
 
     public synchronized String ensureOpenToLanFixedCode() {
         String normalized = normalizeOpenToLanFixedCode(openToLanFixedCode);
-        if (normalized.isBlank()) {
+        if (normalized.trim().isEmpty()) {
             normalized = P2pShareCode.createRendezvousCode(P2pShareCode.FIXED_RENDEZVOUS_CODE_LENGTH);
         }
         if (!normalized.equals(openToLanFixedCode)) {
@@ -234,7 +234,7 @@ public abstract class BaseSafraClientConfig {
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
-        if (siteApiVersion == null || siteApiVersion.isBlank()) {
+        if (siteApiVersion == null || siteApiVersion.trim().isEmpty()) {
             return "3.0";
         }
         return "3.0";

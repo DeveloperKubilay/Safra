@@ -111,17 +111,17 @@ public final class SafraVoiceTransportManager {
                 }
                 Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
                 if (!endpoints.isEmpty()) {
-                    return List.copyOf(endpoints);
+                    return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(endpoints));
                 }
             }
-            return List.of();
+            return java.util.Collections.emptyList();
         }
         for (SafraVoiceServerSocket socket : serverSockets) {
             Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
             if (!endpoints.isEmpty()) {
-                return List.copyOf(endpoints);
+                return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(endpoints));
             }
         }
-        return List.of();
+        return java.util.Collections.emptyList();
     }
 }

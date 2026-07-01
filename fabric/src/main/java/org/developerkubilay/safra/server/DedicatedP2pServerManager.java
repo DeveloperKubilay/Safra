@@ -76,7 +76,7 @@ public final class DedicatedP2pServerManager {
                 return null;
             }
 
-            String json = Files.readString(configPath);
+            String json = new String(Files.readAllBytes(configPath), java.nio.charset.StandardCharsets.UTF_8);
             Matcher enabledMatcher = FIXED_CODE_ENABLED_PATTERN.matcher(json);
             if (!enabledMatcher.find() || !Boolean.parseBoolean(enabledMatcher.group(1))) {
                 return null;

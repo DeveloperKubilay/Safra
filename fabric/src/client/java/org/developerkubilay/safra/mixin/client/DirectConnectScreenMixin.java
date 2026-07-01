@@ -174,7 +174,11 @@ abstract class DirectConnectScreenMixin extends Screen {
     private ButtonWidget safra$findSecondaryButton(ButtonWidget primaryButton) {
         ButtonWidget candidate = null;
         for (Element element : this.children()) {
-            if (element instanceof ButtonWidget buttonWidget && buttonWidget != primaryButton) {
+            if (element instanceof ButtonWidget) {
+                ButtonWidget buttonWidget = (ButtonWidget) element;
+                if (buttonWidget == primaryButton) {
+                    continue;
+                }
                 candidate = buttonWidget;
             }
         }

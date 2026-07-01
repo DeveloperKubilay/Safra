@@ -84,22 +84,22 @@ public final class P2pConstants {
     }
 
     public static boolean hasRendezvousUrl() {
-        return !rendezvousUrl().isBlank();
+        return !rendezvousUrl().trim().isEmpty();
     }
 
     public static boolean hasExplicitRendezvousUrlOverride() {
         String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return true;
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return true;
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        return legacyEnvironment != null && !legacyEnvironment.isBlank();
+        return legacyEnvironment != null && !legacyEnvironment.trim().isEmpty();
     }
 
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
@@ -111,7 +111,7 @@ public final class P2pConstants {
     }
 
     public static boolean isValidRendezvousUrl(String url) {
-        if (url == null || url.isBlank()) {
+        if (url == null || url.trim().isEmpty()) {
             return false;
         }
 
@@ -128,22 +128,22 @@ public final class P2pConstants {
 
     public static String rendezvousUrl() {
         String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return environment.trim();
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
+        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
             return legacyEnvironment.trim();
         }
 
         String runtime = runtimeRendezvousUrl;
-        if (runtime != null && !runtime.isBlank()) {
+        if (runtime != null && !runtime.trim().isEmpty()) {
             return runtime.trim();
         }
 
@@ -152,17 +152,17 @@ public final class P2pConstants {
 
     public static String rendezvousToken() {
         String property = System.getProperty("safra.rendezvousToken");
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return property.trim();
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_TOKEN");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return environment.trim();
         }
 
         String legacyEnvironment = System.getenv("SAFRA_SIGNALING_TOKEN");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
+        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
             return legacyEnvironment.trim();
         }
 
@@ -171,17 +171,17 @@ public final class P2pConstants {
 
     public static String siteApiVersion() {
         String property = System.getProperty(SITE_API_VERSION_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return normalizeSiteApiVersion(property);
         }
 
         String environment = System.getenv("SAFRA_SITE_API_VERSION");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return normalizeSiteApiVersion(environment);
         }
 
         String runtime = runtimeSiteApiVersion;
-        if (runtime != null && !runtime.isBlank()) {
+        if (runtime != null && !runtime.trim().isEmpty()) {
             return normalizeSiteApiVersion(runtime);
         }
 
@@ -194,7 +194,7 @@ public final class P2pConstants {
 
     static boolean diagnosticsEnabled() {
         String property = System.getProperty(DIAGNOSTICS_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
@@ -211,12 +211,12 @@ public final class P2pConstants {
 
     static boolean forceDirectThenTurnRelay() {
         String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
         String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return Boolean.parseBoolean(environment.trim());
         }
 
@@ -225,12 +225,12 @@ public final class P2pConstants {
 
     static boolean forceHostFailSafeRelay() {
         String property = System.getProperty(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
         String environment = System.getenv("SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return Boolean.parseBoolean(environment.trim());
         }
 
@@ -239,12 +239,12 @@ public final class P2pConstants {
 
     static boolean neverUseRelayServer() {
         String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
-        if (property != null && !property.isBlank()) {
+        if (property != null && !property.trim().isEmpty()) {
             return Boolean.parseBoolean(property.trim());
         }
 
         String environment = System.getenv("SAFRA_NEVER_USE_RELAY_SERVER");
-        if (environment != null && !environment.isBlank()) {
+        if (environment != null && !environment.trim().isEmpty()) {
             return Boolean.parseBoolean(environment.trim());
         }
 
@@ -269,7 +269,7 @@ public final class P2pConstants {
 
     private static int integerProperty(String key, int fallback) {
         String property = System.getProperty(key);
-        if (property == null || property.isBlank()) {
+        if (property == null || property.trim().isEmpty()) {
             return fallback;
         }
 
@@ -282,7 +282,7 @@ public final class P2pConstants {
 
     private static long longProperty(String key, long fallback) {
         String property = System.getProperty(key);
-        if (property == null || property.isBlank()) {
+        if (property == null || property.trim().isEmpty()) {
             return fallback;
         }
 
@@ -294,7 +294,7 @@ public final class P2pConstants {
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
-        if (siteApiVersion == null || siteApiVersion.isBlank()) {
+        if (siteApiVersion == null || siteApiVersion.trim().isEmpty()) {
             return "3.0";
         }
         return "3.0";

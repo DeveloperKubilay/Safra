@@ -66,9 +66,11 @@ public final class FabricLanGameRules {
             }
 
             GameRules.Rule<?> rule = rules.get(key);
-            if (rule instanceof GameRules.BooleanRule booleanRule) {
+            if (rule instanceof GameRules.BooleanRule) {
+                GameRules.BooleanRule booleanRule = (GameRules.BooleanRule) rule;
                 booleanRule.set(Boolean.parseBoolean(serializedValue), server);
-            } else if (rule instanceof GameRules.IntRule intRule) {
+            } else if (rule instanceof GameRules.IntRule) {
+                GameRules.IntRule intRule = (GameRules.IntRule) rule;
                 applyIntRule(intRule, serializedValue);
             }
         });

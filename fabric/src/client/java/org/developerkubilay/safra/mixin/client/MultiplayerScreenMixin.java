@@ -39,10 +39,10 @@ abstract class MultiplayerScreenMixin {
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             MinecraftClient.getInstance().execute(() -> {
                 if (throwable != null) {
-                    Throwable cause = throwable instanceof CompletionException completionException
-                        && completionException.getCause() != null
-                        ? completionException.getCause()
-                        : throwable;
+                    Throwable cause = throwable;
+                    if (throwable instanceof CompletionException && ((CompletionException) throwable).getCause() != null) {
+                        cause = ((CompletionException) throwable).getCause();
+                    }
                     if (cause instanceof CancellationException) {
                         return;
                     }

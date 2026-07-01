@@ -113,24 +113,37 @@ final class P2pTurnProtocol {
     }
 
     static int expectedSuccessType(int requestType) {
-        return switch (requestType) {
-            case TURN_ALLOCATE_REQUEST -> TURN_ALLOCATE_RESPONSE;
-            case TURN_REFRESH_REQUEST -> TURN_REFRESH_RESPONSE;
-            case TURN_CREATE_PERMISSION_REQUEST -> TURN_CREATE_PERMISSION_RESPONSE;
-            default -> 0;
-        };
+        switch (requestType) {
+            case TURN_ALLOCATE_REQUEST:
+                return TURN_ALLOCATE_RESPONSE;
+            case TURN_REFRESH_REQUEST:
+                return TURN_REFRESH_RESPONSE;
+            case TURN_CREATE_PERMISSION_REQUEST:
+                return TURN_CREATE_PERMISSION_RESPONSE;
+            default:
+                return 0;
+        }
     }
 
     static IOException turnError(int requestType, P2pTurnMessage response) {
-        String type = switch (requestType) {
-            case TURN_ALLOCATE_REQUEST -> "allocate";
-            case TURN_REFRESH_REQUEST -> "refresh";
-            case TURN_CREATE_PERMISSION_REQUEST -> "create-permission";
-            default -> "request";
-        };
+        String type;
+        switch (requestType) {
+            case TURN_ALLOCATE_REQUEST:
+                type = "allocate";
+                break;
+            case TURN_REFRESH_REQUEST:
+                type = "refresh";
+                break;
+            case TURN_CREATE_PERMISSION_REQUEST:
+                type = "create-permission";
+                break;
+            default:
+                type = "request";
+                break;
+        }
         int errorCode = response.errorCode();
         String reason = response.errorReason();
-        return new IOException("TURN " + type + " failed: " + errorCode + (reason.isBlank() ? "" : " " + reason));
+        return new IOException("TURN " + type + " failed: " + errorCode + (reason.trim().isEmpty() ? "" : " " + reason));
     }
 
     static String transactionKey(byte[] transactionId) {

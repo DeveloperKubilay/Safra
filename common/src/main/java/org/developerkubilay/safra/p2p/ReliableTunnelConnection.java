@@ -222,16 +222,26 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long now = System.currentTimeMillis();
         lastPacketReceivedAt = now;
         switch (packet.type()) {
-            case OPEN_ACK -> markOpened(now);
-            case DATA -> handleData(packet, now);
-            case ACK -> processAcknowledgement(packet.acknowledgement(), packet.acknowledgementMask(), now);
-            case NACK -> handleNegativeAcknowledgement(packet);
-            case CLOSE -> closeWithoutNotify("remote closed");
-            case OPEN -> {
+            case OPEN_ACK:
+                markOpened(now);
+                break;
+            case DATA:
+                handleData(packet, now);
+                break;
+            case ACK:
+                processAcknowledgement(packet.acknowledgement(), packet.acknowledgementMask(), now);
+                break;
+            case NACK:
+                handleNegativeAcknowledgement(packet);
+                break;
+            case CLOSE:
+                closeWithoutNotify("remote closed");
+                break;
+            case OPEN:
                 if (!initiator) {
                     sendOpenAck(now);
                 }
-            }
+                break;
         }
     }
 
@@ -259,7 +269,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
             while (!closed.get()) {
                 waitForWindow();
                 if (inputStream.available() <= 0) {
-                    Thread.onSpinWait();
+                    Thread.yield();
                     if (inputStream.available() <= 0) {
                         LockSupport.parkNanos(200_000L);
                         continue;

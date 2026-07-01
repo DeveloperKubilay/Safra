@@ -4,27 +4,28 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class P2pTurnCredentialClient {
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .readTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .build();
 
     private P2pTurnCredentialClient() {
@@ -36,40 +37,37 @@ public final class P2pTurnCredentialClient {
         }
 
         URI uri = turnCredentialsUri(role, turnOnly);
-        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
-            .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
-            .GET();
+        Request.Builder builder = new Request.Builder()
+            .url(uri.toString())
+            .get();
         String token = P2pConstants.rendezvousToken();
-        if (!token.isBlank()) {
+        if (token != null && !token.trim().isEmpty()) {
             builder.header("Authorization", "Bearer " + token);
         }
 
-        HttpResponse<String> response;
+        Response response = HTTP_CLIENT.newCall(builder.build()).execute();
         try {
-            response = HTTP_CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IOException("TURN credential istegi yarida kesildi", exception);
-        }
+            if (response.code() < 200 || response.code() >= 300) {
+                throw new IOException("TURN credential request returned HTTP " + response.code());
+            }
 
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("TURN credential istegi HTTP " + response.statusCode() + " dondu");
+            String body = response.body() != null ? response.body().string() : "";
+            JsonObject json;
+            try {
+                json = new JsonParser().parse(body).getAsJsonObject();
+            } catch (RuntimeException exception) {
+                throw new IOException("TURN credential response is invalid JSON", exception);
+            }
+            return parse(json);
+        } finally {
+            response.close();
         }
-
-        JsonObject json;
-        try {
-            json = new JsonParser().parse(response.body()).getAsJsonObject();
-        } catch (RuntimeException exception) {
-            throw new IOException("TURN credential cevabi gecersiz JSON", exception);
-        }
-
-        return parse(json);
     }
 
     public static P2pTurnCredentials parse(JsonObject json) throws IOException {
         JsonArray iceServers = json.getAsJsonArray("iceServers");
         if (iceServers == null || iceServers.size() == 0) {
-            throw new IOException("TURN credential cevabinda iceServers yok");
+            throw new IOException("TURN credential response did not include iceServers");
         }
 
         Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
@@ -83,7 +81,8 @@ public final class P2pTurnCredentialClient {
             JsonObject server = serverElement.getAsJsonObject();
             String candidateUsername = string(server, "username");
             String candidateCredential = string(server, "credential");
-            if (!candidateUsername.isBlank() && !candidateCredential.isBlank()) {
+            if (candidateUsername != null && !candidateUsername.trim().isEmpty()
+                && candidateCredential != null && !candidateCredential.trim().isEmpty()) {
                 username = candidateUsername;
                 credential = candidateCredential;
             }
@@ -105,15 +104,15 @@ public final class P2pTurnCredentialClient {
             }
         }
 
-        if (username.isBlank() || credential.isBlank()) {
-            throw new IOException("TURN credential cevabinda username/credential eksik");
+        if (username.trim().isEmpty() || credential.trim().isEmpty()) {
+            throw new IOException("TURN credential response did not include username or credential");
         }
         if (udpServers.isEmpty()) {
-            throw new IOException("TURN credential cevabinda UDP TURN sunucusu yok");
+            throw new IOException("TURN credential response did not include a UDP TURN server");
         }
 
         return new P2pTurnCredentials(
-            List.copyOf(udpServers),
+            new ArrayList<P2pTurnCredentials.TurnServer>(udpServers),
             username,
             credential,
             integer(json.get("ttl"), P2pConstants.TURN_DEFAULT_CREDENTIAL_TTL_SECONDS)
@@ -123,12 +122,22 @@ public final class P2pTurnCredentialClient {
     private static URI turnCredentialsUri(String role, boolean turnOnly) {
         String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
         URI baseUri = URI.create(base);
-        String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
-            case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            case "ws" -> "http";
-            case "wss" -> "https";
-            default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
-        };
+        String scheme;
+        String lowerScheme = baseUri.getScheme().toLowerCase(Locale.ROOT);
+        switch (lowerScheme) {
+            case "http":
+            case "https":
+                scheme = lowerScheme;
+                break;
+            case "ws":
+                scheme = "http";
+                break;
+            case "wss":
+                scheme = "https";
+                break;
+            default:
+                throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
+        }
         String identifier = "safra-" + role + "-" + SafraBuildInfo.minecraftVersion() + "-"
             + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String query = "mode=" + encode(turnOnly ? "turn-only" : "auto")
@@ -138,7 +147,7 @@ public final class P2pTurnCredentialClient {
     }
 
     private static void addUdpServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers) {
-        if (rawUrl == null || rawUrl.isBlank()) {
+        if (rawUrl == null || rawUrl.trim().isEmpty()) {
             return;
         }
 
@@ -155,7 +164,7 @@ public final class P2pTurnCredentialClient {
         }
 
         String query = uri.getQuery();
-        if (query != null && !query.isBlank()) {
+        if (query != null && !query.trim().isEmpty()) {
             String transport = queryParameter(query, "transport");
             if (transport != null && !"udp".equalsIgnoreCase(transport)) {
                 return;
@@ -164,7 +173,7 @@ public final class P2pTurnCredentialClient {
 
         String host = uri.getHost();
         int port = uri.getPort();
-        if (host == null || host.isBlank() || port < 1 || port > 65535) {
+        if (host == null || host.trim().isEmpty() || port < 1 || port > 65535) {
             return;
         }
 
@@ -182,7 +191,11 @@ public final class P2pTurnCredentialClient {
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static String string(JsonObject object, String key) {

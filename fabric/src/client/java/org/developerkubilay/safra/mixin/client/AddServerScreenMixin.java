@@ -138,7 +138,8 @@ abstract class AddServerScreenMixin extends Screen {
     @Unique
     private ButtonWidget safra$findPrimaryButton() {
         for (Element element : this.children()) {
-            if (element instanceof ButtonWidget button) {
+            if (element instanceof ButtonWidget) {
+                ButtonWidget button = (ButtonWidget) element;
                 Text message = button.getMessage();
                 if (message != null && "addServer.add".equals(message.getString())) {
                     return button;
@@ -147,7 +148,8 @@ abstract class AddServerScreenMixin extends Screen {
         }
 
         for (Element element : this.children()) {
-            if (element instanceof ButtonWidget button) {
+            if (element instanceof ButtonWidget) {
+                ButtonWidget button = (ButtonWidget) element;
                 Text message = button.getMessage();
                 if (message != null && message.asString().equalsIgnoreCase("Done")) {
                     return button;

@@ -100,7 +100,7 @@ public final class P2pClientProxy implements AutoCloseable {
                 LOGGER.debug("Safra join direct path patladi, TURN relay fallback denenecek: {}", exception.toString());
                 P2pTransportBinding turnBinding = null;
                 try {
-                    java.util.Collection<InetSocketAddress> relayRequestEndpoints = java.util.List.of();
+                    java.util.Collection<InetSocketAddress> relayRequestEndpoints = java.util.Collections.emptyList();
                     if (!P2pConstants.useApi30Rendezvous()) {
                         turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
                         relayRequestEndpoints = turnBinding.publicEndpoints();

@@ -23,15 +23,17 @@ configurations {
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
-def targetJavaVersion = 17
+def targetJavaVersion = 8
+def compilerJavaVersion = 17
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    toolchain.languageVersion = JavaLanguageVersion.of(compilerJavaVersion)
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
 }
 
 minecraft {
@@ -74,6 +76,7 @@ dependencies {
     embed('org.slf4j:slf4j-api:1.7.36') {
         transitive = false
     }
+    embed('com.squareup.okhttp3:okhttp:3.12.13')
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }

@@ -13,8 +13,8 @@ public final class FabricLanSessionState {
     private static volatile boolean allowCommandsEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
-    private static volatile Map<String, String> gameRuleSnapshot = Map.of();
-    private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
+    private static volatile Map<String, String> gameRuleSnapshot = java.util.Collections.emptyMap();
+    private static volatile Map<String, String> defaultGameRuleSnapshot = java.util.Collections.emptyMap();
 
     private FabricLanSessionState() {
     }
@@ -75,7 +75,7 @@ public final class FabricLanSessionState {
     }
 
     public static String getFixedCode() {
-        if (fixedCode.isBlank()) {
+        if (fixedCode.trim().isEmpty()) {
             fixedCode = SafraClientConfig.get().ensureOpenToLanFixedCode();
         }
         return fixedCode;
@@ -100,7 +100,7 @@ public final class FabricLanSessionState {
 
     public static void resetGameRules() {
         gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
-            ? Map.of()
+            ? java.util.Collections.<String, String>emptyMap()
             : new LinkedHashMap<>(defaultGameRuleSnapshot);
         SafraClientConfig.get().setOpenToLanGameRules(gameRuleSnapshot);
     }

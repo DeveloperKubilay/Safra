@@ -66,9 +66,11 @@ public final class ForgeLanGameRules {
                 }
 
                 GameRules.RuleValue<?> rule = rules.get(key);
-                if (rule instanceof GameRules.BooleanValue booleanRule) {
+                if (rule instanceof GameRules.BooleanValue) {
+                    GameRules.BooleanValue booleanRule = (GameRules.BooleanValue) rule;
                     booleanRule.set(Boolean.parseBoolean(serializedValue), server);
-                } else if (rule instanceof GameRules.IntegerValue intRule) {
+                } else if (rule instanceof GameRules.IntegerValue) {
+                    GameRules.IntegerValue intRule = (GameRules.IntegerValue) rule;
                     safra$applyIntegerRule(intRule, serializedValue, server);
                 }
             }

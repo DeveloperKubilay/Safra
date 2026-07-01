@@ -60,7 +60,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         SafraVoiceTransportManager manager = SafraVoiceTransportManager.getInstance();
         SafraRendezvousClient.HostSession session = manager.hostSession();
         String code = manager.hostCode();
-        if (session == null || code == null || code.isBlank()) {
+        if (session == null || code == null || code.trim().isEmpty()) {
             publishedCode = null;
             return;
         }
@@ -131,9 +131,9 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
 
     synchronized Collection<InetSocketAddress> publicEndpointsSnapshot() {
         if (closed || socket == null || socket.isClosed() || stunMappings.isEmpty()) {
-            return List.of();
+            return java.util.Collections.emptyList();
         }
-        return List.copyOf(stunMappings.publicEndpoints());
+        return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(stunMappings.publicEndpoints()));
     }
 
     synchronized int localPortSnapshot() {
@@ -216,7 +216,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         try {
             return createSocket(port, address);
         } catch (BindException exception) {
-            if (address == null || bindAddress == null || bindAddress.isBlank()) {
+            if (address == null || bindAddress == null || bindAddress.trim().isEmpty()) {
                 throw exception;
             }
 
@@ -226,7 +226,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
     }
 
     private static InetAddress parseBindAddress(String bindAddress) throws UnknownHostException {
-        if (bindAddress == null || bindAddress.isBlank()) {
+        if (bindAddress == null || bindAddress.trim().isEmpty()) {
             return null;
         }
         return InetAddress.getByName(bindAddress);

@@ -230,7 +230,7 @@ public final class P2pManager {
     }
 
     public static boolean isLikelyP2pAddress(String address) {
-        if (address == null || address.isBlank()) {
+        if (address == null || address.trim().isEmpty()) {
             return false;
         }
 
@@ -277,6 +277,15 @@ public final class P2pManager {
         }
     }
 
-    public record RewriteResult(ServerInfo serverInfo) {
+    public static final class RewriteResult {
+        private final ServerInfo serverInfo;
+
+        public RewriteResult(ServerInfo serverInfo) {
+            this.serverInfo = serverInfo;
+        }
+
+        public ServerInfo serverInfo() {
+            return serverInfo;
+        }
     }
 }

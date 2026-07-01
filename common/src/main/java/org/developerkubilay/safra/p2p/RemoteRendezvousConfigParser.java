@@ -9,7 +9,7 @@ public final class RemoteRendezvousConfigParser {
     }
 
     public static String parseRemoteUrl(String body, String siteApiVersion, String target) {
-        if (body == null || body.isBlank()) {
+        if (body == null || body.trim().isEmpty()) {
             return "";
         }
 
@@ -37,17 +37,17 @@ public final class RemoteRendezvousConfigParser {
 
         JsonObject endpoints = urlElement.getAsJsonObject();
         String resolved = endpointValue(endpoints, target);
-        if (!resolved.isBlank()) {
+        if (!resolved.trim().isEmpty()) {
             return resolved;
         }
 
         resolved = endpointValue(endpoints, "default");
-        if (!resolved.isBlank()) {
+        if (!resolved.trim().isEmpty()) {
             return resolved;
         }
 
         resolved = endpointValue(endpoints, "client");
-        if (!resolved.isBlank()) {
+        if (!resolved.trim().isEmpty()) {
             return resolved;
         }
 

@@ -58,7 +58,7 @@ public final class SafraBuildInfo {
 
     private static String value(Properties properties, String key, String defaultValue) {
         String value = properties.getProperty(key);
-        if (value == null || value.isBlank()) {
+        if (value == null || value.trim().isEmpty()) {
             return defaultValue;
         }
 

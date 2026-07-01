@@ -17,6 +17,7 @@ on:
         default: 1.16.5
         type: choice
         options:
+          - 1.16
           - 1.16.1
           - 1.16.2
           - 1.16.3
@@ -67,7 +68,7 @@ jobs:
           mc_version="${{ github.event.inputs.mc_version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
-          supported_versions='["1.16.1","1.16.2","1.16.3","1.16.4","1.16.5"]'
+          supported_versions='["1.16","1.16.1","1.16.2","1.16.3","1.16.4","1.16.5"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
@@ -146,6 +147,11 @@ jobs:
         run: |
           mc_version="${{ matrix.mc_version }}"
           case "$mc_version" in
+            1.16)
+              echo "SAFRA_BUILD_ARGS=build -PfabricOnly" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=Forge 1.16 artifacti yayinlanmiyor; bu surum sadece Fabric olarak cikiyor." >> "$GITHUB_ENV"
+              ;;
             1.16.1)
               echo "SAFRA_BUILD_ARGS=build -PfabricOnly" >> "$GITHUB_ENV"
               echo "SAFRA_LOADERS=Fabric" >> "$GITHUB_ENV"
@@ -302,6 +308,7 @@ jobs:
           Safra ${{ needs.prepare.outputs.version_number }} for Minecraft ${{ needs.prepare.outputs.release_versions_label }}
 
           Included artifacts:
+          - 1.16: Fabric
           - 1.16.1: Fabric
           - 1.16.2: Fabric, Forge
           - 1.16.3: Fabric, Forge
@@ -313,6 +320,7 @@ jobs:
 
           Notes:
           - Each Minecraft version is built separately with its own dependency profile.
+          - 1.16 Forge build intentionally not released.
           - 1.16.1 Forge build intentionally not released.
           EOF
 

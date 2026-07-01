@@ -40,7 +40,7 @@ public final class P2pHostSupport {
     }
 
     private static InetAddress resolveTargetAddress(String serverIp, Logger logger) {
-        if (serverIp == null || serverIp.isBlank() || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
+        if (serverIp == null || serverIp.trim().isEmpty() || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
             return InetAddress.getLoopbackAddress();
         }
 
@@ -52,6 +52,21 @@ public final class P2pHostSupport {
         }
     }
 
-    public record HostStartResult(P2pHostService service, P2pShareCode shareCode) {
+    public static final class HostStartResult {
+        private final P2pHostService service;
+        private final P2pShareCode shareCode;
+
+        public HostStartResult(P2pHostService service, P2pShareCode shareCode) {
+            this.service = service;
+            this.shareCode = shareCode;
+        }
+
+        public P2pHostService service() {
+            return service;
+        }
+
+        public P2pShareCode shareCode() {
+            return shareCode;
+        }
     }
 }
