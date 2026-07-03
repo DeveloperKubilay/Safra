@@ -26,7 +26,7 @@ import java.util.concurrent.CompletionException;
 abstract class IntegratedServerMixin {
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
 
-    @Inject(method = "shareToLAN", at = @At("HEAD"), remap = false)
+    @Inject(method = {"shareToLAN", "func_195565_a"}, at = @At("HEAD"), remap = false)
     private void safra$applyOnlineMode(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         IntegratedServer server = (IntegratedServer) (Object) this;
         server.setOnlineMode(ForgeLanSessionState.isOnlineModeEnabled());
@@ -40,7 +40,7 @@ abstract class IntegratedServerMixin {
         );
     }
 
-    @Inject(method = "shareToLAN", at = @At("RETURN"), remap = false)
+    @Inject(method = {"shareToLAN", "func_195565_a"}, at = @At("RETURN"), remap = false)
     private void safra$startP2pHost(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             P2pManager.getInstance().stopHosting();

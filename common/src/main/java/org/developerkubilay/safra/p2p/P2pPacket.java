@@ -1,5 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -109,7 +110,7 @@ final class P2pPacket {
 
     byte[] encode() {
         ByteBuffer buffer = ENCODE_BUFFER.get();
-        buffer.clear();
+        ((Buffer) buffer).clear();
         buffer.put(P2pConstants.PROTOCOL_VERSION);
         buffer.put((byte) type.id);
         buffer.putInt(token);

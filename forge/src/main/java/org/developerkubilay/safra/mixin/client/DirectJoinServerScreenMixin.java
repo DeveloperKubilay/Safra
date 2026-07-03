@@ -5,33 +5,22 @@ import net.minecraft.client.gui.screen.AddServerScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.button.Button;
-import net.minecraft.client.multiplayer.ServerAddress;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.ForgeScreenCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Field;
+
 @Mixin(value = AddServerScreen.class, remap = false)
 abstract class DirectJoinServerScreenMixin extends Screen {
-    @Shadow(remap = false)
-    private Button buttonAddServer;
-
-    @Shadow(remap = false)
-    private TextFieldWidget textFieldServerAddress;
-
-    @Shadow(remap = false)
-    @Final
-    private ServerData serverData;
-
     @Unique
     private Button safra$p2pButton;
 
@@ -45,10 +34,15 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         super(title);
     }
 
-    @Inject(method = "init", at = @At("TAIL"), remap = false)
+    @Inject(method = {"init", "func_231160_c_"}, at = @At("TAIL"), remap = false)
     private void safra$initP2pUi(CallbackInfo ci) {
-        this.textFieldServerAddress.setMaxStringLength(200);
-        String currentAddress = this.textFieldServerAddress.getText();
+        TextFieldWidget addressField = this.safra$getAddressField();
+        if (addressField == null) {
+            return;
+        }
+
+        addressField.setMaxStringLength(200);
+        String currentAddress = addressField.getText();
         boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
         boolean likelyP2pAddress = P2pManager.isLikelyP2pAddress(currentAddress);
         if (!this.safra$p2pInitialized) {
@@ -57,16 +51,17 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             this.safra$p2pEnabled = true;
         }
         if (storedAddress) {
-            this.textFieldServerAddress.setText(P2pManager.toDisplayAddress(this.textFieldServerAddress.getText()));
+            addressField.setText(P2pManager.toDisplayAddress(addressField.getText()));
         }
 
-        Button cancelButton = this.safra$findSecondaryButton(this.buttonAddServer);
+        Button primaryButton = this.safra$getPrimaryAddButton();
+        Button cancelButton = this.safra$findSecondaryButton(primaryButton);
         int width = ForgeScreenCompat.getWidth(this);
         int height = ForgeScreenCompat.getHeight(this);
-        if (cancelButton != null) {
-            ForgeScreenCompat.setButtonWidth(this.buttonAddServer, 98);
-            ForgeScreenCompat.setButtonX(this.buttonAddServer, width / 2 - 100);
-            ForgeScreenCompat.setButtonY(this.buttonAddServer, height / 4 + 108);
+        if (primaryButton != null && cancelButton != null) {
+            ForgeScreenCompat.setButtonWidth(primaryButton, 98);
+            ForgeScreenCompat.setButtonX(primaryButton, width / 2 - 100);
+            ForgeScreenCompat.setButtonY(primaryButton, height / 4 + 108);
             ForgeScreenCompat.setButtonWidth(cancelButton, 98);
             ForgeScreenCompat.setButtonX(cancelButton, width / 2 + 2);
             ForgeScreenCompat.setButtonY(cancelButton, height / 4 + 108);
@@ -82,11 +77,12 @@ abstract class DirectJoinServerScreenMixin extends Screen {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
                 SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
 
-                if (this.safra$p2pEnabled && this.textFieldServerAddress != null) {
-                    String typedAddress = this.textFieldServerAddress.getText();
+                TextFieldWidget refreshedAddressField = this.safra$getAddressField();
+                if (this.safra$p2pEnabled && refreshedAddressField != null) {
+                    String typedAddress = refreshedAddressField.getText();
                     if (typedAddress != null && !typedAddress.isEmpty()
                         && !P2pManager.isValidP2pAddress(typedAddress)) {
-                        this.textFieldServerAddress.setText("");
+                        refreshedAddressField.setText("");
                     }
                 }
 
@@ -106,7 +102,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         this.safra$updateValidation();
     }
 
-    @Inject(method = "onButtonServerAddPressed", at = @At("HEAD"), remap = false)
+    @Inject(method = {"onButtonServerAddPressed", "func_195172_h"}, at = @At("HEAD"), remap = false)
     private void safra$storeP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
@@ -114,12 +110,19 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private void safra$persistStoredAddress() {
         SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-        String address = this.textFieldServerAddress.getText();
+        TextFieldWidget addressField = this.safra$getAddressField();
+        if (addressField == null) {
+            return;
+        }
+        String address = addressField.getText();
         if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
             address = P2pManager.toStoredAddress(address);
         }
-        this.textFieldServerAddress.setText(address);
-        this.serverData.serverIP = address;
+        addressField.setText(address);
+        ServerData serverData = this.safra$getServerData();
+        if (serverData != null) {
+            serverData.serverIP = address;
+        }
     }
 
     @Unique
@@ -129,24 +132,27 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Unique
     private void safra$refreshAddressField() {
-        if (this.textFieldServerAddress == null) {
+        TextFieldWidget addressField = this.safra$getAddressField();
+        if (addressField == null) {
             return;
         }
-        this.textFieldServerAddress.setSuggestion(null);
+        addressField.setSuggestion(null);
     }
 
     @Unique
     private void safra$updateValidation() {
-        if (this.buttonAddServer == null || this.textFieldServerAddress == null) {
+        Button primaryButton = this.safra$getPrimaryAddButton();
+        TextFieldWidget addressField = this.safra$getAddressField();
+        if (primaryButton == null || addressField == null) {
             return;
         }
 
-        String address = this.textFieldServerAddress.getText();
+        String address = addressField.getText();
         ForgeScreenCompat.setButtonActive(
-            this.buttonAddServer,
+            primaryButton,
             this.safra$p2pEnabled
                 ? P2pManager.isValidP2pAddress(address)
-                : ServerAddress.fromString(address) != null
+                : this.safra$isVanillaAddressValid(address)
         );
     }
 
@@ -162,5 +168,86 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             }
         }
         return candidate;
+    }
+
+    @Unique
+    private Button safra$getPrimaryAddButton() {
+        Button fallback = null;
+        String cancelText = new TranslationTextComponent("gui.cancel").getString();
+        for (IGuiEventListener element : ForgeScreenCompat.getChildren(this)) {
+            if (!(element instanceof Button)) {
+                continue;
+            }
+            Button button = (Button) element;
+            if (button == this.safra$p2pButton) {
+                continue;
+            }
+            String label = button.getMessage() == null ? "" : button.getMessage().getString();
+            if (cancelText.equals(label)) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = button;
+            }
+            if (label != null && !label.trim().isEmpty()) {
+                return button;
+            }
+        }
+        return fallback;
+    }
+
+    @Unique
+    private TextFieldWidget safra$getAddressField() {
+        Object fieldValue = this.safra$getFieldValue("textFieldServerAddress", "field_146302_g");
+        if (fieldValue instanceof TextFieldWidget) {
+            return (TextFieldWidget) fieldValue;
+        }
+
+        for (IGuiEventListener element : ForgeScreenCompat.getChildren(this)) {
+            if (element instanceof TextFieldWidget) {
+                return (TextFieldWidget) element;
+            }
+        }
+        return null;
+    }
+
+    @Unique
+    private ServerData safra$getServerData() {
+        Object fieldValue = this.safra$getFieldValue("serverData", "field_146374_i");
+        return fieldValue instanceof ServerData ? (ServerData) fieldValue : null;
+    }
+
+    @Unique
+    private Object safra$getFieldValue(String... names) {
+        for (String name : names) {
+            Field field = this.safra$findField(name);
+            if (field == null) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                return field.get(this);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
+    }
+
+    @Unique
+    private Field safra$findField(String name) {
+        Class<?> current = this.getClass();
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    @Unique
+    private boolean safra$isVanillaAddressValid(String address) {
+        return address != null && !address.trim().isEmpty() && address.indexOf(' ') < 0;
     }
 }

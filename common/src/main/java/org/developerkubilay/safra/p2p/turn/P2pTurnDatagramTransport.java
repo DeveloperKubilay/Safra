@@ -57,11 +57,16 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
+        trace("turn " + role + " open start servers=" + describeServers(credentials)
+            + " timeoutMs=" + P2pConstants.TURN_REQUEST_TIMEOUT_MS);
         for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
             DatagramSocket socket = P2pSockets.datagramSocket();
-            InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
             try {
+                trace("turn " + role + " trying server=" + describeServer(server));
+                InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+                trace("turn " + role + " resolved server=" + describeServer(server) + " -> " + serverAddress);
                 socket.connect(serverAddress);
+                trace("turn " + role + " connected local=" + socket.getLocalSocketAddress() + " remote=" + serverAddress);
                 P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
                     logger,
                     role,
@@ -71,11 +76,13 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     credentials.credential()
                 );
                 transport.start(credentials.ttlSeconds());
+                trace("turn " + role + " ready relay=" + transport.relayAddress + " via=" + serverAddress);
                 logger.debug("Safra TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
                 return transport;
             } catch (IOException exception) {
                 socket.close();
-                failures.add(server.host() + ":" + server.port() + " -> " + exception.getMessage());
+                failures.add(describeServer(server) + " -> " + exception.getMessage());
+                trace("turn " + role + " failed server=" + describeServer(server) + " error=" + exception.toString());
             }
         }
 
@@ -163,12 +170,14 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private void start(int requestedTtlSeconds) throws IOException {
+        trace("turn " + role + " start ttl=" + requestedTtlSeconds + " server=" + serverAddress);
         P2pRuntime.start("safra-turn-recv-" + role, this::receiveLoop);
         allocate(requestedTtlSeconds);
         scheduleRefresh();
     }
 
     private void allocate(int requestedTtlSeconds) throws IOException {
+        trace("turn " + role + " allocate begin server=" + serverAddress + " ttl=" + requestedTtlSeconds);
         P2pTurnMessage response = sendTurnRequest(P2pTurnProtocol.TURN_ALLOCATE_REQUEST, (out, transactionId) ->
             P2pTurnProtocol.putRequestedTransport(out, P2pTurnProtocol.REQUESTED_TRANSPORT_UDP), true);
         InetSocketAddress resolvedRelayAddress = response.xorAddress(P2pTurnProtocol.ATTR_XOR_RELAYED_ADDRESS);
@@ -176,6 +185,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             throw new IOException("TURN allocate cevabinda relay adresi yok");
         }
         relayAddress = resolvedRelayAddress;
+        trace("turn " + role + " allocate ok relay=" + resolvedRelayAddress + " server=" + serverAddress);
     }
 
     private void refreshAllocation() throws IOException {
@@ -260,6 +270,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private P2pTurnMessage sendTurnRequest(int requestType, P2pTurnProtocol.AttributeWriter writer, boolean challengeFirst) throws IOException {
+        String requestName = requestName(requestType);
         if (challengeFirst || realm.trim().isEmpty() || nonce.trim().isEmpty()) {
             P2pTurnMessage challenge = sendRequestAwait(P2pTurnProtocol.buildRequest(
                 random,
@@ -272,8 +283,11 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 P2pTurnProtocol.AuthMode.NONE
             ));
             if (challenge.type() == P2pTurnProtocol.expectedSuccessType(requestType)) {
+                trace("turn " + role + " " + requestName + " success-without-auth server=" + serverAddress);
                 return challenge;
             }
+            trace("turn " + role + " " + requestName + " auth-challenge code=" + challenge.errorCode()
+                + " reason=" + challenge.errorReason());
             handleAuthChallenge(challenge, requestType);
         }
 
@@ -288,6 +302,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             P2pTurnProtocol.AuthMode.LONG_TERM
         ));
         if (response.errorCode() == P2pTurnProtocol.ERROR_STALE_NONCE) {
+            trace("turn " + role + " " + requestName + " stale-nonce server=" + serverAddress);
             handleAuthChallenge(response, requestType);
             response = sendRequestAwait(P2pTurnProtocol.buildRequest(
                 random,
@@ -301,8 +316,11 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             ));
         }
         if (response.type() != P2pTurnProtocol.expectedSuccessType(requestType)) {
+            trace("turn " + role + " " + requestName + " failed code=" + response.errorCode()
+                + " reason=" + response.errorReason());
             throw P2pTurnProtocol.turnError(requestType, response);
         }
+        trace("turn " + role + " " + requestName + " success server=" + serverAddress);
         return response;
     }
 
@@ -323,16 +341,22 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private P2pTurnMessage sendRequestAwait(byte[] requestBytes) throws IOException {
+        int requestType = messageType(requestBytes);
         byte[] transactionId = Arrays.copyOfRange(requestBytes, 8, 20);
         String key = P2pTurnProtocol.transactionKey(transactionId);
+        String shortKey = key.length() > 8 ? key.substring(0, 8) : key;
         CompletableFuture<P2pTurnMessage> future = new CompletableFuture<>();
         pendingTransactions.put(key, future);
 
         try {
             synchronized (socket) {
+                trace("turn " + role + " send " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
                 socket.send(new DatagramPacket(requestBytes, requestBytes.length));
             }
-            return future.get(P2pConstants.TURN_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            P2pTurnMessage response = future.get(P2pConstants.TURN_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            trace("turn " + role + " recv " + requestName(response.type()) + " tx=" + shortKey
+                + " code=" + response.errorCode() + " server=" + serverAddress);
+            return response;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IOException("TURN istegi yarida kesildi", exception);
@@ -343,6 +367,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             }
             throw new IOException("TURN istegi basarisiz", cause);
         } catch (TimeoutException exception) {
+            trace("turn " + role + " timeout " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
             throw new IOException("TURN istegi zaman asimina ugradi", exception);
         } finally {
             pendingTransactions.remove(key);
@@ -357,6 +382,56 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
         String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
         return environment != null && !environment.trim().isEmpty() && Boolean.parseBoolean(environment.trim());
+    }
+
+    private static String describeServers(P2pTurnCredentials credentials) {
+        if (credentials == null || credentials.udpServers() == null || credentials.udpServers().isEmpty()) {
+            return "[]";
+        }
+
+        StringBuilder builder = new StringBuilder("[");
+        for (int index = 0; index < credentials.udpServers().size(); index++) {
+            if (index > 0) {
+                builder.append(", ");
+            }
+            builder.append(describeServer(credentials.udpServers().get(index)));
+        }
+        builder.append(']');
+        return builder.toString();
+    }
+
+    private static String describeServer(P2pTurnCredentials.TurnServer server) {
+        return server.host() + ":" + server.port();
+    }
+
+    private static int messageType(byte[] requestBytes) {
+        if (requestBytes == null || requestBytes.length < 2) {
+            return 0;
+        }
+        return ((requestBytes[0] & 0xFF) << 8) | (requestBytes[1] & 0xFF);
+    }
+
+    private static String requestName(int requestType) {
+        switch (requestType) {
+            case P2pTurnProtocol.TURN_ALLOCATE_REQUEST:
+                return "allocate";
+            case P2pTurnProtocol.TURN_ALLOCATE_RESPONSE:
+                return "allocate-response";
+            case P2pTurnProtocol.TURN_REFRESH_REQUEST:
+                return "refresh";
+            case P2pTurnProtocol.TURN_REFRESH_RESPONSE:
+                return "refresh-response";
+            case P2pTurnProtocol.TURN_CREATE_PERMISSION_REQUEST:
+                return "create-permission";
+            case P2pTurnProtocol.TURN_CREATE_PERMISSION_RESPONSE:
+                return "create-permission-response";
+            default:
+                return "type-" + requestType;
+        }
+    }
+
+    private static void trace(String message) {
+        System.out.println("[Safra P2P] " + message);
     }
 
     private static final class ReceivedDatagram {

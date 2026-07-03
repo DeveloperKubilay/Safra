@@ -3,13 +3,20 @@ package org.developerkubilay.safra.p2p.transport;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.net.SocketAddress;
+
+import org.developerkubilay.safra.p2p.P2pConstants;
 
 public final class P2pDirectDatagramTransport implements P2pDatagramTransport {
     private final DatagramSocket socket;
 
     public P2pDirectDatagramTransport(DatagramSocket socket) {
         this.socket = socket;
+        try {
+            socket.setSoTimeout(P2pConstants.DIRECT_TRANSPORT_SO_TIMEOUT_MS);
+        } catch (SocketException ignored) {
+        }
     }
 
     public DatagramSocket socket() {

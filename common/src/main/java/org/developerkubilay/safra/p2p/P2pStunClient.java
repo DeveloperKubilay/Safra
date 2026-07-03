@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -245,7 +246,7 @@ final class P2pStunClient {
             }
 
             int paddedLength = (length + 3) & ~3;
-            buffer.position(attributeStart + paddedLength);
+            ((Buffer) buffer).position(attributeStart + paddedLength);
         }
         return null;
     }
@@ -283,16 +284,16 @@ final class P2pStunClient {
                 }
             }
         } else {
-            buffer.position(attributeStart + length);
+            ((Buffer) buffer).position(attributeStart + length);
             return null;
         }
 
         try {
             InetAddress address = InetAddress.getByAddress(addressBytes);
-            buffer.position(attributeStart + length);
+            ((Buffer) buffer).position(attributeStart + length);
             return new DiscoveredEndpoint(new InetSocketAddress(address, port), null);
         } catch (IOException ignored) {
-            buffer.position(attributeStart + length);
+            ((Buffer) buffer).position(attributeStart + length);
             return null;
         }
     }

@@ -200,7 +200,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         Thread readerThread = P2pRuntime.start(side + "-udp-reader-" + connectionId, this::tcpReaderLoop);
         Thread writerThread = P2pRuntime.start(side + "-udp-writer-" + connectionId, this::tcpWriterLoop);
-        maintenanceTask = scheduler.scheduleAtFixedRate(this::maintenanceTick, P2pConstants.MAINTENANCE_TICK_MS,
+        maintenanceTask = scheduler.scheduleAtFixedRate(this::runMaintenanceTick, P2pConstants.MAINTENANCE_TICK_MS,
             P2pConstants.MAINTENANCE_TICK_MS, TimeUnit.MILLISECONDS);
 
         long now = System.currentTimeMillis();
@@ -221,6 +221,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         long now = System.currentTimeMillis();
         lastPacketReceivedAt = now;
+        if (packet.type() == P2pPacket.Type.OPEN || packet.type() == P2pPacket.Type.OPEN_ACK || packet.type() == P2pPacket.Type.CLOSE) {
+            trace("recv " + packet.type() + " conn=" + connectionId + " from=" + remoteAddress + " token=" + packet.token());
+        }
         switch (packet.type()) {
             case OPEN_ACK:
                 markOpened(now);
@@ -246,10 +249,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     void sendOpenAck() {
+        trace("send OPEN_ACK conn=" + connectionId + " to=" + remoteAddress + " token=" + token);
         sendPacket(P2pPacket.openAck(token, connectionId));
     }
 
     void sendOpenAck(long now) {
+        trace("send OPEN_ACK conn=" + connectionId + " to=" + remoteAddress + " token=" + token);
         sendPacket(P2pPacket.openAck(token, connectionId), now);
     }
 
@@ -514,12 +519,21 @@ final class ReliableTunnelConnection implements AutoCloseable {
         maybeLogDiagnostics("tick", now, false);
     }
 
+    private void runMaintenanceTick() {
+        try {
+            maintenanceTick();
+        } catch (Throwable throwable) {
+            closeFromError("maintenance", throwable);
+        }
+    }
+
     private void sendOpen(long now) {
         if (openPacketsSent == 0) {
             openStartedAt = now;
         }
         openPacketsSent++;
         lastOpenPacketAt = now;
+        trace("send OPEN conn=" + connectionId + " to=" + remoteAddress + " token=" + token + " attempt=" + openPacketsSent);
         sendPacket(P2pPacket.open(token, connectionId), now);
     }
 
@@ -565,6 +579,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
             return;
         }
         opened = true;
+        trace("tunnel opened conn=" + connectionId + " remote=" + remoteAddress + " initiator=" + initiator);
         lastAcknowledgementProgressAt = now;
         if (initiator && openPacketsSent == 1) {
             updateRetransmitTimeout(now - openStartedAt);
@@ -585,6 +600,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        trace("tunnel local close conn=" + connectionId + " reason=" + reason + " remote=" + remoteAddress);
 
         for (int i = 0; i < 3; i++) {
             sendPacket(P2pPacket.close(token, connectionId));
@@ -597,12 +613,14 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        trace("tunnel remote close conn=" + connectionId + " reason=" + reason + " remote=" + remoteAddress);
 
         cleanup(reason);
     }
 
     private void closeFromError(String context, Throwable throwable) {
         logger.debug("{} connection {} {} failed: {}", side, connectionId, context, throwable.toString());
+        trace("tunnel error conn=" + connectionId + " context=" + context + " remote=" + remoteAddress + " error=" + throwable.getMessage());
         closeLocally(context);
     }
 
@@ -1420,6 +1438,10 @@ final class ReliableTunnelConnection implements AutoCloseable {
         while (value > current && !peak.compareAndSet(current, value)) {
             current = peak.get();
         }
+    }
+
+    private void trace(String message) {
+        System.out.println("[Safra P2P] " + side + " " + message);
     }
 
     private long kiloBitsPerSecond(long byteDelta, long intervalMs) {

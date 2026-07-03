@@ -14,7 +14,7 @@ import java.util.Collections;
 
 @Mixin(value = ServerPinger.class, remap = false)
 abstract class ServerStatusPingerMixin {
-    @Inject(method = "ping", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = {"ping", "func_147224_a"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void safra$skipP2pServerListPing(ServerData serverData, Runnable runnable, CallbackInfo ci) {
         if (!P2pManager.isLikelyP2pAddress(serverData.serverIP)) {
             return;
