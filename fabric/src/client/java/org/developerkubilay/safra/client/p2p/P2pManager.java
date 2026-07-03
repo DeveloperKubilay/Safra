@@ -47,11 +47,13 @@ public final class P2pManager {
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode) {
         stopHosting();
 
-        String normalizedFixedCode = org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(fixedCode);
-        int token = normalizedFixedCode != null
-            ? org.developerkubilay.safra.p2p.P2pShareCode.rendezvousTunnelToken(normalizedFixedCode)
+        String rendezvousCode = P2pConstants.useApi30Rendezvous()
+            ? P2pHostSupport.resolvePreferredRendezvousCode(fixedCode)
+            : org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(fixedCode);
+        int token = P2pConstants.useApi30Rendezvous()
+            ? P2pHostSupport.createRendezvousShareToken(rendezvousCode)
             : P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token, normalizedFixedCode);
+        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode);
         long generation = ++hostStartGeneration;
         startingHostService = service;
 

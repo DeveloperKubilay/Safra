@@ -11,6 +11,7 @@ public final class P2pConstants {
     static final int MAX_SEND_WINDOW_SIZE = 128;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
+    public static final int DIRECT_TRANSPORT_SO_TIMEOUT_MS = 50;
     static final long MAINTENANCE_TICK_MS = 25L;
     static final long OPEN_RESEND_MS = 500L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
@@ -43,7 +44,7 @@ public final class P2pConstants {
     static final long RENDEZVOUS_RECONNECT_WINDOW_MS = 120_000L;
     static final long RENDEZVOUS_RECONNECT_DELAY_MS = 5_000L;
     static final long VOICE_HOST_WAIT_MS = 5_000L;
-    public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
+    public static final int TURN_REQUEST_TIMEOUT_MS = 3_000;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;

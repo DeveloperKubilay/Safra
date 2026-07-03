@@ -17,10 +17,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -300,8 +301,7 @@ final class SafraRendezvousClient {
                 throw new IOException("Safra host event stream yok");
             }
 
-            try (Reader readerStream = response.body().charStream();
-                 BufferedReader reader = new BufferedReader(readerStream)) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                 String event = "";
                 StringBuilder data = new StringBuilder();
                 String line;
@@ -404,8 +404,7 @@ final class SafraRendezvousClient {
                 if (response.body() == null) {
                     return;
                 }
-                try (Reader readerStream = response.body().charStream();
-                     BufferedReader reader = new BufferedReader(readerStream)) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                     while (!closed && reader.readLine() != null) {
                     }
                 }
@@ -417,6 +416,7 @@ final class SafraRendezvousClient {
                 closeQuietly(response);
             }
         }
+
     }
 
     private static final class Api3JoinSessionBackend implements JoinSessionBackend {
@@ -436,27 +436,35 @@ final class SafraRendezvousClient {
             JsonObject request = new JsonObject();
             request.addProperty("code", code);
             request.add("network", toNetwork(endpoint));
-            Response response = send(requestBuilder(httpUri("/session-join"))
-                .header("Content-Type", "application/json")
-                .post(RequestBody.create(JSON, GSON.toJson(request)))
-                .build());
-            try {
-                if (response.code() < 200 || response.code() >= 300) {
-                    throw new IOException("Safra join request returned HTTP " + response.code());
-                }
+            long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_TIMEOUT_MS;
+            while (true) {
+                Response response = send(requestBuilder(httpUri("/session-join"))
+                    .header("Content-Type", "application/json")
+                    .post(RequestBody.create(JSON, GSON.toJson(request)))
+                    .build());
+                try {
+                    if (response.code() == 404 && System.currentTimeMillis() < deadline) {
+                        sleepQuietly(200L);
+                        continue;
+                    }
+                    if (response.code() < 200 || response.code() >= 300) {
+                        throw new IOException("Safra join request returned HTTP " + response.code());
+                    }
 
-                String body = response.body() != null ? response.body().string() : "";
-                JsonObject json = parseApi3Object(body, "Safra join response is invalid");
-                hostAddress = fromNetwork(array(json, "host"));
-                voiceAddress = fromNetwork(array(json, "voiceHost"));
-                JsonObject relay = object(json, "relay");
-                relayAddress = relayNetwork(relay);
-                relayCredentials = relayCredentials(relay);
-                if (hostAddress == null && relayAddress == null) {
-                    throw new IOException("Safra join response did not include a host address");
+                    String body = response.body() != null ? response.body().string() : "";
+                    JsonObject json = parseApi3Object(body, "Safra join response is invalid");
+                    hostAddress = fromNetwork(array(json, "host"));
+                    voiceAddress = fromNetwork(array(json, "voiceHost"));
+                    JsonObject relay = object(json, "relay");
+                    relayAddress = relayNetwork(relay);
+                    relayCredentials = relayCredentials(relay);
+                    if (hostAddress == null && relayAddress == null) {
+                        throw new IOException("Safra join response did not include a host address");
+                    }
+                    return;
+                } finally {
+                    response.close();
                 }
-            } finally {
-                response.close();
             }
         }
 
@@ -526,8 +534,7 @@ final class SafraRendezvousClient {
                     throw new IOException("Safra relay event stream closed");
                 }
 
-                try (Reader readerStream = response.body().charStream();
-                     BufferedReader reader = new BufferedReader(readerStream)) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                     String event = "";
                     StringBuilder data = new StringBuilder();
                     String line;
@@ -629,6 +636,7 @@ final class SafraRendezvousClient {
                 response.close();
             }
         }
+
     }
 
     static final class HostSession implements AutoCloseable {
