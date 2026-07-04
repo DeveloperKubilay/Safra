@@ -72,4 +72,69 @@ public final class ForgeClientCompat {
 
         return true;
     }
+
+    public static net.minecraft.client.gui.components.Button createButton(int x, int y, int width, int height, Component text, net.minecraft.client.gui.components.Button.OnPress action) {
+        try {
+            Method builderMethod = net.minecraft.client.gui.components.Button.class.getMethod("builder", Component.class, net.minecraft.client.gui.components.Button.OnPress.class);
+            Object builder = builderMethod.invoke(null, text, action);
+            Method boundsMethod = builder.getClass().getMethod("bounds", int.class, int.class, int.class, int.class);
+            builder = boundsMethod.invoke(builder, x, y, width, height);
+            Method buildMethod = builder.getClass().getMethod("build");
+            return (net.minecraft.client.gui.components.Button) buildMethod.invoke(builder);
+        } catch (Exception ignored) {
+        }
+        
+        try {
+            Constructor<?> constructor = net.minecraft.client.gui.components.Button.class.getConstructor(int.class, int.class, int.class, int.class, Component.class, net.minecraft.client.gui.components.Button.OnPress.class);
+            return (net.minecraft.client.gui.components.Button) constructor.newInstance(x, y, width, height, text, action);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not create button", e);
+        }
+    }
+
+    public static void setX(net.minecraft.client.gui.components.AbstractWidget widget, int x) {
+        try {
+            Method setXMethod = net.minecraft.client.gui.components.AbstractWidget.class.getMethod("setX", int.class);
+            setXMethod.invoke(widget, x);
+            return;
+        } catch (Exception ignored) {}
+
+        try {
+            java.lang.reflect.Field xField = net.minecraft.client.gui.components.AbstractWidget.class.getField("x");
+            xField.set(widget, x);
+        } catch (Exception e) {}
+    }
+
+    public static void setY(net.minecraft.client.gui.components.AbstractWidget widget, int y) {
+        try {
+            Method setYMethod = net.minecraft.client.gui.components.AbstractWidget.class.getMethod("setY", int.class);
+            setYMethod.invoke(widget, y);
+            return;
+        } catch (Exception ignored) {}
+
+        try {
+            java.lang.reflect.Field yField = net.minecraft.client.gui.components.AbstractWidget.class.getField("y");
+            yField.set(widget, y);
+        } catch (Exception e) {}
+    }
+
+    public static void drawCenteredString(com.mojang.blaze3d.vertex.PoseStack poseStack, net.minecraft.client.gui.Font font, Component component, int x, int y, int color) {
+        try {
+            Class<?> guiComponentClass;
+            try {
+                guiComponentClass = Class.forName("net.minecraft.client.gui.GuiComponent");
+            } catch (ClassNotFoundException e) {
+                guiComponentClass = Class.forName("net.minecraft.client.gui.GuiGraphics");
+            }
+            
+            for (Method method : guiComponentClass.getMethods()) {
+                if (method.getName().equals("drawCenteredString")) {
+                    if (method.getParameterCount() == 6 && method.getParameterTypes()[2] == Component.class) {
+                        method.invoke(null, poseStack, font, component, x, y, color);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+    }
 }

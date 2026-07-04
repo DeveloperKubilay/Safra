@@ -25,22 +25,22 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     protected void init() {
         int top = this.height / 4 - 20;
-        this.allowCommandsButton = this.addRenderableWidget(new Button(this.width / 2 - 100, top + 24, 200, 20, this.getAllowCommandsText(), button -> {
+        this.allowCommandsButton = this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, top + 24, 200, 20, this.getAllowCommandsText(), button -> {
                 ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
                 button.setMessage(this.getAllowCommandsText());
             }));
 
-        this.fixedCodeButton = this.addRenderableWidget(new Button(this.width / 2 - 100, top + 48, 200, 20, this.getFixedCodeText(), button -> {
+        this.fixedCodeButton = this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, top + 48, 200, 20, this.getFixedCodeText(), button -> {
                 ForgeLanSessionState.setFixedCodeEnabled(!ForgeLanSessionState.isFixedCodeEnabled());
                 button.setMessage(this.getFixedCodeText());
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 72, 200, 20, ForgeClientCompat.translatable("safra.p2p.fixed_code.refresh"), button -> {
+        this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, top + 72, 200, 20, ForgeClientCompat.translatable("safra.p2p.fixed_code.refresh"), button -> {
                 ForgeLanSessionState.regenerateFixedCode();
                 this.clearWidgetFocus();
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 96, 200, 20, ForgeClientCompat.translatable("safra.p2p.game_rules"), button -> {
+        this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, top + 96, 200, 20, ForgeClientCompat.translatable("safra.p2p.game_rules"), button -> {
                 Minecraft minecraft = this.minecraft;
                 if (minecraft == null || minecraft.level == null) {
                     return;
@@ -49,13 +49,13 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 minecraft.setScreen(new EditGameRulesScreen(editableRules, this::handleGameRulesClose));
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 120, 200, 20, ForgeClientCompat.translatable("safra.p2p.game_rules.reset"), button -> {
+        this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, top + 120, 200, 20, ForgeClientCompat.translatable("safra.p2p.game_rules.reset"), button -> {
                 ForgeLanSessionState.resetGameRules();
                 this.clearWidgetFocus();
             }));
 
-        this.addRenderableWidget(new Button(this.width / 2 - 100, top + 168, 98, 20, CommonComponents.GUI_DONE, button -> this.onClose()));
-        this.addRenderableWidget(new Button(this.width / 2 + 2, top + 168, 98, 20, CommonComponents.GUI_BACK, button -> this.onClose()));
+        this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, top + 168, 98, 20, CommonComponents.GUI_DONE, button -> this.onClose()));
+        this.addRenderableWidget(org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 2, top + 168, 98, 20, CommonComponents.GUI_BACK, button -> this.onClose()));
     }
 
     @Override
@@ -68,7 +68,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         fill(poseStack, 0, 0, this.width, this.height, 0xC0101010);
-        drawCenteredString(poseStack, this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
+        org.developerkubilay.safra.client.ForgeClientCompat.drawCenteredString(poseStack, this.font, this.title, this.width / 2, this.height / 4 - 20, 0xFFFFFF);
         super.render(poseStack, mouseX, mouseY, partialTick);
     }
 
@@ -99,3 +99,5 @@ public final class SafraLanServerSettingsScreen extends Screen {
         }
     }
 }
+
+

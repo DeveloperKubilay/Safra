@@ -49,7 +49,7 @@ abstract class EditServerScreenMixin extends Screen {
 
         this.ipEdit.setWidth(122);
         this.addRenderableWidget(
-            new Button(this.width / 2 + 30, 106, 70, 20, this.safra$getToggleText(), button -> {
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 30, 106, 70, 20, this.safra$getToggleText(), button -> {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
                 SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
                 button.setMessage(this.safra$getToggleText());
@@ -98,3 +98,4 @@ abstract class EditServerScreenMixin extends Screen {
     }
 
 }
+

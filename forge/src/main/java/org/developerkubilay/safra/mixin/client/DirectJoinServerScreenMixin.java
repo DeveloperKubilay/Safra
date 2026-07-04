@@ -66,7 +66,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         }
 
         this.safra$p2pButton = this.addRenderableWidget(
-            new Button(this.width / 2 - 100, this.height / 4 + 132, 200, 20, this.safra$getToggleText(), button -> {
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, this.height / 4 + 132, 200, 20, this.safra$getToggleText(), button -> {
                     this.safra$p2pEnabled = !this.safra$p2pEnabled;
                     SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
 
@@ -155,8 +155,9 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private void safra$moveButton(Button button, int x, int y, int width) {
         button.setWidth(width);
-        button.x = x;
-        button.y = y;
+        org.developerkubilay.safra.client.ForgeClientCompat.setX(button, x);
+        org.developerkubilay.safra.client.ForgeClientCompat.setY(button, y);
     }
 
 }
+

@@ -48,8 +48,8 @@ abstract class AddServerScreenMixin extends Screen {
         }
 
         this.addressField.setWidth(122);
-        this.addDrawableChild(
-            new ButtonWidget(this.width / 2 + 30, 106, 70, 20, this.safra$getToggleText(), button -> {
+
+        this.addDrawableChild(FabricClientCompat.createButton(this.width / 2 + 30, 106, 70, 20, this.safra$getToggleText(), button -> {
                     this.safra$p2pEnabled = !this.safra$p2pEnabled;
                     SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
 

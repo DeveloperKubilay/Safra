@@ -51,19 +51,19 @@ abstract class ShareToLanScreenMixin extends Screen {
         }
 
         this.safra$p2pButton = this.addRenderableWidget(
-            new Button(this.width / 2 - 100, 148, 98, 20, this.safra$getToggleText(), button -> {
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, 148, 98, 20, this.safra$getToggleText(), button -> {
                 ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
                 button.setMessage(this.safra$getToggleText());
             })
         );
         this.safra$onlineModeButton = this.addRenderableWidget(
-            new Button(this.width / 2 + 2, 148, 98, 20, this.safra$getOnlineModeText(), button -> {
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 2, 148, 98, 20, this.safra$getOnlineModeText(), button -> {
                 ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
                 button.setMessage(this.safra$getOnlineModeText());
             })
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            new Button(this.width / 2 - 49, 172, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 49, 172, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
@@ -81,3 +81,4 @@ abstract class ShareToLanScreenMixin extends Screen {
             : "safra.p2p.online_mode.short.off");
     }
 }
+

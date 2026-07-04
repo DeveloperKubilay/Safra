@@ -78,21 +78,21 @@ abstract class OpenToLanScreenMixin extends Screen {
         }
 
         this.safra$p2pButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 - 100, 148, 98, 20, this.safra$getToggleText(), button -> {
+            org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 - 100, 148, 98, 20, this.safra$getToggleText(), button -> {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
                 SafraClientConfig.get().setOpenToLanP2pEnabled(this.safra$p2pEnabled);
                 button.setMessage(this.safra$getToggleText());
             })
         );
         this.safra$onlineModeButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 + 2, 148, 98, 20, this.safra$getOnlineModeText(), button -> {
+            org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 + 2, 148, 98, 20, this.safra$getOnlineModeText(), button -> {
                 this.safra$onlineModeEnabled = !this.safra$onlineModeEnabled;
                 SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
                 button.setMessage(this.safra$getOnlineModeText());
             })
         );
         this.safra$serverSettingsButton = this.addDrawableChild(
-            new ButtonWidget(this.width / 2 - 49, 172, 98, 20, FabricClientCompat.translatable("safra.p2p.server_settings.short"), button ->
+            org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 - 49, 172, 98, 20, FabricClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 FabricScreenCompat.open(this.client, new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             )
         );
@@ -200,3 +200,4 @@ abstract class OpenToLanScreenMixin extends Screen {
         );
     }
 }
+

@@ -127,4 +127,118 @@ public final class FabricClientCompat {
         }
         return literal(fallbackKey);
     }
+
+    public static net.minecraft.client.gui.widget.ButtonWidget createButton(int x, int y, int width, int height, Text text, net.minecraft.client.gui.widget.ButtonWidget.PressAction action) {
+        try {
+            Method builderMethod = null;
+            try {
+                builderMethod = net.minecraft.client.gui.widget.ButtonWidget.class.getMethod("builder", Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
+            } catch (Exception e) {
+                try {
+                    builderMethod = net.minecraft.client.gui.widget.ButtonWidget.class.getMethod("method_46430", Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
+                } catch (Exception ignored) {}
+            }
+
+            if (builderMethod != null) {
+                Object builder = builderMethod.invoke(null, text, action);
+                Method dimensionsMethod;
+                try {
+                    dimensionsMethod = builder.getClass().getMethod("dimensions", int.class, int.class, int.class, int.class);
+                } catch (Exception e) {
+                    dimensionsMethod = builder.getClass().getMethod("method_46434", int.class, int.class, int.class, int.class);
+                }
+                builder = dimensionsMethod.invoke(builder, x, y, width, height);
+
+                Method buildMethod;
+                try {
+                    buildMethod = builder.getClass().getMethod("build");
+                } catch (Exception e) {
+                    buildMethod = builder.getClass().getMethod("method_46431");
+                }
+                return (net.minecraft.client.gui.widget.ButtonWidget) buildMethod.invoke(builder);
+            }
+        } catch (Exception ignored) {
+        }
+        
+        try {
+            Constructor<?> constructor = net.minecraft.client.gui.widget.ButtonWidget.class.getConstructor(int.class, int.class, int.class, int.class, Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
+            return (net.minecraft.client.gui.widget.ButtonWidget) constructor.newInstance(x, y, width, height, text, action);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not create button", e);
+        }
+    }
+
+    public static void setX(net.minecraft.client.gui.widget.ClickableWidget widget, int x) {
+        try {
+            Method setXMethod = null;
+            try {
+                setXMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("setX", int.class);
+            } catch (Exception e) {
+                try {
+                    setXMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("method_46419", int.class);
+                } catch (Exception ignored) {}
+            }
+            if (setXMethod != null) {
+                setXMethod.invoke(widget, x);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            Field xField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("x");
+            xField.set(widget, x);
+        } catch (Exception e) {
+            try {
+                Field xField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("field_22758");
+                xField.set(widget, x);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public static void setY(net.minecraft.client.gui.widget.ClickableWidget widget, int y) {
+        try {
+            Method setYMethod = null;
+            try {
+                setYMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("setY", int.class);
+            } catch (Exception e) {
+                try {
+                    setYMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("method_46421", int.class);
+                } catch (Exception ignored) {}
+            }
+            if (setYMethod != null) {
+                setYMethod.invoke(widget, y);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            Field yField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("y");
+            yField.set(widget, y);
+        } catch (Exception e) {
+            try {
+                Field yField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("field_22759");
+                yField.set(widget, y);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public static void drawCenteredText(net.minecraft.client.util.math.MatrixStack matrices, net.minecraft.client.font.TextRenderer textRenderer, Text text, int centerX, int y, int color) {
+        try {
+            Class<?> helperClass;
+            try {
+                helperClass = Class.forName("net.minecraft.client.gui.DrawableHelper");
+            } catch (ClassNotFoundException e) {
+                helperClass = Class.forName("net.minecraft.client.gui.DrawContext");
+            }
+            
+            for (Method method : helperClass.getMethods()) {
+                if (method.getName().equals("drawCenteredText") || method.getName().equals("drawCenteredTextWithShadow") || method.getName().equals("method_25303")) {
+                    if (method.getParameterCount() == 6 && method.getParameterTypes()[2] == Text.class) {
+                        method.invoke(null, matrices, textRenderer, text, centerX, y, color);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+    }
 }
