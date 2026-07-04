@@ -75,12 +75,38 @@ public final class ForgeClientCompat {
 
     public static net.minecraft.client.gui.components.Button createButton(int x, int y, int width, int height, Component text, net.minecraft.client.gui.components.Button.OnPress action) {
         try {
-            Method builderMethod = net.minecraft.client.gui.components.Button.class.getMethod("builder", Component.class, net.minecraft.client.gui.components.Button.OnPress.class);
-            Object builder = builderMethod.invoke(null, text, action);
-            Method boundsMethod = builder.getClass().getMethod("bounds", int.class, int.class, int.class, int.class);
-            builder = boundsMethod.invoke(builder, x, y, width, height);
-            Method buildMethod = builder.getClass().getMethod("build");
-            return (net.minecraft.client.gui.components.Button) buildMethod.invoke(builder);
+            Method builderMethod = null;
+            for (Method method : net.minecraft.client.gui.components.Button.class.getMethods()) {
+                if (Modifier.isStatic(method.getModifiers()) && method.getParameterCount() == 2) {
+                    if (method.getParameterTypes()[0] == Component.class && method.getParameterTypes()[1] == net.minecraft.client.gui.components.Button.OnPress.class) {
+                        builderMethod = method;
+                        break;
+                    }
+                }
+            }
+            if (builderMethod != null) {
+                Object builder = builderMethod.invoke(null, text, action);
+                Method boundsMethod = null;
+                for (Method method : builder.getClass().getMethods()) {
+                    if (method.getParameterCount() == 4 && method.getParameterTypes()[0] == int.class) {
+                        boundsMethod = method;
+                        break;
+                    }
+                }
+                if (boundsMethod != null) {
+                    builder = boundsMethod.invoke(builder, x, y, width, height);
+                }
+                Method buildMethod = null;
+                for (Method method : builder.getClass().getMethods()) {
+                    if (method.getParameterCount() == 0 && net.minecraft.client.gui.components.Button.class.isAssignableFrom(method.getReturnType())) {
+                        buildMethod = method;
+                        break;
+                    }
+                }
+                if (buildMethod != null) {
+                    return (net.minecraft.client.gui.components.Button) buildMethod.invoke(builder);
+                }
+            }
         } catch (Exception ignored) {
         }
         
