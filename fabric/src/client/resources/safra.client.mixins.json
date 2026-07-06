@@ -5,6 +5,7 @@
   "compatibilityLevel": "${mixin_compatibility_level}",
   "client": [
     "AddServerScreenMixin",
+    "ClickableWidgetAccessor",
     "ConnectScreenMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",

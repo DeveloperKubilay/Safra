@@ -155,8 +155,8 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private void safra$moveButton(Button button, int x, int y, int width) {
         button.setWidth(width);
-        org.developerkubilay.safra.client.ForgeClientCompat.setX(button, x);
-        org.developerkubilay.safra.client.ForgeClientCompat.setY(button, y);
+        ((AbstractWidgetAccessor) button).safra$setX(x);
+        ((AbstractWidgetAccessor) button).safra$setY(y);
     }
 
 }

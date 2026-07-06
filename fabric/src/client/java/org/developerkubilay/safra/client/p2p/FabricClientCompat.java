@@ -8,6 +8,7 @@ import net.minecraft.text.Text;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 public final class FabricClientCompat {
     private FabricClientCompat() {
@@ -130,96 +131,43 @@ public final class FabricClientCompat {
 
     public static net.minecraft.client.gui.widget.ButtonWidget createButton(int x, int y, int width, int height, Text text, net.minecraft.client.gui.widget.ButtonWidget.PressAction action) {
         try {
-            Method builderMethod = null;
-            try {
-                builderMethod = net.minecraft.client.gui.widget.ButtonWidget.class.getMethod("builder", Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
-            } catch (Exception e) {
-                try {
-                    builderMethod = net.minecraft.client.gui.widget.ButtonWidget.class.getMethod("method_46430", Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
-                } catch (Exception ignored) {}
-            }
-
-            if (builderMethod != null) {
-                Object builder = builderMethod.invoke(null, text, action);
-                Method dimensionsMethod;
-                try {
-                    dimensionsMethod = builder.getClass().getMethod("dimensions", int.class, int.class, int.class, int.class);
-                } catch (Exception e) {
-                    dimensionsMethod = builder.getClass().getMethod("method_46434", int.class, int.class, int.class, int.class);
-                }
-                builder = dimensionsMethod.invoke(builder, x, y, width, height);
-
-                Method buildMethod;
-                try {
-                    buildMethod = builder.getClass().getMethod("build");
-                } catch (Exception e) {
-                    buildMethod = builder.getClass().getMethod("method_46431");
-                }
-                return (net.minecraft.client.gui.widget.ButtonWidget) buildMethod.invoke(builder);
-            }
-        } catch (Exception ignored) {
-        }
-        
-        try {
             Constructor<?> constructor = net.minecraft.client.gui.widget.ButtonWidget.class.getConstructor(int.class, int.class, int.class, int.class, Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
             return (net.minecraft.client.gui.widget.ButtonWidget) constructor.newInstance(x, y, width, height, text, action);
-        } catch (Exception e) {
-            throw new RuntimeException("Could not create button", e);
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            Method builderMethod = findBuilderMethod();
+            if (builderMethod == null) {
+                throw new NoSuchMethodException("No compatible ButtonWidget builder method found");
+            }
+
+            Object builder = builderMethod.invoke(null, text, action);
+            invokeCompatibleMethod(builder, new String[]{"dimensions", "method_46434"}, x, y, width, height);
+            return (net.minecraft.client.gui.widget.ButtonWidget) invokeCompatibleMethod(builder, new String[]{"build", "method_46431"});
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Could not create compatible button", exception);
         }
     }
 
     public static void setX(net.minecraft.client.gui.widget.ClickableWidget widget, int x) {
         try {
-            Method setXMethod = null;
-            try {
-                setXMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("setX", int.class);
-            } catch (Exception e) {
-                try {
-                    setXMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("method_46419", int.class);
-                } catch (Exception ignored) {}
-            }
-            if (setXMethod != null) {
-                setXMethod.invoke(widget, x);
-                return;
-            }
-        } catch (Exception ignored) {}
-
-        try {
-            Field xField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("x");
-            xField.set(widget, x);
-        } catch (Exception e) {
-            try {
-                Field xField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("field_22758");
-                xField.set(widget, x);
-            } catch (Exception ignored) {}
+            invokeCompatibleMethod(widget, new String[]{"setX", "method_46419"}, x);
+            return;
+        } catch (ReflectiveOperationException ignored) {
         }
+
+        setIntField(widget, new String[]{"x", "field_22758"}, x);
     }
 
     public static void setY(net.minecraft.client.gui.widget.ClickableWidget widget, int y) {
         try {
-            Method setYMethod = null;
-            try {
-                setYMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("setY", int.class);
-            } catch (Exception e) {
-                try {
-                    setYMethod = net.minecraft.client.gui.widget.ClickableWidget.class.getMethod("method_46421", int.class);
-                } catch (Exception ignored) {}
-            }
-            if (setYMethod != null) {
-                setYMethod.invoke(widget, y);
-                return;
-            }
-        } catch (Exception ignored) {}
-
-        try {
-            Field yField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("y");
-            yField.set(widget, y);
-        } catch (Exception e) {
-            try {
-                Field yField = net.minecraft.client.gui.widget.ClickableWidget.class.getField("field_22759");
-                yField.set(widget, y);
-            } catch (Exception ignored) {}
+            invokeCompatibleMethod(widget, new String[]{"setY", "method_46421"}, y);
+            return;
+        } catch (ReflectiveOperationException ignored) {
         }
+
+        setIntField(widget, new String[]{"y", "field_22759"}, y);
     }
 
     public static void drawCenteredText(net.minecraft.client.util.math.MatrixStack matrices, net.minecraft.client.font.TextRenderer textRenderer, Text text, int centerX, int y, int color) {
@@ -240,5 +188,74 @@ public final class FabricClientCompat {
                 }
             }
         } catch (Exception ignored) {}
+    }
+
+    private static Method findBuilderMethod() {
+        for (String methodName : new String[]{"builder", "method_46430"}) {
+            try {
+                return net.minecraft.client.gui.widget.ButtonWidget.class.getMethod(methodName, Text.class, net.minecraft.client.gui.widget.ButtonWidget.PressAction.class);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+
+        for (Method method : net.minecraft.client.gui.widget.ButtonWidget.class.getMethods()) {
+            if (!Modifier.isStatic(method.getModifiers())
+                || method.getParameterCount() != 2
+                || method.getParameterTypes()[0] != Text.class
+                || method.getParameterTypes()[1] != net.minecraft.client.gui.widget.ButtonWidget.PressAction.class) {
+                continue;
+            }
+            return method;
+        }
+        return null;
+    }
+
+    private static Object invokeCompatibleMethod(Object target, String[] candidateNames, Object... args) throws ReflectiveOperationException {
+        Class<?>[] parameterTypes = extractParameterTypes(args);
+        Class<?> currentClass = target.getClass();
+
+        while (currentClass != null) {
+            for (String methodName : candidateNames) {
+                try {
+                    Method method = currentClass.getDeclaredMethod(methodName, parameterTypes);
+                    method.setAccessible(true);
+                    return method.invoke(target, args);
+                } catch (NoSuchMethodException ignored) {
+                }
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+
+        throw new NoSuchMethodException("No compatible method found on " + target.getClass().getName());
+    }
+
+    private static Class<?>[] extractParameterTypes(Object[] args) {
+        Class<?>[] parameterTypes = new Class<?>[args.length];
+        for (int index = 0; index < args.length; index++) {
+            Object arg = args[index];
+            if (arg instanceof Integer) {
+                parameterTypes[index] = int.class;
+            } else {
+                parameterTypes[index] = arg.getClass();
+            }
+        }
+        return parameterTypes;
+    }
+
+    private static void setIntField(Object target, String[] candidateNames, int value) {
+        Class<?> currentClass = target.getClass();
+
+        while (currentClass != null) {
+            for (String fieldName : candidateNames) {
+                try {
+                    Field field = currentClass.getDeclaredField(fieldName);
+                    field.setAccessible(true);
+                    field.setInt(target, value);
+                    return;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            currentClass = currentClass.getSuperclass();
+        }
     }
 }

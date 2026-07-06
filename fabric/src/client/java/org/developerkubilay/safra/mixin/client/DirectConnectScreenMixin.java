@@ -62,11 +62,11 @@ abstract class DirectConnectScreenMixin extends Screen {
         ButtonWidget cancelButton = this.safra$findSecondaryButton(this.selectServerButton);
         if (cancelButton != null) {
             this.selectServerButton.setWidth(98);
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.setX(this.selectServerButton, this.width / 2 - 100);
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.setY(this.selectServerButton, this.height / 4 + 108);
+            ((ClickableWidgetAccessor) this.selectServerButton).safra$setX(this.width / 2 - 100);
+            ((ClickableWidgetAccessor) this.selectServerButton).safra$setY(this.height / 4 + 108);
             cancelButton.setWidth(98);
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.setX(cancelButton, this.width / 2 + 2);
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.setY(cancelButton, this.height / 4 + 108);
+            ((ClickableWidgetAccessor) cancelButton).safra$setX(this.width / 2 + 2);
+            ((ClickableWidgetAccessor) cancelButton).safra$setY(this.height / 4 + 108);
         }
 
         this.safra$p2pToggle = this.addDrawableChild(

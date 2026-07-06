@@ -107,8 +107,7 @@ processResources {
     }
 }
 
-
-tasks.withType(ProcessResources).configureEach {
+tasks.matching { it.name == 'processClientResources' }.configureEach {
     inputs.property 'mixin_compatibility_level', project.mixin_compatibility_level
     filteringCharset = 'UTF-8'
 

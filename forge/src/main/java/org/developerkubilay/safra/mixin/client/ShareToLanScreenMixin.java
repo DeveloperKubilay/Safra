@@ -1,6 +1,9 @@
 package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
@@ -31,6 +34,9 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Unique
     private boolean safra$p2pInitialized;
 
+    @Unique
+    private boolean safra$hidePortUi;
+
     protected ShareToLanScreenMixin(Component title) {
         super(title);
     }
@@ -49,24 +55,51 @@ abstract class ShareToLanScreenMixin extends Screen {
         if (this.minecraft != null && this.minecraft.getSingleplayerServer() != null) {
             ForgeLanSessionState.initializeGameRules(this.minecraft);
         }
+        this.safra$hidePortUi = this.safra$hidePortInput();
+        int controlsY = this.safra$hidePortUi ? 172 : 148;
 
         this.safra$p2pButton = this.addRenderableWidget(
-            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, 148, 98, 20, this.safra$getToggleText(), button -> {
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
                 ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
                 button.setMessage(this.safra$getToggleText());
             })
         );
         this.safra$onlineModeButton = this.addRenderableWidget(
-            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 2, 148, 98, 20, this.safra$getOnlineModeText(), button -> {
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 2, controlsY, 98, 20, this.safra$getOnlineModeText(), button -> {
                 ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
                 button.setMessage(this.safra$getOnlineModeText());
             })
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 49, 172, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
+            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 49, controlsY + 24, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
+    }
+
+    @Inject(method = "render", at = @At("TAIL"))
+    private void safra$hidePortLabel(PoseStack poseStack, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        if (!this.safra$hidePortUi) {
+            return;
+        }
+        fill(poseStack, this.width / 2 - 130, 94, this.width / 2 + 130, 170, 0xFF101010);
+    }
+
+    @Unique
+    private boolean safra$hidePortInput() {
+        boolean found = false;
+        for (GuiEventListener child : this.children()) {
+            if (!(child instanceof EditBox editBox)) {
+                continue;
+            }
+            found = true;
+            editBox.setVisible(false);
+            editBox.setEditable(false);
+            editBox.setWidth(0);
+            ((AbstractWidgetAccessor) editBox).safra$setX(-1000);
+            ((AbstractWidgetAccessor) editBox).safra$setY(-1000);
+        }
+        return found;
     }
 
     @Unique

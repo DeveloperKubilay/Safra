@@ -13,7 +13,7 @@ sourceSets {
             java.srcDir('src/forge1171/java')
             java.exclude('org/developerkubilay/safra/server/DedicatedP2pServerManager.java')
             java.exclude('org/developerkubilay/safra/server/SafraForgeServerEvents.java')
-        } else if (project.selected_mc_profile in ['1.18', '1.18.1', '1.18.2', '1.19', '1.19.1', '1.19.2']) {
+        } else if (project.selected_mc_profile in ['1.18', '1.18.1', '1.18.2', '1.19', '1.19.1', '1.19.2', '1.19.3', '1.19.4']) {
             java.srcDir('src/forge118plus/java')
             java.exclude('org/developerkubilay/safra/server/DedicatedP2pServerManager.java')
             java.exclude('org/developerkubilay/safra/server/SafraForgeServerEvents.java')

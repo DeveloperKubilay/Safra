@@ -300,7 +300,7 @@ jobs:
 
           Included artifacts:
           - 1.17: Fabric
-          - 1.17.1-1.19.2: Fabric, Forge
+          - 1.17.1-1.19.4: Fabric, Forge
 
           Build mode:
           - ${{ needs.prepare.outputs.build_mode }}

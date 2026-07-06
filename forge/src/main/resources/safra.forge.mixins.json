@@ -5,6 +5,7 @@
   "package": "org.developerkubilay.safra.mixin.client",
   "compatibilityLevel": "${mixin_compatibility_level}",
   "client": [
+    "AbstractWidgetAccessor",
     "ConnectScreenMixin",
     "DirectJoinServerScreenMixin",
     "EditServerScreenMixin",
