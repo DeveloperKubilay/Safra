@@ -4,6 +4,7 @@
   "package": "org.developerkubilay.safra.mixin.client",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "DirectConnectServerScreenMixin",
     "DirectJoinServerScreenMixin",
     "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",

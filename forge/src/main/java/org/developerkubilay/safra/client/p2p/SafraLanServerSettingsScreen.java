@@ -7,6 +7,7 @@ import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.GameRules;
+import com.mojang.blaze3d.matrix.MatrixStack;
 
 import java.util.Optional;
 
@@ -14,6 +15,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
     private Button allowCommandsButton;
     private Button fixedCodeButton;
+    private boolean safra$closing;
 
     public SafraLanServerSettingsScreen(Screen parent) {
         super(new TranslationTextComponent("safra.p2p.server_settings"));
@@ -90,9 +92,30 @@ public final class SafraLanServerSettingsScreen extends Screen {
         ForgeScreenCompat.addButton(this, new Button(width / 2 + 2, top + 168, 98, 20, new TranslationTextComponent("gui.cancel"), button -> this.onClose()));
     }
 
+    public void func_230430_a_(MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
+        this.safra$renderScreen(matrixStack, mouseX, mouseY, partialTicks);
+    }
+
+    private void safra$renderScreen(MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
+        ForgeScreenCompat.renderBackground(this, matrixStack);
+        ForgeScreenCompat.drawCenteredText(
+            this,
+            matrixStack,
+            new TranslationTextComponent("safra.p2p.server_settings"),
+            ForgeScreenCompat.getWidth(this) / 2,
+            ForgeScreenCompat.getHeight(this) / 4 - 20,
+            0xFFFFFF
+        );
+        ForgeScreenCompat.renderWidgets(this, matrixStack, mouseX, mouseY, partialTicks);
+    }
+
     public void onClose() {
+        if (this.safra$closing) {
+            return;
+        }
         Minecraft minecraft = ForgeScreenCompat.getMinecraft(this);
         if (minecraft != null) {
+            this.safra$closing = true;
             minecraft.displayGuiScreen(this.parent);
         }
     }

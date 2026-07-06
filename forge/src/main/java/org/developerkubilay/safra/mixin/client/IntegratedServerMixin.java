@@ -110,12 +110,24 @@ abstract class IntegratedServerMixin {
     }
 
     private static ITextComponent safra$withStyle(ITextComponent text, TextFormatting... formats) {
+        Object current = text;
+        for (TextFormatting format : formats) {
+            current = safra$applyFormat(current, format);
+        }
+        return current instanceof ITextComponent ? (ITextComponent) current : text;
+    }
+
+    private static Object safra$applyFormat(Object text, TextFormatting format) {
         try {
-            return (ITextComponent) text.getClass().getMethod("mergeStyle", TextFormatting[].class).invoke(text, (Object) formats);
+            return text.getClass().getMethod("mergeStyle", TextFormatting.class).invoke(text, format);
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            return (ITextComponent) text.getClass().getMethod("func_240699_a_", TextFormatting[].class).invoke(text, (Object) formats);
+            return text.getClass().getMethod("func_240699_a_", TextFormatting.class).invoke(text, format);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        try {
+            return text.getClass().getMethod("withStyle", TextFormatting.class).invoke(text, format);
         } catch (ReflectiveOperationException ignored) {
         }
         return text;

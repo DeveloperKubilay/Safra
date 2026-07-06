@@ -6,11 +6,14 @@ import net.minecraft.client.gui.IGuiEventListener;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.client.gui.widget.button.Button;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.util.text.ITextComponent;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class ForgeScreenCompat {
     private static final String[] WIDTH_FIELDS = {"width", "field_230708_k_"};
@@ -22,6 +25,7 @@ public final class ForgeScreenCompat {
     private static final String[] X_FIELDS = {"x", "field_230690_l_"};
     private static final String[] Y_FIELDS = {"y", "field_230691_m_"};
     private static final String[] WIDTH_BUTTON_FIELDS = {"width", "field_230689_k_"};
+    private static final String[] HEIGHT_FIELDS_WIDGET = {"height", "field_230689_k_", "field_150862_g_"};
 
     private ForgeScreenCompat() {
     }
@@ -58,6 +62,16 @@ public final class ForgeScreenCompat {
         return java.util.Collections.emptyList();
     }
 
+    public static List<Button> getButtons(Screen screen) {
+        Object value = getFieldValue(screen, BUTTONS_FIELDS);
+        if (value instanceof List<?>) {
+            @SuppressWarnings("unchecked")
+            List<Button> list = (List<Button>) value;
+            return list;
+        }
+        return java.util.Collections.emptyList();
+    }
+
     public static void setButtonWidth(Button button, int width) {
         setIntField(button, width, WIDTH_BUTTON_FIELDS);
         invokeNoResult(button, new String[]{"setWidth"}, new Class<?>[]{int.class}, width);
@@ -82,11 +96,73 @@ public final class ForgeScreenCompat {
         setObjectField(button, message, new String[]{"message", "field_230688_j_"});
     }
 
+    public static ITextComponent getButtonMessage(Button button) {
+        Object value = invokeWithResult(button, new String[]{"getMessage", "func_230458_i_"}, new Class<?>[0]);
+        if (value instanceof ITextComponent) {
+            return (ITextComponent) value;
+        }
+        value = getFieldValue(button, new String[]{"message", "field_230688_j_"});
+        return value instanceof ITextComponent ? (ITextComponent) value : null;
+    }
+
     public static void renderBackground(Screen screen, MatrixStack matrixStack) {
         if (invokeNoResult(screen, new String[]{"renderBackground", "func_230446_a_"}, new Class<?>[]{MatrixStack.class}, matrixStack)) {
             return;
         }
         invokeNoResult(screen, new String[]{"func_230446_a_"}, new Class<?>[]{MatrixStack.class}, matrixStack);
+    }
+
+    public static void drawCenteredText(Screen screen, MatrixStack matrixStack, ITextComponent text, int x, int y, int color) {
+        Minecraft minecraft = getMinecraft(screen);
+        if (minecraft == null || minecraft.fontRenderer == null) {
+            return;
+        }
+        invokeNoResult(
+            screen,
+            new String[]{"drawCenteredString", "func_238472_a_"},
+            new Class<?>[]{MatrixStack.class, minecraft.fontRenderer.getClass(), net.minecraft.util.text.ITextProperties.class, int.class, int.class, int.class},
+            matrixStack, minecraft.fontRenderer, text, x, y, color
+        );
+    }
+
+    public static void renderWidgets(Screen screen, MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
+        Set<Object> widgets = new LinkedHashSet<>();
+        widgets.addAll(getButtons(screen));
+        widgets.addAll(getChildren(screen));
+        for (Object element : widgets) {
+            if (element instanceof Widget) {
+                invokeNoResult(
+                    element,
+                    new String[]{"renderButton", "func_230431_b_"},
+                    new Class<?>[]{MatrixStack.class, int.class, int.class, float.class},
+                    matrixStack, mouseX, mouseY, partialTicks
+                );
+            }
+        }
+    }
+
+    public static void renderScreenSuper(Screen screen, MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
+        invokeSuperclassNoResult(
+            screen,
+            new String[]{"render", "func_230430_a_"},
+            new Class<?>[]{MatrixStack.class, int.class, int.class, float.class},
+            matrixStack, mouseX, mouseY, partialTicks
+        );
+    }
+
+    public static void setTextFieldWidth(TextFieldWidget textField, int width) {
+        setIntField(textField, width, WIDTH_BUTTON_FIELDS);
+        invokeNoResult(textField, new String[]{"setWidth", "func_230991_b_"}, new Class<?>[]{int.class}, width);
+    }
+
+    public static void setTextFieldHeight(TextFieldWidget textField, int height) {
+        setIntField(textField, height, HEIGHT_FIELDS_WIDGET);
+    }
+
+    public static void setTextFieldSuggestion(TextFieldWidget textField, String suggestion) {
+        if (!invokeNoResult(textField, new String[]{"setSuggestion", "func_195204_a"}, new Class<?>[]{String.class}, suggestion)) {
+            setObjectField(textField, suggestion, new String[]{"suggestion", "field_195210_x"});
+        }
     }
 
     private static boolean invokeAddButton(Screen screen, Button button) {
@@ -108,6 +184,39 @@ public final class ForgeScreenCompat {
             }
         }
         return false;
+    }
+
+    private static boolean invokeSuperclassNoResult(Object target, String[] names, Class<?>[] parameterTypes, Object... args) {
+        Class<?> current = target.getClass().getSuperclass();
+        while (current != null) {
+            for (String name : names) {
+                try {
+                    Method method = current.getDeclaredMethod(name, parameterTypes);
+                    method.setAccessible(true);
+                    method.invoke(target, args);
+                    return true;
+                } catch (NoSuchMethodException ignored) {
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return false;
+    }
+
+    private static Object invokeWithResult(Object target, String[] names, Class<?>[] parameterTypes, Object... args) {
+        for (String name : names) {
+            try {
+                Method method = findMethod(target.getClass(), name, parameterTypes);
+                if (method == null) {
+                    continue;
+                }
+                method.setAccessible(true);
+                return method.invoke(target, args);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
     }
 
     private static Method findMethod(Class<?> type, String name, Class<?>[] parameterTypes) {

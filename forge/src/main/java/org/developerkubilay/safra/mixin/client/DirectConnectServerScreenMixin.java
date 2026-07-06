@@ -1,7 +1,7 @@
 package org.developerkubilay.safra.mixin.client;
 
-import net.minecraft.client.gui.screen.AddServerScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ServerListScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.client.multiplayer.ServerData;
@@ -18,10 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.reflect.Field;
 
-@Mixin(value = AddServerScreen.class, remap = false)
-abstract class DirectJoinServerScreenMixin extends Screen {
+@Mixin(value = ServerListScreen.class, remap = false)
+abstract class DirectConnectServerScreenMixin extends Screen {
     @Unique
-    private Button safra$addButton;
+    private Button safra$selectButton;
 
     @Unique
     private Button safra$p2pButton;
@@ -32,7 +32,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     @Unique
     private boolean safra$p2pInitialized;
 
-    protected DirectJoinServerScreenMixin(ITextComponent title) {
+    protected DirectConnectServerScreenMixin(ITextComponent title) {
         super(title);
     }
 
@@ -56,54 +56,52 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             addressField.setText(P2pManager.toDisplayAddress(addressField.getText()));
         }
 
-        this.safra$addButton = this.safra$getPrimaryAddButton();
-        ForgeScreenCompat.setTextFieldWidth(addressField, 122);
-        ForgeScreenCompat.setTextFieldHeight(addressField, 18);
-
+        this.safra$selectButton = this.safra$getSelectButton();
         int width = ForgeScreenCompat.getWidth(this);
-        if (this.safra$p2pButton == null) {
-            this.safra$p2pButton = ForgeScreenCompat.addButton(this, new Button(
-                width / 2 + 30,
-                106,
-                70,
-                20,
-                this.safra$getToggleText(),
-                button -> {
-                    this.safra$p2pEnabled = !this.safra$p2pEnabled;
-                    SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+        int height = ForgeScreenCompat.getHeight(this);
 
-                    TextFieldWidget refreshedAddressField = this.safra$getAddressField();
-                    if (this.safra$p2pEnabled && refreshedAddressField != null) {
-                        String typedAddress = refreshedAddressField.getText();
-                        if (typedAddress != null && !typedAddress.isEmpty()
-                            && !P2pManager.isValidP2pAddress(typedAddress)) {
-                            refreshedAddressField.setText("");
-                        }
+        this.safra$p2pButton = ForgeScreenCompat.addButton(this, new Button(
+            width / 2 - 100,
+            height / 4 + 84,
+            200,
+            20,
+            this.safra$getToggleText(),
+            button -> {
+                this.safra$p2pEnabled = !this.safra$p2pEnabled;
+                SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+
+                TextFieldWidget refreshedAddressField = this.safra$getAddressField();
+                if (this.safra$p2pEnabled && refreshedAddressField != null) {
+                    String typedAddress = refreshedAddressField.getText();
+                    if (typedAddress != null && !typedAddress.isEmpty()
+                        && !P2pManager.isValidP2pAddress(typedAddress)) {
+                        refreshedAddressField.setText("");
                     }
-
-                    ForgeScreenCompat.setButtonMessage(button, this.safra$getToggleText());
-                    this.safra$refreshAddressField();
-                    this.safra$updateValidation();
                 }
-            ));
-        } else {
-            ForgeScreenCompat.setButtonMessage(this.safra$p2pButton, this.safra$getToggleText());
-            ForgeScreenCompat.setButtonX(this.safra$p2pButton, width / 2 + 30);
-            ForgeScreenCompat.setButtonY(this.safra$p2pButton, 106);
-        }
+
+                ForgeScreenCompat.setButtonMessage(button, this.safra$getToggleText());
+                this.safra$refreshAddressField();
+                this.safra$updateValidation();
+            }
+        ));
 
         this.safra$p2pInitialized = true;
         this.safra$refreshAddressField();
         this.safra$updateValidation();
     }
 
-    @Inject(method = "func_228180_b_", at = @At("TAIL"), remap = false)
-    private void safra$overrideValidation(CallbackInfo ci) {
+    @Inject(method = {"func_213024_a", "onAddressFieldChanged"}, at = @At("TAIL"), remap = false)
+    private void safra$overrideValidation(String value, CallbackInfo ci) {
         this.safra$updateValidation();
     }
 
-    @Inject(method = {"onButtonServerAddPressed", "func_195172_h"}, at = @At("HEAD"), remap = false)
+    @Inject(method = {"func_195167_h", "saveAndClose"}, at = @At("HEAD"), remap = false)
     private void safra$storeP2pAddress(CallbackInfo ci) {
+        this.safra$persistStoredAddress();
+    }
+
+    @Inject(method = {"removed", "func_231175_as__"}, at = @At("HEAD"), remap = false)
+    private void safra$storeLastP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
 
@@ -126,11 +124,6 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     }
 
     @Unique
-    private ITextComponent safra$getToggleText() {
-        return new TranslationTextComponent(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
-    }
-
-    @Unique
     private void safra$refreshAddressField() {
         TextFieldWidget addressField = this.safra$getAddressField();
         if (addressField != null) {
@@ -140,42 +133,44 @@ abstract class DirectJoinServerScreenMixin extends Screen {
 
     @Unique
     private void safra$updateValidation() {
+        if (this.safra$selectButton == null) {
+            return;
+        }
         TextFieldWidget addressField = this.safra$getAddressField();
-        if (this.safra$addButton == null || addressField == null) {
+        if (addressField == null) {
             return;
         }
 
         String address = addressField.getText();
         ForgeScreenCompat.setButtonActive(
-            this.safra$addButton,
+            this.safra$selectButton,
             this.safra$p2pEnabled
                 ? P2pManager.isValidP2pAddress(address)
-                : this.safra$isValidDirectAddress(address) && this.safra$hasServerName()
+                : this.safra$isValidDirectAddress(address)
         );
     }
 
     @Unique
-    private boolean safra$hasServerName() {
-        Object fieldValue = this.safra$getFieldValue("serverNameField", "field_146309_g");
-        return !(fieldValue instanceof TextFieldWidget) || !((TextFieldWidget) fieldValue).getText().isEmpty();
-    }
-
-    @Unique
-    private Button safra$getPrimaryAddButton() {
-        Object fieldValue = this.safra$getFieldValue("addButton", "field_195179_a");
+    private Button safra$getSelectButton() {
+        Object fieldValue = this.safra$getFieldValue("selectServerButton", "field_195170_a");
         return fieldValue instanceof Button ? (Button) fieldValue : null;
     }
 
     @Unique
     private TextFieldWidget safra$getAddressField() {
-        Object fieldValue = this.safra$getFieldValue("textFieldServerAddress", "field_146302_g", "field_146308_f");
+        Object fieldValue = this.safra$getFieldValue("addressField", "field_146302_g");
         return fieldValue instanceof TextFieldWidget ? (TextFieldWidget) fieldValue : null;
     }
 
     @Unique
     private ServerData safra$getServerData() {
-        Object fieldValue = this.safra$getFieldValue("serverData", "field_146374_i", "field_146311_h");
+        Object fieldValue = this.safra$getFieldValue("serverEntry", "field_146301_f");
         return fieldValue instanceof ServerData ? (ServerData) fieldValue : null;
+    }
+
+    @Unique
+    private ITextComponent safra$getToggleText() {
+        return new TranslationTextComponent(this.safra$p2pEnabled ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 
     @Unique
