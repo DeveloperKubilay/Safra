@@ -25,8 +25,8 @@ public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = SafraLogger.get(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
