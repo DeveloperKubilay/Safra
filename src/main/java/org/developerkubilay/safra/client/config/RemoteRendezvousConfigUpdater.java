@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT)
         .build();
