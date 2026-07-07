@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.p2p;
 
 public final class P2pConstants {
+    public static final String DEFAULT_RENDEZVOUS_URL = "https://safra.randdcodes.com";
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 1;
     static final int HEADER_SIZE = 18;
@@ -81,6 +82,12 @@ public final class P2pConstants {
 
     public static void setRuntimeRendezvousUrl(String url) {
         runtimeRendezvousUrl = isValidRendezvousUrl(url) ? url.trim() : null;
+    }
+
+    public static void applyDefaultRendezvousUrlIfAbsent() {
+        if (!hasExplicitRendezvousUrlOverride() && (runtimeRendezvousUrl == null || runtimeRendezvousUrl.isBlank())) {
+            runtimeRendezvousUrl = DEFAULT_RENDEZVOUS_URL;
+        }
     }
 
     public static boolean hasRendezvousUrl() {
