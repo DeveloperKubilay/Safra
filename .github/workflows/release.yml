@@ -70,7 +70,8 @@ jobs:
           mc_version="${{ github.event.inputs.mc_version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
-          supported_versions='["1.20","1.20.1","1.20.2","1.20.3","1.20.4","1.20.5","1.20.6"]'
+          supported_versions='["1.20","1.20.1","1.20.2","1.20.3","1.20.4","1.20.5-1.20.6"]'
+          combined_release_label="1.20.5-1.20.6"
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
@@ -92,10 +93,17 @@ jobs:
             release_title="Safra 1.20.x-$version_number"
             release_versions_label="1.20.x"
           else
-            versions_json="[\"$mc_version\"]"
-            release_tag="Safra-$mc_version-$version_number"
-            release_title="Safra $mc_version-$version_number"
-            release_versions_label="$mc_version"
+            if [[ "$mc_version" == "1.20.5" || "$mc_version" == "1.20.6" ]]; then
+              versions_json="[\"$combined_release_label\"]"
+              release_tag="Safra-$combined_release_label-$version_number"
+              release_title="Safra $combined_release_label-$version_number"
+              release_versions_label="$combined_release_label"
+            else
+              versions_json="[\"$mc_version\"]"
+              release_tag="Safra-$mc_version-$version_number"
+              release_title="Safra $mc_version-$version_number"
+              release_versions_label="$mc_version"
+            fi
           fi
 
           if [[ "$build_mode" != "off" ]]; then
@@ -197,23 +205,14 @@ jobs:
               echo "SAFRA_LOADERS=Fabric, Forge, NeoForge" >> "$GITHUB_ENV"
               echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
               ;;
-            1.20.5)
+            1.20.5-1.20.6)
               echo "SAFRA_MC_PROFILE=1.20.5-1.20.6" >> "$GITHUB_ENV"
-              echo "SAFRA_ARTIFACT_VERSION=$mc_version" >> "$GITHUB_ENV"
-              echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
-              echo "SAFRA_ENABLE_FORGE=false" >> "$GITHUB_ENV"
-              echo "SAFRA_BUILD_TASKS=:fabric:build :neoforge:build" >> "$GITHUB_ENV"
-              echo "SAFRA_LOADERS=Fabric, NeoForge" >> "$GITHUB_ENV"
-              echo "SAFRA_RELEASE_NOTE=Forge artifact for 1.20.5 is intentionally not published because Forge 1.20.5 is not available." >> "$GITHUB_ENV"
-              ;;
-            1.20.6)
-              echo "SAFRA_MC_PROFILE=1.20.5-1.20.6" >> "$GITHUB_ENV"
-              echo "SAFRA_ARTIFACT_VERSION=$mc_version" >> "$GITHUB_ENV"
+              echo "SAFRA_ARTIFACT_VERSION=1.20.5-1.20.6" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_NEOFORGE=true" >> "$GITHUB_ENV"
               echo "SAFRA_ENABLE_FORGE=true" >> "$GITHUB_ENV"
               echo "SAFRA_BUILD_TASKS=:fabric:build :forge:build :neoforge:build" >> "$GITHUB_ENV"
               echo "SAFRA_LOADERS=Fabric, Forge, NeoForge" >> "$GITHUB_ENV"
-              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=1.20.5 ve 1.20.6 ayni artifact setini paylasir; bu release tek ortak build uzerinden yayinlanir." >> "$GITHUB_ENV"
               ;;
             *)
               echo "Unsupported mc_version: $mc_version"
@@ -302,7 +301,8 @@ jobs:
           fi
 
           cat > "dist/build-info-${{ matrix.mc_version }}.txt" <<EOF
-          Minecraft version: ${{ matrix.mc_version }}
+          Minecraft version: ${{ env.SAFRA_ARTIFACT_VERSION }}
+          Release key: ${{ matrix.mc_version }}
           Minecraft profile: ${{ env.SAFRA_MC_PROFILE }}
           Included loaders: ${{ env.SAFRA_LOADERS }}
           Build mode: $SAFRA_BUILD_MODE_LABEL
@@ -333,7 +333,7 @@ jobs:
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.mc_version }}
+          name: release-${{ env.SAFRA_ARTIFACT_VERSION }}
           path: dist/*
           if-no-files-found: error
 
@@ -380,15 +380,14 @@ jobs:
           - 1.20.2: Fabric, Forge
           - 1.20.3: Fabric
           - 1.20.4: Fabric, Forge, NeoForge
-          - 1.20.5: Fabric, NeoForge
-          - 1.20.6: Fabric, Forge, NeoForge
+          - 1.20.5-1.20.6: Fabric, Forge, NeoForge
 
           Build mode:
           - ${{ needs.prepare.outputs.build_mode }}
 
           Notes:
           - 1.20.3 Forge and NeoForge builds intentionally not released.
-          - 1.20.5 Forge build intentionally not released because Forge 1.20.5 is not available.
+          - 1.20.5 and 1.20.6 share the same combined artifact names and are built once from the 1.20.5-1.20.6 profile.
           EOF
 
       - name: Ensure release tag is new
