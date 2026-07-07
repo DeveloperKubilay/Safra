@@ -3,14 +3,15 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,6 +20,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ShareToLanScreen.class)
 abstract class ShareToLanScreenMixin extends Screen {
+    @Shadow
+    @Final
+    @Mutable
+    private static Component PORT_INFO_TEXT;
+
     @Shadow
     private boolean commands;
 
@@ -56,7 +62,10 @@ abstract class ShareToLanScreenMixin extends Screen {
             ForgeLanSessionState.initializeGameRules(this.minecraft);
         }
         this.safra$hidePortUi = this.safra$hidePortInput();
-        int controlsY = this.safra$hidePortUi ? 172 : 148;
+        if (this.safra$hidePortUi) {
+            this.safra$clearPortLabel();
+        }
+        int controlsY = 148;
 
         this.safra$p2pButton = this.addRenderableWidget(
             org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
@@ -77,14 +86,6 @@ abstract class ShareToLanScreenMixin extends Screen {
         this.safra$p2pInitialized = true;
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$hidePortLabel(PoseStack poseStack, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        if (!this.safra$hidePortUi) {
-            return;
-        }
-        fill(poseStack, this.width / 2 - 130, 94, this.width / 2 + 130, 170, 0xFF101010);
-    }
-
     @Unique
     private boolean safra$hidePortInput() {
         boolean found = false;
@@ -100,6 +101,11 @@ abstract class ShareToLanScreenMixin extends Screen {
             ((AbstractWidgetAccessor) editBox).safra$setY(-1000);
         }
         return found;
+    }
+
+    @Unique
+    private void safra$clearPortLabel() {
+        PORT_INFO_TEXT = ForgeClientCompat.literal("");
     }
 
     @Unique

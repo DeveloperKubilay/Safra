@@ -4,7 +4,6 @@ import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
@@ -21,8 +20,10 @@ import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -31,11 +32,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
-
 @Mixin(OpenToLanScreen.class)
 abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
+
+    @Shadow
+    @Final
+    @Mutable
+    private static Text PORT_TEXT;
 
     @Shadow
     private boolean allowCommands;
@@ -82,7 +87,10 @@ abstract class OpenToLanScreenMixin extends Screen {
             FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
         this.safra$hidePortUi = this.safra$hidePortInput();
-        int controlsY = this.safra$hidePortUi ? 172 : 148;
+        if (this.safra$hidePortUi) {
+            this.safra$clearPortLabel();
+        }
+        int controlsY = 148;
 
         this.safra$p2pButton = this.addDrawableChild(
             org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
@@ -104,14 +112,6 @@ abstract class OpenToLanScreenMixin extends Screen {
             )
         );
         this.safra$p2pInitialized = true;
-    }
-
-    @Inject(method = "render", at = @At("TAIL"))
-    private void safra$hidePortLabel(MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!this.safra$hidePortUi) {
-            return;
-        }
-        fill(matrices, this.width / 2 - 130, 94, this.width / 2 + 130, 170, 0xFF101010);
     }
 
     @Inject(method = "method_19851", at = @At("HEAD"))
@@ -199,6 +199,11 @@ abstract class OpenToLanScreenMixin extends Screen {
             ((ClickableWidgetAccessor) textFieldWidget).safra$setY(-1000);
         }
         return found;
+    }
+
+    @Unique
+    private void safra$clearPortLabel() {
+        PORT_TEXT = FabricClientCompat.literal("");
     }
 
     @Unique
