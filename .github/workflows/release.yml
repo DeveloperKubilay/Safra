@@ -14,7 +14,7 @@ on:
       mc_version:
         description: Minecraft version for single release mode
         required: true
-        default: 1.20.6
+        default: 1.20.5-1.20.6
         type: choice
         options:
           - 1.20
@@ -22,8 +22,7 @@ on:
           - 1.20.2
           - 1.20.3
           - 1.20.4
-          - 1.20.5
-          - 1.20.6
+          - 1.20.5-1.20.6
       version_number:
         description: Mod version
         required: true
