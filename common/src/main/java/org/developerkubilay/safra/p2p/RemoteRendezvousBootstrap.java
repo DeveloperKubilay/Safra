@@ -13,17 +13,19 @@ public final class RemoteRendezvousBootstrap {
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final String DEFAULT_SITE_API_VERSION = "3.0";
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build();
 
     private RemoteRendezvousBootstrap() {
     }
 
     public static void initializeDedicated() {
-        if (hasExplicitRendezvousUrlOverride()) {
+        if (P2pConstants.hasExplicitRendezvousUrlOverride()) {
             return;
         }
+
+        P2pConstants.applyDefaultRendezvousUrlIfAbsent();
 
         try {
             Request request = new Request.Builder()
@@ -68,18 +70,4 @@ public final class RemoteRendezvousBootstrap {
         return DEFAULT_SITE_API_VERSION;
     }
 
-    private static boolean hasExplicitRendezvousUrlOverride() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.trim().isEmpty()) {
-            return true;
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return true;
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        return legacyEnvironment != null && !legacyEnvironment.trim().isEmpty();
-    }
 }
