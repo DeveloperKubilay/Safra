@@ -13,8 +13,8 @@ public final class RemoteRendezvousBootstrap {
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final String DEFAULT_SITE_API_VERSION = "3.0";
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build();
 
     private RemoteRendezvousBootstrap() {
@@ -24,6 +24,8 @@ public final class RemoteRendezvousBootstrap {
         if (P2pConstants.hasExplicitRendezvousUrlOverride()) {
             return;
         }
+
+        P2pConstants.applyDefaultRendezvousUrlIfAbsent();
 
         try {
             Request request = new Request.Builder()

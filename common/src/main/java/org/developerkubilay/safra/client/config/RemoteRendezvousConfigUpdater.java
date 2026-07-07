@@ -40,9 +40,13 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
+        if (config.getRendezvousUrl().trim().isEmpty() && !P2pConstants.hasExplicitRendezvousUrlOverride()) {
+            config.setRendezvousUrl(P2pConstants.DEFAULT_RENDEZVOUS_URL);
+        }
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
         P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
         P2pConstants.setRuntimeSiteApiVersion(config.getSiteApiVersion());
+        P2pConstants.applyDefaultRendezvousUrlIfAbsent();
         if (!STARTED.compareAndSet(false, true)) {
             return;
         }
@@ -88,7 +92,7 @@ public final class RemoteRendezvousConfigUpdater {
             String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
-                P2pConstants.setRuntimeRendezvousUrl(null);
+                P2pConstants.applyDefaultRendezvousUrlIfAbsent();
                 return;
             }
 
