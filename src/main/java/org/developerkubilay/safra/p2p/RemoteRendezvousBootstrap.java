@@ -16,8 +16,8 @@ public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousBootstrap.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final String DEFAULT_SITE_API_VERSION = "1.0";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT)
         .build();
@@ -29,6 +29,8 @@ public final class RemoteRendezvousBootstrap {
         if (P2pConstants.hasRendezvousUrl()) {
             return;
         }
+
+        P2pConstants.applyDefaultRendezvousUrlIfAbsent();
 
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
