@@ -214,7 +214,7 @@ setInterval(() => {//gc
     console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}`);
 }, 10 * 1000)
 
-app.listen({ port: process.env.PORT || 3000 }, (err, address) => {
+app.listen({host: '0.0.0.0', port: process.env.PORT || 3000 }, (err, address) => {
     if (err) console.error(err);
     console.log(`Server is running at ${address}`);
 });
