@@ -22,6 +22,9 @@ if (!splitEnvironmentSources) {
     sourceSets.main.java.srcDir('src/client/java')
     sourceSets.main.resources.srcDir('src/client/resources')
     sourceSets.main.java.exclude('org/developerkubilay/safra/client/SafraDataGenerator.java')
+    if (project.selected_mc_profile in ['1.19.3', '1.19.4']) {
+        sourceSets.main.java.srcDir('src/client11934/java')
+    }
 }
 
 loom {
@@ -107,6 +110,10 @@ processResources {
     }
 }
 
+if (splitEnvironmentSources && project.selected_mc_profile in ['1.19.3', '1.19.4']) {
+    sourceSets.client.java.srcDir('src/client11934/java')
+}
+
 tasks.matching { it.name == 'processClientResources' }.configureEach {
     inputs.property 'mixin_compatibility_level', project.mixin_compatibility_level
     filteringCharset = 'UTF-8'
@@ -115,6 +122,11 @@ tasks.matching { it.name == 'processClientResources' }.configureEach {
         expand(
             mixin_compatibility_level: project.mixin_compatibility_level
         )
+        if (project.selected_mc_profile in ['1.19.3', '1.19.4']) {
+            filter { line ->
+                line.replace('"OpenToLanScreenMixin"', '"OpenToLanScreen11934Mixin"')
+            }
+        }
     }
 }
 

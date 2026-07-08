@@ -17,6 +17,9 @@ sourceSets {
             java.srcDir('src/forge118plus/java')
             java.exclude('org/developerkubilay/safra/server/DedicatedP2pServerManager.java')
             java.exclude('org/developerkubilay/safra/server/SafraForgeServerEvents.java')
+            if (project.selected_mc_profile in ['1.19.3', '1.19.4']) {
+                java.srcDir('src/forge11934/java')
+            }
         }
     }
 }
@@ -183,6 +186,11 @@ processResources {
         expand(
             mixin_compatibility_level: project.mixin_compatibility_level
         )
+        if (project.selected_mc_profile in ['1.19.3', '1.19.4']) {
+            filter { line ->
+                line.replace('"ShareToLanScreenMixin"', '"ShareToLanScreen11934Mixin"')
+            }
+        }
     }
 }
 

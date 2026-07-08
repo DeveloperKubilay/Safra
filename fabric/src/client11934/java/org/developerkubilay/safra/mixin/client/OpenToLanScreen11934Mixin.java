@@ -2,11 +2,8 @@ package org.developerkubilay.safra.mixin.client;
 
 import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.DrawableHelper;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
@@ -14,30 +11,37 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.FabricScreenCompat;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricClientCompat;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+
 @Mixin(OpenToLanScreen.class)
-abstract class OpenToLanScreenMixin extends Screen {
+abstract class OpenToLanScreen11934Mixin extends Screen {
     @Unique
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
+
+    @Shadow
+    @Final
+    @Mutable
+    private static Text PORT_TEXT;
 
     @Shadow
     private boolean allowCommands;
@@ -63,7 +67,7 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private boolean safra$hidePortUi;
 
-    protected OpenToLanScreenMixin(Text title) {
+    protected OpenToLanScreen11934Mixin(Text title) {
         super(title);
     }
 
@@ -84,43 +88,31 @@ abstract class OpenToLanScreenMixin extends Screen {
             FabricLanSessionState.initializeGameRules(this.client, this.client.getServer().getOverworld().getGameRules());
         }
         this.safra$hidePortUi = this.safra$hidePortInput();
+        if (this.safra$hidePortUi) {
+            this.safra$clearPortLabel();
+        }
         int controlsY = 148;
 
         this.safra$p2pButton = this.addDrawableChild(
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
+            FabricClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
                 SafraClientConfig.get().setOpenToLanP2pEnabled(this.safra$p2pEnabled);
                 button.setMessage(this.safra$getToggleText());
             })
         );
         this.safra$onlineModeButton = this.addDrawableChild(
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 + 2, controlsY, 98, 20, this.safra$getOnlineModeText(), button -> {
+            FabricClientCompat.createButton(this.width / 2 + 2, controlsY, 98, 20, this.safra$getOnlineModeText(), button -> {
                 this.safra$onlineModeEnabled = !this.safra$onlineModeEnabled;
                 SafraClientConfig.get().setOpenToLanOnlineModeEnabled(this.safra$onlineModeEnabled);
                 button.setMessage(this.safra$getOnlineModeText());
             })
         );
         this.safra$serverSettingsButton = this.addDrawableChild(
-            org.developerkubilay.safra.client.p2p.FabricClientCompat.createButton(this.width / 2 - 49, controlsY + 24, 98, 20, FabricClientCompat.translatable("safra.p2p.server_settings.short"), button ->
+            FabricClientCompat.createButton(this.width / 2 - 49, controlsY + 24, 98, 20, FabricClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 FabricScreenCompat.open(this.client, new org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen((Screen) (Object) this))
             )
         );
         this.safra$p2pInitialized = true;
-    }
-
-    @Redirect(
-        method = "render",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/DrawableHelper;drawCenteredText(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/text/Text;III)V"
-        ),
-        require = 0
-    )
-    private void safra$hidePortLabel(MatrixStack matrices, TextRenderer textRenderer, Text text, int centerX, int y, int color) {
-        if (this.safra$hidePortUi && y >= 120) {
-            return;
-        }
-        FabricClientCompat.drawCenteredText(matrices, textRenderer, text, centerX, y, color);
     }
 
     @Inject(method = "method_19851", at = @At("HEAD"))
@@ -211,6 +203,11 @@ abstract class OpenToLanScreenMixin extends Screen {
     }
 
     @Unique
+    private void safra$clearPortLabel() {
+        PORT_TEXT = FabricClientCompat.literal("");
+    }
+
+    @Unique
     private void safra$publishShareCode(int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
@@ -251,4 +248,3 @@ abstract class OpenToLanScreenMixin extends Screen {
         );
     }
 }
-

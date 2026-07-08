@@ -1,27 +1,30 @@
 package org.developerkubilay.safra.mixin.client;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ShareToLanScreen.class)
-abstract class ShareToLanScreenMixin extends Screen {
+abstract class ShareToLanScreen11934Mixin extends Screen {
+    @Shadow
+    @Final
+    @Mutable
+    private static Component PORT_INFO_TEXT;
+
     @Shadow
     private boolean commands;
 
@@ -40,7 +43,7 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Unique
     private boolean safra$hidePortUi;
 
-    protected ShareToLanScreenMixin(Component title) {
+    protected ShareToLanScreen11934Mixin(Component title) {
         super(title);
     }
 
@@ -59,43 +62,28 @@ abstract class ShareToLanScreenMixin extends Screen {
             ForgeLanSessionState.initializeGameRules(this.minecraft);
         }
         this.safra$hidePortUi = this.safra$hidePortInput();
+        if (this.safra$hidePortUi) {
+            this.safra$clearPortLabel();
+        }
         int controlsY = 148;
 
         this.safra$p2pButton = this.addRenderableWidget(
-            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
+            ForgeClientCompat.createButton(this.width / 2 - 100, controlsY, 98, 20, this.safra$getToggleText(), button -> {
                 ForgeLanSessionState.setP2pEnabled(!ForgeLanSessionState.isP2pEnabled());
                 button.setMessage(this.safra$getToggleText());
             })
         );
         this.safra$onlineModeButton = this.addRenderableWidget(
-            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 2, controlsY, 98, 20, this.safra$getOnlineModeText(), button -> {
+            ForgeClientCompat.createButton(this.width / 2 + 2, controlsY, 98, 20, this.safra$getOnlineModeText(), button -> {
                 ForgeLanSessionState.setOnlineModeEnabled(!ForgeLanSessionState.isOnlineModeEnabled());
                 button.setMessage(this.safra$getOnlineModeText());
             })
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 - 49, controlsY + 24, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
+            ForgeClientCompat.createButton(this.width / 2 - 49, controlsY + 24, 98, 20, ForgeClientCompat.translatable("safra.p2p.server_settings.short"), button ->
                 this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
         );
         this.safra$p2pInitialized = true;
-    }
-
-    @ModifyArg(
-        method = "render",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/screens/ShareToLanScreen;m_93215_(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V",
-            ordinal = 2
-        ),
-        index = 2,
-        require = 0,
-        remap = false
-    )
-    private Component safra$hidePortLabel(Component text) {
-        if (!this.safra$hidePortUi) {
-            return text;
-        }
-        return ForgeClientCompat.literal("");
     }
 
     @Unique
@@ -116,6 +104,11 @@ abstract class ShareToLanScreenMixin extends Screen {
     }
 
     @Unique
+    private void safra$clearPortLabel() {
+        PORT_INFO_TEXT = ForgeClientCompat.literal("");
+    }
+
+    @Unique
     private Component safra$getToggleText() {
         return ForgeClientCompat.translatable(ForgeLanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
@@ -127,4 +120,3 @@ abstract class ShareToLanScreenMixin extends Screen {
             : "safra.p2p.online_mode.short.off");
     }
 }
-
