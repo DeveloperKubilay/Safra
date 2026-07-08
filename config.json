@@ -1,8 +1,8 @@
 {
   "api-1.0":"https://safra.developerkubilay.workers.dev",
   "api-3.0":{
-    "client":"https://safra.randdcodes.com",
-    "dedicated":"https://safra.randdcodes.com"
+    "client":"http://safra.randdcodes.com",
+    "dedicated":"http://safra.randdcodes.com"
   },
   "latest": {
   "1.16": ["2.6"],
