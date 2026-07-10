@@ -3,7 +3,7 @@ const Fastify = require("fastify");
 const elenora = require('elenora');
 const { randomBytes } = require("node:crypto");
 
-const app = Fastify({ logger: false });
+const app = Fastify({ logger: false, trustProxy: true });
 const sessions = new Map();
 const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const RelayWaiters = [];
@@ -61,9 +61,11 @@ function eventStream(res) {
     res.hijack();
 }
 
+
 const eventMessage = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
 app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile beraber yollanır
+    req.ip = req.headers["cf-connecting-ip"] || req.ip;
     if (activeSessionsByIp.get(req.ip) >= config.MAX_ACTIVE_SESSIONS_PER_IP) return res.code(429).send("Too many active sessions from your IP");
     if (req.body.network != null) {
         const networkValidation = networkControl(req.body.network);
@@ -151,6 +153,7 @@ app.post("/session-join", async (req, res) => {
 });
 
 app.post("/relay-request", async (req, res) => {
+    req.ip = req.headers["cf-connecting-ip"] || req.ip;
     if (activeSessionsByIp.get(req.ip) >= config.MAX_ACTIVE_SESSIONS_PER_IP) return res.code(429).send("Too many active sessions from your IP");
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const session = sessions.get(req.body.code);
