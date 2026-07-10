@@ -12,12 +12,12 @@ const activeSessionsByIp = new Map();//Zaman aşımı için koruma (ana sistemde
 const config = require("./config.json");
 
 elenora.connect(console, {
-	filename: 'logs/app.log',
-	maxSize: 5 * 1024 * 1024, // 5 MB
-	backupCount: 3,
-	continueFromLast: false,
-	interval: 10000,
-    timestamp:false
+    filename: 'logs/app.log',
+    maxSize: 5 * 1024 * 1024, // 5 MB
+    backupCount: 3,
+    continueFromLast: false,
+    interval: 10000,
+    timestamp: false
 });
 
 function networkControl(network) {
@@ -105,11 +105,11 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
     activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 0) + 1);
 
     function endSession(disconnect = false) {
-        if(state.alive === false) return;
+        if (state.alive === false) return;
         state.alive = false;//SessionWaiters silinmesi için alive false yapıyoz
         sessions.delete(req.body.code);
         activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 1) - 1);
-        if(disconnect) res?.raw.end();
+        if (disconnect) res?.raw.end();
     }
 
     SessionWaiters.push({
@@ -117,6 +117,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         end: endSession,
         state
     });
+    console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${req.body.code}`);
 
     eventStream(res);
     res.raw.write(eventMessage("session-created", { code: req.body.code, relayRequired: req.body.network == null }));
@@ -140,6 +141,7 @@ app.post("/session-join", async (req, res) => {
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
+    console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code}`);
 
     session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
         host: req.body.network,
@@ -217,7 +219,7 @@ setInterval(() => {//gc
     console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}`);
 }, 10 * 1000)
 
-app.listen({host: '0.0.0.0', port: process.env.PORT || 3000 }, (err, address) => {
+app.listen({ host: '0.0.0.0', port: process.env.PORT || 3000 }, (err, address) => {
     if (err) console.error(err);
     console.log(`Server is running at ${address}`);
 });
