@@ -119,7 +119,6 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
     eventStream(res);
     res.raw.write(eventMessage("session-created", { code: req.body.code, relayRequired: req.body.network == null }));
     res.raw.on("close", endSession);
-	req.raw.on("close", endSession);
 })
 
 app.post("/voicechat-update", async (req, res) => {
