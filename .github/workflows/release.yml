@@ -155,9 +155,9 @@ jobs:
               echo "SAFRA_RELEASE_NOTE=Forge 1.16 artifacti yayinlanmiyor; bu surum sadece Fabric olarak cikiyor." >> "$GITHUB_ENV"
               ;;
             1.16.1)
-              echo "SAFRA_BUILD_ARGS=build -PfabricOnly" >> "$GITHUB_ENV"
-              echo "SAFRA_LOADERS=Fabric" >> "$GITHUB_ENV"
-              echo "SAFRA_RELEASE_NOTE=Forge 1.16.1 artifacti yayinlanmiyor; bu surum sadece Fabric olarak cikiyor." >> "$GITHUB_ENV"
+              echo "SAFRA_BUILD_ARGS=build" >> "$GITHUB_ENV"
+              echo "SAFRA_LOADERS=Fabric, Forge" >> "$GITHUB_ENV"
+              echo "SAFRA_RELEASE_NOTE=" >> "$GITHUB_ENV"
               ;;
             1.16.2)
               echo "SAFRA_BUILD_ARGS=build" >> "$GITHUB_ENV"
@@ -311,7 +311,7 @@ jobs:
 
           Included artifacts:
           - 1.16: Fabric
-          - 1.16.1: Fabric
+          - 1.16.1: Fabric, Forge
           - 1.16.2: Fabric, Forge
           - 1.16.3: Fabric, Forge
           - 1.16.4: Fabric, Forge
@@ -323,7 +323,6 @@ jobs:
           Notes:
           - Each Minecraft version is built separately with its own dependency profile.
           - 1.16 Forge build intentionally not released.
-          - 1.16.1 Forge build intentionally not released.
           EOF
 
       - name: Ensure release tag is new

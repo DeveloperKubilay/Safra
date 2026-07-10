@@ -431,7 +431,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private static void trace(String message) {
-        System.out.println("[Safra P2P] " + message);
+        if (P2pConstants.traceLoggingEnabled()) {
+            System.out.println("[Safra P2P] " + message);
+        }
     }
 
     private static final class ReceivedDatagram {

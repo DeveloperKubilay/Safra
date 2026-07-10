@@ -217,6 +217,10 @@ public final class P2pConstants {
         return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
     }
 
+    public static boolean traceLoggingEnabled() {
+        return booleanProperty("safra.p2p.trace", false);
+    }
+
     static boolean forceDirectThenTurnRelay() {
         String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
         if (property != null && !property.trim().isEmpty()) {
@@ -299,6 +303,14 @@ public final class P2pConstants {
         } catch (RuntimeException exception) {
             return fallback;
         }
+    }
+
+    private static boolean booleanProperty(String key, boolean fallback) {
+        String property = System.getProperty(key);
+        if (property == null || property.trim().isEmpty()) {
+            return fallback;
+        }
+        return Boolean.parseBoolean(property.trim());
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {

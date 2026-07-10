@@ -1441,7 +1441,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void trace(String message) {
-        System.out.println("[Safra P2P] " + side + " " + message);
+        if (P2pConstants.traceLoggingEnabled()) {
+            System.out.println("[Safra P2P] " + side + " " + message);
+        }
     }
 
     private long kiloBitsPerSecond(long byteDelta, long intervalMs) {

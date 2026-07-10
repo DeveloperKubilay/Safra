@@ -1,14 +1,16 @@
 package org.developerkubilay.safra.client.p2p;
 
+import com.mojang.blaze3d.matrix.MatrixStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.EditGamerulesScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ShareToLanScreen;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.GameRules;
-import com.mojang.blaze3d.matrix.MatrixStack;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 public final class SafraLanServerSettingsScreen extends Screen {
@@ -22,7 +24,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
         this.parent = parent;
     }
 
-    protected void init() {
+    protected void func_231160_c_() {
+        ForgeScreenCompat.initScreenSuper(this);
+        ForgeScreenCompat.getButtons(this).clear();
+        ForgeScreenCompat.getChildren(this).clear();
+        this.safra$closing = false;
         int width = ForgeScreenCompat.getWidth(this);
         int height = ForgeScreenCompat.getHeight(this);
         int top = height / 4 - 20;
@@ -56,9 +62,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
             200,
             20,
             new TranslationTextComponent("safra.p2p.fixed_code.refresh"),
-            button -> {
-                ForgeLanSessionState.regenerateFixedCode();
-            }
+            button -> ForgeLanSessionState.regenerateFixedCode()
         ));
 
         ForgeScreenCompat.addButton(this, new Button(
@@ -83,9 +87,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
             200,
             20,
             new TranslationTextComponent("safra.p2p.game_rules.reset"),
-            button -> {
-                ForgeLanSessionState.resetGameRules();
-            }
+            button -> ForgeLanSessionState.resetGameRules()
         ));
 
         ForgeScreenCompat.addButton(this, new Button(width / 2 - 100, top + 168, 98, 20, new TranslationTextComponent("gui.done"), button -> this.onClose()));
@@ -116,7 +118,9 @@ public final class SafraLanServerSettingsScreen extends Screen {
         Minecraft minecraft = ForgeScreenCompat.getMinecraft(this);
         if (minecraft != null) {
             this.safra$closing = true;
-            minecraft.displayGuiScreen(this.parent);
+            Screen returnScreen = this.safra$createReturnScreen();
+            ForgeScreenCompat.resizeScreen(returnScreen, minecraft, ForgeScreenCompat.getWidth(this), ForgeScreenCompat.getHeight(this));
+            ForgeScreenCompat.displayScreen(minecraft, returnScreen);
         }
     }
 
@@ -140,7 +144,91 @@ public final class SafraLanServerSettingsScreen extends Screen {
         rules.ifPresent(gameRules -> ForgeLanSessionState.setGameRuleSnapshot(ForgeLanGameRules.serialize(gameRules)));
         Minecraft minecraft = ForgeScreenCompat.getMinecraft(this);
         if (minecraft != null) {
-            minecraft.displayGuiScreen(this);
+            ForgeScreenCompat.resizeScreen(this, minecraft, ForgeScreenCompat.getWidth(this), ForgeScreenCompat.getHeight(this));
+            ForgeScreenCompat.displayScreen(minecraft, this);
         }
+    }
+
+    private Screen safra$createReturnScreen() {
+        if (!(this.parent instanceof ShareToLanScreen)) {
+            return this.parent;
+        }
+
+        Screen lastScreen = this.safra$getScreenField(this.parent, "lastScreen", "field_146598_a");
+        if (lastScreen == null) {
+            return this.parent;
+        }
+
+        ShareToLanScreen recreated = new ShareToLanScreen(lastScreen);
+        this.safra$copyShareToLanState(this.parent, recreated);
+        return recreated;
+    }
+
+    private void safra$copyShareToLanState(Screen source, ShareToLanScreen target) {
+        this.safra$copyObjectField(source, target, new String[]{"gameMode", "field_146599_h"});
+        this.safra$copyBooleanField(source, target, new String[]{"allowCheats", "field_146600_i"});
+    }
+
+    private Screen safra$getScreenField(Screen screen, String... names) {
+        Object value = this.safra$getFieldValue(screen, names);
+        return value instanceof Screen ? (Screen) value : null;
+    }
+
+    private void safra$copyObjectField(Object source, Object target, String[] names) {
+        Object value = this.safra$getFieldValue(source, names);
+        if (value == null) {
+            return;
+        }
+        this.safra$setFieldValue(target, value, names);
+    }
+
+    private void safra$copyBooleanField(Object source, Object target, String[] names) {
+        Object value = this.safra$getFieldValue(source, names);
+        if (!(value instanceof Boolean)) {
+            return;
+        }
+        this.safra$setFieldValue(target, value, names);
+    }
+
+    private Object safra$getFieldValue(Object target, String[] names) {
+        for (String name : names) {
+            Field field = this.safra$findField(target.getClass(), name);
+            if (field == null) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private void safra$setFieldValue(Object target, Object value, String[] names) {
+        for (String name : names) {
+            Field field = this.safra$findField(target.getClass(), name);
+            if (field == null) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                field.set(target, value);
+                return;
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+    }
+
+    private Field safra$findField(Class<?> type, String name) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
     }
 }

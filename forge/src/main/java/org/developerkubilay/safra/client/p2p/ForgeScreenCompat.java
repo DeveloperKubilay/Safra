@@ -19,8 +19,8 @@ public final class ForgeScreenCompat {
     private static final String[] WIDTH_FIELDS = {"width", "field_230708_k_"};
     private static final String[] HEIGHT_FIELDS = {"height", "field_230709_l_"};
     private static final String[] MINECRAFT_FIELDS = {"minecraft", "field_230706_i_"};
-    private static final String[] BUTTONS_FIELDS = {"buttons", "field_230705_e_"};
-    private static final String[] CHILDREN_FIELDS = {"children", "field_230707_j_"};
+    private static final String[] BUTTONS_FIELDS = {"buttons", "field_230710_m_"};
+    private static final String[] CHILDREN_FIELDS = {"children", "field_230705_e_"};
     private static final String[] ACTIVE_FIELDS = {"active", "field_230694_p_"};
     private static final String[] X_FIELDS = {"x", "field_230690_l_"};
     private static final String[] Y_FIELDS = {"y", "field_230691_m_"};
@@ -131,6 +131,14 @@ public final class ForgeScreenCompat {
         widgets.addAll(getChildren(screen));
         for (Object element : widgets) {
             if (element instanceof Widget) {
+                if (invokeNoResult(
+                    element,
+                    new String[]{"render", "func_230430_a_"},
+                    new Class<?>[]{MatrixStack.class, int.class, int.class, float.class},
+                    matrixStack, mouseX, mouseY, partialTicks
+                )) {
+                    continue;
+                }
                 invokeNoResult(
                     element,
                     new String[]{"renderButton", "func_230431_b_"},
@@ -148,6 +156,36 @@ public final class ForgeScreenCompat {
             new Class<?>[]{MatrixStack.class, int.class, int.class, float.class},
             matrixStack, mouseX, mouseY, partialTicks
         );
+    }
+
+    public static void initScreenSuper(Screen screen) {
+        invokeSuperclassNoResult(
+            screen,
+            new String[]{"init", "func_231160_c_"},
+            new Class<?>[0]
+        );
+    }
+
+    public static void resizeScreen(Screen screen, Minecraft minecraft, int width, int height) {
+        if (minecraft == null) {
+            return;
+        }
+        if (invokeNoResult(screen, new String[]{"resize", "func_231152_a_", "init"}, new Class<?>[]{Minecraft.class, int.class, int.class},
+            minecraft, width, height)) {
+            return;
+        }
+        setIntField(screen, width, WIDTH_FIELDS);
+        setIntField(screen, height, HEIGHT_FIELDS);
+    }
+
+    public static void displayScreen(Minecraft minecraft, Screen screen) {
+        if (minecraft == null) {
+            return;
+        }
+        if (invokeNoResult(minecraft, new String[]{"displayGuiScreen", "func_147108_a"}, new Class<?>[]{Screen.class}, screen)) {
+            return;
+        }
+        invokeNoResult(minecraft, new String[]{"func_213231_b", "func_241562_c_"}, new Class<?>[]{Screen.class}, screen);
     }
 
     public static void setTextFieldWidth(TextFieldWidget textField, int width) {
