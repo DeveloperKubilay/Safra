@@ -48,7 +48,7 @@ public final class P2pTurnCredentialClient {
         Response response = HTTP_CLIENT.newCall(builder.build()).execute();
         try {
             if (response.code() < 200 || response.code() >= 300) {
-                throw new IOException("TURN credential request returned HTTP " + response.code()");
+                throw new IOException("TURN credential request returned HTTP " + response.code());
             }
 
             String body = response.body() != null ? response.body().string() : "";
@@ -212,3 +212,4 @@ public final class P2pTurnCredentialClient {
         }
     }
 }
+

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -76,7 +77,7 @@ public final class DedicatedP2pServerManager {
                 return null;
             }
 
-            String json = Files.readString(configPath);
+            String json = new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8);
             Matcher enabledMatcher = FIXED_CODE_ENABLED_PATTERN.matcher(json);
             if (!enabledMatcher.find() || !Boolean.parseBoolean(enabledMatcher.group(1))) {
                 return null;

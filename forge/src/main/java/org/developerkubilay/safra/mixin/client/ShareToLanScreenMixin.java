@@ -32,13 +32,13 @@ abstract class ShareToLanScreenMixin extends Screen {
         super(title);
     }
 
-    @Inject(method = "init", at = @At("HEAD"), remap = false)
+    @Inject(method = {"init", "func_231160_c_"}, at = @At("HEAD"), remap = false)
     private void safra$loadLanSettings(CallbackInfo ci) {
         ForgeLanSessionState.loadFromConfig();
         this.allowCheats = ForgeLanSessionState.isAllowCommandsEnabled();
     }
 
-    @Inject(method = "init", at = @At("TAIL"), remap = false)
+    @Inject(method = {"init", "func_231160_c_"}, at = @At("TAIL"), remap = false)
     private void safra$initP2pUi(CallbackInfo ci) {
         if (this.minecraft != null && this.minecraft.getIntegratedServer() != null) {
             ForgeLanSessionState.initializeGameRules(this.minecraft);

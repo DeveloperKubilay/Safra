@@ -6,7 +6,8 @@ base {
     archivesName = "${project.archives_base_name}-common"
 }
 
-def targetJavaVersion = 17
+def targetJavaVersion = 8
+def compilerJavaVersion = 17
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -14,7 +15,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    toolchain.languageVersion = JavaLanguageVersion.of(compilerJavaVersion)
     withSourcesJar()
 }
 

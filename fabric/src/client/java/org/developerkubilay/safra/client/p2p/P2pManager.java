@@ -263,6 +263,21 @@ public final class P2pManager {
         }
     }
 
-    public record RewriteResult(ServerAddress serverAddress, ServerInfo serverInfo) {
+    public static final class RewriteResult {
+        private final ServerAddress serverAddress;
+        private final ServerInfo serverInfo;
+
+        public RewriteResult(ServerAddress serverAddress, ServerInfo serverInfo) {
+            this.serverAddress = serverAddress;
+            this.serverInfo = serverInfo;
+        }
+
+        public ServerAddress serverAddress() {
+            return serverAddress;
+        }
+
+        public ServerInfo serverInfo() {
+            return serverInfo;
+        }
     }
 }

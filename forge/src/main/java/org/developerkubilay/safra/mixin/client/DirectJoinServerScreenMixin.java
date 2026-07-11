@@ -44,7 +44,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         super(title);
     }
 
-    @Inject(method = "init", at = @At("TAIL"), remap = false)
+    @Inject(method = {"init", "func_231160_c_"}, at = @At("TAIL"), remap = false)
     private void safra$initP2pUi(CallbackInfo ci) {
         this.textFieldServerAddress.setMaxStringLength(200);
         boolean storedAddress = P2pManager.isP2pStoredAddress(this.textFieldServerAddress.getText());

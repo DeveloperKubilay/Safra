@@ -16,6 +16,7 @@ base {
 }
 
 def targetJavaVersion = 8
+def compilerJavaVersion = 17
 def devUsername = rootProject.ext.devRunUsername(project)
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
@@ -25,12 +26,13 @@ configurations {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    toolchain.languageVersion = JavaLanguageVersion.of(compilerJavaVersion)
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
 }
 
 minecraft {

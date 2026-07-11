@@ -129,8 +129,11 @@ abstract class AddServerScreenMixin extends Screen {
     private ButtonWidget safra$findSecondaryButton(ButtonWidget primaryButton) {
         ButtonWidget candidate = null;
         for (Element element : this.children()) {
-            if (element instanceof ButtonWidget button && button != primaryButton) {
-                candidate = button;
+            if (element instanceof ButtonWidget) {
+                ButtonWidget button = (ButtonWidget) element;
+                if (button != primaryButton) {
+                    candidate = button;
+                }
             }
         }
         return candidate;

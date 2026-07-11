@@ -5,6 +5,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import net.minecraft.client.MinecraftClient;
 
 import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.Map;
 
 public final class FabricLanSessionState {
@@ -13,8 +14,8 @@ public final class FabricLanSessionState {
     private static volatile boolean allowCommandsEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
-    private static volatile Map<String, String> gameRuleSnapshot = Map.of();
-    private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
+    private static volatile Map<String, String> gameRuleSnapshot = Collections.emptyMap();
+    private static volatile Map<String, String> defaultGameRuleSnapshot = Collections.emptyMap();
 
     private FabricLanSessionState() {
     }
@@ -101,7 +102,7 @@ public final class FabricLanSessionState {
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
         gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
-            ? Map.of()
+            ? Collections.emptyMap()
             : new LinkedHashMap<>(defaultGameRuleSnapshot);
         SafraClientConfig config = SafraClientConfig.get();
         config.setOpenToLanAllowCommandsEnabled(false);

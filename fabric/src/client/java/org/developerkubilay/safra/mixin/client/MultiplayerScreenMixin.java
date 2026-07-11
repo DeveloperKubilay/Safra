@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
@@ -25,31 +26,29 @@ abstract class MultiplayerScreenMixin {
     @Final
     private Screen parent;
 
-    @Inject(method = "connect", at = @At("HEAD"), cancellable = true)
-    private void safra$rewriteP2pBeforeVanillaParse(CallbackInfo ci) {
-        ServerInfo serverInfo = null;
-        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.address)) {
+    @Inject(method = "connect(Lnet/minecraft/client/network/ServerInfo;)V", at = @At("HEAD"), cancellable = true)
+    private void safra$rewriteP2pBeforeVanillaParse(ServerInfo serverInfo, CallbackInfo ci) {
+        if (serverInfo == null || (!P2pManager.isP2pStoredAddress(serverInfo.address) && !P2pManager.isValidP2pAddress(serverInfo.address))) {
             return;
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        client.openScreen(new ProgressScreen());
+        ProgressScreen progressScreen = new ProgressScreen();
+        progressScreen.method_15412(new TranslatableText("connect.connecting"));
+        progressScreen.method_15413(new TranslatableText("safra.p2p.prepare_message"));
+        client.openScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
-                    Throwable cause = throwable instanceof CompletionException completionException
-                        && completionException.getCause() != null
-                        ? completionException.getCause()
-                        : throwable;
+                    Throwable cause = throwable;
+                    if (throwable instanceof CompletionException && ((CompletionException) throwable).getCause() != null) {
+                        cause = ((CompletionException) throwable).getCause();
+                    }
                     if (cause instanceof CancellationException) {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    client.openScreen(new DisconnectedScreen(
-                        this.parent,
-                        new TranslatableText("connect.failed").getString(),
-                        new TranslatableText("safra.p2p.prepare_failed", message)
-                    ));
+                    client.openScreen(this.safra$createDisconnectedScreen(new TranslatableText("safra.p2p.prepare_failed", message)));
                     return;
                 }
 
@@ -57,5 +56,23 @@ abstract class MultiplayerScreenMixin {
             })
         );
         ci.cancel();
+    }
+
+    private Screen safra$createDisconnectedScreen(Text reason) {
+        try {
+            return DisconnectedScreen.class
+                .getConstructor(Screen.class, String.class, Text.class)
+                .newInstance(this.parent, "connect.failed", reason);
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            return DisconnectedScreen.class
+                .getConstructor(Screen.class, Text.class, Text.class)
+                .newInstance(this.parent, new TranslatableText("connect.failed"), reason);
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        return this.parent;
     }
 }
