@@ -2,14 +2,25 @@ require("dotenv").config({ quiet: true });
 const Fastify = require("fastify");
 const elenora = require('elenora');
 const { randomBytes } = require("node:crypto");
+const config = require("./config.json");
 
-const app = Fastify({ logger: false, trustProxy: true });
+const app = Fastify({
+    logger: false,
+    trustProxy: true,
+    connectionTimeout: config.TCP_CONNECTION_TIMEOUT,
+    requestTimeout: config.TCP_CONNECTION_TIMEOUT
+});
 const sessions = new Map();
 const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const RelayWaiters = [];
 const SessionWaiters = [];//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
 const activeSessionsByIp = new Map();//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
-const config = require("./config.json");
+
+function changeActiveSessionCount(ip, delta) {
+    const count = Math.max(0, (activeSessionsByIp.get(ip) || 0) + delta);
+    if (count === 0) activeSessionsByIp.delete(ip);
+    else activeSessionsByIp.set(ip, count);
+}
 
 elenora.connect(console, {
     filename: 'logs/app.log',
@@ -54,11 +65,17 @@ async function getTurnCredentials() {
     return data;
 }
 
-function eventStream(res) {
+function eventStream(res, persistent = false) {
     res.raw.setHeader("Content-Type", "text/event-stream");
     res.raw.setHeader("Cache-Control", "no-cache");
     res.raw.setHeader("Connection", "keep-alive");
     res.hijack();
+    res.raw.flushHeaders();
+
+    if (persistent) {
+        res.raw.socket.setTimeout(0);
+        res.raw.socket.setKeepAlive(true, config.TCP_CONNECTION_TIMEOUT);
+    }
 }
 
 
@@ -94,34 +111,38 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
     }
     const state = { alive: true, ip: req.ip };
 
-    sessions.set(req.body.code,
-        {
-            host: req.body.network,
-            voiceHost: req.body.voicechat || null,
-            relay: null,
-            relayWaiters: [],
-            write: res.raw.write.bind(res.raw)
-        });
-    activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 0) + 1);
+    const session = {
+        host: req.body.network,
+        voiceHost: req.body.voicechat || null,
+        relay: null,
+        relayWaiters: [],
+        write: res.raw.write.bind(res.raw)
+    };
+    sessions.set(req.body.code, session);
+    changeActiveSessionCount(req.ip, 1);
 
     function endSession(disconnect = false) {
         if (state.alive === false) return;
         state.alive = false;//SessionWaiters silinmesi için alive false yapıyoz
         sessions.delete(req.body.code);
-        activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 1) - 1);
+        changeActiveSessionCount(req.ip, -1);
         if (disconnect) res?.raw.end();
     }
 
-    SessionWaiters.push({
+    if (config.MAX_SESSION_TIME > 0) SessionWaiters.push({
         time: Date.now() + config.MAX_SESSION_TIME,
         end: endSession,
         state
     });
+
     console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${req.body.code}`);
 
-    eventStream(res);
+    eventStream(res, true);
     res.raw.write(eventMessage("session-created", { code: req.body.code, relayRequired: req.body.network == null }));
-    res.raw.on("close", endSession);
+    res.raw.once("close", endSession);
+    res.raw.socket.once("close", () => {
+        console.log(`[${new Date().toISOString()}] Session closed from IP: ${req.ip} with code: ${req.body.code}`);
+    });
 })
 
 app.post("/voicechat-update", async (req, res) => {
@@ -169,14 +190,16 @@ app.post("/relay-request", async (req, res) => {
     function writeandClose(data) {
         if (state.alive === false) return;
         state.alive = false;
-        res.raw.write(data);
-        session.relayWaiters.splice(session.relayWaiters.indexOf(writeandClose), 1);
-        activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 1) - 1);
+        if (!res.raw.destroyed && !res.raw.writableEnded && data) res.raw.write(data);
+        const index = session.relayWaiters.indexOf(writeandClose);
+        if (index !== -1) session.relayWaiters.splice(index, 1);
+        changeActiveSessionCount(req.ip, -1);
         res.raw.end();
     }
     RelayWaiters.push({ time: Date.now() + 20000, write: writeandClose, state });//20sn ttl
-    activeSessionsByIp.set(req.ip, (activeSessionsByIp.get(req.ip) || 0) + 1);
+    changeActiveSessionCount(req.ip, 1);
     session.relayWaiters.push(writeandClose);
+    res.raw.once("close", () => writeandClose(""));
 });
 
 app.post("/relay-accept", async (req, res) => {
@@ -188,8 +211,9 @@ app.post("/relay-accept", async (req, res) => {
 
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");//server dicek açtım ben yeni ip bu
+    if (!session.relay) return res.code(409).send("Relay has not been requested");
     session.relay.network = req.body.network;
-    session.relayWaiters.forEach(write => write(eventMessage("relay-accepted", session)));
+    session.relayWaiters.slice().forEach(write => write(eventMessage("relay-accepted", session)));
     session.relayWaiters.length = 0;
     res.send({ ok: true });
 });
