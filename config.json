@@ -4,6 +4,10 @@
     "client":"https://safra.randdcodes.com",
     "dedicated":"https://safra.randdcodes.com"
   },
+  "api-test-only":{
+    "client":"https://betavsafra.randdcodes.com",
+    "dedicated":"https://betavsafra.randdcodes.com"
+  },
   "latest": {
   "1.16": ["2.6"],
   "1.16.1": ["2.6"],
