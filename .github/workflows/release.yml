@@ -14,15 +14,15 @@ on:
       mc_version:
         description: Minecraft version for single release mode
         required: true
-        default: 1.20.5-1.20.6
+        default: "1.20.5-1.20.6"
         type: choice
         options:
-          - 1.20
-          - 1.20.1
-          - 1.20.2
-          - 1.20.3
-          - 1.20.4
-          - 1.20.5-1.20.6
+          - "1.20"
+          - "1.20.1"
+          - "1.20.2"
+          - "1.20.3"
+          - "1.20.4"
+          - "1.20.5-1.20.6"
       version_number:
         description: Mod version
         required: true
@@ -57,7 +57,6 @@ jobs:
       release_title: ${{ steps.prepare.outputs.release_title }}
       release_scope: ${{ steps.prepare.outputs.release_scope }}
       release_versions_label: ${{ steps.prepare.outputs.release_versions_label }}
-      release_artifacts_note: ${{ steps.prepare.outputs.release_artifacts_note }}
       version_number: ${{ steps.prepare.outputs.version_number }}
       build_mode: ${{ steps.prepare.outputs.build_mode }}
 
@@ -72,8 +71,6 @@ jobs:
           build_mode="${{ github.event.inputs.build_mode }}"
           supported_versions='["1.20","1.20.1","1.20.2","1.20.3","1.20.4","1.20.5-1.20.6"]'
           combined_release_label="1.20.5-1.20.6"
-          all_artifacts_note=$'- 1.20: Fabric, Forge\n- 1.20.1: Fabric, Forge\n- 1.20.2: Fabric, Forge\n- 1.20.3: Fabric\n- 1.20.4: Fabric, Forge, NeoForge\n- 1.20.5-1.20.6: Fabric, Forge, NeoForge'
-
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
             exit 1
@@ -93,34 +90,17 @@ jobs:
             release_tag="Safra-1.20.x-$version_number"
             release_title="Safra 1.20.x-$version_number"
             release_versions_label="1.20.x"
-            release_artifacts_note="$all_artifacts_note"
           else
             if [[ "$mc_version" == "1.20.5" || "$mc_version" == "1.20.6" ]]; then
               versions_json="[\"$combined_release_label\"]"
               release_tag="Safra-$combined_release_label-$version_number"
               release_title="Safra $combined_release_label-$version_number"
               release_versions_label="$combined_release_label"
-              release_artifacts_note='- 1.20.5-1.20.6: Fabric, Forge, NeoForge'
             else
               versions_json="[\"$mc_version\"]"
               release_tag="Safra-$mc_version-$version_number"
               release_title="Safra $mc_version-$version_number"
               release_versions_label="$mc_version"
-              case "$mc_version" in
-                1.20|1.20.1|1.20.2)
-                  release_artifacts_note="- $mc_version: Fabric, Forge"
-                  ;;
-                1.20.3)
-                  release_artifacts_note='- 1.20.3: Fabric'
-                  ;;
-                1.20.4)
-                  release_artifacts_note='- 1.20.4: Fabric, Forge, NeoForge'
-                  ;;
-                *)
-                  echo "Unsupported mc_version for release notes: $mc_version"
-                  exit 1
-                  ;;
-              esac
             fi
           fi
 
@@ -135,9 +115,6 @@ jobs:
             echo "release_title=$release_title"
             echo "release_scope=$release_scope"
             echo "release_versions_label=$release_versions_label"
-            echo "release_artifacts_note<<EOF"
-            echo "$release_artifacts_note"
-            echo "EOF"
             echo "version_number=$version_number"
             echo "build_mode=$build_mode"
           } >> "$GITHUB_OUTPUT"
@@ -396,7 +373,12 @@ jobs:
           Safra ${{ needs.prepare.outputs.version_number }} for Minecraft ${{ needs.prepare.outputs.release_versions_label }}
 
           Included artifacts:
-          ${{ needs.prepare.outputs.release_artifacts_note }}
+          - 1.20: Fabric, Forge
+          - 1.20.1: Fabric, Forge
+          - 1.20.2: Fabric, Forge
+          - 1.20.3: Fabric
+          - 1.20.4: Fabric, Forge, NeoForge
+          - 1.20.5-1.20.6: Fabric, Forge, NeoForge
 
           Build mode:
           - ${{ needs.prepare.outputs.build_mode }}
