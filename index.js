@@ -7,7 +7,7 @@ const config = require("./config.json");
 const app = Fastify({
     logger: false,
     trustProxy: true,
-    connectionTimeout: config.TCP_CONNECTION_TIMEOUT,
+    connectionTimeout: 120000,
     requestTimeout: config.TCP_CONNECTION_TIMEOUT
 });
 const sessions = new Map();
@@ -15,6 +15,7 @@ const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const RelayWaiters = [];
 const SessionWaiters = [];//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
 const activeSessionsByIp = new Map();//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
+let nextSseKeepAlive = Date.now() + config.SSE_KEEPALIVE_INTERVAL;
 
 function changeActiveSessionCount(ip, delta) {
     const count = Math.max(0, (activeSessionsByIp.get(ip) || 0) + delta);
@@ -65,17 +66,12 @@ async function getTurnCredentials() {
     return data;
 }
 
-function eventStream(res, persistent = false) {
+function eventStream(res) {
     res.raw.setHeader("Content-Type", "text/event-stream");
     res.raw.setHeader("Cache-Control", "no-cache");
     res.raw.setHeader("Connection", "keep-alive");
     res.hijack();
     res.raw.flushHeaders();
-
-    if (persistent) {
-        res.raw.socket.setTimeout(0);
-        res.raw.socket.setKeepAlive(true, config.TCP_CONNECTION_TIMEOUT);
-    }
 }
 
 
@@ -83,7 +79,6 @@ const eventMessage = (event, data) => `event: ${event}\ndata: ${JSON.stringify(d
 
 app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile beraber yollanır
     req.ip = req.headers["cf-connecting-ip"] || req.ip;
-    if (activeSessionsByIp.get(req.ip) >= config.MAX_ACTIVE_SESSIONS_PER_IP) return res.code(429).send("Too many active sessions from your IP");
     if (req.body.network != null) {
         const networkValidation = networkControl(req.body.network);
         if (networkValidation) return res.code(400).send(networkValidation);
@@ -94,7 +89,18 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         if (networkValidation) return res.code(400).send(networkValidation);
     }
 
-    if (codeCheck(req.body.code) || sessions.has(req.body.code)) {
+    const oldSession = sessions.get(req.body.code);
+    if (oldSession) {
+        if (oldSession.ip === req.ip) oldSession.end(true);
+        else req.body.code = null;
+    }
+
+    if (activeSessionsByIp.get(req.ip) >= config.MAX_ACTIVE_SESSIONS_PER_IP) {
+        return res.code(429).send("Too many active sessions from your IP");
+    }
+
+    if (codeCheck(req.body.code)) {
+        let generatedCode = null;
         for (let i = 0; i < 10; i++) {//Eğer sabit kod seçili değilse code bilgisi iletilmicek
             const bytes = randomBytes(12);
             let code = "";
@@ -103,28 +109,34 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
                 code += ABC[bytes[i] % ABC.length];
             }
             if (!sessions.has(code)) {
-                req.body.code = code;
+                generatedCode = code;
                 break;
             }
         }
-        if (!req.body.code) return res.code(500).send("Failed to generate unique session code");
+        if (!generatedCode) return res.code(500).send("Failed to generate unique session code");
+        req.body.code = generatedCode;
     }
+
+    const sessionCode = req.body.code;
     const state = { alive: true, ip: req.ip };
 
     const session = {
+        ip: req.ip,
         host: req.body.network,
         voiceHost: req.body.voicechat || null,
         relay: null,
         relayWaiters: [],
-        write: res.raw.write.bind(res.raw)
+        write: res.raw.write.bind(res.raw),
+        end: endSession
     };
-    sessions.set(req.body.code, session);
+    sessions.set(sessionCode, session);
     changeActiveSessionCount(req.ip, 1);
 
     function endSession(disconnect = false) {
         if (state.alive === false) return;
+        console.slientlog(`[${new Date().toISOString()}] Session closed from IP: ${req.ip} with code: ${sessionCode}`);
         state.alive = false;//SessionWaiters silinmesi için alive false yapıyoz
-        sessions.delete(req.body.code);
+        sessions.delete(sessionCode);
         changeActiveSessionCount(req.ip, -1);
         if (disconnect) res?.raw.end();
     }
@@ -135,14 +147,11 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         state
     });
 
-    console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${req.body.code}`);
+    console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${sessionCode}`);
 
-    eventStream(res, true);
-    res.raw.write(eventMessage("session-created", { code: req.body.code, relayRequired: req.body.network == null }));
+    eventStream(res);
+    res.raw.write(eventMessage("session-created", { code: sessionCode, relayRequired: req.body.network == null }));
     res.raw.once("close", endSession);
-    res.raw.socket.once("close", () => {
-        console.log(`[${new Date().toISOString()}] Session closed from IP: ${req.ip} with code: ${req.body.code}`);
-    });
 })
 
 app.post("/voicechat-update", async (req, res) => {
@@ -220,6 +229,12 @@ app.post("/relay-accept", async (req, res) => {
 
 setInterval(() => {//gc
     const now = Date.now();
+
+    if (config.SSE_KEEPALIVE_INTERVAL > 0 && now >= nextSseKeepAlive) {
+        sessions.forEach(session => session.write(": keepalive\n\n"));
+        nextSseKeepAlive = now + config.SSE_KEEPALIVE_INTERVAL;
+    }
+
     for (let i = RelayWaiters.length - 1; i >= 0; i--) {
         const waiter = RelayWaiters[i];
         if (waiter.state.alive === false || waiter.time < now) {
