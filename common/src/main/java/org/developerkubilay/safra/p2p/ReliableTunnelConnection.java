@@ -33,16 +33,20 @@ final class ReliableTunnelConnection implements AutoCloseable {
         void remove(int connectionId);
     }
 
+    interface OpenFallbackHandler {
+        void fallback(ReliableTunnelConnection connection);
+    }
+
     private final Logger logger;
     private final String side;
     private final int token;
     private final int connectionId;
-    private final InetSocketAddress remoteAddress;
+    private volatile PacketRoute packetRoute;
     private final Socket tcpSocket;
-    private final PacketSender packetSender;
     private final RemovalCallback removalCallback;
     private final ScheduledExecutorService scheduler;
     private final boolean initiator;
+    private final OpenFallbackHandler openFallbackHandler;
     private final boolean diagnosticsLoggingEnabled;
     private final long diagnosticsSummaryMs;
     private final long diagnosticsTickDriftWarnMs;
@@ -103,6 +107,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile long lastOpenPacketAt = 0L;
     private volatile long openStartedAt = System.currentTimeMillis();
     private volatile int openPacketsSent;
+    private volatile boolean openFallbackStarted;
+    private volatile boolean openFallbackPending;
     private volatile long lastPayloadSentAt = System.currentTimeMillis();
     private volatile long lastAcknowledgementProgressAt = System.currentTimeMillis();
     private volatile long retransmitTimeoutMs = P2pConstants.INITIAL_RESEND_MS;
@@ -179,17 +185,17 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
     ReliableTunnelConnection(Logger logger, String side, int token, int connectionId, InetSocketAddress remoteAddress,
                              Socket tcpSocket, PacketSender packetSender, RemovalCallback removalCallback,
-                             ScheduledExecutorService scheduler, boolean initiator) {
+                             ScheduledExecutorService scheduler, boolean initiator, OpenFallbackHandler openFallbackHandler) {
         this.logger = logger;
         this.side = side;
         this.token = token;
         this.connectionId = connectionId;
-        this.remoteAddress = remoteAddress;
+        this.packetRoute = new PacketRoute(remoteAddress, packetSender);
         this.tcpSocket = tcpSocket;
-        this.packetSender = packetSender;
         this.removalCallback = removalCallback;
         this.scheduler = scheduler;
         this.initiator = initiator;
+        this.openFallbackHandler = openFallbackHandler;
         this.diagnosticsLoggingEnabled = P2pConstants.diagnosticsEnabled();
         this.diagnosticsSummaryMs = diagnosticsLoggingEnabled ? P2pConstants.diagnosticsSummaryMs() : 0L;
         this.diagnosticsTickDriftWarnMs = diagnosticsLoggingEnabled ? P2pConstants.diagnosticsTickDriftWarnMs() : 0L;
@@ -241,6 +247,50 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
     void sendOpenAck(long now) {
         sendPacket(P2pPacket.openAck(token, connectionId), now);
+    }
+
+    void retryOpen(InetSocketAddress fallbackRemoteAddress) {
+        retryOpen(fallbackRemoteAddress, false);
+    }
+
+    void retryDirectOpen(InetSocketAddress fallbackRemoteAddress) {
+        retryOpen(fallbackRemoteAddress, true);
+    }
+
+    private void retryOpen(InetSocketAddress fallbackRemoteAddress, boolean allowAnotherFallback) {
+        if (closed.get() || fallbackRemoteAddress == null || fallbackRemoteAddress.isUnresolved()) {
+            closeLocally("open fallback failed");
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        PacketRoute currentRoute = packetRoute;
+        packetRoute = new PacketRoute(fallbackRemoteAddress, currentRoute.sender());
+        openFallbackStarted = !allowAnotherFallback;
+        openFallbackPending = false;
+        openStartedAt = now;
+        lastOpenPacketAt = 0L;
+        openPacketsSent = 0;
+        lastPacketReceivedAt = now;
+        sendOpen(now);
+    }
+
+    boolean updateRoute(InetSocketAddress remoteAddress, PacketSender packetSender) {
+        if (closed.get() || remoteAddress == null || remoteAddress.isUnresolved() || packetSender == null) {
+            return false;
+        }
+        PacketRoute currentRoute = packetRoute;
+        packetRoute = new PacketRoute(remoteAddress, packetSender);
+        return !currentRoute.remoteAddress().equals(remoteAddress);
+    }
+
+    void failOpenFallback() {
+        openFallbackPending = false;
+        closeLocally("open fallback failed");
+    }
+
+    boolean isOpened() {
+        return opened;
     }
 
     @Override
@@ -462,8 +512,21 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long now = System.currentTimeMillis();
         observeMaintenanceTickGap(now);
         if (initiator && !opened) {
+            if (openFallbackPending) {
+                return;
+            }
+
+            if (!openFallbackStarted
+                && openFallbackHandler != null
+                && now - openStartedAt >= P2pConstants.DIRECT_OPEN_FALLBACK_MS) {
+                openFallbackStarted = true;
+                openFallbackPending = true;
+                P2pRuntime.start(side + "-turn-fallback-" + connectionId, () -> openFallbackHandler.fallback(this));
+                return;
+            }
+
             if (now - openStartedAt > P2pConstants.OPEN_TIMEOUT_MS) {
-                logger.debug("{} connection {} could not open UDP tunnel to {} within {} ms", side, connectionId, remoteAddress, P2pConstants.OPEN_TIMEOUT_MS);
+                logger.debug("{} connection {} could not open UDP tunnel to {} within {} ms", side, connectionId, packetRoute.remoteAddress(), P2pConstants.OPEN_TIMEOUT_MS);
                 closeLocally("open timeout");
                 return;
             }
@@ -543,7 +606,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
     private void sendPacket(P2pPacket packet, long now) {
         lastPacketSentAt = now;
-        packetSender.send(packet, remoteAddress);
+        PacketRoute currentRoute = packetRoute;
+        currentRoute.sender().send(packet, currentRoute.remoteAddress());
     }
 
     private void sendPacket(P2pPacket packet) {
@@ -555,12 +619,13 @@ final class ReliableTunnelConnection implements AutoCloseable {
             return;
         }
         opened = true;
+        openFallbackPending = false;
         lastAcknowledgementProgressAt = now;
         if (initiator && openPacketsSent == 1) {
             updateRetransmitTimeout(now - openStartedAt);
         }
         openLatch.countDown();
-        logger.debug("{} connection {} UDP tunnel opened with {}", side, connectionId, remoteAddress);
+        logger.debug("{} connection {} UDP tunnel opened with {}", side, connectionId, packetRoute.remoteAddress());
     }
 
     private void awaitOpen() {
@@ -800,7 +865,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         observePeak(peakHeadOfLineBlockMs, now - headOfLineBlockedSince);
         logger.warn("{} connection {} head-of-line block {} ms on seq {} buffered={} pending={} rto={}ms srtt={}ms remote={}",
             side, connectionId, now - headOfLineBlockedSince, headOfLineMissingSequence, bufferedRange(),
-            pendingSegments.size(), retransmitTimeoutMs, roundTripMetric(smoothedRoundTripTimeMs), remoteAddress);
+            pendingSegments.size(), retransmitTimeoutMs, roundTripMetric(smoothedRoundTripTimeMs), packetRoute.remoteAddress());
         maybeLogDiagnostics("head-of-line", now, true);
     }
 
@@ -822,7 +887,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         logger.warn("{} connection {} send window blocked {} ms pending={} window={} ssthresh={} firstPending={} nextExpected={} buffered={} rto={}ms remote={}",
             side, connectionId, now - lastWindowBlockedSince, pendingSegments.size(), sendWindowSize,
             slowStartThreshold, firstPendingSequence(), nextExpectedSequence.get(), bufferedRange(),
-            retransmitTimeoutMs, remoteAddress);
+            retransmitTimeoutMs, packetRoute.remoteAddress());
         maybeLogDiagnostics("window-block", now, true);
     }
 
@@ -881,7 +946,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         StringBuilder diag = new StringBuilder(640);
         diag.append(side).append(" connection ").append(connectionId)
             .append(" diag=").append(trigger)
-            .append(" remote=").append(remoteAddress)
+            .append(" remote=").append(packetRoute.remoteAddress())
             .append(" pending=").append(pendingSegments.size())
             .append(" pendingPeak=").append(peakPendingSegments.get())
             .append(" window=").append(sendWindowSize)
@@ -974,7 +1039,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         lastMaintenanceDriftWarningAt = now;
         logger.warn("{} connection {} maintenance tick drift {} ms pending={} buffered={} inboundQueue={} remote={}",
-            side, connectionId, gapMs, pendingSegments.size(), bufferedRange(), inboundQueue.size(), remoteAddress);
+            side, connectionId, gapMs, pendingSegments.size(), bufferedRange(), inboundQueue.size(), packetRoute.remoteAddress());
         maybeLogDiagnostics("tick-drift", now, true);
     }
 
@@ -994,8 +1059,11 @@ final class ReliableTunnelConnection implements AutoCloseable {
         lastInboundQueueWarningAt = now;
         if (backlogBytes > 0L) {
             logger.warn("{} connection {} inbound TCP backlog {} bytes queue={} pending={} buffered={} remote={}",
-                side, connectionId, backlogBytes, inboundQueue.size(), pendingSegments.size(), bufferedRange(), remoteAddress);
+                side, connectionId, backlogBytes, inboundQueue.size(), pendingSegments.size(), bufferedRange(), packetRoute.remoteAddress());
         }
+    }
+
+    private record PacketRoute(InetSocketAddress remoteAddress, PacketSender sender) {
     }
 
     private long diagnosticsCounterTotal() {

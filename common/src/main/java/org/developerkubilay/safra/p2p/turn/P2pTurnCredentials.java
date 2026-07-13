@@ -4,6 +4,8 @@ import java.util.List;
 
 public record P2pTurnCredentials(
     List<TurnServer> udpServers,
+    List<TurnServer> tcpServers,
+    List<TurnServer> tlsServers,
     String username,
     String credential,
     int ttlSeconds

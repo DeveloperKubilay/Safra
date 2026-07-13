@@ -178,6 +178,13 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
                 .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!shareCode.isRendezvous()) {
+            this.safra$addClientSystemMessage(
+                Component.literal("Safra Error: ")
+                    .append(Component.translatable("safra.p2p.error.direct_fallback"))
+                    .withStyle(ChatFormatting.RED)
+            );
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             this.safra$addClientSystemMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
