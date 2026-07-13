@@ -62,7 +62,6 @@ async function getTurnCredentials() {
 
     if (!response.ok) return null;
     const data = (await response.json()).iceServers[1];
-    data.urls = data.urls.filter(url => url.endsWith("udp"));
     return data;
 }
 
