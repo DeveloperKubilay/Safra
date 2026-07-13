@@ -1,0 +1,19 @@
+{
+  "apiToken": "supersecretpassword",
+  "httpHost": "0.0.0.0",
+  "httpPort": 8080,
+  "udpType": "udp4",
+  "udpHost": "::",
+  "publicHost": "0.0.0.0",
+  "udpPortStart": 20000,
+  "udpPortEnd": 20100,
+  "maxSessionsPerIp": 5,
+  "maxPlayersPerSession": 20,
+  "playerTimeoutSeconds": 120,
+  "hostTimeoutSeconds": 150,
+  "sessionTimeoutSeconds": 300,
+  "sessionMaxLifetimeSeconds": 86400,
+  "sessionBandwidthBytesPerSecond": 1048576,
+  "totalBandwidthBytesPerSecond": 10485760,
+  "sessionTotalBytes": 1073741824
+}

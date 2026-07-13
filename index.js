@@ -16,6 +16,7 @@ const RelayWaiters = [];
 const SessionWaiters = [];//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
 const activeSessionsByIp = new Map();//Zaman aşımı için koruma (ana sistemde işlevi yoktur)
 let nextSseKeepAlive = Date.now() + config.SSE_KEEPALIVE_INTERVAL;
+let bedrockLatestServer = 0;
 
 function changeActiveSessionCount(ip, delta) {
     const count = Math.max(0, (activeSessionsByIp.get(ip) || 0) + delta);
@@ -48,21 +49,25 @@ function codeCheck(code) {
 }
 
 async function getTurnCredentials() {
-    const response = await fetch(
-        `https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.TURN_KEY_ID}/credentials/generate-ice-servers`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.TURN_KEY_API_TOKEN}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ ttl: config.TURN_TTL })
-        }
-    );
+    try {
+        const response = await fetch(
+            `https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.TURN_KEY_ID}/credentials/generate-ice-servers`,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.TURN_KEY_API_TOKEN}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ ttl: config.TURN_TTL })
+            }
+        );
 
-    if (!response.ok) return null;
-    const data = (await response.json()).iceServers[1];
-    return data;
+        if (!response.ok) return null;
+        const data = (await response.json()).iceServers[1];
+        return data;
+    } catch {
+        return null;
+    }
 }
 
 function eventStream(res) {
@@ -163,9 +168,46 @@ app.post("/voicechat-update", async (req, res) => {
     res.send({ ok: true });
 });
 
+if (config.BEDROCK_SERVERS && config.BEDROCK_SERVERS.length > 0) {
+    app.post("/bedrock-request", async (req, res) => {
+        if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
+        const session = sessions.get(req.body.code);
+        if (!session) return res.code(404).send("Session not found");
+        if (session.bedrockServer) return res.code(409).send("Bedrock server already assigned for this session");
+        req.ip = req.headers["cf-connecting-ip"] || req.ip;
+        if (req.ip !== session.ip) return res.code(403).send("Only host can request Bedrock relay");
+
+        const server = config.BEDROCK_SERVERS[bedrockLatestServer % config.BEDROCK_SERVERS.length];
+        bedrockLatestServer++;
+
+        try {
+            const response = await fetch(`${server}/create-session`, {
+                method: 'POST',
+                headers: {
+                    authorization: `Bearer ${process.env.BEDROCK_PASSWORD}`,
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({ hostip: req.ip })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                console.slientlog(`[${new Date().toISOString()}] bedrock-request failed for session code: ${data.error}`);
+                return res.send({ ok: false });
+            }
+
+            session.bedrockServer = server;
+            return res.send({ ok: true, bedrockServer: data.ip, bedrockPort: data.port });
+        } catch (error) {
+            console.slientlog(`[${new Date().toISOString()}] bedrock connection failed ${error.message}`);
+            return res.send({ ok: false });
+        }
+    });
+}
+
 app.post("/session-join", async (req, res) => {
     const networkValidation = networkControl(req.body.network);
     if (networkValidation) return res.code(400).send(networkValidation);
+    req.ip = req.headers["cf-connecting-ip"] || req.ip;
 
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const session = sessions.get(req.body.code);
@@ -228,6 +270,7 @@ app.post("/relay-accept", async (req, res) => {
 
 setInterval(() => {//gc
     const now = Date.now();
+    if (bedrockLatestServer > 1000000) bedrockLatestServer = 0;
 
     if (config.SSE_KEEPALIVE_INTERVAL > 0 && now >= nextSseKeepAlive) {
         sessions.forEach(session => session.write(": keepalive\n\n"));
