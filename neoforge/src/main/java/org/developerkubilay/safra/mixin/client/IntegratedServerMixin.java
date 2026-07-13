@@ -74,6 +74,13 @@ abstract class IntegratedServerMixin {
 
         Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
         client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!shareCode.isRendezvous()) {
+            client.gui.hud.getChat().addClientSystemMessage(
+                Component.literal("Safra Error: ")
+                    .append(Component.translatable("safra.p2p.error.direct_fallback"))
+                    .withStyle(ChatFormatting.RED)
+            );
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.gui.hud.getChat().addClientSystemMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())

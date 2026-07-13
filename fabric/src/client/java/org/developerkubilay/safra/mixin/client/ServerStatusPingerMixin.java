@@ -17,7 +17,7 @@ abstract class ServerStatusPingerMixin {
     private void safra$skipP2pServerListPing(ServerData data, Runnable onPersistentDataChange,
                                              Runnable onPongResponse, EventLoopGroupHolder eventLoopGroupHolder,
                                              CallbackInfo ci) {
-        if (!P2pManager.isP2pStoredAddress(data.ip)) {
+        if (!P2pManager.isP2pConnectionAddress(data.ip)) {
             return;
         }
 

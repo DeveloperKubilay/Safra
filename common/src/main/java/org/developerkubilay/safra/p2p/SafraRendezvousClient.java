@@ -16,14 +16,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ConnectException;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocketHandshakeException;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -39,6 +43,7 @@ final class SafraRendezvousClient implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
     private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 350, 1000};
+    private static final int[] API_CONNECT_RETRY_DELAYS_MS = {0, 1_000, 10_000};
 
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
@@ -741,6 +746,10 @@ final class SafraRendezvousClient implements AutoCloseable {
 
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException;
 
+        default InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            return null;
+        }
+
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException;
 
         @Override
@@ -939,6 +948,10 @@ final class SafraRendezvousClient implements AutoCloseable {
             return backend.resolveVoice(publicEndpoints);
         }
 
+        InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            return backend.refreshDirect(publicEndpoints);
+        }
+
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
             return backend.requestRelayFallback(relayEndpoints);
         }
@@ -1101,13 +1114,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build();
 
-                HttpResponse<InputStream> response;
-                try {
-                    response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Safra host istegi kesildi", exception);
-                }
+                HttpResponse<InputStream> response = sendInputStream(httpRequest, "Safra host request was interrupted");
 
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     throw new IOException("Safra host istegi HTTP " + response.statusCode() + " dondu");
@@ -1138,14 +1145,20 @@ final class SafraRendezvousClient implements AutoCloseable {
             }
 
             private boolean reconnectEventStream() {
-                long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_RECONNECT_WINDOW_MS;
+                long reconnectStartedAt = System.currentTimeMillis();
                 int attempt = 0;
-                while (!closed && System.currentTimeMillis() < deadline) {
+                while (!closed) {
+                    long elapsedMs = System.currentTimeMillis() - reconnectStartedAt;
+                    long delayMs = attempt == 0
+                        ? P2pConstants.RENDEZVOUS_RECONNECT_FIRST_DELAY_MS
+                        : elapsedMs >= P2pConstants.RENDEZVOUS_RECONNECT_SLOW_AFTER_MS
+                            ? P2pConstants.RENDEZVOUS_RECONNECT_SLOW_DELAY_MS
+                            : P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS;
                     attempt++;
                     try {
-                        sleepQuietly(P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS);
+                        sleepQuietly(delayMs);
                         openEventStream(reconnectRequest());
-                        LOGGER.debug("Safra host event stream reconnected attempt={}", attempt);
+                        LOGGER.info("Safra host event stream reconnected attempt={}", attempt);
                         return true;
                     } catch (IOException exception) {
                         if (!closed) {
@@ -1154,12 +1167,6 @@ final class SafraRendezvousClient implements AutoCloseable {
                                 exception.toString());
                         }
                     }
-                }
-
-                if (!closed) {
-                    IOException exception = new IOException("Safra host event stream could not reconnect");
-                    codeFuture.completeExceptionally(exception);
-                    LOGGER.warn("Safra host event stream could not reconnect within 120 seconds");
                 }
                 return false;
             }
@@ -1260,7 +1267,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .build();
 
                 try {
-                    HttpResponse<InputStream> response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                    HttpResponse<InputStream> response = sendInputStream(httpRequest, "Safra host relay request was interrupted");
                     if (response.statusCode() < 200 || response.statusCode() >= 300) {
                         throw new IOException("Safra host relay istegi HTTP " + response.statusCode() + " dondu");
                     }
@@ -1269,8 +1276,6 @@ final class SafraRendezvousClient implements AutoCloseable {
                         while (!closed && reader.readLine() != null) {
                         }
                     }
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
                 } catch (IOException exception) {
                     if (!closed) {
                         LOGGER.warn("Safra host relay istegi patladi: {}", exception.toString());
@@ -1359,6 +1364,17 @@ final class SafraRendezvousClient implements AutoCloseable {
             }
 
             @Override
+            public InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+                InetSocketAddress endpoint = preferredEndpoint(publicEndpoints);
+                if (endpoint == null) {
+                    throw new IOException("Safra direct retry requires a STUN endpoint");
+                }
+                joinAddress = endpoint;
+                refreshHostState(endpoint);
+                return hostAddress;
+            }
+
+            @Override
             public ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
                 if (relayAddress != null) {
                     InetSocketAddress localRelayEndpoint = preferredEndpoint(relayEndpoints);
@@ -1376,13 +1392,7 @@ final class SafraRendezvousClient implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                     .build();
 
-                HttpResponse<InputStream> response;
-                try {
-                    response = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Safra relay istegi kesildi", exception);
-                }
+                HttpResponse<InputStream> response = sendInputStream(httpRequest, "Safra relay request was interrupted");
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     throw new IOException("Safra relay istegi HTTP " + response.statusCode() + " dondu");
                 }
@@ -1448,7 +1458,11 @@ final class SafraRendezvousClient implements AutoCloseable {
                     return;
                 }
 
-                JsonObject json = parseApi3Object(response.body(), "Safra join refresh cevabi gecersiz");
+                JsonObject json = parseApi3Object(response.body(), "Safra join refresh response is invalid");
+                InetSocketAddress refreshedHost = fromNetwork(array(json, "host"));
+                if (refreshedHost != null) {
+                    hostAddress = refreshedHost;
+                }
                 InetSocketAddress refreshedVoice = fromNetwork(array(json, "voiceHost"));
                 if (refreshedVoice != null) {
                     voiceAddress = refreshedVoice;
@@ -1484,12 +1498,57 @@ final class SafraRendezvousClient implements AutoCloseable {
         }
 
         private static HttpResponse<String> sendText(HttpRequest request) throws IOException {
-            try {
-                return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Safra istegi kesildi", exception);
+            return sendWithConnectRetry(request, HttpResponse.BodyHandlers.ofString(), "Safra request was interrupted");
+        }
+
+        private static HttpResponse<InputStream> sendInputStream(HttpRequest request, String interruptedMessage) throws IOException {
+            return sendWithConnectRetry(request, HttpResponse.BodyHandlers.ofInputStream(), interruptedMessage);
+        }
+
+        private static <T> HttpResponse<T> sendWithConnectRetry(HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler,
+                                                                 String interruptedMessage) throws IOException {
+            IOException lastFailure = null;
+            for (int attempt = 0; attempt < API_CONNECT_RETRY_DELAYS_MS.length; attempt++) {
+                int delayMs = API_CONNECT_RETRY_DELAYS_MS[attempt];
+                if (delayMs > 0) {
+                    try {
+                        Thread.sleep(delayMs);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException(interruptedMessage, exception);
+                    }
+                }
+
+                try {
+                    return HTTP_CLIENT.send(request, bodyHandler);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException(interruptedMessage, exception);
+                } catch (IOException exception) {
+                    lastFailure = exception;
+                    if (!isRetryableApiConnectFailure(exception) || attempt + 1 >= API_CONNECT_RETRY_DELAYS_MS.length) {
+                        throw exception;
+                    }
+                    LOGGER.warn("Safra API connection retry {}/{} for {} after {}", attempt + 1,
+                        API_CONNECT_RETRY_DELAYS_MS.length - 1, request.uri().getHost(), exception.toString());
+                }
             }
+
+            throw lastFailure == null ? new IOException("Safra API connection failed") : lastFailure;
+        }
+
+        private static boolean isRetryableApiConnectFailure(Throwable throwable) {
+            Throwable current = throwable;
+            while (current != null) {
+                if (current instanceof ConnectException
+                    || current instanceof UnknownHostException
+                    || current instanceof UnresolvedAddressException
+                    || current instanceof HttpConnectTimeoutException) {
+                    return true;
+                }
+                current = current.getCause();
+            }
+            return false;
         }
 
         private static JsonObject wrapIceServers(JsonObject turnCredentials) {

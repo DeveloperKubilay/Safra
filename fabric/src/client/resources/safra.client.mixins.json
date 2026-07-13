@@ -5,8 +5,10 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "ConnectScreenMixin",
+    "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
     "ManageServerScreenMixin",
+    "MinecraftLifecycleMixin",
     "MultiplayerScreenMixin",
     "ServerStatusPingerMixin",
     "OpenToLanScreenMixin"

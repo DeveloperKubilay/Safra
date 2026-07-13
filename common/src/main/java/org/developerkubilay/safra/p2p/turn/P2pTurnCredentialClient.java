@@ -69,6 +69,8 @@ public final class P2pTurnCredentialClient {
         }
 
         Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
+        Set<P2pTurnCredentials.TurnServer> tcpServers = new LinkedHashSet<>();
+        Set<P2pTurnCredentials.TurnServer> tlsServers = new LinkedHashSet<>();
         String username = "";
         String credential = "";
         for (JsonElement serverElement : iceServers) {
@@ -89,13 +91,13 @@ public final class P2pTurnCredentialClient {
                 continue;
             }
             if (urlsElement.isJsonPrimitive()) {
-                addUdpServer(urlsElement.getAsString(), udpServers);
+                addServer(urlsElement.getAsString(), udpServers, tcpServers, tlsServers);
                 continue;
             }
             if (urlsElement.isJsonArray()) {
                 for (JsonElement urlElement : urlsElement.getAsJsonArray()) {
                     if (urlElement != null && urlElement.isJsonPrimitive()) {
-                        addUdpServer(urlElement.getAsString(), udpServers);
+                        addServer(urlElement.getAsString(), udpServers, tcpServers, tlsServers);
                     }
                 }
             }
@@ -108,8 +110,12 @@ public final class P2pTurnCredentialClient {
             throw new IOException("TURN credential cevabinda UDP TURN sunucusu yok");
         }
 
+        addCloudflareStreamFallbacks(udpServers, tcpServers, tlsServers);
+
         return new P2pTurnCredentials(
             List.copyOf(udpServers),
+            List.copyOf(tcpServers),
+            List.copyOf(tlsServers),
             username,
             credential,
             integer(json.get("ttl"), P2pConstants.TURN_DEFAULT_CREDENTIAL_TTL_SECONDS)
@@ -133,7 +139,9 @@ public final class P2pTurnCredentialClient {
         return URI.create(scheme + "://" + baseUri.getAuthority() + "/v3/turn/credentials?" + query);
     }
 
-    private static void addUdpServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers) {
+    private static void addServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers,
+                                  Set<P2pTurnCredentials.TurnServer> tcpServers,
+                                  Set<P2pTurnCredentials.TurnServer> tlsServers) {
         if (rawUrl == null || rawUrl.isBlank()) {
             return;
         }
@@ -146,17 +154,12 @@ public final class P2pTurnCredentialClient {
         }
 
         String scheme = uri.getScheme();
-        if (!"turn".equalsIgnoreCase(scheme)) {
+        if (!"turn".equalsIgnoreCase(scheme) && !"turns".equalsIgnoreCase(scheme)) {
             return;
         }
 
         String query = uri.getQuery();
-        if (query != null && !query.isBlank()) {
-            String transport = queryParameter(query, "transport");
-            if (transport != null && !"udp".equalsIgnoreCase(transport)) {
-                return;
-            }
-        }
+        String transport = query == null || query.isBlank() ? null : queryParameter(query, "transport");
 
         String host = uri.getHost();
         int port = uri.getPort();
@@ -164,7 +167,28 @@ public final class P2pTurnCredentialClient {
             return;
         }
 
-        udpServers.add(new P2pTurnCredentials.TurnServer(host, port));
+        P2pTurnCredentials.TurnServer turnServer = new P2pTurnCredentials.TurnServer(host, port);
+        if ("turns".equalsIgnoreCase(scheme)) {
+            tlsServers.add(turnServer);
+        } else if ("tcp".equalsIgnoreCase(transport)) {
+            tcpServers.add(turnServer);
+        } else if (transport == null || "udp".equalsIgnoreCase(transport)) {
+            udpServers.add(turnServer);
+        }
+    }
+
+    private static void addCloudflareStreamFallbacks(Set<P2pTurnCredentials.TurnServer> udpServers,
+                                                       Set<P2pTurnCredentials.TurnServer> tcpServers,
+                                                       Set<P2pTurnCredentials.TurnServer> tlsServers) {
+        boolean cloudflare = udpServers.stream().anyMatch(server -> "turn.cloudflare.com".equalsIgnoreCase(server.host()));
+        if (!cloudflare) {
+            return;
+        }
+
+        tlsServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 443));
+        tlsServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 5349));
+        tcpServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 80));
+        tcpServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 3478));
     }
 
     private static String queryParameter(String query, String key) {
