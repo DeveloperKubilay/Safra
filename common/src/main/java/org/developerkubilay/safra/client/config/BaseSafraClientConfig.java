@@ -230,7 +230,7 @@ public abstract class BaseSafraClientConfig {
     }
 
     private static String normalizeRendezvousUrl(String rendezvousUrl) {
-        return P2pConstants.normalizeRendezvousUrl(rendezvousUrl);
+        return P2pConstants.isValidRendezvousUrl(rendezvousUrl) ? rendezvousUrl.trim() : "";
     }
 
     private static String normalizeSiteApiVersion(String siteApiVersion) {
