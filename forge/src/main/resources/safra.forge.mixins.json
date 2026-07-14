@@ -7,9 +7,11 @@
   "client": [
     "AddressCheckMixin",
     "ConnectScreenMixin",
+    "DisconnectedScreenMixin",
     "DirectJoinServerScreenMixin",
     "EditServerScreenMixin",
     "IntegratedServerMixin",
+    "MinecraftLifecycleMixin",
     "LanServerDetectorMixin",
     "JoinMultiplayerScreenMixin",
     "ServerStatusPingerMixin",

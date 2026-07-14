@@ -176,6 +176,13 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withInsertion(shareCodeText)
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("safra.p2p.copy_hint"))));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!shareCode.isRendezvous()) {
+            this.safra$addClientSystemMessage(
+                Component.literal("Safra Error: ")
+                    .append(Component.translatable("safra.p2p.error.direct_fallback"))
+                    .withStyle(ChatFormatting.RED)
+            );
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             this.safra$addClientSystemMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
@@ -187,6 +194,21 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
         this.minecraft.getNarrator().sayNow(Component.translatable("safra.p2p.host.narration", shareText));
+        this.safra$startBedrockRelay();
+    }
+
+    @Unique
+    private void safra$startBedrockRelay() {
+        P2pManager.getInstance().startBedrockRelay(
+            address -> this.minecraft.execute(() -> {
+                this.safra$addClientSystemMessage(Component.translatable("safra.bedrock.host.started", address).copy().withStyle(ChatFormatting.AQUA));
+                IntegratedServer server = this.minecraft.getSingleplayerServer();
+                if (server != null && !server.getPlayerList().isUsingWhitelist()) {
+                    this.safra$addClientSystemMessage(Component.translatable("safra.bedrock.whitelist_warning").copy().withStyle(ChatFormatting.RED));
+                }
+            }),
+            () -> this.minecraft.execute(() -> this.safra$addClientSystemMessage(Component.translatable("safra.bedrock.host.unavailable").copy().withStyle(ChatFormatting.YELLOW)))
+        );
     }
 
     @Unique

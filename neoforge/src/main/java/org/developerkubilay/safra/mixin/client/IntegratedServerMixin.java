@@ -75,6 +75,9 @@ abstract class IntegratedServerMixin {
 
         Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!shareCode.isRendezvous()) {
+            client.gui.getChat().addMessage(Component.literal("Safra Error: ").append(Component.translatable("safra.p2p.error.direct_fallback")).withStyle(ChatFormatting.RED));
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.gui.getChat().addMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).copy().withStyle(ChatFormatting.YELLOW)
@@ -83,6 +86,20 @@ abstract class IntegratedServerMixin {
 
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.instructions"));
+        safra$startBedrockRelay(client);
+    }
+
+    private static void safra$startBedrockRelay(Minecraft client) {
+        P2pManager.getInstance().startBedrockRelay(
+            address -> client.execute(() -> {
+                client.gui.getChat().addMessage(Component.translatable("safra.bedrock.host.started", address).copy().withStyle(ChatFormatting.AQUA));
+                IntegratedServer server = client.getSingleplayerServer();
+                if (server != null && !server.getPlayerList().isUsingWhitelist()) {
+                    client.gui.getChat().addMessage(Component.translatable("safra.bedrock.whitelist_warning").copy().withStyle(ChatFormatting.RED));
+                }
+            }),
+            () -> client.execute(() -> client.gui.getChat().addMessage(Component.translatable("safra.bedrock.host.unavailable").copy().withStyle(ChatFormatting.YELLOW)))
+        );
     }
 
     private static void safra$publishStartFailure(Minecraft client, int tcpPort, Throwable throwable) {

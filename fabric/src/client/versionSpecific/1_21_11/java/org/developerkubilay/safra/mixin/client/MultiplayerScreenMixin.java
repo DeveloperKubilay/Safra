@@ -1,6 +1,8 @@
 package org.developerkubilay.safra.mixin.client;
 
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,7 +14,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
-import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
@@ -27,14 +28,15 @@ abstract class MultiplayerScreenMixin {
 
     @Inject(method = "join", at = @At("HEAD"), cancellable = true)
     private void safra$rewriteP2pBeforeVanillaParse(ServerData serverInfo, CallbackInfo ci) {
-        if (serverInfo == null || !P2pManager.isP2pStoredAddress(serverInfo.ip)) {
+        if (serverInfo == null || !P2pManager.isP2pConnectionAddress(serverInfo.ip)) {
             return;
         }
 
         JoinMultiplayerScreen self = (JoinMultiplayerScreen) (Object) this;
-        ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStartNoAbort(Component.translatable("connect.connecting"));
-        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        P2pConnectingScreen progressScreen = new P2pConnectingScreen(
+            this.lastScreen,
+            () -> P2pManager.getInstance().cancelPendingRewrite()
+        );
         Minecraft.getInstance().setScreenAndShow(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             Minecraft.getInstance().execute(() -> {
@@ -46,11 +48,10 @@ abstract class MultiplayerScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     Minecraft.getInstance().setScreenAndShow(new DisconnectedScreen(
                         this.lastScreen,
                         Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        P2pErrorComponents.preparationFailure(cause)
                     ));
                     return;
                 }
