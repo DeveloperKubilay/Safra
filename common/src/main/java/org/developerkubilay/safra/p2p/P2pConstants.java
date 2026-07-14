@@ -14,7 +14,7 @@ public final class P2pConstants {
     static final int TCP_BUFFER_SIZE = 256 * 1024;
     static final long MAINTENANCE_TICK_MS = 25L;
     static final long OPEN_RESEND_MS = 500L;
-    static final long DIRECT_OPEN_FALLBACK_MS = 5_000L;
+    static final long DIRECT_OPEN_FALLBACK_MS = 10_000L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
