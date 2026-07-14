@@ -6,6 +6,8 @@
   "client": [
     "AddServerScreenMixin",
     "ConnectScreenMixin",
+    "DisconnectedScreenMixin",
+    "MinecraftLifecycleMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",
     "OpenToLanScreenMixin",

@@ -43,6 +43,15 @@ public final class DedicatedP2pServerManager {
             LOGGER.info("Safra P2P dedicated server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
             ConsoleShareCodePrinter.printDedicatedShareCodeIfSupported(shareCodeText);
             LOGGER.info("Players should use Direct Connect, enable P2P, and paste this code.");
+            hostService.startBedrockRelay(
+                address -> {
+                    LOGGER.info("Safra Bedrock server started: {}", address);
+                    if (!server.getPlayerList().isUsingWhitelist()) {
+                        LOGGER.warn("Safra: Enable the whitelist for your security.");
+                    }
+                },
+                () -> LOGGER.warn("Safra Bedrock relay servers are currently full")
+            );
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P dedicated server could not start on local TCP port {}", tcpPort, exception);
         }

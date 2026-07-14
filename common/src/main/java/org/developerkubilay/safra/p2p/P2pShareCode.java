@@ -43,19 +43,70 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
         return address != null && address.toLowerCase(Locale.ROOT).startsWith(P2pConstants.ADDRESS_SCHEME);
     }
 
+    public static String toDisplayAddress(String address) {
+        if (address == null) {
+            return "";
+        }
+
+        String normalized = address.trim();
+        if (isStoredAddress(normalized)) {
+            normalized = normalized.substring(P2pConstants.ADDRESS_SCHEME.length());
+        }
+        String defaultPortSuffix = ":25565";
+        if (!normalized.contains("#") && normalized.endsWith(defaultPortSuffix)) {
+            normalized = normalized.substring(0, normalized.length() - defaultPortSuffix.length());
+        }
+        return normalized;
+    }
+
+    public static boolean isLegacyDisplayAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+
+        String normalizedCode = normalizeRendezvousCode(address);
+        if (normalizedCode != null
+            && (normalizedCode.length() == DEFAULT_RENDEZVOUS_CODE_LENGTH
+                || normalizedCode.length() == FIXED_RENDEZVOUS_CODE_LENGTH)) {
+            return true;
+        }
+
+        if (!address.contains("#")) {
+            return false;
+        }
+        try {
+            return !parse(address).isRendezvous();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
     public static P2pShareCode parse(String rawAddress) {
         if (rawAddress == null) {
             throw new IllegalArgumentException("address is null");
         }
 
         String normalized = rawAddress.trim();
-        if (normalized.toLowerCase(Locale.ROOT).startsWith(P2pConstants.ADDRESS_SCHEME)) {
+        boolean storedAddress = normalized.toLowerCase(Locale.ROOT).startsWith(P2pConstants.ADDRESS_SCHEME);
+        if (storedAddress) {
             normalized = normalized.substring(P2pConstants.ADDRESS_SCHEME.length());
         }
 
         String rendezvousCode = normalizeRendezvousCode(normalized);
         if (rendezvousCode != null) {
             return rendezvous(rendezvousCode);
+        }
+
+        if (storedAddress && !normalized.contains("#")) {
+            String defaultPortSuffix = ":25565";
+            String candidate = normalized.endsWith(defaultPortSuffix)
+                ? normalized.substring(0, normalized.length() - defaultPortSuffix.length())
+                : normalized;
+            rendezvousCode = normalizeRendezvousCode(candidate);
+            if (rendezvousCode != null) {
+                return rendezvous(rendezvousCode);
+            }
+            throw new IllegalArgumentException("session not found");
         }
 
         String endpointPart = normalized;

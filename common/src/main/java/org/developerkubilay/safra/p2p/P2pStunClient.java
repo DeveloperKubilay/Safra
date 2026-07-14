@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 final class P2pStunClient {
-    private static final int DISCOVERY_TIMEOUT_MS = 2_500;
     private static final int BINDING_REQUEST = 0x0001;
     private static final int BINDING_SUCCESS_RESPONSE = 0x0101;
     private static final int MAPPED_ADDRESS = 0x0001;
@@ -30,16 +29,31 @@ final class P2pStunClient {
     private final SecureRandom random = new SecureRandom();
 
     Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket) {
+        return discoverCandidates(socket, null);
+    }
+
+    Map<String, DiscoveredEndpoint> discoverIpv4Candidates(DatagramSocket socket) {
+        return discoverCandidates(socket, "ipv4");
+    }
+
+    private Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket, String requiredFamily) {
         Map<String, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
         for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
-            List<PendingRequest> pendingRequests = requestCandidates(socket, serverGroup);
+            List<PendingRequest> pendingRequests = requestCandidates(socket, serverGroup, requiredFamily);
             if (pendingRequests.isEmpty()) {
                 continue;
             }
 
-            collectResponses(socket, pendingRequests, DISCOVERY_TIMEOUT_MS, discovered);
-            if (!discovered.isEmpty()) {
-                return discovered;
+            for (int attempt = 0; attempt < P2pConstants.STUN_DISCOVERY_ATTEMPTS; attempt++) {
+                if (attempt > 0) {
+                    resendCandidates(socket, pendingRequests);
+                }
+
+                int responseWaitMs = P2pConstants.STUN_INITIAL_RETRY_MS << attempt;
+                collectResponses(socket, pendingRequests, responseWaitMs, discovered);
+                if (!discovered.isEmpty()) {
+                    return discovered;
+                }
             }
         }
         return discovered;
@@ -59,10 +73,26 @@ final class P2pStunClient {
         return pendingRequests;
     }
 
+    private void resendCandidates(DatagramSocket socket, List<PendingRequest> pendingRequests) {
+        for (PendingRequest pendingRequest : pendingRequests) {
+            try {
+                sendBindingRequest(socket, pendingRequest.server(), pendingRequest.transactionId());
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
     List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery) {
+        return requestCandidates(socket, serversToQuery, null);
+    }
+
+    private List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery, String requiredFamily) {
         List<PendingRequest> pendingRequests = new ArrayList<>();
         for (String serverSpec : serversToQuery) {
             for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
+                if (requiredFamily != null && !requiredFamily.equals(P2pSockets.addressFamily(server))) {
+                    continue;
+                }
                 try {
                     byte[] transactionId = new byte[12];
                     random.nextBytes(transactionId);

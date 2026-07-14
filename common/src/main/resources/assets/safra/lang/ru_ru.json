@@ -2,6 +2,11 @@
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Пример: ABC123",
   "safra.p2p.prepare_failed": "Не удалось подготовить прокси Safra P2P: %s",
+  "safra.p2p.error.rate_limited": "Слишком много попыток. Подождите 10 секунд и попробуйте снова.",
+  "safra.p2p.error.server_busy": "Серверы сейчас переполнены. Попробуйте позже.",
+  "safra.p2p.error.session_not_found": "Для этого кода сейчас нет открытого сервера.",
+  "safra.p2p.error.invalid_session": "Владелец сервера должен отключить онлайн-режим в настройках сервера Safra.",
+  "safra.p2p.error.direct_fallback": "Не удалось связаться с сервером. Причиной может быть VPN, WARP или мобильный интернет.",
   "safra.p2p.button.on": "P2P: ВКЛ",
   "safra.p2p.button.off": "P2P: ВЫКЛ",
   "safra.p2p.online_mode.on": "Сетевой режим: ВКЛ",
@@ -28,5 +33,8 @@
   "safra.p2p.server_settings.short": "Настройки",
   "safra.p2p.server_list_motd": "P2P-server Safra",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Сервер Safra Bedrock запущен: %s",
+  "safra.bedrock.host.unavailable": "Safra: Наши серверы полностью заполнены, поэтому сервер Bedrock открыть невозможно.",
+  "safra.bedrock.whitelist_warning": "Safra: Включите белый список для безопасности."
 }
