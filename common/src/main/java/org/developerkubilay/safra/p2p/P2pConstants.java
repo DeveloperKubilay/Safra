@@ -83,7 +83,8 @@ public final class P2pConstants {
     }
 
     public static void setRuntimeRendezvousUrl(String url) {
-        runtimeRendezvousUrl = isValidRendezvousUrl(url) ? url.trim() : null;
+        String normalized = normalizeRendezvousUrl(url);
+        runtimeRendezvousUrl = normalized.isBlank() ? null : normalized;
     }
 
     public static void applyDefaultRendezvousUrlIfAbsent() {
@@ -189,6 +190,20 @@ public final class P2pConstants {
         }
 
         return false;
+    }
+
+    public static String normalizeRendezvousUrl(String url) {
+        if (!isValidRendezvousUrl(url)) {
+            return "";
+        }
+
+        String normalized = url.trim();
+        String host = java.net.URI.create(normalized).getHost();
+        if ("betav.randdcodes.com".equalsIgnoreCase(host)
+            || "betavsafra.randdcodes.com".equalsIgnoreCase(host)) {
+            return DEFAULT_RENDEZVOUS_URL;
+        }
+        return normalized;
     }
 
     static long diagnosticsSummaryMs() {
