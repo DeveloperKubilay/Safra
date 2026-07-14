@@ -33,5 +33,8 @@
   "safra.p2p.server_settings.short": "설정",
   "safra.p2p.server_list_motd": "Safra P2P server",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Safra Bedrock 서버 시작됨: %s",
+  "safra.bedrock.host.unavailable": "Safra: 서버가 모두 가득 차서 Bedrock 서버를 열 수 없습니다.",
+  "safra.bedrock.whitelist_warning": "Safra: 보안을 위해 화이트리스트를 활성화하세요."
 }

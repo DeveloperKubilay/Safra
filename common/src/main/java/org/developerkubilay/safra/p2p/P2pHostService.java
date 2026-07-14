@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public final class P2pHostService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostService.class);
@@ -34,6 +35,7 @@ public final class P2pHostService implements AutoCloseable {
     private volatile P2pDatagramTransport relayFallbackTransport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
+    private SafraBedrockRelayHost bedrockRelayHost;
     private volatile boolean primaryTransportRelay;
     private volatile boolean closed;
 
@@ -140,6 +142,15 @@ public final class P2pHostService implements AutoCloseable {
         return tcpPort;
     }
 
+    public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {
+        if (closed || bedrockRelayHost != null || rendezvousSession == null || !P2pConstants.useApi30Rendezvous()
+            || !P2pOptionalIntegrations.isGeyserAvailable()) {
+            return;
+        }
+        bedrockRelayHost = new SafraBedrockRelayHost(rendezvousSession.code(), readyHandler, unavailableHandler);
+        bedrockRelayHost.start();
+    }
+
     @Override
     public void close() {
         if (closed) {
@@ -149,6 +160,10 @@ public final class P2pHostService implements AutoCloseable {
         connections.values().forEach(ReliableTunnelConnection::close);
         connections.clear();
         scheduler.shutdownNow();
+        if (bedrockRelayHost != null) {
+            bedrockRelayHost.close();
+            bedrockRelayHost = null;
+        }
         if (rendezvousSession != null) {
             SafraVoiceTransportManager.getInstance().clearHostSession(rendezvousSession);
             rendezvousSession.close();
