@@ -70,7 +70,7 @@ final class SafraBedrockRelayHost implements AutoCloseable {
                 return;
             }
 
-            readyHandler.accept(displayAddress(relayAddress));
+            readyHandler.accept(displayAddress(relayRequest.host(), relayRequest.port()));
             scheduler.scheduleAtFixedRate(this::sendHeartbeat, HOST_HEARTBEAT_SECONDS, HOST_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
             scheduler.scheduleAtFixedRate(this::removeIdlePlayers, 30, 30, TimeUnit.SECONDS);
             receiveRelayPackets(socket);
@@ -218,9 +218,9 @@ final class SafraBedrockRelayHost implements AutoCloseable {
         return new InetSocketAddress(address, listener.port());
     }
 
-    private String displayAddress(InetSocketAddress address) {
-        String host = address.getAddress().getHostAddress();
-        return host.contains(":") ? "[" + host + "]:" + address.getPort() : host + ":" + address.getPort();
+    private String displayAddress(String relayHost, int relayPort) {
+        String host = stripBrackets(relayHost);
+        return host.contains(":") ? "[" + host + "]:" + relayPort : host + ":" + relayPort;
     }
 
     private String stripBrackets(String host) {
