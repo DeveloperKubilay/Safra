@@ -33,5 +33,8 @@
   "safra.p2p.server_settings.short": "Настройки",
   "safra.p2p.server_list_motd": "P2P-server Safra",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Сервер Safra Bedrock запущен: %s",
+  "safra.bedrock.host.unavailable": "Safra: Наши серверы полностью заполнены, поэтому сервер Bedrock открыть невозможно.",
+  "safra.bedrock.whitelist_warning": "Safra: Включите белый список для безопасности."
 }

@@ -33,5 +33,8 @@
   "safra.p2p.server_settings.short": "Ayarlar",
   "safra.p2p.server_list_motd": "Safra P2P sunucusu",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "Safra modunun daha guncel bir surumu var: %s"
+  "safra.p2p.host.update_available": "Safra modunun daha guncel bir surumu var: %s",
+  "safra.bedrock.host.started": "Safra Bedrock sunucusu başlatıldı: %s",
+  "safra.bedrock.host.unavailable": "Safra: Sunucularımız tamamen dolu, Bedrock sunucusu açılamıyor.",
+  "safra.bedrock.whitelist_warning": "Safra: Güvenliğiniz için beyaz listeyi açın."
 }

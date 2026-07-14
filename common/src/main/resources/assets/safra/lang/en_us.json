@@ -33,5 +33,8 @@
   "safra.p2p.server_settings.reset": "Reset Game Rules",
   "safra.p2p.online_mode.short.on": "Online: ON",
   "safra.p2p.server_settings.short": "Settings",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Safra Bedrock server started: %s",
+  "safra.bedrock.host.unavailable": "Safra: Our servers are completely full, so a Bedrock server cannot be opened.",
+  "safra.bedrock.whitelist_warning": "Safra: Enable the whitelist for your security."
 }
