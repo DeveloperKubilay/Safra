@@ -202,7 +202,9 @@ if (config.BEDROCK_SERVERS && config.BEDROCK_SERVERS.length > 0) {
             return res.send({ ok: false });
         }
     });
-}
+} else app.post("/bedrock-request", (req, res) => {
+    return res.send({ ok: false });
+});
 
 app.post("/session-join", async (req, res) => {
     const networkValidation = networkControl(req.body.network);

@@ -8,5 +8,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "elenora": "^1.1.2"
   }
 }
