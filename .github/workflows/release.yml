@@ -3,20 +3,13 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      release_scope:
-        description: Release scope
+      version:
+        description: Minecraft version
         required: true
         default: all
         type: choice
         options:
           - all
-          - single
-      mc_version:
-        description: Minecraft version for single release mode
-        required: true
-        default: 1.21.11
-        type: choice
-        options:
           - 1.21
           - 1.21.1
           - 1.21.2
@@ -51,7 +44,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.release_scope }}-${{ github.event.inputs.mc_version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
   cancel-in-progress: false
 
 jobs:
@@ -61,7 +54,6 @@ jobs:
       versions_json: ${{ steps.prepare.outputs.versions_json }}
       release_tag: ${{ steps.prepare.outputs.release_tag }}
       release_title: ${{ steps.prepare.outputs.release_title }}
-      release_scope: ${{ steps.prepare.outputs.release_scope }}
       release_versions_label: ${{ steps.prepare.outputs.release_versions_label }}
       version_number: ${{ steps.prepare.outputs.version_number }}
       build_mode: ${{ steps.prepare.outputs.build_mode }}
@@ -71,8 +63,7 @@ jobs:
         id: prepare
         shell: bash
         run: |
-          release_scope="${{ github.event.inputs.release_scope }}"
-          mc_version="${{ github.event.inputs.mc_version }}"
+          selected_version="${{ github.event.inputs.version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
           supported_versions='["1.21","1.21.1","1.21.2","1.21.3","1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11"]'
@@ -91,16 +82,16 @@ jobs:
             exit 1
           fi
 
-          if [[ "$release_scope" == "all" ]]; then
+          if [[ "$selected_version" == "all" ]]; then
             versions_json="$supported_versions"
             release_tag="Safra-1.21.x-$version_number"
             release_title="Safra 1.21.x-$version_number"
             release_versions_label="1.21.x"
           else
-            versions_json="[\"$mc_version\"]"
-            release_tag="Safra-$mc_version-$version_number"
-            release_title="Safra $mc_version-$version_number"
-            release_versions_label="$mc_version"
+            versions_json="[\"$selected_version\"]"
+            release_tag="Safra-$selected_version-$version_number"
+            release_title="Safra $selected_version-$version_number"
+            release_versions_label="$selected_version"
           fi
 
           if [[ "$build_mode" != "off" ]]; then
@@ -112,7 +103,6 @@ jobs:
             echo "versions_json=$versions_json"
             echo "release_tag=$release_tag"
             echo "release_title=$release_title"
-            echo "release_scope=$release_scope"
             echo "release_versions_label=$release_versions_label"
             echo "version_number=$version_number"
             echo "build_mode=$build_mode"
