@@ -21,18 +21,9 @@ public final class P2pRuntime {
     }
 
     public static Thread start(String name, Runnable runnable) {
-        try {
-            Object builder = Thread.class.getMethod("ofVirtual").invoke(null);
-            Object namedBuilder = builder.getClass().getMethod("name", String.class).invoke(builder, name);
-            Object thread = namedBuilder.getClass().getMethod("start", Runnable.class).invoke(namedBuilder, runnable);
-            if (thread instanceof Thread) {
-                return (Thread) thread;
-            }
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-        }
-
         Thread thread = new Thread(runnable, name);
         thread.setDaemon(true);
+        thread.setPriority(Thread.NORM_PRIORITY + 1);
         thread.start();
         return thread;
     }
@@ -41,6 +32,7 @@ public final class P2pRuntime {
         return runnable -> {
             Thread thread = new Thread(runnable, "safra-p2p-scheduler-" + THREAD_COUNTER.incrementAndGet());
             thread.setDaemon(true);
+            thread.setPriority(Thread.NORM_PRIORITY + 1);
             return thread;
         };
     }
