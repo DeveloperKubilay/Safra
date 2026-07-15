@@ -36,6 +36,7 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     sourceCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
     targetCompatibility = JavaVersion.toVersion(targetJavaVersion).toString()
+    options.release = targetJavaVersion
 }
 
 minecraft {

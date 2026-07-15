@@ -28,5 +28,12 @@
   "safra.p2p.server_settings.short": "Ayarlar",
   "safra.p2p.server_list_motd": "Safra P2P sunucusu",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "Safra modunun daha guncel bir surumu var: %s"
+  "safra.p2p.host.update_available": "Safra modunun daha guncel bir surumu var: %s",
+  "safra.p2p.prepare_message": "Safra P2P baglantisi hazirlaniyor...",
+  "safra.p2p.prepare_failed": "Safra P2P proxy hazirlanamadi: %s",
+  "safra.p2p.error.rate_limited": "Cok fazla deneme yapildi. 10 saniye bekleyip tekrar dene.",
+  "safra.p2p.error.server_busy": "Sunucular su an dolu. Daha sonra tekrar dene.",
+  "safra.p2p.error.session_not_found": "Bu kod icin acik bir sunucu yok.",
+  "safra.p2p.error.invalid_session": "Sunucu sahibi Safra ayarlarindan Online Mode'u kapatmali.",
+  "safra.p2p.error.direct_fallback": "Sunucuyla iletisim kurulamadi. VPN, WARP veya mobil veri buna neden oluyor olabilir."
 }

@@ -24,7 +24,7 @@ final class P2pUdpBindingFactory {
     static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort, boolean allowRelayFallback) throws IOException {
 
         try {
-            return createDirectHostBinding(stunClient, preferredPort);
+            return createDirectHostBinding(logger, stunClient, preferredPort);
         } catch (IOException exception) {
             if (P2pConstants.useApi30Rendezvous()) {
                 logger.debug("Safra host STUN acilamadi, relay-required akisi denenecek: {}", exception.toString());
@@ -41,7 +41,7 @@ final class P2pUdpBindingFactory {
     static P2pTransportBinding createBestJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
 
         try {
-            return createDirectJoinBinding(stunClient);
+            return createDirectJoinBinding(logger, stunClient);
         } catch (IOException exception) {
             if (P2pConstants.useApi30Rendezvous()) {
                 logger.debug("Safra join STUN acilamadi, relay-required akisi denenecek: {}", exception.toString());
@@ -76,35 +76,34 @@ final class P2pUdpBindingFactory {
         );
     }
 
-    private static P2pTransportBinding createDirectHostBinding(P2pStunClient stunClient, int preferredPort) throws IOException {
-        DatagramSocket socket = bindSocket(preferredPort);
+    private static P2pTransportBinding createDirectHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort) throws IOException {
         boolean success = false;
         try {
-            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
-            if (discovered.isEmpty()) {
-                throw new IOException("STUN ile genel UDP ucu bulunamadi");
-            }
-            success = true;
-            return new P2pTransportBinding(
-                new P2pDirectDatagramTransport(socket),
-                P2pStunClient.publicEndpoints(discovered),
-                java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<String, P2pStunClient.DiscoveredEndpoint>(discovered)),
-                false
-            );
-        } finally {
-            if (!success) {
-                socket.close();
-            }
+            return createDirectBinding(bindIpv4Socket(preferredPort), stunClient, true, "STUN ile IPv4 UDP ucu bulunamadi");
+        } catch (IOException exception) {
+            logger.info("Safra IPv4 STUN basarisiz, genel STUN deneniyor: {}", exception.toString());
         }
+        return createDirectBinding(bindSocket(preferredPort), stunClient, false, "STUN ile genel UDP ucu bulunamadi");
     }
 
-    private static P2pTransportBinding createDirectJoinBinding(P2pStunClient stunClient) throws IOException {
-        DatagramSocket socket = P2pSockets.datagramSocket();
+    static P2pTransportBinding createDirectJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
+        try {
+            return createDirectBinding(P2pSockets.ipv4DatagramSocket(), stunClient, true, "STUN ile IPv4 joiner ucu bulunamadi");
+        } catch (IOException exception) {
+            logger.info("Safra IPv4 STUN basarisiz, genel STUN deneniyor: {}", exception.toString());
+        }
+        return createDirectBinding(P2pSockets.datagramSocket(), stunClient, false, "STUN ile joiner genel UDP ucu bulunamadi");
+    }
+
+    private static P2pTransportBinding createDirectBinding(DatagramSocket socket, P2pStunClient stunClient,
+                                                            boolean ipv4Only, String failureMessage) throws IOException {
         boolean success = false;
         try {
-            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
+            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = ipv4Only
+                ? stunClient.discoverIpv4Candidates(socket)
+                : stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {
-                throw new IOException("STUN ile joiner genel UDP ucu bulunamadi");
+                throw new IOException(failureMessage);
             }
             success = true;
             return new P2pTransportBinding(
@@ -128,6 +127,14 @@ final class P2pUdpBindingFactory {
         }
     }
 
+    private static DatagramSocket bindIpv4Socket(int preferredPort) throws IOException {
+        try {
+            return P2pSockets.ipv4DatagramSocket(preferredPort);
+        } catch (BindException ignored) {
+            return P2pSockets.ipv4DatagramSocket();
+        }
+    }
+
     private static P2pTransportBinding createLocalHostBinding(int preferredPort) throws IOException {
         DatagramSocket socket = bindSocket(preferredPort);
         return new P2pTransportBinding(
@@ -139,10 +146,10 @@ final class P2pUdpBindingFactory {
     }
 
     private static P2pTransportBinding createLocalJoinBinding() throws IOException {
-        DatagramSocket socket = P2pSockets.datagramSocket();
+        DatagramSocket socket = P2pSockets.ipv4DatagramSocket();
         return new P2pTransportBinding(
             new P2pDirectDatagramTransport(socket),
-            java.util.Collections.<InetSocketAddress>emptyList(),
+            java.util.Collections.singletonList(new InetSocketAddress(P2pSockets.ipv4WildcardAddress(), socket.getLocalPort())),
             java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
             false
         );

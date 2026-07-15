@@ -40,7 +40,8 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        if (config.getRendezvousUrl().trim().isEmpty() && !P2pConstants.hasExplicitRendezvousUrlOverride()) {
+        if (!P2pConstants.hasExplicitRendezvousUrlOverride()
+            && !P2pConstants.DEFAULT_RENDEZVOUS_URL.equals(config.getRendezvousUrl())) {
             config.setRendezvousUrl(P2pConstants.DEFAULT_RENDEZVOUS_URL);
         }
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());

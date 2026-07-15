@@ -21,6 +21,9 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Locale;
@@ -125,6 +128,8 @@ final class SafraRendezvousClient {
         int hostTcpPort();
 
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException;
+
+        InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException;
 
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException;
 
@@ -269,14 +274,20 @@ final class SafraRendezvousClient {
         }
 
         private boolean reconnectEventStream() {
-            long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_RECONNECT_WINDOW_MS;
+            long reconnectStartedAt = System.currentTimeMillis();
             int attempt = 0;
-            while (!closed && System.currentTimeMillis() < deadline) {
+            while (!closed) {
+                long elapsedMs = System.currentTimeMillis() - reconnectStartedAt;
+                long delayMs = attempt == 0
+                    ? P2pConstants.RENDEZVOUS_RECONNECT_FIRST_DELAY_MS
+                    : elapsedMs >= P2pConstants.RENDEZVOUS_RECONNECT_SLOW_AFTER_MS
+                        ? P2pConstants.RENDEZVOUS_RECONNECT_SLOW_DELAY_MS
+                        : P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS;
                 attempt++;
-                sleepQuietly(P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS);
+                sleepQuietly(delayMs);
                 try {
                     openEventStream(reconnectRequest());
-                    LOGGER.debug("Safra host event stream reconnected attempt={}", attempt);
+                    LOGGER.info("Safra host event stream reconnected attempt={}", attempt);
                     return true;
                 } catch (IOException exception) {
                     if (!closed) {
@@ -287,11 +298,6 @@ final class SafraRendezvousClient {
                 }
             }
 
-            if (!closed) {
-                IOException exception = new IOException("Safra host event stream could not reconnect");
-                codeFuture.completeExceptionally(exception);
-                LOGGER.warn("Safra host event stream could not reconnect within 120 seconds");
-            }
             return false;
         }
 
@@ -580,6 +586,17 @@ final class SafraRendezvousClient {
         public void close() {
         }
 
+        @Override
+        public InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            InetSocketAddress endpoint = preferredEndpoint(publicEndpoints);
+            if (endpoint == null) {
+                throw new IOException("Safra direct retry requires a STUN endpoint");
+            }
+            joinAddress = endpoint;
+            refreshHostState(endpoint);
+            return hostAddress;
+        }
+
         private void refreshHostState(InetSocketAddress endpoint) throws IOException {
             if (endpoint == null) {
                 return;
@@ -703,6 +720,10 @@ final class SafraRendezvousClient {
             return backend.resolveVoice(publicEndpoints);
         }
 
+        InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            return backend.refreshDirect(publicEndpoints);
+        }
+
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
             return backend.requestRelayFallback(relayEndpoints);
         }
@@ -771,7 +792,42 @@ final class SafraRendezvousClient {
     }
 
     private static Response send(Request request) throws IOException {
-        return HTTP_CLIENT.newCall(request).execute();
+        IOException lastFailure = null;
+        int[] retryDelays = {0, 1_000, 10_000};
+        for (int attempt = 0; attempt < retryDelays.length; attempt++) {
+            int delayMs = retryDelays[attempt];
+            if (delayMs > 0) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Safra API request was interrupted", exception);
+                }
+            }
+            try {
+                return HTTP_CLIENT.newCall(request).execute();
+            } catch (IOException exception) {
+                lastFailure = exception;
+                if (!isRetryableConnectFailure(exception) || attempt + 1 >= retryDelays.length) {
+                    throw exception;
+                }
+                LOGGER.warn("Safra API connection retry {}/{} for {} after {}", attempt + 1,
+                    retryDelays.length - 1, request.url().host(), exception.toString());
+            }
+        }
+        throw lastFailure == null ? new IOException("Safra API connection failed") : lastFailure;
+    }
+
+    private static boolean isRetryableConnectFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ConnectException || current instanceof UnknownHostException
+                || current instanceof SocketTimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static JsonObject wrapIceServers(JsonObject turnCredentials) {

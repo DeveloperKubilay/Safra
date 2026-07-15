@@ -174,7 +174,7 @@ public final class P2pHostService implements AutoCloseable {
         }
 
         LOGGER.debug("Safra P2P host punching UDP endpoint {}", remoteAddress);
-        long[] delays = {0L, 100L, 250L, 500L, 1_000L};
+        long[] delays = {0L, 100L, 250L, 500L, 1_000L, 2_000L, 4_000L, 7_000L};
         for (long delay : delays) {
             try {
                 scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.ack(token, 0, 0), remoteAddress), delay, TimeUnit.MILLISECONDS);
@@ -251,6 +251,10 @@ public final class P2pHostService implements AutoCloseable {
 
             ReliableTunnelConnection connection = connections.get(packet.connectionId());
             if (connection != null) {
+                if (activeTransport == relayFallbackTransport) {
+                    connection.updateRoute(remoteAddress,
+                        (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress));
+                }
                 connection.handlePacket(packet);
             }
         }
@@ -268,6 +272,8 @@ public final class P2pHostService implements AutoCloseable {
     private void handleOpen(P2pPacket packet, InetSocketAddress remoteAddress, P2pDatagramTransport activeTransport) {
         ReliableTunnelConnection existing = connections.get(packet.connectionId());
         if (existing != null) {
+            existing.updateRoute(remoteAddress,
+                (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress));
             existing.sendOpenAck();
             return;
         }
@@ -285,11 +291,14 @@ public final class P2pHostService implements AutoCloseable {
                 (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress),
                 connections::remove,
                 scheduler,
-                false
+                false,
+                null
             );
             ReliableTunnelConnection raced = connections.putIfAbsent(packet.connectionId(), connection);
             if (raced != null) {
                 tcpSocket.close();
+                raced.updateRoute(remoteAddress,
+                    (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress));
                 raced.sendOpenAck();
                 return;
             }
@@ -341,6 +350,7 @@ public final class P2pHostService implements AutoCloseable {
             relayFallbackTransport = relayBinding.transport();
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());
+            LOGGER.info("Safra host TURN fallback hazir: {}", preferredEndpoint(relayBinding.publicEndpoints()));
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }

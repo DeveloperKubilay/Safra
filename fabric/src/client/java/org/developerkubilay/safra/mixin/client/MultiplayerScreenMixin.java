@@ -10,6 +10,8 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,9 +34,10 @@ abstract class MultiplayerScreenMixin {
             return;
         }
 
-        ProgressScreen progressScreen = new ProgressScreen();
-        progressScreen.method_15412(new TranslatableText("connect.connecting"));
-        progressScreen.method_15413(new TranslatableText("safra.p2p.prepare_message"));
+        P2pConnectingScreen progressScreen = new P2pConnectingScreen(
+            this.parent,
+            () -> P2pManager.getInstance().cancelPendingRewrite()
+        );
         MinecraftClient.getInstance().openScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             MinecraftClient.getInstance().execute(() -> {
@@ -46,9 +49,8 @@ abstract class MultiplayerScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     MinecraftClient.getInstance().openScreen(
-                        this.safra$createDisconnectedScreen(new TranslatableText("safra.p2p.prepare_failed", message))
+                        this.safra$createDisconnectedScreen(P2pErrorComponents.preparationFailure(cause))
                     );
                     return;
                 }

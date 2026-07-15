@@ -29,4 +29,11 @@
   "safra.p2p.server_list_motd": "P2P-server Safra",
   "safra.p2p.server_list_status": "P2P",
   "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  ,"safra.p2p.prepare_message": "Preparing the Safra P2P connection...",
+  "safra.p2p.prepare_failed": "Safra P2P proxy could not be prepared: %s",
+  "safra.p2p.error.rate_limited": "Too many attempts. Wait 10 seconds and try again.",
+  "safra.p2p.error.server_busy": "The servers are currently full. Please try again later.",
+  "safra.p2p.error.session_not_found": "There is currently no open server for this code.",
+  "safra.p2p.error.invalid_session": "The server owner must disable Online Mode in Safra's server settings.",
+  "safra.p2p.error.direct_fallback": "Could not communicate with the server."
 }

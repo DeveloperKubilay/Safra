@@ -10,6 +10,8 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -27,11 +29,8 @@ abstract class JoinMultiplayerScreenMixin {
         }
 
         Minecraft client = Minecraft.getInstance();
-        WorkingScreen progressScreen = new WorkingScreen();
-        progressScreen.displaySavingString(new TranslationTextComponent("connect.connecting"));
-        progressScreen.displayLoadingString(new TranslationTextComponent("safra.p2p.prepare_message"));
-        client.displayGuiScreen(progressScreen);
         Screen currentScreen = (Screen) (Object) this;
+        client.displayGuiScreen(new P2pConnectingScreen(currentScreen, () -> P2pManager.getInstance().cancelPendingRewrite()));
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
@@ -41,8 +40,7 @@ abstract class JoinMultiplayerScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    client.displayGuiScreen(safra$createDisconnectedScreen(currentScreen, message));
+                    client.displayGuiScreen(safra$createDisconnectedScreen(currentScreen, P2pErrorComponents.preparationFailure(cause)));
                     return;
                 }
 
@@ -52,9 +50,8 @@ abstract class JoinMultiplayerScreenMixin {
         ci.cancel();
     }
 
-    private static Screen safra$createDisconnectedScreen(Screen parent, String message) {
+    private static Screen safra$createDisconnectedScreen(Screen parent, ITextComponent reason) {
         TranslationTextComponent title = new TranslationTextComponent("connect.failed");
-        TranslationTextComponent reason = new TranslationTextComponent("safra.p2p.prepare_failed", message);
         try {
             return DisconnectedScreen.class
                 .getConstructor(Screen.class, ITextComponent.class, ITextComponent.class)
