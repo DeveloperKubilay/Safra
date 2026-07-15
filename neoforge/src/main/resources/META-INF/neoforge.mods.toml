@@ -26,3 +26,9 @@ type="required"
 versionRange="${minecraft_version_range}"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.${mod_id}]]
+modId="geyser_neoforge"
+type="optional"
+ordering="AFTER"
+side="BOTH"
