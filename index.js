@@ -181,13 +181,14 @@ if (config.BEDROCK_SERVERS && config.BEDROCK_SERVERS.length > 0) {
         bedrockLatestServer++;
 
         try {
+            const hostip = session.host?.[0] === 'ipv4' ? session.host[1] : req.ip;
             const response = await fetch(`${server}/create-session`, {
                 method: 'POST',
                 headers: {
                     authorization: `Bearer ${process.env.BEDROCK_PASSWORD}`,
                     'content-type': 'application/json'
                 },
-                body: JSON.stringify({ hostip: req.ip })
+                body: JSON.stringify({ hostip })
             });
             const data = await response.json();
             if (!response.ok) {
