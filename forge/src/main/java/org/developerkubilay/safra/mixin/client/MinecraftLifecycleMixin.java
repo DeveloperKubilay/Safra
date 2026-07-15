@@ -10,8 +10,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Minecraft.class)
 abstract class MinecraftLifecycleMixin {
-    @Inject(method = "disconnect", at = @At("HEAD"))
+    @Inject(method = "clearClientLevel", at = @At("HEAD"))
     private void safra$closeP2pOnWorldExit(Screen screen, CallbackInfo ci) {
-        P2pManager.getInstance().shutdown();
+        Minecraft minecraft = (Minecraft) (Object) this;
+        if (minecraft.level != null || minecraft.getSingleplayerServer() != null) {
+            P2pManager.getInstance().shutdown();
+        }
     }
 }
