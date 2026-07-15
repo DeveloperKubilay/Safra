@@ -224,6 +224,27 @@ abstract class ShareToLanScreenMixin extends Screen {
 
         safra$addSystemMessage(Component.translatable("safra.p2p.host.copied"));
         safra$addSystemMessage(Component.translatable("safra.p2p.host.instructions"));
+        safra$startBedrockRelay();
+    }
+
+    @Unique
+    private void safra$startBedrockRelay() {
+        P2pManager.getInstance().startBedrockRelay(
+            address -> this.minecraft.execute(() -> {
+                safra$addSystemMessage(
+                    Component.translatable("safra.bedrock.host.started", address).copy().withStyle(ChatFormatting.AQUA)
+                );
+                IntegratedServer server = this.minecraft.getSingleplayerServer();
+                if (server != null && !server.getPlayerList().isUsingWhitelist()) {
+                    safra$addSystemMessage(
+                        Component.translatable("safra.bedrock.whitelist_warning").copy().withStyle(ChatFormatting.RED)
+                    );
+                }
+            }),
+            () -> this.minecraft.execute(() -> safra$addSystemMessage(
+                Component.translatable("safra.bedrock.host.unavailable").copy().withStyle(ChatFormatting.YELLOW)
+            ))
+        );
     }
 
     @Unique

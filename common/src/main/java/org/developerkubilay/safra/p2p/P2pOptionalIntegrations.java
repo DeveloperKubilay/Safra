@@ -6,6 +6,7 @@ public final class P2pOptionalIntegrations {
 
     private static volatile Boolean voiceChatAvailable;
     private static volatile Boolean geyserAvailable;
+    private static volatile Class<?> geyserApiClass;
 
     private P2pOptionalIntegrations() {
     }
@@ -36,7 +37,7 @@ public final class P2pOptionalIntegrations {
 
         boolean available;
         try {
-            Class.forName(GEYSER_API_CLASS, false, P2pOptionalIntegrations.class.getClassLoader());
+            geyserApiClass(false);
             available = true;
         } catch (ClassNotFoundException exception) {
             available = false;
@@ -46,13 +47,18 @@ public final class P2pOptionalIntegrations {
         return available;
     }
 
+    public static void setGeyserApiClass(Class<?> apiClass) {
+        geyserApiClass = apiClass;
+        geyserAvailable = null;
+    }
+
     public static GeyserListener geyserListener() {
         if (!isGeyserAvailable()) {
             return null;
         }
 
         try {
-            Class<?> apiClass = Class.forName(GEYSER_API_CLASS);
+            Class<?> apiClass = geyserApiClass(true);
             Object api = apiClass.getMethod("api").invoke(null);
             if (api == null) {
                 return null;
@@ -75,6 +81,14 @@ public final class P2pOptionalIntegrations {
         } catch (ReflectiveOperationException | RuntimeException exception) {
             return null;
         }
+    }
+
+    private static Class<?> geyserApiClass(boolean initialize) throws ClassNotFoundException {
+        Class<?> apiClass = geyserApiClass;
+        if (apiClass != null) {
+            return apiClass;
+        }
+        return Class.forName(GEYSER_API_CLASS, initialize, P2pOptionalIntegrations.class.getClassLoader());
     }
 
     public record GeyserListener(String address, int port) {
