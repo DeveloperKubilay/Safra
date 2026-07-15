@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MinecraftClient.class)
 abstract class MinecraftLifecycleMixin {
-    @Inject(method = "disconnect", at = @At("HEAD"))
+    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screen/Screen;)V", at = @At("HEAD"))
     private void safra$closeP2pOnWorldExit(Screen screen, CallbackInfo ci) {
         MinecraftClient minecraft = (MinecraftClient) (Object) this;
         if (minecraft.world != null || minecraft.getServer() != null) {
