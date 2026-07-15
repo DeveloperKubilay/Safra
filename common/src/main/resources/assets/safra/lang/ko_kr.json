@@ -2,6 +2,11 @@
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "예시: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P 프록시를 준비하지 못했습니다: %s",
+  "safra.p2p.error.rate_limited": "시도 횟수가 너무 많습니다. 10초 후 다시 시도하세요.",
+  "safra.p2p.error.server_busy": "현재 서버가 가득 찼습니다. 나중에 다시 시도해 주세요.",
+  "safra.p2p.error.session_not_found": "현재 이 코드로 열려 있는 서버가 없습니다.",
+  "safra.p2p.error.invalid_session": "서버 소유자가 Safra 서버 설정에서 온라인 모드를 꺼야 합니다.",
+  "safra.p2p.error.direct_fallback": "서버와 통신하지 못했습니다. VPN, WARP 또는 모바일 데이터가 원인일 수 있습니다.",
   "safra.p2p.button.on": "P2P: 켜짐",
   "safra.p2p.button.off": "P2P: 꺼짐",
   "safra.p2p.online_mode.on": "온라인 모드: 켜짐",
@@ -28,5 +33,8 @@
   "safra.p2p.server_settings.short": "설정",
   "safra.p2p.server_list_motd": "Safra P2P server",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Safra Bedrock 서버 시작됨: %s",
+  "safra.bedrock.host.unavailable": "Safra: 서버가 모두 가득 차서 Bedrock 서버를 열 수 없습니다.",
+  "safra.bedrock.whitelist_warning": "Safra: 보안을 위해 화이트리스트를 활성화하세요."
 }

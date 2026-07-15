@@ -3,13 +3,14 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
-import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -29,10 +30,7 @@ abstract class ConnectScreenMixin {
             return;
         }
 
-        ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStart(ForgeClientCompat.translatable("connect.connecting"));
-        progressScreen.progressStage(ForgeClientCompat.translatable("safra.p2p.prepare_message"));
-        client.setScreen(progressScreen);
+        client.setScreen(new P2pConnectingScreen(parent, P2pManager.getInstance()::cancelPendingRewrite));
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
@@ -43,11 +41,10 @@ abstract class ConnectScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     client.setScreen(new DisconnectedScreen(
                         parent,
                         ForgeClientCompat.translatable("connect.failed"),
-                        ForgeClientCompat.translatable("safra.p2p.prepare_failed", message)
+                        P2pErrorComponents.preparationFailure(cause)
                     ));
                     return;
                 }

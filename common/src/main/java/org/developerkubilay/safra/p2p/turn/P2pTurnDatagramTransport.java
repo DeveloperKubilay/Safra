@@ -6,10 +6,17 @@ import org.developerkubilay.safra.p2p.P2pSockets;
 import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
 import org.slf4j.Logger;
 
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -29,8 +36,13 @@ import java.util.concurrent.TimeoutException;
 public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private final Logger logger;
     private final String role;
-    private final DatagramSocket socket;
+    private final DatagramSocket datagramSocket;
+    private final Socket streamSocket;
+    private final InputStream streamInput;
+    private final OutputStream streamOutput;
     private final InetSocketAddress serverAddress;
+    private final String clientTransport;
+    private final Object sendMonitor = new Object();
     private final SecureRandom random = new SecureRandom();
     private final BlockingQueue<ReceivedDatagram> incoming = new LinkedBlockingQueue<>();
     private final Map<String, CompletableFuture<P2pTurnMessage>> pendingTransactions = new ConcurrentHashMap<>();
@@ -45,18 +57,43 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private volatile String nonce = "";
     private volatile ScheduledFuture<?> refreshTask;
 
-    private P2pTurnDatagramTransport(Logger logger, String role, DatagramSocket socket, InetSocketAddress serverAddress,
-                                     String username, String credential) {
+    private P2pTurnDatagramTransport(Logger logger, String role, DatagramSocket datagramSocket, Socket streamSocket,
+                                     InetSocketAddress serverAddress, String clientTransport,
+                                     String username, String credential) throws IOException {
         this.logger = logger;
         this.role = role;
-        this.socket = socket;
+        this.datagramSocket = datagramSocket;
+        this.streamSocket = streamSocket;
+        this.streamInput = streamSocket == null ? null : streamSocket.getInputStream();
+        this.streamOutput = streamSocket == null ? null : streamSocket.getOutputStream();
         this.serverAddress = serverAddress;
+        this.clientTransport = clientTransport;
         this.username = username;
         this.credential = credential;
     }
 
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
+        for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tlsServers(), 443)) {
+            try {
+                P2pTurnDatagramTransport transport = openStream(logger, role, credentials, server, true);
+                logger.info("Safra TURN {} transport active via TLS: {}", role, server.host() + ":" + server.port());
+                return transport;
+            } catch (IOException exception) {
+                failures.add("tls://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
+            }
+        }
+
+        for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tcpServers(), 80)) {
+            try {
+                P2pTurnDatagramTransport transport = openStream(logger, role, credentials, server, false);
+                logger.info("Safra TURN {} transport active via TCP: {}", role, server.host() + ":" + server.port());
+                return transport;
+            } catch (IOException exception) {
+                failures.add("tcp://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
+            }
+        }
+
         for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
             DatagramSocket socket = P2pSockets.datagramSocket();
             InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
@@ -66,12 +103,14 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     logger,
                     role,
                     socket,
+                    null,
                     serverAddress,
+                    "UDP",
                     credentials.username(),
                     credentials.credential()
                 );
                 transport.start(credentials.ttlSeconds());
-                logger.debug("Safra TURN {} relay aktif {} uzerinden {}", role, transport.relayAddress, serverAddress);
+                logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
                 socket.close();
@@ -79,7 +118,53 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             }
         }
 
-        throw new IOException("Could not open TURN relay: " + String.join(" | ", failures));
+        throw new IOException("TURN relay could not be opened: " + String.join(" | ", failures));
+    }
+
+    private static List<P2pTurnCredentials.TurnServer> preferPort(List<P2pTurnCredentials.TurnServer> servers, int preferredPort) {
+        List<P2pTurnCredentials.TurnServer> ordered = new ArrayList<>(servers);
+        ordered.sort((left, right) -> Boolean.compare(left.port() != preferredPort, right.port() != preferredPort));
+        return ordered;
+    }
+
+    private static P2pTurnDatagramTransport openStream(Logger logger, String role, P2pTurnCredentials credentials,
+                                                         P2pTurnCredentials.TurnServer server, boolean tls) throws IOException {
+        InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+        Socket socket = new Socket();
+        boolean success = false;
+        try {
+            socket.connect(serverAddress, P2pConstants.TURN_REQUEST_TIMEOUT_MS);
+            socket.setTcpNoDelay(true);
+            socket.setKeepAlive(true);
+            if (tls) {
+                SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault())
+                    .createSocket(socket, server.host(), server.port(), true);
+                SSLParameters parameters = sslSocket.getSSLParameters();
+                parameters.setEndpointIdentificationAlgorithm("HTTPS");
+                parameters.setApplicationProtocols(new String[]{"stun.turn"});
+                sslSocket.setSSLParameters(parameters);
+                sslSocket.startHandshake();
+                socket = sslSocket;
+            }
+
+            P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
+                logger,
+                role,
+                null,
+                socket,
+                serverAddress,
+                tls ? "TLS" : "TCP",
+                credentials.username(),
+                credentials.credential()
+            );
+            transport.start(credentials.ttlSeconds());
+            success = true;
+            return transport;
+        } finally {
+            if (!success) {
+                socket.close();
+            }
+        }
     }
 
     public InetSocketAddress relayAddress() {
@@ -124,24 +209,24 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         ensurePermission(remoteAddress);
         byte[] payload = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
         byte[] indication = P2pTurnProtocol.buildSendIndication(random, remoteAddress, payload);
-        synchronized (socket) {
-            socket.send(new DatagramPacket(indication, indication.length));
-        }
+        sendBytes(indication);
     }
 
     @Override
     public int getLocalPort() {
-        return socket.getLocalPort();
+        return datagramSocket != null ? datagramSocket.getLocalPort() : streamSocket.getLocalPort();
     }
 
     @Override
     public SocketAddress getLocalSocketAddress() {
-        return socket.getLocalSocketAddress();
+        return datagramSocket != null ? datagramSocket.getLocalSocketAddress() : streamSocket.getLocalSocketAddress();
     }
 
     @Override
     public boolean isClosed() {
-        return closed || socket.isClosed();
+        return closed
+            || (datagramSocket != null && datagramSocket.isClosed())
+            || (streamSocket != null && streamSocket.isClosed());
     }
 
     @Override
@@ -155,8 +240,16 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             task.cancel(false);
         }
         scheduler.shutdownNow();
-        socket.close();
-        pendingTransactions.values().forEach(future -> future.completeExceptionally(new IOException("TURN transport was closed")));
+        if (datagramSocket != null) {
+            datagramSocket.close();
+        }
+        if (streamSocket != null) {
+            try {
+                streamSocket.close();
+            } catch (IOException ignored) {
+            }
+        }
+        pendingTransactions.values().forEach(future -> future.completeExceptionally(new IOException("TURN transport is closed")));
         pendingTransactions.clear();
         incoming.clear();
     }
@@ -225,19 +318,17 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private void receiveLoop() {
-        byte[] buffer = new byte[65535];
         while (!closed) {
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            P2pTurnMessage message;
             try {
-                socket.receive(packet);
+                message = receiveMessage();
             } catch (IOException exception) {
                 if (!closed) {
-                    logger.debug("TURN UDP receive failed: {}", exception.toString());
+                    logger.warn("Safra TURN {} receive failed over {}: {}", role, clientTransport, exception.toString());
                 }
                 return;
             }
 
-            P2pTurnMessage message = P2pTurnMessage.parse(packet.getData(), packet.getLength());
             if (message == null) {
                 continue;
             }
@@ -255,6 +346,52 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             if (future != null) {
                 future.complete(message);
             }
+        }
+    }
+
+    private P2pTurnMessage receiveMessage() throws IOException {
+        if (datagramSocket != null) {
+            byte[] buffer = new byte[65535];
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            datagramSocket.receive(packet);
+            return P2pTurnMessage.parse(packet.getData(), packet.getLength());
+        }
+
+        byte[] header = readFully(P2pTurnProtocol.STUN_HEADER_SIZE);
+        if ((header[0] & 0xC0) != 0) {
+            throw new IOException("TURN stream returned an unsupported channel frame");
+        }
+        int bodyLength = ((header[2] & 0xFF) << 8) | (header[3] & 0xFF);
+        if (bodyLength < 0 || bodyLength > 65515) {
+            throw new IOException("TURN stream returned an invalid message length");
+        }
+        byte[] encoded = Arrays.copyOf(header, P2pTurnProtocol.STUN_HEADER_SIZE + bodyLength);
+        byte[] body = readFully(bodyLength);
+        System.arraycopy(body, 0, encoded, P2pTurnProtocol.STUN_HEADER_SIZE, bodyLength);
+        return P2pTurnMessage.parse(encoded, encoded.length);
+    }
+
+    private byte[] readFully(int length) throws IOException {
+        byte[] data = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            int read = streamInput.read(data, offset, length - offset);
+            if (read < 0) {
+                throw new EOFException("TURN stream closed");
+            }
+            offset += read;
+        }
+        return data;
+    }
+
+    private void sendBytes(byte[] bytes) throws IOException {
+        synchronized (sendMonitor) {
+            if (datagramSocket != null) {
+                datagramSocket.send(new DatagramPacket(bytes, bytes.length));
+                return;
+            }
+            streamOutput.write(bytes);
+            streamOutput.flush();
         }
     }
 
@@ -314,7 +451,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         String newRealm = response.stringAttribute(P2pTurnProtocol.ATTR_REALM);
         String newNonce = response.stringAttribute(P2pTurnProtocol.ATTR_NONCE);
         if (newRealm.isBlank() || newNonce.isBlank()) {
-            throw new IOException("TURN auth challenge returned missing realm or nonce");
+            throw new IOException("TURN auth challenge returned missing realm/nonce");
         }
 
         realm = newRealm;
@@ -328,9 +465,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         pendingTransactions.put(key, future);
 
         try {
-            synchronized (socket) {
-                socket.send(new DatagramPacket(requestBytes, requestBytes.length));
-            }
+            sendBytes(requestBytes);
             return future.get(P2pConstants.TURN_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

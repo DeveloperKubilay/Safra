@@ -7,8 +7,10 @@
     "AddServerScreenMixin",
     "ClickableWidgetAccessor",
     "ConnectScreenMixin",
+    "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",
+    "MinecraftLifecycleMixin",
     "OpenToLanScreenMixin",
     "ServerStatusPingerMixin"
   ],

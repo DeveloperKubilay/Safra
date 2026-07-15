@@ -7,10 +7,12 @@
   "client": [
     "AbstractWidgetAccessor",
     "ConnectScreenMixin",
+    "DisconnectedScreenMixin",
     "DirectJoinServerScreenMixin",
     "EditServerScreenMixin",
     "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
+    "MinecraftLifecycleMixin",
     "ServerStatusPingerMixin",
     "ShareToLanScreenMixin"
   ],

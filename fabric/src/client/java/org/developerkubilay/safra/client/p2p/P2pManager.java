@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.server.integrated.IntegratedServer;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.P2pHostService;
@@ -19,6 +20,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
@@ -31,6 +33,8 @@ public final class P2pManager {
     private volatile P2pClientProxy startingClientProxy;
     private volatile P2pClientProxy activeClientProxy;
     private volatile CompletableFuture<RewriteResult> rewriteFuture;
+    private boolean pendingClientFailureContext;
+    private boolean pendingDirectShareFailureContext;
     private long hostStartGeneration;
     private long rewriteGeneration;
 
@@ -169,6 +173,8 @@ public final class P2pManager {
             if (rewriteGeneration != generation) {
                 throw new CancellationException("Safra P2P connection prepare was canceled");
             }
+            pendingClientFailureContext = false;
+            pendingDirectShareFailureContext = false;
             startingClientProxy = proxy;
         }
         int localPort;
@@ -193,6 +199,8 @@ public final class P2pManager {
             startingClientProxy = null;
             activeClientProxy = proxy;
             rewriteFuture = null;
+            pendingClientFailureContext = true;
+            pendingDirectShareFailureContext = !shareCode.isRendezvous();
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
@@ -204,6 +212,14 @@ public final class P2pManager {
     public synchronized void shutdown() {
         stopHosting();
         cancelPendingRewriteInternal();
+        pendingClientFailureContext = false;
+        pendingDirectShareFailureContext = false;
+    }
+
+    public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {
+        if (hostService != null) {
+            hostService.startBedrockRelay(readyHandler, unavailableHandler);
+        }
     }
 
     public void tick(MinecraftClient client) {
@@ -241,6 +257,11 @@ public final class P2pManager {
         return P2pShareCode.normalizeRendezvousCode(address) != null;
     }
 
+    public static boolean isP2pConnectionAddress(String address) {
+        return isP2pStoredAddress(address)
+            || SafraClientConfig.get().isDirectConnectP2pEnabled() && P2pShareCode.isLegacyDisplayAddress(address);
+    }
+
     public static boolean isValidP2pAddress(String address) {
         try {
             P2pShareCode.parse(address);
@@ -255,7 +276,19 @@ public final class P2pManager {
     }
 
     public static String toDisplayAddress(String address) {
-        return P2pShareCode.parse(address).toDisplayCode();
+        return P2pShareCode.toDisplayAddress(address);
+    }
+
+    private boolean activeClientUsesDirectShareAddress() {
+        return activeClientProxy != null && !activeClientProxy.usesRendezvousShareCode();
+    }
+
+    public synchronized ClientFailureContext consumeClientFailureContext() {
+        boolean p2p = pendingClientFailureContext || activeClientProxy != null;
+        boolean direct = pendingDirectShareFailureContext || activeClientUsesDirectShareAddress();
+        pendingClientFailureContext = false;
+        pendingDirectShareFailureContext = false;
+        return new ClientFailureContext(p2p, direct);
     }
 
     private void cancelPendingRewriteInternal() {
@@ -278,5 +311,8 @@ public final class P2pManager {
     }
 
     public record RewriteResult(ServerAddress serverAddress, ServerInfo serverInfo) {
+    }
+
+    public record ClientFailureContext(boolean p2p, boolean directShareAddress) {
     }
 }

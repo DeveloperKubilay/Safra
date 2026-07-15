@@ -3,12 +3,13 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ConnectScreen;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
-import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.network.ServerInfo;
 import org.developerkubilay.safra.client.FabricScreenCompat;
 import org.developerkubilay.safra.client.p2p.FabricClientCompat;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,10 +33,7 @@ abstract class MultiplayerScreenMixin {
             return;
         }
 
-        ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.setTitle(FabricClientCompat.translatable("connect.connecting"));
-        progressScreen.setTask(FabricClientCompat.translatable("safra.p2p.prepare_message"));
-        FabricScreenCompat.open(MinecraftClient.getInstance(), progressScreen);
+        FabricScreenCompat.open(MinecraftClient.getInstance(), new P2pConnectingScreen(this.parent, P2pManager.getInstance()::cancelPendingRewrite));
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             MinecraftClient.getInstance().execute(() -> {
                 if (throwable != null) {
@@ -46,11 +44,10 @@ abstract class MultiplayerScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     FabricScreenCompat.open(MinecraftClient.getInstance(), new DisconnectedScreen(
                         this.parent,
                         FabricClientCompat.translatable("connect.failed"),
-                        FabricClientCompat.translatable("safra.p2p.prepare_failed", message)
+                        P2pErrorComponents.preparationFailure(cause)
                     ));
                     return;
                 }

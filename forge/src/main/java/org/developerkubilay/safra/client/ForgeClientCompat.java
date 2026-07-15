@@ -47,6 +47,25 @@ public final class ForgeClientCompat {
         }
     }
 
+    public static Component append(Component first, Component second) {
+        try {
+            for (Method method : first.getClass().getMethods()) {
+                if (!method.getName().equals("append") || method.getParameterCount() != 1) {
+                    continue;
+                }
+                if (!method.getParameterTypes()[0].isAssignableFrom(second.getClass())) {
+                    continue;
+                }
+                Object result = method.invoke(first, second);
+                if (result instanceof Component component) {
+                    return component;
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return literal(first.getString() + second.getString());
+    }
+
     private static Method findStaticFactoryMethod(Class<?>... parameterTypes) {
         for (Method method : Component.class.getMethods()) {
             if (!Modifier.isStatic(method.getModifiers())

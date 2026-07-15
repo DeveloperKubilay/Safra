@@ -22,6 +22,7 @@ import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
+import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -233,6 +234,30 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.copied"));
         this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.instructions"));
         FabricClientCompat.narrate(this.client, FabricClientCompat.translatable("safra.p2p.host.narration", shareText));
+        this.safra$startBedrockRelay();
+    }
+
+    @Unique
+    private void safra$startBedrockRelay() {
+        if (!SafraBuildInfo.minecraftVersion().startsWith("1.19")) {
+            return;
+        }
+        P2pManager.getInstance().startBedrockRelay(
+            address -> this.client.execute(() -> {
+                this.client.inGameHud.getChatHud().addMessage(
+                    FabricClientCompat.translatable("safra.bedrock.host.started", address).formatted(Formatting.AQUA)
+                );
+                IntegratedServer server = this.client.getServer();
+                if (server != null && !server.getPlayerManager().isWhitelistEnabled()) {
+                    this.client.inGameHud.getChatHud().addMessage(
+                        FabricClientCompat.translatable("safra.bedrock.whitelist_warning").formatted(Formatting.RED)
+                    );
+                }
+            }),
+            () -> this.client.execute(() -> this.client.inGameHud.getChatHud().addMessage(
+                FabricClientCompat.translatable("safra.bedrock.host.unavailable").formatted(Formatting.YELLOW)
+            ))
+        );
     }
 
     @Unique

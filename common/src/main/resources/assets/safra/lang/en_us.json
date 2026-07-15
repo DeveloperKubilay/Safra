@@ -2,6 +2,11 @@
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Example: ABC123",
   "safra.p2p.prepare_failed": "Safra P2P proxy could not be prepared: %s",
+  "safra.p2p.error.rate_limited": "Too many attempts. Wait 10 seconds and try again.",
+  "safra.p2p.error.server_busy": "The servers are currently full. Please try again later.",
+  "safra.p2p.error.session_not_found": "There is currently no open server for this code.",
+  "safra.p2p.error.invalid_session": "The server owner must disable Online Mode in Safra's server settings.",
+  "safra.p2p.error.direct_fallback": "Could not communicate with the server. A VPN, WARP, or mobile data connection may be causing this.",
   "safra.p2p.button.on": "P2P: ON",
   "safra.p2p.button.off": "P2P: OFF",
   "safra.p2p.online_mode.on": "Online Mode: ON",
@@ -28,5 +33,8 @@
   "safra.p2p.server_settings.reset": "Reset Game Rules",
   "safra.p2p.online_mode.short.on": "Online: ON",
   "safra.p2p.server_settings.short": "Settings",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Safra Bedrock server started: %s",
+  "safra.bedrock.host.unavailable": "Safra: Our servers are completely full, so a Bedrock server cannot be opened.",
+  "safra.bedrock.whitelist_warning": "Safra: Enable the whitelist for your security."
 }

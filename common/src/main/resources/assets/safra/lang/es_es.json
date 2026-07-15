@@ -2,6 +2,11 @@
   "safra.p2p.toggle": "P2P",
   "safra.p2p.placeholder": "Ejemplo: ABC123",
   "safra.p2p.prepare_failed": "No se pudo preparar el proxy P2P de Safra: %s",
+  "safra.p2p.error.rate_limited": "Demasiados intentos. Espera 10 segundos y vuelve a intentarlo.",
+  "safra.p2p.error.server_busy": "Los servidores están llenos en este momento. Inténtalo de nuevo más tarde.",
+  "safra.p2p.error.session_not_found": "Actualmente no hay ningún servidor abierto para este código.",
+  "safra.p2p.error.invalid_session": "El propietario del servidor debe desactivar el modo en línea en los ajustes del servidor de Safra.",
+  "safra.p2p.error.direct_fallback": "No se pudo establecer comunicación con el servidor. Una VPN, WARP o los datos móviles pueden ser la causa.",
   "safra.p2p.button.on": "P2P: ACTIVADO",
   "safra.p2p.button.off": "P2P: DESACTIVADO",
   "safra.p2p.online_mode.on": "Modo en línea: ACTIVADO",
@@ -28,5 +33,8 @@
   "safra.p2p.server_settings.short": "Ajustes",
   "safra.p2p.server_list_motd": "Servidor P2P de Safra",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.bedrock.host.started": "Servidor Bedrock de Safra iniciado: %s",
+  "safra.bedrock.host.unavailable": "Safra: Nuestros servidores están completamente llenos y no se puede abrir un servidor Bedrock.",
+  "safra.bedrock.whitelist_warning": "Safra: Activa la lista blanca por tu seguridad."
 }
