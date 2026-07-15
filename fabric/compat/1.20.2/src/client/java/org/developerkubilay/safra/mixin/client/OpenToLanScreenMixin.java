@@ -185,6 +185,27 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.copied"));
         this.client.inGameHud.getChatHud().addMessage(Text.translatable("safra.p2p.host.instructions"));
         this.client.getNarratorManager().narrateSystemMessage(Text.translatable("safra.p2p.host.narration", shareText));
+        this.safra$startBedrockRelay();
+    }
+
+    @Unique
+    private void safra$startBedrockRelay() {
+        P2pManager.getInstance().startBedrockRelay(
+            address -> this.client.execute(() -> {
+                this.client.inGameHud.getChatHud().addMessage(
+                    Text.translatable("safra.bedrock.host.started", address).copy().formatted(Formatting.AQUA)
+                );
+                IntegratedServer server = this.client.getServer();
+                if (server != null && !server.getPlayerManager().isWhitelistEnabled()) {
+                    this.client.inGameHud.getChatHud().addMessage(
+                        Text.translatable("safra.bedrock.whitelist_warning").copy().formatted(Formatting.RED)
+                    );
+                }
+            }),
+            () -> this.client.execute(() -> this.client.inGameHud.getChatHud().addMessage(
+                Text.translatable("safra.bedrock.host.unavailable").copy().formatted(Formatting.YELLOW)
+            ))
+        );
     }
 
     @Unique

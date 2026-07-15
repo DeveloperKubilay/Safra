@@ -90,6 +90,25 @@ abstract class IntegratedServerMixin {
 
         safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.copied"));
         safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.instructions"));
+        safra$startBedrockRelay(client);
+    }
+
+    private static void safra$startBedrockRelay(Minecraft client) {
+        P2pManager.getInstance().startBedrockRelay(
+            address -> client.execute(() -> {
+                safra$pushClientMessage(client, ForgeComponentCompat.style(
+                    ForgeComponentCompat.translatable("safra.bedrock.host.started", address), ChatFormatting.AQUA));
+                Object server = safra$call(client, new Class<?>[0], new Object[0], "getSingleplayerServer", "m_91092_");
+                Object playerList = server == null ? null
+                    : safra$call(server, new Class<?>[0], new Object[0], "getPlayerList", "m_6846_");
+                if (playerList != null && !safra$callBooleanGetter(playerList, "isUsingWhitelist", "m_11315_")) {
+                    safra$pushClientMessage(client, ForgeComponentCompat.style(
+                        ForgeComponentCompat.translatable("safra.bedrock.whitelist_warning"), ChatFormatting.RED));
+                }
+            }),
+            () -> client.execute(() -> safra$pushClientMessage(client, ForgeComponentCompat.style(
+                ForgeComponentCompat.translatable("safra.bedrock.host.unavailable"), ChatFormatting.YELLOW)))
+        );
     }
 
     private static void safra$publishStartFailure(Minecraft client, int tcpPort, Throwable throwable) {
