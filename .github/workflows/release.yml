@@ -3,20 +3,13 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      release_scope:
-        description: Release scope
+      version:
+        description: Minecraft version
         required: true
         default: all
         type: choice
         options:
           - all
-          - single
-      mc_version:
-        description: Minecraft version for single release mode
-        required: true
-        default: 1.17.1
-        type: choice
-        options:
           - 1.17
           - 1.17.1
           - 1.18
@@ -49,7 +42,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.release_scope }}-${{ github.event.inputs.mc_version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
   cancel-in-progress: false
 
 jobs:
@@ -68,8 +61,7 @@ jobs:
         id: prepare
         shell: bash
         run: |
-          release_scope="${{ github.event.inputs.release_scope }}"
-          mc_version="${{ github.event.inputs.mc_version }}"
+          selected_version="${{ github.event.inputs.version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
           supported_versions='["1.17","1.17.1","1.18","1.18.1","1.18.2","1.19","1.19.1","1.19.2","1.19.3","1.19.4"]'
@@ -88,16 +80,16 @@ jobs:
             exit 1
           fi
 
-          if [[ "$release_scope" == "all" ]]; then
+          if [[ "$selected_version" == "all" ]]; then
             versions_json="$supported_versions"
             release_tag="Safra-1.17.x-1.19.x-$version_number"
             release_title="Safra 1.17.x-1.19.x-$version_number"
             release_versions_label="1.17.x-1.19.x"
           else
-            versions_json="[\"$mc_version\"]"
-            release_tag="Safra-$mc_version-$version_number"
-            release_title="Safra $mc_version-$version_number"
-            release_versions_label="$mc_version"
+            versions_json="[\"$selected_version\"]"
+            release_tag="Safra-$selected_version-$version_number"
+            release_title="Safra $selected_version-$version_number"
+            release_versions_label="$selected_version"
           fi
 
           if [[ "$build_mode" != "off" ]]; then

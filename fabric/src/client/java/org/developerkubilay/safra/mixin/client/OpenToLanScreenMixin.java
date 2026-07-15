@@ -225,6 +225,13 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, FabricClientCompat.translatable("safra.p2p.copy_hint"))));
         this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.started", shareText));
+        if (!shareCode.isRendezvous()) {
+            this.client.inGameHud.getChatHud().addMessage(
+                FabricClientCompat.literal("Safra Error: ")
+                    .append(FabricClientCompat.translatable("safra.p2p.error.direct_fallback"))
+                    .formatted(Formatting.RED)
+            );
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             this.client.inGameHud.getChatHud().addMessage(
                 FabricClientCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).formatted(Formatting.YELLOW)
