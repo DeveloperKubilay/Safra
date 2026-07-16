@@ -121,9 +121,9 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: |
-            8
-            17
+          # Gradle uses --release 8 for the artifacts; ForgeGradle itself must
+          # run on a modern JDK because javac 8 does not support --release.
+          java-version: '17'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
