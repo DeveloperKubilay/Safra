@@ -7,7 +7,6 @@ import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.developerkubilay.safra.p2p.RemoteRendezvousBootstrap;
-import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,17 +49,6 @@ public final class DedicatedP2pServerManager {
             LOGGER.info("Safra P2P dedicated server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
             ConsoleShareCodePrinter.printDedicatedShareCodeIfSupported(shareCodeText);
             LOGGER.info("Players should use Direct Connect, enable P2P, and paste this code.");
-            if (SafraBuildInfo.minecraftVersion().startsWith("1.19")) {
-                hostService.startBedrockRelay(
-                    address -> {
-                        LOGGER.info("Safra Bedrock server started: {}", address);
-                        if (!server.getPlayerManager().isWhitelistEnabled()) {
-                            LOGGER.warn("Safra: Enable the whitelist for your security.");
-                        }
-                    },
-                    () -> LOGGER.warn("Safra Bedrock relay servers are currently full")
-                );
-            }
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P dedicated server could not start on local TCP port {}", tcpPort, exception);
         }

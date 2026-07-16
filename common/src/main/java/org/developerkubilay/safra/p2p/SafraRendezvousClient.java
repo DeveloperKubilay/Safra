@@ -184,10 +184,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         );
     }
 
-    static BedrockRelay requestBedrockRelay(String code) throws IOException {
-        return Api3Support.requestBedrockRelay(code);
-    }
-
     private void publishVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
         InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
         if (primaryEndpoint == null) {
@@ -982,34 +978,6 @@ final class SafraRendezvousClient implements AutoCloseable {
         private Api3Support() {
         }
 
-        private static BedrockRelay requestBedrockRelay(String code) throws IOException {
-            JsonObject request = new JsonObject();
-            request.addProperty("code", code);
-            HttpResponse<String> response = sendText(requestBuilder(httpUri("/bedrock-request"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
-                .build());
-            if (response.statusCode() == 409) {
-                LOGGER.warn("Safra Bedrock relay was already assigned for session {}", code);
-                return null;
-            }
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                LOGGER.warn("Safra Bedrock request returned HTTP {}", response.statusCode());
-                return null;
-            }
-            JsonObject responseBody = parseApi3Object(response.body(), "Safra Bedrock request returned an invalid response");
-            if (!responseBody.has("ok") || !responseBody.get("ok").getAsBoolean()) {
-                return null;
-            }
-            try {
-                String host = responseBody.get("bedrockServer").getAsString();
-                int port = responseBody.get("bedrockPort").getAsInt();
-                return host.isBlank() || port < 1 || port > 65535 ? null : new BedrockRelay(host, port);
-            } catch (RuntimeException exception) {
-                throw new IOException("Safra Bedrock request returned an invalid response", exception);
-            }
-        }
-
         static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, Collection<InetSocketAddress> publicEndpoints,
                                      Collection<InetSocketAddress> voicePublicEndpoints,
                                      Consumer<InetSocketAddress> punchHandler,
@@ -1730,9 +1698,6 @@ final class SafraRendezvousClient implements AutoCloseable {
     }
 
     static final record ResolvedRelay(InetSocketAddress address, int tunnelToken, P2pTurnCredentials credentials) {
-    }
-
-    static final record BedrockRelay(String host, int port) {
     }
 
     private record ResolvedVoiceHost(InetSocketAddress address) {

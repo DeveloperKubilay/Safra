@@ -33,8 +33,5 @@
   "safra.p2p.server_settings.short": "Parametres",
   "safra.p2p.server_list_motd": "Serveur P2P Safra",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
-  "safra.bedrock.host.started": "Serveur Bedrock Safra démarré : %s",
-  "safra.bedrock.host.unavailable": "Safra : Nos serveurs sont complètement pleins, aucun serveur Bedrock ne peut être ouvert.",
-  "safra.bedrock.whitelist_warning": "Safra : Activez la liste blanche pour votre sécurité."
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
 }

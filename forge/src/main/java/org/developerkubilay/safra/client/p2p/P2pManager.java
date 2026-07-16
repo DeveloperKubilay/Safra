@@ -20,7 +20,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 public final class P2pManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
@@ -214,12 +213,6 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
-    }
-
-    public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {
-        if (hostService != null) {
-            hostService.startBedrockRelay(readyHandler, unavailableHandler);
-        }
     }
 
     public void tick(Minecraft client) {
