@@ -432,6 +432,7 @@ tasks.register('verifyMixinArtifacts') {
 
         def slurper = new JsonSlurper()
         def mixinConfigRequirements = [
+            'safra.client.mixins.json'  : 'fabric',
             'safra.forge.mixins.json'   : 'forge',
             'safra.neoforge.mixins.json': 'neoforge'
         ]
@@ -533,9 +534,7 @@ tasks.register('verifyMixinArtifacts') {
             }
         }
 
-        jars.findAll { jarFile ->
-            jarFile.name.contains('-forge-') || jarFile.name.contains('-neoforge-')
-        }.each { jarFile ->
+        jars.each { jarFile ->
             JarFile jar = new JarFile(jarFile)
             try {
                 mixinConfigRequirements.each { configName, loader ->
@@ -545,6 +544,27 @@ tasks.register('verifyMixinArtifacts') {
                     }
 
                     def config = slurper.parse(jar.getInputStream(configEntry))
+                    def mixinPackage = config.package
+                    if (!(mixinPackage instanceof String) || mixinPackage.isBlank()) {
+                        throw new GradleException("Missing mixin package in ${jarFile.name}:${configName}")
+                    }
+
+                    ['mixins', 'client', 'server'].each { section ->
+                        def mixins = config[section]
+                        if (mixins instanceof Collection) {
+                            mixins.each { mixinName ->
+                                def classPath = "${mixinPackage}.${mixinName}".replace('.', '/') + '.class'
+                                if (jar.getJarEntry(classPath) == null) {
+                                    throw new GradleException("Missing configured mixin class ${classPath} in ${jarFile.name}:${configName}")
+                                }
+                            }
+                        }
+                    }
+
+                    if (loader == 'fabric') {
+                        return
+                    }
+
                     def refmapName = config.refmap
                     if (!(refmapName instanceof String) || refmapName.isBlank()) {
                         throw new GradleException("Missing refmap in ${jarFile.name}:${configName}")

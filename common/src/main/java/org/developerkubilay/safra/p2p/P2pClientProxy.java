@@ -56,8 +56,6 @@ public final class P2pClientProxy implements AutoCloseable {
         }
 
         proxyServer = new ServerSocket(0, 16, P2pSockets.loopbackAddress());
-        LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
-            proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
 
         P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
         P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
@@ -205,7 +203,6 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void startReliableTunnel(Socket localSocket) throws IOException {
         int connectionId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-        LOGGER.debug("Safra P2P client accepted local Minecraft connection {}; opening UDP tunnel to {}", connectionId, remoteAddress);
         ReliableTunnelConnection connection = new ReliableTunnelConnection(
             LOGGER,
             "client",

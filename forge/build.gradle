@@ -233,6 +233,14 @@ tasks.register('prepareForgeRuntimeJar') {
             throw new GradleException("Missing Forge runtime jar: ${runtimeJar}")
         }
 
+        if (!modernNamedForgeProfile) {
+            copy {
+                from(remappedJar)
+                into(libsDir)
+                rename { forgeRuntimeJarName }
+            }
+        }
+
         copy {
             from(runtimeJar)
             into(libsDir)
@@ -256,10 +264,6 @@ tasks.register('normalizeForgeMixinRefmaps') {
     )
 
     doLast {
-        if (modernNamedForgeProfile) {
-            return
-        }
-
         def methodMappings = [:]
         def fieldMappings = [:]
         def currentOwner = null
@@ -281,9 +285,13 @@ tasks.register('normalizeForgeMixinRefmaps') {
 
             def parts = line.trim().split(' ')
             if (parts.length == 2) {
-                fieldMappings["L${currentOwner};${parts[0]}"] = "L${currentOwner};${parts[1]}"
+                def named = "L${currentOwner};${parts[0]}"
+                def srg = "L${currentOwner};${parts[1]}"
+                fieldMappings[modernNamedForgeProfile ? srg : named] = modernNamedForgeProfile ? named : srg
             } else if (parts.length == 3) {
-                methodMappings["L${currentOwner};${parts[0]}${parts[1]}"] = "L${currentOwner};${parts[2]}${parts[1]}"
+                def named = "L${currentOwner};${parts[0]}${parts[1]}"
+                def srg = "L${currentOwner};${parts[2]}${parts[1]}"
+                methodMappings[modernNamedForgeProfile ? srg : named] = modernNamedForgeProfile ? named : srg
             }
         }
 

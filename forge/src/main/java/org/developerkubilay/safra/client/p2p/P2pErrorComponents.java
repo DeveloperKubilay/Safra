@@ -10,7 +10,7 @@ public final class P2pErrorComponents {
     public static Component preparationFailure(Throwable throwable) {
         P2pErrorKind kind = P2pErrorKind.classify(throwable);
         if (kind != P2pErrorKind.OTHER) {
-            return safraError(Component.translatable(kind.translationKey()));
+            return safraError(Component.translatable(kind.translationKey(), new Object[0]));
         }
         String message = throwable.getMessage() == null ? throwable.toString() : throwable.getMessage();
         return Component.translatable("safra.p2p.prepare_failed", message);
@@ -24,10 +24,10 @@ public final class P2pErrorComponents {
         }
         P2pErrorKind kind = P2pErrorKind.classify(details.getString() + " " + details);
         if (kind != P2pErrorKind.OTHER) {
-            return safraError(Component.translatable(kind.translationKey()));
+            return safraError(Component.translatable(kind.translationKey(), new Object[0]));
         }
         if (context.directShareAddress()) {
-            return safraError(Component.translatable("safra.p2p.error.direct_fallback"));
+            return safraError(Component.translatable("safra.p2p.error.direct_fallback", new Object[0]));
         }
         return details;
     }

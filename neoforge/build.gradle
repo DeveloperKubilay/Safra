@@ -50,13 +50,21 @@ sourceSets {
 
 def neoforgeCompatBucket = (rootProject.ext.neoforge_bucket ?: '').toString()
 if (!neoforgeCompatBucket.isBlank()) {
-    def neoforgeCompatRoots = [
-        project.file('src/main/java/org/developerkubilay/safra/client/p2p').canonicalFile,
-        project.file('src/main/java/org/developerkubilay/safra/mixin/client').canonicalFile
-    ]
+    def neoforgeCompatSourceRoot = project.file("compat/${neoforgeCompatBucket}/src/main/java")
+    def neoforgeCompatFiles = []
+    if (neoforgeCompatSourceRoot.isDirectory()) {
+        neoforgeCompatFiles = fileTree(neoforgeCompatSourceRoot) {
+            include '**/*.java'
+        }.collect { file ->
+            neoforgeCompatSourceRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+        }.toSet()
+    }
     sourceSets.main {
         java {
-            exclude { details -> neoforgeCompatRoots.any { root -> details.file.canonicalPath.startsWith(root.canonicalPath) } }
+            exclude { details ->
+                def relativePath = project.file('src/main/java').toPath().relativize(details.file.toPath()).toString().replace('\\', '/')
+                neoforgeCompatFiles.contains(relativePath)
+            }
             srcDir("compat/${neoforgeCompatBucket}/src/main/java")
         }
         if (neoforgeCompatBucket == '1.20.3-1.20.4') {

@@ -2,6 +2,7 @@ package org.developerkubilay.safra.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -33,6 +34,43 @@ public final class SafraForgeClientEvents {
     @SubscribeEvent
     public static void clientStopping(GameShuttingDownEvent event) {
         P2pManager.getInstance().shutdown();
+    }
+
+    @SubscribeEvent
+    public static void clientLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        if (safra$hasActiveWorld()) {
+            P2pManager.getInstance().shutdown();
+        }
+    }
+
+    private static boolean safra$hasActiveWorld() {
+        Minecraft minecraft = safra$getMinecraft();
+        return safra$getField(minecraft, "level", "f_91073_") != null
+            || safra$call(minecraft, "getSingleplayerServer", "m_91092_") != null;
+    }
+
+    private static Object safra$getField(Object target, String... names) {
+        for (String name : names) {
+            try {
+                var field = target.getClass().getField(name);
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object safra$call(Object target, String... names) {
+        for (String name : names) {
+            try {
+                Method method = target.getClass().getMethod(name);
+                method.setAccessible(true);
+                return method.invoke(target);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
     }
 
     private static Minecraft safra$getMinecraft() {

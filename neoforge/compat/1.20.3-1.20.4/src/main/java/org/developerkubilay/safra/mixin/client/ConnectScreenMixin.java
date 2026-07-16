@@ -3,12 +3,12 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
-import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.NeoForgeVersionCompat;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,9 +29,10 @@ abstract class ConnectScreenMixin {
             return;
         }
 
-        ProgressScreen progressScreen = new ProgressScreen(false);
-        progressScreen.progressStart(Component.translatable("connect.connecting"));
-        progressScreen.progressStage(Component.translatable("safra.p2p.prepare_message"));
+        P2pConnectingScreen progressScreen = new P2pConnectingScreen(
+            parent,
+            () -> P2pManager.getInstance().cancelPendingRewrite()
+        );
         client.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {

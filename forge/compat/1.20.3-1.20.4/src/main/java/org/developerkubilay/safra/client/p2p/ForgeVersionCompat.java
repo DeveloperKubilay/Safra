@@ -129,6 +129,12 @@ public final class ForgeVersionCompat {
         throw new IllegalStateException("Could not find a compatible ServerAddress parser");
     }
 
+    public static void execute(Minecraft client, Runnable task) {
+        if (!invokeVoidMethod(client, new Class<?>[]{Runnable.class}, new Object[]{task}, "execute", "m_91399_")) {
+            throw new IllegalStateException("Could not find a compatible Minecraft.execute method");
+        }
+    }
+
     public static void setScreen(Minecraft client, Screen screen) {
         if (invokeVoidMethod(client, new Class<?>[]{Screen.class}, new Object[]{screen}, "setScreen", "method_1507", "m_91152_")) {
             return;

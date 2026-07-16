@@ -3,13 +3,13 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
-import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
 import org.developerkubilay.safra.client.p2p.ForgeVersionCompat;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,13 +36,13 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             return;
         }
 
-        ProgressScreen progressScreen = new ProgressScreen(false);
-        safra$setProgressText(progressScreen,
-            ForgeComponentCompat.translatable("connect.connecting"),
-            ForgeComponentCompat.translatable("safra.p2p.prepare_message"));
+        P2pConnectingScreen progressScreen = new P2pConnectingScreen(
+            (Screen) (Object) this,
+            () -> P2pManager.getInstance().cancelPendingRewrite()
+        );
         ForgeVersionCompat.setScreen(client, progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
-            client.execute(() -> {
+            ForgeVersionCompat.execute(client, () -> {
                 if (throwable != null) {
                     Throwable cause = throwable instanceof CompletionException completionException
                         && completionException.getCause() != null
@@ -64,12 +64,6 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             })
         );
         ci.cancel();
-    }
-
-    private static void safra$setProgressText(ProgressScreen progressScreen, net.minecraft.network.chat.Component header,
-                                              net.minecraft.network.chat.Component stage) {
-        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{header}, "progressStart", "m_6308_");
-        safra$call(progressScreen, new Class<?>[]{net.minecraft.network.chat.Component.class}, new Object[]{stage}, "progressStage", "m_6307_");
     }
 
     private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {

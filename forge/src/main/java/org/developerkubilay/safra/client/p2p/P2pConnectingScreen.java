@@ -15,13 +15,13 @@ public final class P2pConnectingScreen extends ProgressScreen {
         super(false);
         this.parent = parent;
         this.cancelAction = cancelAction;
-        progressStart(Component.translatable("connect.connecting"));
-        progressStage(Component.translatable("safra.p2p.prepare_message"));
+        progressStart(Component.translatable("connect.connecting", new Object[0]));
+        progressStage(Component.translatable("safra.p2p.prepare_message", new Object[0]));
     }
 
     @Override
     protected void init() {
-        addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> cancel())
+        addRenderableWidget(Button.builder(Component.translatable("gui.cancel", new Object[0]), button -> cancel())
             .bounds(width / 2 - 100, height / 2 + 35, 200, 20)
             .build());
     }
