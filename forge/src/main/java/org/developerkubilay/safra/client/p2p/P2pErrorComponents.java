@@ -33,6 +33,6 @@ public final class P2pErrorComponents {
     }
 
     private static ITextComponent safraError(ITextComponent details) {
-        return new StringTextComponent("Safra Error: ").appendSibling(details);
+        return new StringTextComponent("Safra Error: " + details.getString());
     }
 }

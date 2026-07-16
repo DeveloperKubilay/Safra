@@ -17,27 +17,28 @@ public final class P2pConnectingScreen extends Screen {
         this.cancelAction = cancelAction;
     }
 
-    @Override
-    protected void init() {
-        addButton(new Button(width / 2 - 100, height / 2 + 25, 200, 20,
+    protected void func_231160_c_() {
+        ForgeScreenCompat.initScreenSuper(this);
+        int width = ForgeScreenCompat.getWidth(this);
+        int height = ForgeScreenCompat.getHeight(this);
+        ForgeScreenCompat.addButton(this, new Button(width / 2 - 100, height / 2 + 25, 200, 20,
             new TranslationTextComponent("gui.cancel"), button -> cancel()));
     }
 
-    @Override
-    public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
-        renderBackground(matrices);
-        drawCenteredString(matrices, font, new TranslationTextComponent("connect.connecting"), width / 2, height / 2 - 25, 0xFFFFFF);
-        drawCenteredString(matrices, font, new TranslationTextComponent("safra.p2p.prepare_message"), width / 2, height / 2 - 5, 0xFFFFFF);
-        super.render(matrices, mouseX, mouseY, delta);
+    public void func_230430_a_(MatrixStack matrices, int mouseX, int mouseY, float delta) {
+        int width = ForgeScreenCompat.getWidth(this);
+        int height = ForgeScreenCompat.getHeight(this);
+        ForgeScreenCompat.renderBackground(this, matrices);
+        ForgeScreenCompat.drawCenteredText(this, matrices, new TranslationTextComponent("connect.connecting"), width / 2, height / 2 - 25, 0xFFFFFF);
+        ForgeScreenCompat.drawCenteredText(this, matrices, new TranslationTextComponent("safra.p2p.prepare_message"), width / 2, height / 2 - 5, 0xFFFFFF);
+        ForgeScreenCompat.renderWidgets(this, matrices, mouseX, mouseY, delta);
     }
 
-    @Override
-    public boolean shouldCloseOnEsc() {
+    public boolean func_231176_q_() {
         return true;
     }
 
-    @Override
-    public void onClose() {
+    public void func_231175_as__() {
         cancel();
     }
 
@@ -47,6 +48,6 @@ public final class P2pConnectingScreen extends Screen {
         }
         canceled = true;
         cancelAction.run();
-        Minecraft.getInstance().displayGuiScreen(parent);
+        ForgeScreenCompat.displayScreen(Minecraft.getInstance(), parent);
     }
 }
