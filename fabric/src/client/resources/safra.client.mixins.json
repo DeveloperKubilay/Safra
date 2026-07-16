@@ -6,7 +6,6 @@
   "client": [
     "AddServerScreenMixin",
     "DirectConnectScreenMixin",
-    "DisconnectedScreenMixin",
     "MultiplayerScreenMixin",
     "OpenToLanScreenMixin",
     "ServerStatusPingerMixin"

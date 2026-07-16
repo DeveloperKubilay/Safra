@@ -117,10 +117,9 @@ public final class ForgeScreenCompat {
         if (minecraft == null || minecraft.fontRenderer == null) {
             return;
         }
-        invokeNoResult(
+        invokeCompatibleNoResult(
             screen,
             new String[]{"drawCenteredString", "func_238472_a_"},
-            new Class<?>[]{MatrixStack.class, minecraft.fontRenderer.getClass(), net.minecraft.util.text.ITextProperties.class, int.class, int.class, int.class},
             matrixStack, minecraft.fontRenderer, text, x, y, color
         );
     }
@@ -222,6 +221,49 @@ public final class ForgeScreenCompat {
             }
         }
         return false;
+    }
+
+    private static boolean invokeCompatibleNoResult(Object target, String[] names, Object... args) {
+        Class<?> current = target.getClass();
+        while (current != null) {
+            for (String name : names) {
+                for (Method method : current.getDeclaredMethods()) {
+                    if (!method.getName().equals(name) || !safra$parametersMatch(method.getParameterTypes(), args)) {
+                        continue;
+                    }
+                    try {
+                        method.setAccessible(true);
+                        method.invoke(target, args);
+                        return true;
+                    } catch (ReflectiveOperationException ignored) {
+                    }
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return false;
+    }
+
+    private static boolean safra$parametersMatch(Class<?>[] parameterTypes, Object[] args) {
+        if (parameterTypes.length != args.length) {
+            return false;
+        }
+        for (int index = 0; index < parameterTypes.length; index++) {
+            Class<?> parameterType = parameterTypes[index];
+            Object argument = args[index];
+            if (parameterType.isPrimitive()) {
+                if ((parameterType == int.class && argument instanceof Integer)
+                    || (parameterType == float.class && argument instanceof Float)
+                    || (parameterType == boolean.class && argument instanceof Boolean)) {
+                    continue;
+                }
+                return false;
+            }
+            if (argument != null && !parameterType.isAssignableFrom(argument.getClass())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean invokeSuperclassNoResult(Object target, String[] names, Class<?>[] parameterTypes, Object... args) {
