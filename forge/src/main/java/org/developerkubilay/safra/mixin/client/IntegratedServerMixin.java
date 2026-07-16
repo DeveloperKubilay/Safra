@@ -9,7 +9,6 @@ import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
-import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
@@ -21,6 +20,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+import java.util.Collections;
+import java.util.Map;
 
 @Mixin(value = IntegratedServer.class, remap = false)
 abstract class IntegratedServerMixin {
@@ -29,8 +30,8 @@ abstract class IntegratedServerMixin {
     @Inject(method = {"shareToLAN", "func_195565_a"}, at = @At("HEAD"), remap = false)
     private void safra$applyOnlineMode(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         IntegratedServer server = (IntegratedServer) (Object) this;
-        server.setOnlineMode(ForgeLanSessionState.isOnlineModeEnabled());
-        if (ForgeLanSessionState.isP2pEnabled()) {
+        server.setOnlineMode(safra$isOnlineModeEnabled());
+        if (safra$isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
         SAFRA_LOGGER.debug(
@@ -47,17 +48,17 @@ abstract class IntegratedServerMixin {
             return;
         }
 
-        if (!ForgeLanSessionState.isP2pEnabled()) {
+        if (!safra$isP2pEnabled()) {
             P2pManager.getInstance().stopHosting();
             return;
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
-        ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+        ForgeLanGameRules.applyToServer(server, safra$getGameRuleSnapshot());
         int tcpPort = server.getServerPort();
         Minecraft client = Minecraft.getInstance();
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.starting"));
-        String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
+        String fixedCode = safra$isFixedCodeEnabled() ? safra$getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> {
             if (client == null) {
                 return;
@@ -131,5 +132,42 @@ abstract class IntegratedServerMixin {
         } catch (ReflectiveOperationException ignored) {
         }
         return text;
+    }
+
+    private static boolean safra$isP2pEnabled() {
+        return safra$getBooleanSetting("isP2pEnabled", true);
+    }
+
+    private static boolean safra$isOnlineModeEnabled() {
+        return safra$getBooleanSetting("isOnlineModeEnabled", false);
+    }
+
+    private static boolean safra$isFixedCodeEnabled() {
+        return safra$getBooleanSetting("isFixedCodeEnabled", false);
+    }
+
+    private static boolean safra$getBooleanSetting(String methodName, boolean fallback) {
+        Object value = safra$invokeLanSessionState(methodName);
+        return value instanceof Boolean ? (Boolean) value : fallback;
+    }
+
+    private static String safra$getFixedCode() {
+        Object value = safra$invokeLanSessionState("getFixedCode");
+        return value instanceof String ? (String) value : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> safra$getGameRuleSnapshot() {
+        Object value = safra$invokeLanSessionState("getGameRuleSnapshot");
+        return value instanceof Map<?, ?> ? (Map<String, String>) value : Collections.<String, String>emptyMap();
+    }
+
+    private static Object safra$invokeLanSessionState(String methodName) {
+        try {
+            Class<?> stateClass = Class.forName("org.developerkubilay.safra.client.p2p.ForgeLanSessionState");
+            return stateClass.getMethod(methodName).invoke(null);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 }

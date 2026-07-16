@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(DisconnectedScreen.class)
 abstract class DisconnectedScreenMixin {
-    @ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true)
+    @ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private static Text safra$replaceP2pReason(Text reason) {
         return P2pErrorComponents.disconnectFailure(reason);
     }
