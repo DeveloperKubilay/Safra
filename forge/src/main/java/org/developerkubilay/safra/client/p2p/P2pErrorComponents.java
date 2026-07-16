@@ -9,6 +9,14 @@ public final class P2pErrorComponents {
     private P2pErrorComponents() {
     }
 
+    /**
+     * Forge 1.16's ModLauncher can close the mod jar before an async network
+     * callback first needs this class. Touch it during client bootstrap.
+     */
+    public static void warmUp() {
+        // Intentionally empty.
+    }
+
     public static ITextComponent preparationFailure(Throwable throwable) {
         P2pErrorKind kind = P2pErrorKind.classify(throwable);
         if (kind != P2pErrorKind.OTHER) {
