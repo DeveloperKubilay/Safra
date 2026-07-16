@@ -39,8 +39,7 @@ public enum P2pErrorKind {
             return OTHER;
         }
         String normalized = message.toLowerCase(Locale.ROOT);
-        if (normalized.contains("http/1.1 header parser received no bytes")
-            || normalized.contains("http 429") || normalized.contains("too many active sessions")) {
+        if (normalized.contains("http 429") || normalized.contains("too many active sessions")) {
             return RATE_LIMITED;
         }
         if (normalized.contains("http 521")) {

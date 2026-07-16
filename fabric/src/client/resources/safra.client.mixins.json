@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "AddServerScreenMixin",
+    "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",
     "OpenToLanScreenMixin",
