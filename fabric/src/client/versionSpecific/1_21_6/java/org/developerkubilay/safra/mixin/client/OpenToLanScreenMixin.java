@@ -138,7 +138,11 @@ abstract class OpenToLanScreenMixin extends Screen {
         int tcpPort = this.port;
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() ->
+            this.safra$addClientSystemMessage(
+                Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+            )
+        )).whenComplete((shareCode, throwable) -> {
             if (this.minecraft == null) {
                 return;
             }
