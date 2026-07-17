@@ -3,6 +3,7 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
@@ -57,11 +58,8 @@ abstract class IntegratedServerMixin {
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addMessage(ForgeClientCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() ->
-            client.gui.getChat().addMessage(
-                ForgeClientCompat.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> safra$publishRelayWarning(client)))
+            .whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
@@ -70,7 +68,21 @@ abstract class IntegratedServerMixin {
 
                 safra$publishShareCode(client, tcpPort, shareCode);
             });
-        });
+            });
+    }
+
+    private static void safra$publishRelayWarning(Minecraft client) {
+        client.gui.getChat().addMessage(
+            ForgeClientCompat.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+        );
+        client.gui.getChat().addMessage(safra$discordLink());
+    }
+
+    private static Component safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return ForgeClientCompat.literal(url).copy()
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {

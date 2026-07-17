@@ -167,11 +167,8 @@ abstract class OpenToLanScreenMixin extends Screen {
         int tcpPort = server.getServerPort();
         this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.client.execute(() ->
-            this.client.inGameHud.getChatHud().addMessage(
-                FabricClientCompat.translatable("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.client.execute(this::safra$publishRelayWarning))
+            .whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
                 return;
             }
@@ -184,7 +181,25 @@ abstract class OpenToLanScreenMixin extends Screen {
 
                 safra$publishShareCode(tcpPort, shareCode);
             });
-        });
+            });
+    }
+
+    @Unique
+    private void safra$publishRelayWarning() {
+        this.client.inGameHud.getChatHud().addMessage(
+            FabricClientCompat.translatable("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
+        );
+        this.client.inGameHud.getChatHud().addMessage(safra$discordLink());
+    }
+
+    @Unique
+    private static Text safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return FabricClientCompat.literal(url).setStyle(Style.EMPTY
+            .withColor(Formatting.BLUE)
+            .withUnderline(true)
+            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
+        );
     }
 
     @Unique

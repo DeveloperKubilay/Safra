@@ -1,7 +1,9 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ClickEvent;
 import org.developerkubilay.safra.client.ForgeClientCompat;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.p2p.P2pErrorKind;
 
 public final class P2pErrorComponents {
@@ -28,12 +30,22 @@ public final class P2pErrorComponents {
             return safraError(ForgeClientCompat.translatable(kind.translationKey()));
         }
         if (context.directShareAddress()) {
-            return safraError(ForgeClientCompat.translatable("safra.p2p.error.direct_fallback"));
+            return safraError(ForgeClientCompat.append(
+                ForgeClientCompat.translatable("safra.p2p.error.direct_fallback"),
+                safra$discordLink()
+            ));
         }
         return details;
     }
 
     private static Component safraError(Component details) {
         return ForgeClientCompat.append(ForgeClientCompat.literal("Safra Error: "), details);
+    }
+
+    private static Component safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return ForgeClientCompat.literal("\n" + url).copy()
+            .withStyle(net.minecraft.ChatFormatting.BLUE, net.minecraft.ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
     }
 }
