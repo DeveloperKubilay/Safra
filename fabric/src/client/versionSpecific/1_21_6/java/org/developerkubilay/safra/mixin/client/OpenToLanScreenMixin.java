@@ -138,11 +138,12 @@ abstract class OpenToLanScreenMixin extends Screen {
         int tcpPort = this.port;
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() ->
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() -> {
             this.safra$addClientSystemMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+            );
+            this.safra$addClientSystemMessage(safra$discordLink());
+        })).whenComplete((shareCode, throwable) -> {
             if (this.minecraft == null) {
                 return;
             }
@@ -156,6 +157,14 @@ abstract class OpenToLanScreenMixin extends Screen {
                 safra$publishShareCode(tcpPort, shareCode);
             });
         });
+    }
+
+    @Unique
+    private static Component safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
     }
 
     @Unique
