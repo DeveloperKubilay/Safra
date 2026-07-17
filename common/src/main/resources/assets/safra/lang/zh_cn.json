@@ -6,7 +6,7 @@
   "safra.p2p.error.server_busy": "服务器目前已满，请稍后重试。",
   "safra.p2p.error.session_not_found": "此代码目前没有正在开放的服务器。",
   "safra.p2p.error.invalid_session": "服务器所有者必须在Safra服务器设置中关闭在线模式。",
-  "safra.p2p.error.direct_fallback": "无法与服务器通信。VPN、WARP或移动数据网络可能是原因。",
+  "safra.p2p.error.direct_fallback": "无法与服务器通信。VPN、WARP或移动数据网络可能是原因。\n详细信息请访问 Discord: https://discord.gg/NHjBvRxDXP",
   "safra.p2p.button.on": "P2P：开",
   "safra.p2p.button.off": "P2P：关",
   "safra.p2p.online_mode.on": "联机模式：开",
