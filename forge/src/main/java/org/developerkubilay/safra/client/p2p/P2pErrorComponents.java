@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.network.chat.Component;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.p2p.P2pErrorKind;
 
 public final class P2pErrorComponents {
@@ -27,7 +28,9 @@ public final class P2pErrorComponents {
             return safraError(Component.translatable(kind.translationKey(), new Object[0]));
         }
         if (context.directShareAddress()) {
-            return safraError(Component.translatable("safra.p2p.error.direct_fallback", new Object[0]));
+            return safraError(Component.translatable("safra.p2p.error.direct_fallback", new Object[0])
+                .append(Component.literal("\n"))
+                .append(ForgeComponentCompat.clickableUrl(RemoteRendezvousConfigUpdater.discordUrl())));
         }
         return details;
     }

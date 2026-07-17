@@ -195,7 +195,29 @@ public final class ForgeComponentCompat {
             }
         }
 
-        return style(component, ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
+return style(component, ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
+    }
+
+    public static Component clickableUrl(String url) {
+        Component component = literal(url);
+        ClickEvent clickEvent = createClickEvent("OPEN_URL", "open_url", url);
+        for (Method method : component.getClass().getMethods()) {
+            if (!"withStyle".equals(method.getName()) || method.getParameterCount() != 1
+                || method.getParameterTypes()[0] != UnaryOperator.class) {
+                continue;
+            }
+            try {
+                method.setAccessible(true);
+                Object styled = method.invoke(component, (UnaryOperator<Object>) style ->
+                    clickEvent == null ? style : applyStyleMethod(style, new String[]{"withClickEvent"}, ClickEvent.class, clickEvent)
+                );
+                if (styled instanceof Component result) {
+                    return style(result, ChatFormatting.BLUE, ChatFormatting.UNDERLINE);
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return style(component, ChatFormatting.BLUE, ChatFormatting.UNDERLINE);
     }
 
     private static Object call(String[] names, Class<?>[] parameterTypes, Object[] args) {
