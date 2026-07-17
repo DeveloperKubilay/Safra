@@ -55,7 +55,11 @@ abstract class IntegratedServerMixin {
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
-        P2pManager.getInstance().startHostingAsync(tcpPort).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, null, () -> client.execute(() ->
+            client.gui.hud.getChat().addClientSystemMessage(
+                Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+            )
+        )).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
