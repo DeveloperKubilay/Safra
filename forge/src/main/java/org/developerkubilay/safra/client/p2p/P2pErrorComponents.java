@@ -1,7 +1,6 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ClickEvent;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.p2p.P2pErrorKind;
 
@@ -34,6 +33,31 @@ public final class P2pErrorComponents {
         return details;
     }
 
+    private static net.minecraft.network.chat.Style safra$withOpenUrl(net.minecraft.network.chat.Style style, String url) {
+        try {
+            Class<?> clickEventClass = Class.forName("net.minecraft.network.chat.ClickEvent");
+            Object clickEvent;
+            try {
+                Class<?> openUrlClass = Class.forName("net.minecraft.network.chat.ClickEvent$OpenUrl");
+                clickEvent = openUrlClass.getConstructor(java.net.URI.class).newInstance(java.net.URI.create(url));
+            } catch (ReflectiveOperationException ignored) {
+                Class<?> actionClass = Class.forName("net.minecraft.network.chat.ClickEvent$Action");
+                @SuppressWarnings({"rawtypes", "unchecked"}) Object action = Enum.valueOf((Class) actionClass, "OPEN_URL");
+                clickEvent = clickEventClass.getConstructor(actionClass, String.class).newInstance(action, url);
+            }
+            for (java.lang.reflect.Method method : style.getClass().getMethods()) {
+                if (method.getName().equals("withClickEvent") && method.getParameterCount() == 1) {
+                    Object styled = method.invoke(style, clickEvent);
+                    if (styled instanceof net.minecraft.network.chat.Style result) {
+                        return result;
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return style;
+    }
+
     private static Component safraError(Component details) {
         return Component.literal("Safra Error: ").append(details);
     }
@@ -42,6 +66,6 @@ public final class P2pErrorComponents {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
         return Component.literal("\n" + url)
             .withStyle(net.minecraft.ChatFormatting.BLUE, net.minecraft.ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
+            .withStyle(style -> safra$withOpenUrl(style, url));
     }
 }
