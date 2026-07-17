@@ -6,7 +6,7 @@
   "safra.p2p.error.server_busy": "Серверы сейчас переполнены. Попробуйте позже.",
   "safra.p2p.error.session_not_found": "Для этого кода сейчас нет открытого сервера.",
   "safra.p2p.error.invalid_session": "Владелец сервера должен отключить онлайн-режим в настройках сервера Safra.",
-  "safra.p2p.error.direct_fallback": "Не удалось связаться с сервером. Причиной может быть VPN, WARP или мобильный интернет.",
+  "safra.p2p.error.direct_fallback": "Не удалось связаться с сервером. Причиной может быть VPN, WARP или мобильный интернет.\nПодробная информация в Discord: https://discord.gg/NHjBvRxDXP",
   "safra.p2p.button.on": "P2P: ВКЛ",
   "safra.p2p.button.off": "P2P: ВЫКЛ",
   "safra.p2p.online_mode.on": "Сетевой режим: ВКЛ",
