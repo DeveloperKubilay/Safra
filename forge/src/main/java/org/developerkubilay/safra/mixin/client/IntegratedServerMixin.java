@@ -56,11 +56,12 @@ abstract class IntegratedServerMixin {
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() ->
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> {
             client.gui.getChat().addClientSystemMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+            );
+            client.gui.getChat().addClientSystemMessage(safra$discordLink());
+        })).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
@@ -70,6 +71,12 @@ abstract class IntegratedServerMixin {
                 safra$publishShareCode(client, tcpPort, shareCode);
             });
         });
+    }
+    private static Component safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
