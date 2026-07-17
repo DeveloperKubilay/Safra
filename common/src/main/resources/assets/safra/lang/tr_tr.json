@@ -10,7 +10,7 @@
   "safra.p2p.host.started": "Safra P2P paylasim kodu: %s",
   "safra.p2p.host.copied": "Paylasim kodu panoya kopyalandi. Tekrar kopyalamak icin chattaki koda tikla.",
   "safra.p2p.host.instructions": "Arkadasin Dogrudan Baglan ekraninda P2P secenegini acip bu kodu yapistirmali.",
-  "safra.p2p.host.relay_warning": "P2P bağlantısı kurulamadı. Takılmalar veya gecikmeler olabilir; özel bir sunucu kullanılması gerekebilir.\nGoodbyeDPI, VPN, WARP veya mobil veri açıksa sorun bunlardan kaynaklanıyor olabilir; kapatmanız önerilir.\nİnternet altyapınız da desteklemiyor olabilir. Bu mesaj bilgilendirme amaçlıdır.",
+  "safra.p2p.host.relay_warning": "Safra: P2P bağlantısı kurulamadı, sunucu kullanılarak düzeltildi.\nTakılmalar veya gecikmelerden siz veya katılan arkadaşınız sorumlu.\nGoodbyeDPI, VPN, WARP veya mobil veri açıksa sorun bunlardan kaynaklanıyor olabilir; kapatmanız önerilir.\nİnternet altyapınız desteklemiyor olabilir.\nDetaylı bilgi için Discord: https://discord.gg/NHjBvRxDXP",
   "safra.p2p.host.narration": "Safra P2P paylasim kodu %s",
   "safra.p2p.host.failed": "Safra P2P baslatilamadi: %s",
   "safra.p2p.copy_hint": "P2P paylasim kodunu kopyalamak icin tikla",

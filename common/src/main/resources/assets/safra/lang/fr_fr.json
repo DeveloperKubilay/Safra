@@ -10,7 +10,7 @@
   "safra.p2p.host.started": "Code de partage Safra P2P : %s",
   "safra.p2p.host.copied": "Code copié dans le presse-papiers. Cliquez à nouveau sur le code dans le chat pour le recopier.",
   "safra.p2p.host.instructions": "Votre ami doit utiliser Connexion directe, activer P2P et coller ce code.",
-  "safra.p2p.host.relay_warning": "Une connexion P2P directe n'a pas pu être établie. Des saccades ou du lag peuvent survenir, et un serveur dédié peut être nécessaire.\nSi GoodbyeDPI, un VPN, WARP ou les données mobiles sont activés, ils peuvent en être la cause ; il est recommandé de les désactiver.\nIl est également possible que votre infrastructure Internet ne soit pas prise en charge. Ce message est uniquement informatif.",
+  "safra.p2p.host.relay_warning": "Safra: Une connexion P2P directe n'a pas pu être établie ; la connexion a été rétablie à l'aide d'un serveur.\nVous ou l'ami qui rejoint êtes responsables des éventuelles saccades ou du lag.\nSi GoodbyeDPI, un VPN, WARP ou les données mobiles sont activés, ils peuvent en être la cause ; il est recommandé de les désactiver.\nIl est également possible que votre infrastructure Internet ne soit pas prise en charge.\nPour plus d'informations, Discord : https://discord.gg/NHjBvRxDXP",
   "safra.p2p.host.narration": "Le code de partage Safra P2P est %s",
   "safra.p2p.host.failed": "Safra P2P n'a pas pu démarrer : %s",
   "safra.p2p.copy_hint": "Cliquez pour copier le code de partage P2P",
