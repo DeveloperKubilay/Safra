@@ -182,7 +182,12 @@ abstract class OpenToLanScreenMixin extends Screen {
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() ->
             this.safra$addClientSystemMessage(
-                Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+                Component.translatable(
+                    "safra.p2p.host.relay_warning",
+                    Component.literal("https://discord.gg/NHjBvRxDXP")
+                        .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+                        .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create("https://discord.gg/NHjBvRxDXP"))))
+                ).copy().withStyle(ChatFormatting.YELLOW)
             )
         )).whenComplete((shareCode, throwable) -> {
             if (this.minecraft == null) {
