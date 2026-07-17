@@ -195,7 +195,7 @@ final class SafraRendezvousClient {
                 .build());
             try {
                 if (response.code() < 200 || response.code() >= 300) {
-                    throw new IOException("Safra relay publish returned HTTP " + response.code()");
+                    throw new IOException("Safra relay publish returned HTTP " + response.code());
                 }
             } finally {
                 response.close();
@@ -229,7 +229,7 @@ final class SafraRendezvousClient {
                 .build());
             if (response.code() < 200 || response.code() >= 300) {
                 response.close();
-                throw new IOException("Safra host request returned HTTP " + response.code()");
+                throw new IOException("Safra host request returned HTTP " + response.code());
             }
 
             streamResponse = response;
@@ -389,7 +389,7 @@ final class SafraRendezvousClient {
                     .post(RequestBody.create(JSON, GSON.toJson(request)))
                     .build());
                 if (response.code() < 200 || response.code() >= 300) {
-                    throw new IOException("Safra host relay request returned HTTP " + response.code()");
+                    throw new IOException("Safra host relay request returned HTTP " + response.code());
                 }
                 if (response.body() == null) {
                     return;
@@ -431,7 +431,7 @@ final class SafraRendezvousClient {
                 .build());
             try {
                 if (response.code() < 200 || response.code() >= 300) {
-                    throw new IOException("Safra join request returned HTTP " + response.code()");
+                    throw new IOException("Safra join request returned HTTP " + response.code());
                 }
 
                 String body = response.body() != null ? response.body().string() : "";
@@ -507,7 +507,7 @@ final class SafraRendezvousClient {
                 .build());
             try {
                 if (response.code() < 200 || response.code() >= 300) {
-                    throw new IOException("Safra relay request returned HTTP " + response.code()");
+                    throw new IOException("Safra relay request returned HTTP " + response.code());
                 }
                 if (response.body() == null) {
                     throw new IOException("Safra relay event stream closed");
@@ -605,7 +605,7 @@ final class SafraRendezvousClient {
                 .build());
             try {
                 if (response.code() < 200 || response.code() >= 300) {
-                    throw new IOException("Safra voice update request returned HTTP " + response.code()");
+                    throw new IOException("Safra voice update request returned HTTP " + response.code());
                 }
             } finally {
                 response.close();
