@@ -55,16 +55,12 @@ abstract class IntegratedServerMixin {
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
-        P2pManager.getInstance().startHostingAsync(tcpPort, null, () -> client.execute(() ->
+        P2pManager.getInstance().startHostingAsync(tcpPort, null, () -> client.execute(() -> {
             client.gui.hud.getChat().addClientSystemMessage(
-                Component.translatable(
-                    "safra.p2p.host.relay_warning",
-                    Component.literal("https://discord.gg/NHjBvRxDXP")
-                        .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
-                        .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create("https://discord.gg/NHjBvRxDXP"))))
-                ).copy().withStyle(ChatFormatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+                Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+            );
+            client.gui.hud.getChat().addClientSystemMessage(safra$discordLink());
+        })).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
@@ -74,6 +70,13 @@ abstract class IntegratedServerMixin {
                 safra$publishShareCode(client, tcpPort, shareCode);
             });
         });
+    }
+
+    private static Component safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
