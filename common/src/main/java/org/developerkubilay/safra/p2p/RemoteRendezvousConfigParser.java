@@ -22,7 +22,7 @@ public final class RemoteRendezvousConfigParser {
             return "";
         }
 
-        JsonElement urlElement = json.get("api-test-only");
+        JsonElement urlElement = json.get("api-3.0");
         if (urlElement == null || urlElement.isJsonNull()) {
             return "";
         }
