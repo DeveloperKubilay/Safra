@@ -36,5 +36,5 @@
   "safra.p2p.error.server_busy": "Sunucular su an dolu. Daha sonra tekrar dene.",
   "safra.p2p.error.session_not_found": "Bu kod icin acik bir sunucu yok.",
   "safra.p2p.error.invalid_session": "Sunucu sahibi Safra ayarlarindan Online Mode'u kapatmali.",
-  "safra.p2p.error.direct_fallback": "Sunucuyla iletisim kurulamadi. VPN, WARP veya mobil veri buna neden oluyor olabilir."
+  "safra.p2p.error.direct_fallback": "Sunucuyla iletisim kurulamadi. VPN, WARP veya mobil veri buna neden oluyor olabilir.\nDetaylı bilgi için Discord: https://discord.gg/NHjBvRxDXP"
 }
