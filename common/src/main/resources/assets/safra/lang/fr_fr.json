@@ -6,7 +6,7 @@
   "safra.p2p.error.server_busy": "Les serveurs sont actuellement complets. Réessayez plus tard.",
   "safra.p2p.error.session_not_found": "Aucun serveur n'est actuellement ouvert pour ce code.",
   "safra.p2p.error.invalid_session": "Le propriétaire du serveur doit désactiver le mode en ligne dans les paramètres du serveur Safra.",
-  "safra.p2p.error.direct_fallback": "Impossible de communiquer avec le serveur. Un VPN, WARP ou les données mobiles peuvent en être la cause.",
+  "safra.p2p.error.direct_fallback": "Impossible de communiquer avec le serveur. Un VPN, WARP ou les données mobiles peuvent en être la cause.\nPour plus d'informations, Discord : https://discord.gg/NHjBvRxDXP",
   "safra.p2p.button.on": "P2P : ACTIVÉ",
   "safra.p2p.button.off": "P2P : DÉSACTIVÉ",
   "safra.p2p.online_mode.on": "Mode en ligne : ACTIVÉ",
