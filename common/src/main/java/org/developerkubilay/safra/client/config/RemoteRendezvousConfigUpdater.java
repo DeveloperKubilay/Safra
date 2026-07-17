@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
+    private static final String DEFAULT_DISCORD_URL = "https://discord.gg/NHjBvRxDXP";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -28,6 +29,7 @@ public final class RemoteRendezvousConfigUpdater {
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
     private static volatile List<String> latestModVersions = List.of();
+    private static volatile String discordUrl = DEFAULT_DISCORD_URL;
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -70,6 +72,13 @@ public final class RemoteRendezvousConfigUpdater {
             }
 
             JsonObject json = new com.google.gson.JsonParser().parse(body).getAsJsonObject();
+            JsonElement discordElement = json.get("discord");
+            if (discordElement != null && discordElement.isJsonPrimitive()) {
+                String remoteDiscordUrl = discordElement.getAsString();
+                if (isValidDiscordUrl(remoteDiscordUrl)) {
+                    discordUrl = remoteDiscordUrl.trim();
+                }
+            }
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
             if (latestVersions.isEmpty()) {
@@ -114,6 +123,22 @@ public final class RemoteRendezvousConfigUpdater {
         }
 
         return true;
+    }
+
+    public static String discordUrl() {
+        return discordUrl;
+    }
+
+    private static boolean isValidDiscordUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(value.trim());
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null && !uri.getHost().isBlank();
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     private static List<String> parseLatestModVersions(JsonObject json) {
