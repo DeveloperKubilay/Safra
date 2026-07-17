@@ -59,7 +59,11 @@ abstract class IntegratedServerMixin {
         }
         safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() ->
+            client.gui.getChat().addMessage(
+                ForgeComponentCompat.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+            )
+        )).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
