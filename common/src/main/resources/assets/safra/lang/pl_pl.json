@@ -6,7 +6,7 @@
   "safra.p2p.error.server_busy": "Serwery są obecnie pełne. Spróbuj ponownie później.",
   "safra.p2p.error.session_not_found": "Dla tego kodu nie ma obecnie otwartego serwera.",
   "safra.p2p.error.invalid_session": "Właściciel serwera musi wyłączyć tryb online w ustawieniach serwera Safra.",
-  "safra.p2p.error.direct_fallback": "Nie udało się połączyć z serwerem. Przyczyną może być VPN, WARP lub transmisja danych komórkowych.",
+  "safra.p2p.error.direct_fallback": "Nie udało się połączyć z serwerem. Przyczyną może być VPN, WARP lub transmisja danych komórkowych.\nWięcej informacji na Discordzie: https://discord.gg/NHjBvRxDXP",
   "safra.p2p.button.on": "P2P: WŁ.",
   "safra.p2p.button.off": "P2P: WYŁ.",
   "safra.p2p.online_mode.on": "Tryb online: WŁ.",
