@@ -70,12 +70,17 @@ async function getTurnCredentials() {
     }
 }
 
-function eventStream(res) {
+function eventStream(res, persistent = false) {
     res.raw.setHeader("Content-Type", "text/event-stream");
     res.raw.setHeader("Cache-Control", "no-cache");
     res.raw.setHeader("Connection", "keep-alive");
     res.hijack();
     res.raw.flushHeaders();
+
+    if (persistent && res.raw.socket) {
+        res.raw.socket.setTimeout(0);
+        res.raw.socket.setKeepAlive(true, config.TCP_CONNECTION_TIMEOUT);
+    }
 }
 
 
@@ -153,7 +158,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
 
     console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${sessionCode}`);
 
-    eventStream(res);
+    eventStream(res, true);
     res.raw.write(eventMessage("session-created", { code: sessionCode, relayRequired: req.body.network == null }));
     res.raw.once("close", endSession);
 })
