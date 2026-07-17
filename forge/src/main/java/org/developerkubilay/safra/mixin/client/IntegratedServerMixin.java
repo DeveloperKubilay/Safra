@@ -76,7 +76,32 @@ abstract class IntegratedServerMixin {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
         return Component.literal(url)
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
+            .withStyle(style -> safra$withOpenUrl(style, url));
+    }
+
+    private static net.minecraft.network.chat.Style safra$withOpenUrl(net.minecraft.network.chat.Style style, String url) {
+        try {
+            Class<?> clickEventClass = Class.forName("net.minecraft.network.chat.ClickEvent");
+            Object clickEvent;
+            try {
+                Class<?> openUrlClass = Class.forName("net.minecraft.network.chat.ClickEvent$OpenUrl");
+                clickEvent = openUrlClass.getConstructor(java.net.URI.class).newInstance(java.net.URI.create(url));
+            } catch (ReflectiveOperationException ignored) {
+                Class<?> actionClass = Class.forName("net.minecraft.network.chat.ClickEvent$Action");
+                @SuppressWarnings({"rawtypes", "unchecked"}) Object action = Enum.valueOf((Class) actionClass, "OPEN_URL");
+                clickEvent = clickEventClass.getConstructor(actionClass, String.class).newInstance(action, url);
+            }
+            for (java.lang.reflect.Method method : style.getClass().getMethods()) {
+                if (method.getName().equals("withClickEvent") && method.getParameterCount() == 1) {
+                    Object styled = method.invoke(style, clickEvent);
+                    if (styled instanceof net.minecraft.network.chat.Style result) {
+                        return result;
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return style;
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
