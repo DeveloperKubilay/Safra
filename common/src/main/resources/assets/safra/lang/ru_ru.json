@@ -10,7 +10,7 @@
   "safra.p2p.host.started": "Код доступа Safra P2P: %s",
   "safra.p2p.host.copied": "Код доступа скопирован в буфер обмена. Нажмите на код в чате, чтобы скопировать его снова.",
   "safra.p2p.host.instructions": "Ваш друг должен использовать Прямое подключение, включить P2P и вставить этот код.",
-  "safra.p2p.host.relay_warning": "Safra: Не удалось установить прямое P2P-соединение; соединение было восстановлено с помощью сервера.\nВы или подключающийся друг несёте ответственность за любые зависания или задержки.\nЕсли включены GoodbyeDPI, VPN, WARP или мобильный интернет, они могут быть причиной; рекомендуется отключить их.\nВозможно, ваша интернет-инфраструктура также не поддерживается.\nПодробная информация в Discord: https://discord.gg/NHjBvRxDXP",
+  "safra.p2p.host.relay_warning": "Safra: Не удалось установить прямое P2P-соединение; соединение было восстановлено с помощью сервера.\nВы или подключающийся друг несёте ответственность за любые зависания или задержки.\nЕсли включены GoodbyeDPI, VPN, WARP или мобильный интернет, они могут быть причиной; рекомендуется отключить их.\nВозможно, ваша интернет-инфраструктура также не поддерживается.\nПодробная информация в Discord: ",
   "safra.p2p.host.narration": "Код доступа Safra P2P: %s",
   "safra.p2p.host.failed": "Не удалось запустить Safra P2P: %s",
   "safra.p2p.copy_hint": "Нажмите, чтобы скопировать код доступа P2P",
@@ -36,5 +36,5 @@
   "safra.p2p.error.server_busy": "The servers are currently full. Please try again later.",
   "safra.p2p.error.session_not_found": "There is currently no open server for this code.",
   "safra.p2p.error.invalid_session": "The server owner must disable Online Mode in Safra's server settings.",
-  "safra.p2p.error.direct_fallback": "Could not communicate with the server.\nПодробная информация в Discord: https://discord.gg/NHjBvRxDXP"
+  "safra.p2p.error.direct_fallback": "Could not communicate with the server.\nПодробная информация в Discord: "
 }

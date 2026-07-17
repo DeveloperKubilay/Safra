@@ -4,8 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.world.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
@@ -59,11 +61,8 @@ abstract class IntegratedServerMixin {
         Minecraft client = Minecraft.getInstance();
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.starting"));
         String fixedCode = safra$isFixedCodeEnabled() ? safra$getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() ->
-            client.ingameGUI.getChatGUI().printChatMessage(
-                new TranslationTextComponent("safra.p2p.host.relay_warning").mergeStyle(TextFormatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> safra$publishRelayWarning(client)))
+            .whenComplete((shareCode, throwable) -> {
             if (client == null) {
                 return;
             }
@@ -76,7 +75,19 @@ abstract class IntegratedServerMixin {
 
                 safra$publishShareCode(client, tcpPort, shareCode);
             });
-        });
+            });
+    }
+
+    private static void safra$publishRelayWarning(Minecraft client) {
+        client.ingameGUI.getChatGUI().printChatMessage(
+            new TranslationTextComponent("safra.p2p.host.relay_warning").mergeStyle(TextFormatting.YELLOW)
+        );
+        String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
+        client.ingameGUI.getChatGUI().printChatMessage(
+            new StringTextComponent(discordUrl)
+                .setStyle(Style.EMPTY.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl)))
+                .mergeStyle(TextFormatting.BLUE, TextFormatting.UNDERLINE)
+        );
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {

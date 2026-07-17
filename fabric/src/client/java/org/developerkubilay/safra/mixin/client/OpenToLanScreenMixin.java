@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.LiteralText;
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -135,11 +136,8 @@ abstract class OpenToLanScreenMixin extends Screen {
 
         this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.client.execute(() ->
-            this.client.inGameHud.getChatHud().addMessage(
-                new TranslatableText("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.client.execute(this::safra$publishRelayWarning))
+            .whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
                 return;
             }
@@ -152,7 +150,22 @@ abstract class OpenToLanScreenMixin extends Screen {
 
                 safra$publishShareCode(tcpPort, shareCode);
             });
-        });
+            });
+    }
+
+    @Unique
+    private void safra$publishRelayWarning() {
+        this.client.inGameHud.getChatHud().addMessage(
+            new TranslatableText("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
+        );
+        String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
+        this.client.inGameHud.getChatHud().addMessage(
+            new LiteralText(discordUrl).setStyle(Style.EMPTY
+                .withColor(Formatting.BLUE)
+                .withUnderline(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl))
+            )
+        );
     }
 
     @Unique

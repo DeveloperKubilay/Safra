@@ -1,8 +1,12 @@
 package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.text.LiteralText;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
+import net.minecraft.util.Formatting;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.p2p.P2pErrorKind;
 
 public final class P2pErrorComponents {
@@ -28,11 +32,22 @@ public final class P2pErrorComponents {
             return safraError(new TranslatableText(kind.translationKey()));
         }
         return context.directShareAddress()
-            ? safraError(new TranslatableText("safra.p2p.error.direct_fallback"))
+            ? safraErrorWithDiscord(new TranslatableText("safra.p2p.error.direct_fallback"))
             : details;
     }
 
     private static Text safraError(Text details) {
         return new LiteralText("Safra Error: ").append(details);
+    }
+
+    private static Text safraErrorWithDiscord(Text details) {
+        String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
+        return new LiteralText("Safra Error: ")
+            .append(details)
+            .append(new LiteralText("\n" + discordUrl).setStyle(Style.EMPTY
+                .withColor(Formatting.BLUE)
+                .withUnderline(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl))
+            ));
     }
 }
