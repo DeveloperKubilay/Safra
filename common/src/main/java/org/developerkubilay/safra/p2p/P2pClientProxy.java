@@ -2,7 +2,7 @@ package org.developerkubilay.safra.p2p;
 
 import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
 import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;

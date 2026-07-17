@@ -2,7 +2,7 @@ package org.developerkubilay.safra.p2p;
 
 import de.maxhenkel.voicechat.api.ClientVoicechatSocket;
 import de.maxhenkel.voicechat.api.RawUdpPacket;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;

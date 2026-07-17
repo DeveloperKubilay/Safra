@@ -3,7 +3,7 @@ package org.developerkubilay.safra.p2p;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import org.developerkubilay.safra.util.SafraLogger;
 
 import java.util.concurrent.TimeUnit;

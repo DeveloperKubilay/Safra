@@ -11,7 +11,7 @@ import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;

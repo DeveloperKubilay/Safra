@@ -2,7 +2,7 @@ package org.developerkubilay.safra.p2p;
 
 import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
 import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import org.developerkubilay.safra.util.SafraLogger;
 
 import java.io.IOException;
@@ -28,12 +28,14 @@ public final class P2pHostService implements AutoCloseable {
     private final InetAddress targetAddress;
     private final String preferredRendezvousCode;
     private final boolean allowRelayFallback;
+    private final Runnable relayReadyHandler;
 
     private P2pDatagramTransport transport;
     private volatile P2pDatagramTransport relayFallbackTransport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
     private volatile boolean primaryTransportRelay;
+    private boolean relayReadyNotified;
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
@@ -48,16 +50,28 @@ public final class P2pHostService implements AutoCloseable {
         this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true);
     }
 
+    public P2pHostService(int tcpPort, int token, String preferredRendezvousCode, Runnable relayReadyHandler) {
+        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true, relayReadyHandler);
+    }
+
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode) {
         this(tcpPort, token, targetAddress, preferredRendezvousCode, true);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback) {
+        this(tcpPort, token, targetAddress, preferredRendezvousCode, allowRelayFallback, () -> {
+        });
+    }
+
+    public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback,
+                          Runnable relayReadyHandler) {
         this.tcpPort = tcpPort;
         this.token = token;
         this.targetAddress = targetAddress;
         this.preferredRendezvousCode = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
         this.allowRelayFallback = allowRelayFallback;
+        this.relayReadyHandler = relayReadyHandler == null ? () -> {
+        } : relayReadyHandler;
     }
 
     public P2pShareCode start() throws IOException {
@@ -327,6 +341,7 @@ public final class P2pHostService implements AutoCloseable {
                 LOGGER.info("Safra test mode host relay already ready, republishing joinerRelay={}", joinerRelayAddress);
             }
             publishRelayReady();
+            notifyRelayReady();
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }
@@ -341,6 +356,7 @@ public final class P2pHostService implements AutoCloseable {
             relayFallbackTransport = relayBinding.transport();
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());
+            notifyRelayReady();
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }
@@ -373,6 +389,18 @@ public final class P2pHostService implements AutoCloseable {
             rendezvousSession.publishRelay(publicEndpoints, "auto");
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P host relay publish failed", exception);
+        }
+    }
+
+    private void notifyRelayReady() {
+        if (relayReadyNotified || closed) {
+            return;
+        }
+        relayReadyNotified = true;
+        try {
+            relayReadyHandler.run();
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Safra P2P host relay ready handler failed", exception);
         }
     }
 
