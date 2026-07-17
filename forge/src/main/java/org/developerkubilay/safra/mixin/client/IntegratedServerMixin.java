@@ -59,7 +59,11 @@ abstract class IntegratedServerMixin {
         Minecraft client = Minecraft.getInstance();
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.starting"));
         String fixedCode = safra$isFixedCodeEnabled() ? safra$getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode).whenComplete((shareCode, throwable) -> {
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() ->
+            client.ingameGUI.getChatGUI().printChatMessage(
+                new TranslationTextComponent("safra.p2p.host.relay_warning").mergeStyle(TextFormatting.YELLOW)
+            )
+        )).whenComplete((shareCode, throwable) -> {
             if (client == null) {
                 return;
             }
