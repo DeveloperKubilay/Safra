@@ -10,6 +10,7 @@
   "safra.p2p.host.started": "Safra P2P share code: %s",
   "safra.p2p.host.copied": "Share code copied to clipboard. Click the code in chat to copy it again.",
   "safra.p2p.host.instructions": "Your friend should use Direct Connect, enable P2P, and paste this code.",
+  "safra.p2p.host.relay_warning": "Safra: A direct P2P connection could not be established; the connection was restored using a server.\nYou or the friend joining are responsible for any stuttering or lag.\nIf GoodbyeDPI, a VPN, WARP, or mobile data is enabled, it may be the cause; disabling it is recommended.\nYour internet infrastructure may also be unsupported.\nFor more information, Discord: https://discord.gg/NHjBvRxDXP",
   "safra.p2p.host.narration": "Safra P2P share code is %s",
   "safra.p2p.host.failed": "Safra P2P could not start: %s",
   "safra.p2p.copy_hint": "Click to copy the P2P share code",

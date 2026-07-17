@@ -28,11 +28,13 @@ public final class P2pHostService implements AutoCloseable {
     private final InetAddress targetAddress;
     private final String preferredRendezvousCode;
     private final boolean allowRelayFallback;
+    private final Runnable relayReadyHandler;
 
     private P2pDatagramTransport transport;
     private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
     private volatile boolean relayTransport;
+    private boolean relayReadyNotified;
     private volatile boolean closed;
 
     public P2pHostService(int tcpPort, int token) {
@@ -47,16 +49,28 @@ public final class P2pHostService implements AutoCloseable {
         this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true);
     }
 
+    public P2pHostService(int tcpPort, int token, String preferredRendezvousCode, Runnable relayReadyHandler) {
+        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true, relayReadyHandler);
+    }
+
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode) {
         this(tcpPort, token, targetAddress, preferredRendezvousCode, true);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback) {
+        this(tcpPort, token, targetAddress, preferredRendezvousCode, allowRelayFallback, () -> {
+        });
+    }
+
+    public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback,
+                          Runnable relayReadyHandler) {
         this.tcpPort = tcpPort;
         this.token = token;
         this.targetAddress = targetAddress;
         this.preferredRendezvousCode = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
         this.allowRelayFallback = allowRelayFallback;
+        this.relayReadyHandler = relayReadyHandler == null ? () -> {
+        } : relayReadyHandler;
     }
 
     public P2pShareCode start() throws IOException {
@@ -67,6 +81,9 @@ public final class P2pHostService implements AutoCloseable {
         P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, tcpPort, allowRelayFallback);
         transport = binding.transport();
         relayTransport = binding.relay();
+        if (relayTransport) {
+            notifyRelayReady();
+        }
         if (closed) {
             binding.close();
             throw new IOException("Safra P2P host service was stopped");
@@ -177,6 +194,18 @@ public final class P2pHostService implements AutoCloseable {
             } catch (IOException exception) {
                 LOGGER.debug("STUN keepalive failed: {}", exception.toString());
             }
+        }
+    }
+
+    private void notifyRelayReady() {
+        if (relayReadyNotified || closed) {
+            return;
+        }
+        relayReadyNotified = true;
+        try {
+            relayReadyHandler.run();
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Safra P2P host relay ready handler failed", exception);
         }
     }
 
