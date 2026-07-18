@@ -45,8 +45,7 @@ public final class P2pErrorComponents {
         return new LiteralText("Safra Error: ")
             .append(details)
             .append(new LiteralText("\n" + discordUrl).setStyle(Style.EMPTY
-                .withColor(Formatting.BLUE)
-                .withUnderline(true)
+                .withFormatting(Formatting.BLUE, Formatting.UNDERLINE)
                 .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl))
             ));
     }

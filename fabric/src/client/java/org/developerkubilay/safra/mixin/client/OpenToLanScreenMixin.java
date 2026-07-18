@@ -161,8 +161,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
         this.client.inGameHud.getChatHud().addMessage(
             new LiteralText(discordUrl).setStyle(Style.EMPTY
-                .withColor(Formatting.BLUE)
-                .withUnderline(true)
+                .withFormatting(Formatting.BLUE, Formatting.UNDERLINE)
                 .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl))
             )
         );
