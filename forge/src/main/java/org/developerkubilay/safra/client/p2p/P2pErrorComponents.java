@@ -18,7 +18,9 @@ public final class P2pErrorComponents {
      * callback first needs this class. Touch it during client bootstrap.
      */
     public static void warmUp() {
-        // Intentionally empty.
+        // Also load the enum used by the deferred error callback. Forge 1.16's
+        // ModLauncher may no longer be able to read the mod jar at that point.
+        P2pErrorKind.values();
     }
 
     public static ITextComponent preparationFailure(Throwable throwable) {
