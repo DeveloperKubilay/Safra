@@ -174,10 +174,33 @@ jobs:
       - name: Build release artifacts
         shell: bash
         run: |
-          ./gradlew clean build --stacktrace \
-            -PmcVersion="${{ matrix.mc_version }}" \
-            -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
-            $SAFRA_BUILD_MODE_ARGS
+          build_args=(
+            clean
+            build
+            --stacktrace
+            --no-daemon
+            "-PmcVersion=${{ matrix.mc_version }}"
+            "-Pmod_version=${{ needs.prepare.outputs.version_number }}"
+          )
+
+          if [[ -n "$SAFRA_BUILD_MODE_ARGS" ]]; then
+            build_args+=("$SAFRA_BUILD_MODE_ARGS")
+          fi
+
+          for attempt in 1 2 3; do
+            if ./gradlew "${build_args[@]}"; then
+              exit 0
+            fi
+
+            if [[ "$attempt" == "3" ]]; then
+              echo "Gradle build failed after 3 attempts."
+              exit 1
+            fi
+
+            echo "Gradle build failed; clearing the partial Fabric Loom cache and retrying ($attempt/3)."
+            rm -rf "$HOME/.gradle/caches/fabric-loom/${{ matrix.mc_version }}"
+            sleep 5
+          done
 
       - name: Collect release artifacts
         shell: bash
