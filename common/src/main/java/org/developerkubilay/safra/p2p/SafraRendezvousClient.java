@@ -442,35 +442,27 @@ final class SafraRendezvousClient {
             JsonObject request = new JsonObject();
             request.addProperty("code", code);
             request.add("network", toNetwork(endpoint));
-            long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_TIMEOUT_MS;
-            while (true) {
-                Response response = send(requestBuilder(httpUri("/session-join"))
-                    .header("Content-Type", "application/json")
-                    .post(RequestBody.create(JSON, GSON.toJson(request)))
-                    .build());
-                try {
-                    if (response.code() == 404 && System.currentTimeMillis() < deadline) {
-                        sleepQuietly(200L);
-                        continue;
-                    }
-                    if (response.code() < 200 || response.code() >= 300) {
-                        throw new IOException("Safra join request returned HTTP " + response.code());
-                    }
-
-                    String body = response.body() != null ? response.body().string() : "";
-                    JsonObject json = parseApi3Object(body, "Safra join response is invalid");
-                    hostAddress = fromNetwork(array(json, "host"));
-                    voiceAddress = fromNetwork(array(json, "voiceHost"));
-                    JsonObject relay = object(json, "relay");
-                    relayAddress = relayNetwork(relay);
-                    relayCredentials = relayCredentials(relay);
-                    if (hostAddress == null && relayAddress == null) {
-                        throw new IOException("Safra join response did not include a host address");
-                    }
-                    return;
-                } finally {
-                    response.close();
+            Response response = send(requestBuilder(httpUri("/session-join"))
+                .header("Content-Type", "application/json")
+                .post(RequestBody.create(JSON, GSON.toJson(request)))
+                .build());
+            try {
+                if (response.code() < 200 || response.code() >= 300) {
+                    throw new IOException("Safra join request returned HTTP " + response.code());
                 }
+
+                String body = response.body() != null ? response.body().string() : "";
+                JsonObject json = parseApi3Object(body, "Safra join response is invalid");
+                hostAddress = fromNetwork(array(json, "host"));
+                voiceAddress = fromNetwork(array(json, "voiceHost"));
+                JsonObject relay = object(json, "relay");
+                relayAddress = relayNetwork(relay);
+                relayCredentials = relayCredentials(relay);
+                if (hostAddress == null && relayAddress == null) {
+                    throw new IOException("Safra join response did not include a host address");
+                }
+            } finally {
+                response.close();
             }
         }
 
