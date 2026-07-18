@@ -80,14 +80,10 @@ abstract class IntegratedServerMixin {
 
     private static void safra$publishRelayWarning(Minecraft client) {
         client.ingameGUI.getChatGUI().printChatMessage(
-            new TranslationTextComponent("safra.p2p.host.relay_warning").mergeStyle(TextFormatting.YELLOW)
+            safra$withStyle(new TranslationTextComponent("safra.p2p.host.relay_warning"), TextFormatting.YELLOW)
         );
         String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
-        client.ingameGUI.getChatGUI().printChatMessage(
-            new StringTextComponent(discordUrl)
-                .setStyle(Style.EMPTY.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl)))
-                .mergeStyle(TextFormatting.BLUE, TextFormatting.UNDERLINE)
-        );
+        client.ingameGUI.getChatGUI().printChatMessage(safra$clickableLink(discordUrl));
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
@@ -147,6 +143,35 @@ abstract class IntegratedServerMixin {
         } catch (ReflectiveOperationException ignored) {
         }
         return text;
+    }
+
+    private static ITextComponent safra$clickableLink(String url) {
+        ITextComponent link = safra$withStyle(new StringTextComponent(url), TextFormatting.BLUE, TextFormatting.UNDERLINE);
+        try {
+            Object style;
+            try {
+                style = Style.class.getField("EMPTY").get(null);
+            } catch (ReflectiveOperationException ignored) {
+                style = Style.class.newInstance();
+            }
+            ClickEvent event = new ClickEvent(ClickEvent.Action.OPEN_URL, url);
+            Object clickedStyle = safra$invokeStyleClickEvent(style, event);
+            if (clickedStyle != null) {
+                link.getClass().getMethod("setStyle", Style.class).invoke(link, clickedStyle);
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return link;
+    }
+
+    private static Object safra$invokeStyleClickEvent(Object style, ClickEvent event) {
+        for (String methodName : new String[]{"setClickEvent", "withClickEvent"}) {
+            try {
+                return style.getClass().getMethod(methodName, ClickEvent.class).invoke(style, event);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
     }
 
     private static boolean safra$isP2pEnabled() {

@@ -50,9 +50,63 @@ public final class P2pErrorComponents {
 
     private static ITextComponent safraErrorWithDiscord(ITextComponent details) {
         String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
-        return new StringTextComponent("Safra Error: " + details.getString() + "\n")
-            .appendSibling(new StringTextComponent(discordUrl)
-                .setStyle(Style.EMPTY.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl)))
-                .mergeStyle(TextFormatting.BLUE, TextFormatting.UNDERLINE));
+        return safra$append(
+            new StringTextComponent("Safra Error: " + details.getString() + "\n"),
+            safra$clickableLink(discordUrl)
+        );
+    }
+
+    private static ITextComponent safra$clickableLink(String url) {
+        ITextComponent link = safra$withStyle(new StringTextComponent(url), TextFormatting.BLUE, TextFormatting.UNDERLINE);
+        try {
+            Object style;
+            try {
+                style = Style.class.getField("EMPTY").get(null);
+            } catch (ReflectiveOperationException ignored) {
+                style = Style.class.newInstance();
+            }
+            ClickEvent event = new ClickEvent(ClickEvent.Action.OPEN_URL, url);
+            Object clickedStyle = safra$invokeStyleClickEvent(style, event);
+            if (clickedStyle != null) {
+                link.getClass().getMethod("setStyle", Style.class).invoke(link, clickedStyle);
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return link;
+    }
+
+    private static ITextComponent safra$withStyle(ITextComponent text, TextFormatting... formats) {
+        Object current = text;
+        for (TextFormatting format : formats) {
+            for (String methodName : new String[]{"mergeStyle", "func_240699_a_", "withStyle"}) {
+                try {
+                    current = current.getClass().getMethod(methodName, TextFormatting.class).invoke(current, format);
+                    break;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+        }
+        return current instanceof ITextComponent ? (ITextComponent) current : text;
+    }
+
+    private static Object safra$invokeStyleClickEvent(Object style, ClickEvent event) {
+        for (String methodName : new String[]{"setClickEvent", "withClickEvent"}) {
+            try {
+                return style.getClass().getMethod(methodName, ClickEvent.class).invoke(style, event);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static ITextComponent safra$append(ITextComponent left, ITextComponent right) {
+        for (String methodName : new String[]{"appendSibling", "append"}) {
+            try {
+                Object result = left.getClass().getMethod(methodName, ITextComponent.class).invoke(left, right);
+                return result instanceof ITextComponent ? (ITextComponent) result : left;
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return new StringTextComponent(left.getString() + right.getString());
     }
 }
