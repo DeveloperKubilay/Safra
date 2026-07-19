@@ -22,13 +22,14 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> В превью используется **TLauncher** (альтернативные лаунчеры тоже поддерживаются)  
-> Есть поддержка **голосового чата** (поддержка мода)
+> ✅ В превью используется **TLauncher** (альтернативные лаунчеры тоже поддерживаются)  
+> ✅ Есть поддержка **голосового чата** (поддержка мода)
 
 ## Поддержка модов
 
 Ты можешь легко играть с модами, которые установили ты и твои друзья.  
-Поддерживаются **Fabric**, **Forge** и **NeoForge**.
+Поддерживаются **Fabric**, **Forge** и **NeoForge**.  
+Проект был протестирован с более чем 180 модами и работал без проблем.
 
 ## Примечание ⚠️
 
@@ -39,6 +40,12 @@
 > Если хочешь, чтобы сгенерированный код оставался фиксированным, просто включи `Use Fixed Code=on` в настройках.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Поддержка Bedrock
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> Вам понадобится мод Geyser. Однако это не основная цель мода, поэтому сервера могут быть перегружены.
 
 ## FAQ 🤔
 

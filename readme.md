@@ -60,7 +60,7 @@
 
 # Safra 🚀
 
-Don't waste time dealing with server setup  or useless extra steps 
+Don't waste time dealing with server setup or useless extra steps 
 Launch your Minecraft server in **2 clicks** and jump straight into the game
 
 ✅ No complicated interface 😌  
@@ -69,23 +69,30 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> **TLauncher** is used in the preview (alternative launchers are supported)  
-> Includes **voice chat** support (mod support)
+> ✅ **TLauncher** is used in the preview (alternative launchers are supported)  
+> ✅ Includes **voice chat** support (mod support)
 
 ## Mod Support
 
 You can easily play with the mods you and your friends install  
-Supports **Fabric**, **Forge**, and **NeoForge**
+Supports **Fabric**, **Forge**, and **NeoForge**  
+It was tested with over 180 mods and worked without any issues.
 
 ## Note ⚠️
 
-> If TLauncher or other launcher players will join, it's enough for the person starting the server to set `online-mode=false` before sharing the game.
+> If players using TLauncher or other custom launchers are joining, the host just needs to set `online-mode=false` before sharing the game.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot3.png)
 
 > If you want the generated code to stay fixed, just set `Use Fixed Code=on` in Settings.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Bedrock support
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> You'll need the Geyser mod. However, this is not the main focus of the mod, so servers may be busy.
 
 ## FAQ 🤔
 

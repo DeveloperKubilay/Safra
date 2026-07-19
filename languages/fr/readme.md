@@ -22,13 +22,14 @@ Lance ton serveur Minecraft en **2 clics** et entre directement dans la partie.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> **TLauncher** est utilise dans l'aperçu (les launchers alternatifs sont aussi pris en charge)  
-> Inclut la prise en charge du **chat vocal** (support du mod)
+> ✅ **TLauncher** est utilise dans l'aperçu (les launchers alternatifs sont aussi pris en charge)  
+> ✅ Inclut la prise en charge du **chat vocal** (support du mod)
 
 ## Support des mods
 
 Tu peux facilement jouer avec les mods que toi et tes amis avez installes.  
-Compatible avec **Fabric**, **Forge** et **NeoForge**.
+Compatible avec **Fabric**, **Forge** et **NeoForge**.  
+Il a été testé avec plus de 180 mods et a fonctionné sans aucun problème.
 
 ## Note ⚠️
 
@@ -39,6 +40,12 @@ Compatible avec **Fabric**, **Forge** et **NeoForge**.
 > Si tu veux que le code genere reste fixe, active simplement `Use Fixed Code=on` dans les parametres.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Support Bedrock
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> Tu auras besoin du mod Geyser. Cependant, ce n'est pas l'objectif principal du mod, les serveurs peuvent donc être occupés.
 
 ## FAQ 🤔
 

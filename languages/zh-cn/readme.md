@@ -22,13 +22,14 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> 预览里使用的是 **TLauncher**（也支持其他启动器）  
-> 也包含 **语音聊天** 支持（Mod 支持）
+> ✅ 预览里使用的是 **TLauncher**（也支持其他启动器）  
+> ✅ 也包含 **语音聊天** 支持（Mod 支持）
 
 ## Mod 支持
 
 你和朋友装了什么 Mod，就可以很轻松地一起玩。  
-支持 **Fabric**、**Forge** 和 **NeoForge**。
+支持 **Fabric**、**Forge** 和 **NeoForge**。  
+经过 180 多个 Mod 测试，运行完全正常。
 
 ## 注意 ⚠️
 
@@ -39,6 +40,12 @@
 > 如果你想让生成的代码保持固定，只需要在设置里打开 `Use Fixed Code=on`。
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Bedrock 支持
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> 你需要 Geyser Mod。不过这不是 Mod 的主要焦点，因此服务器可能会比较拥挤。
 
 ## FAQ 🤔
 

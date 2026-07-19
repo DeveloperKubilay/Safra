@@ -22,13 +22,14 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> 미리보기에는 **TLauncher** 가 사용되었습니다 (다른 런처도 지원)  
-> **보이스 채팅** 지원도 포함되어 있습니다 (모드 지원)
+> ✅ 미리보기에는 **TLauncher** 가 사용되었습니다 (다른 런처도 지원)  
+> ✅ **보이스 채팅** 지원도 포함되어 있습니다 (모드 지원)
 
 ## 모드 지원
 
 너와 친구들이 설치한 모드로 쉽게 같이 플레이할 수 있습니다.  
-**Fabric**, **Forge**, **NeoForge** 를 지원합니다.
+**Fabric**, **Forge**, **NeoForge** 를 지원합니다.  
+180개 이상의 모드로 테스트되었으며 문제없이 작동했습니다.
 
 ## 참고 ⚠️
 
@@ -39,6 +40,12 @@
 > 생성되는 코드를 고정하고 싶다면 설정에서 `Use Fixed Code=on` 을 켜세요.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Bedrock 지원
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> Geyser 모드가 필요합니다. 하지만 이것이 모드의 주요 목적은 아니므로 서버가 혼잡할 수 있습니다.
 
 ## FAQ 🤔
 

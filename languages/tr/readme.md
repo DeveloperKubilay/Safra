@@ -22,13 +22,14 @@ Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> Ön izleme görselinde **TLauncher** kullanılmıştır (alternatif başlatıcılar desteklenir)  
-> **Voice chat** desteği vardır (mod desteği)
+> ✅ Ön izleme görselinde **TLauncher** kullanılmıştır (alternatif başlatıcılar desteklenir)  
+> ✅ **Voice chat** desteği vardır (mod desteği)
 
 ## Mod Desteği
 
 Senin ve arkadaşlarının kurduğu modlarla rahatça oynayabilirsin  
-**Fabric**, **Forge** ve **NeoForge** desteklenir
+**Fabric**, **Forge** ve **NeoForge** desteklenir  
+180'den fazla mod ile test edildi ve sorunsuz çalıştı.
 
 ## Not ⚠️
 
@@ -39,6 +40,12 @@ Senin ve arkadaşlarının kurduğu modlarla rahatça oynayabilirsin
 > Eğer oluşturulan kodu sabit yapmak istiyorsanız, Ayarlardan `Use Fixed Code=on` yapmanız yeterlidir.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Bedrock desteği
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> Geyser moduna ihtiyacınız var. Ancak modun ana odağı bu değildir; sunucular yoğun olabilir.
 
 ## SSS 🤔
 

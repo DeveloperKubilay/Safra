@@ -22,13 +22,14 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
 
-> プレビューでは **TLauncher** を使用しています（他のランチャーも対応）  
-> **ボイスチャット**対応も含まれています（Mod対応）
+> ✅ プレビューでは **TLauncher** を使用しています（他のランチャーも対応）  
+> ✅ **ボイスチャット**対応も含まれています（Mod対応）
 
 ## Modサポート
 
 あなたと友達が入れているModでそのまま簡単に遊べます。  
-**Fabric**、**Forge**、**NeoForge** に対応しています。
+**Fabric**、**Forge**、**NeoForge** に対応しています。  
+180以上のModでテストされ、問題なく動作しました。
 
 ## 注意 ⚠️
 
@@ -39,6 +40,12 @@
 > 生成されるコードを固定したい場合は、設定で `Use Fixed Code=on` を有効にしてください。
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot8.png)
+
+## Bedrockサポート
+
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
+
+> Geyser Modが必要です。ただし、これがModの主な目的ではないため、サーバーが混雑している可能性があります。
 
 ## FAQ 🤔
 
