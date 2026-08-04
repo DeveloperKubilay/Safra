@@ -128,7 +128,6 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
 
     const sessionCode = req.body.code;
     const state = { alive: true, ip: req.ip };
-
     const session = {
         ip: req.ip,
         host: req.body.network,
@@ -159,7 +158,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
     console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${sessionCode}`);
 
     eventStream(res, true);
-    res.raw.write(eventMessage("session-created", { code: sessionCode, relayRequired: req.body.network == null }));
+    res.raw.write(eventMessage("session-created", { code: sessionCode, relayRequired: req.body.network == null || req.body.network[0] === "ipv6" }));
     res.raw.once("close", endSession);
 })
 
