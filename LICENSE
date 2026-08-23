@@ -11,17 +11,17 @@ This project is source-available software.
 PERMISSIONS
 - View and study the source code
 - Fork the repository
-- Modify the code and build it for personal use
-- Use GitHub Actions or similar tools to create your own builds
+- Modify the code and create your own builds for your own use
 - Contribute via pull requests
 - Use in private or personal environments
 
 RESTRICTIONS
 - No public distribution of this project, modified versions, or derived builds without prior written permission
-- No uploading compiled versions to public platforms (Modrinth, CurseForge, personal GitHub Releases, mirror sites, file hosts, or similar services)
+- No uploading modified or compiled versions to public platforms (Modrinth, CurseForge, personal GitHub Releases, mirror sites, file hosts, or similar services)
 - No public mirrors or download links
+- No commercial use or monetization
 - No rebranding or claiming ownership
-- No use of project name, logo, or assets without permission
+- No use of Safra's official servers or services by unofficial, modified, forked, or derived builds
 
 DISTRIBUTION
 This project is intended for personal use and development only.
@@ -29,6 +29,7 @@ Forking and modification are allowed, but public distribution is prohibited unle
 
 OFFICIAL BUILDS
 Only releases published by the original author are considered official.
+Safra's official servers and services may only be used by official builds published by the original author.
 
 DISCLAIMER
 THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
@@ -37,11 +38,28 @@ THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 TURKISH (INFORMATIONAL TRANSLATION)
 ----------------------------------------
 
-(Bu bolum yalnizca aciklama amaclidir, hukuki gecerlilik Ingilizce metne aittir.)
+(Bu bölüm yalnızca bilgilendirme amaçlıdır; hukuki bağlayıcılık yukarıdaki İngilizce metne aittir.)
 
-- Kod incelenebilir ve forklanabilir
-- Kisisel kullanim icin degistirilebilir
-- Build almak serbesttir
-- Ama kamuya acik sekilde paylasmak yasaktir
-- Modrinth / CurseForge gibi yerlere yuklenemez
-- Proje sahiplenilemez veya yeniden markalanamaz
+İZİNLER
+- Kaynak kodunu görüntüleme ve inceleme
+- Depoyu (repository) forklama
+- Kendi kullanımınız için kodu değiştirme ve kendi derlemelerinizi (build) oluşturma
+- Pull request (PR) aracılığıyla projeye katkıda bulunma
+- Özel veya kişisel ortamlarda kullanma
+
+KISITLAMALAR
+- Önceden yazılı izin alınmaksızın bu projenin, değiştirilmiş sürümlerinin veya türev derlemelerinin kamuya açık dağıtılması yasaktır
+- Değiştirilmiş veya derlenmiş sürümlerin kamuya açık platformlara (Modrinth, CurseForge, kişisel GitHub Releases, ayna siteler, dosya sunucuları vb.) yüklenmesi yasaktır
+- Kamuya açık ayna (mirror) veya indirme bağlantıları paylaşılması yasaktır
+- Ticari amaçla kullanılması veya gelir elde edilmesi yasaktır
+- Projenin yeniden markalanması (rebranding) veya sahiplenilmesi yasaktır
+- Resmi olmayan, değiştirilmiş, forklanmış veya türetilmiş derlemelerin Safra'nın resmi sunucularını veya servislerini kullanması yasaktır
+
+DAĞITIM
+Bu proje yalnızca kişisel kullanım ve geliştirme amacıyla sunulmaktadır. Forklama ve değişiklik yapma serbesttir; ancak orijinal geliştiricinin açık izni olmaksızın kamuya açık dağıtım yasaktır.
+
+RESMİ DERLEMELER
+Yalnızca orijinal geliştirici tarafından yayınlanan sürümler resmi kabul edilir. Safra'nın resmi sunucuları ve hizmetleri yalnızca orijinal geliştirici tarafından yayınlanan resmi sürümler tarafından kullanılabilir.
+
+SORUMLULUK REDDİ
+BU YAZILIM HERHANGİ BİR GARANTİ VERİLMEKSİZİN "OLDUĞU GİBİ" (AS IS) SUNULMAKTADIR.
