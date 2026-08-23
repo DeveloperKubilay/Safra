@@ -26,8 +26,8 @@ function changeActiveSessionCount(ip, delta) {
 
 elenora.connect(console, {
     filename: 'logs/app.log',
-    maxSize: 5 * 1024 * 1024, // 5 MB
-    backupCount: 3,
+    maxSize: config.MAX_LOG_SIZE || 1024 * 1024 * 1024,//1gb
+    backupCount: config.LOG_BACKUP_COUNT || 5,//1gb *5 
     continueFromLast: false,
     interval: 10000,
     timestamp: false
@@ -155,7 +155,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         state
     });
 
-    console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${sessionCode}`);
+    console.slientlog(`[${new Date().toISOString()}] Session create request from IP: ${req.ip} with code: ${sessionCode} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
 
     eventStream(res, true);
     res.raw.write(eventMessage("session-created", { code: sessionCode, relayRequired: req.body.network == null || req.body.network[0] === "ipv6" }));
@@ -163,11 +163,13 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
 })
 
 app.post("/voicechat-update", async (req, res) => {
+    req.ip = req.headers["cf-connecting-ip"] || req.ip;
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const networkValidation = networkControl(req.body.voicechat);
     if (networkValidation) return res.code(400).send(networkValidation);
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
+    console.slientlog(`[${new Date().toISOString()}] Voicechat update from IP: ${req.ip} with code: ${req.body.code}`);
     session.write(eventMessage("voicechat-updated", { voiceHost: req.body.voicechat }));
     res.send({ ok: true });
 });
@@ -219,7 +221,7 @@ app.post("/session-join", async (req, res) => {
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
-    console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code}`);
+    console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
 
     session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
         host: req.body.network,
@@ -239,6 +241,7 @@ app.post("/relay-request", async (req, res) => {
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
     if (session.relay) return res.code(409).send("Relay already assigned for this session");
+    console.slientlog(`[${new Date().toISOString()}] Relay request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
     const turnCredentials = await getTurnCredentials();
     session.write(eventMessage("relay-assigned", turnCredentials));
     session.relay = turnCredentials;
