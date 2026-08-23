@@ -1,47 +1,17 @@
-All Rights Reserved
+Copyright (c) 2026 DeveloperKubilay. All Rights Reserved.
 
-Copyright (c) 2026 DeveloperKubilay
+This branch and its contents are part of the Safra project.
+The licensing terms, permissions, and restrictions governing this branch and its contents are defined in the 'assets' branch:
 
-----------------------------------------
-ENGLISH (LEGAL VERSION)
-----------------------------------------
+Official License & Terms:
+https://github.com/DeveloperKubilay/Safra/blob/assets/LICENSE
 
-This project is source-available software.
-
-PERMISSIONS
-- View and study the source code
-- Fork the repository
-- Modify the code and build it for personal use
-- Use GitHub Actions or similar tools to create your own builds
-- Contribute via pull requests
-- Use in private or personal environments
-
-RESTRICTIONS
-- No public distribution of this project, modified versions, or derived builds without prior written permission
-- No uploading compiled versions to public platforms (Modrinth, CurseForge, personal GitHub Releases, mirror sites, file hosts, or similar services)
-- No public mirrors or download links
-- No rebranding or claiming ownership
-- No use of project name, logo, or assets without permission
-
-DISTRIBUTION
-This project is intended for personal use and development only.
-Forking and modification are allowed, but public distribution is prohibited unless explicitly permitted by the original author.
-
-OFFICIAL BUILDS
-Only releases published by the original author are considered official.
-
-DISCLAIMER
-THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
-
-----------------------------------------
+------------------------------------------------------------
 TURKISH (INFORMATIONAL TRANSLATION)
-----------------------------------------
+------------------------------------------------------------
 
-(Bu bolum yalnizca aciklama amaclidir, hukuki gecerlilik Ingilizce metne aittir.)
+(Bu bölüm yalnızca bilgilendirme amaçlı bir açıklamadır.)
 
-- Kod incelenebilir ve forklanabilir
-- Kisisel kullanim icin degistirilebilir
-- Build almak serbesttir
-- Ama kamuya acik sekilde paylasmak yasaktir
-- Modrinth / CurseForge gibi yerlere yuklenemez
-- Proje sahiplenilemez veya yeniden markalanamaz
+Bu branch ve içeriği Safra projesinin bir parçasıdır.
+Bu branch ve içeriğinin kullanım, dağıtım ve lisans koşulları 'assets' branch'inde tanımlanmıştır.
+Detaylı lisans şartları için yukarıdaki bağlantıyı inceleyiniz.
