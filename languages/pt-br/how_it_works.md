@@ -1,12 +1,17 @@
 # Como esse sistema funciona?
 
-Apps como Omegle e WhatsApp normalmente se comunicam sem manter um servidor no meio o tempo todo. Esse sistema funciona com uma ideia parecida.
+Aplicativos como WhatsApp (durante chamadas), Omegle ou BitTorrent usam tecnologia **P2P (Peer-to-Peer / Ponto a Ponto)** em vez de passar todo o tráfego por um servidor central. Passar os dados de jogo de milhões de jogadores por servidores centrais causaria alta latência (lag) e custos astronômicos com servidores.
 
-Provedores de internet podem nao permitir abrir portas TCP, mas podem permitir portas UDP.
+### Como o sistema realmente funciona?
 
-Neste mod, a comunicacao do servidor de Minecraft, que normalmente funciona com TCP, e transportada por UDP e mostrada para o outro lado como se fosse TCP.
+1. Normalmente, conexões de internet residenciais não têm portas públicas abertas (devido ao esgotamento de endereços IPv4 e ao uso de CGNAT pelos provedores, não é possível abrir portas diretamente de fora).
+2. No entanto, sempre que você acessa um site ou faz uma solicitação de saída, seu roteador/provedor abre temporariamente uma porta de saída para o mundo externo.
+3. Neste sistema, o mod se conecta como se fosse acessar um site como o Google, mas sem enviar mensagens; ele apenas pega essa porta temporária aberta e a compartilha com seu amigo, enquanto entrega a porta do seu amigo para você. É como dizer *"vou acessar um site"* e usar essa porta aberta para se conectar diretamente com seu amigo.
+4. Depois que a conexão é estabelecida, o tráfego do jogo flui **sem nenhum servidor intermediário**, diretamente entre o seu computador e o do seu amigo (P2P).
 
-Isso permite jogar de forma suave com seu amigo de graca, sem que o trafego passe por um servidor de relay.
+---
+
+### Diferença de Conexão
 
 Por exemplo, em mods parecidos:
 
@@ -16,11 +21,7 @@ Neste mod:
 
 `Seu computador (Istambul) -> computador do seu amigo (Istambul)`
 
-Nao existe servidor no meio para o trafego do jogo.
-
-A comunicacao acontece apenas entre voce e seu amigo.
-
-Este mod usa um servidor apenas para que os dois lados encontrem o endereco IP um do outro.
+Não há nenhum servidor relay intermediário; a comunicação ocorre exclusivamente entre vocês dois.
 
 ## Seguranca
 

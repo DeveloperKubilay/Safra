@@ -1,12 +1,17 @@
 # Wie funktioniert dieses System?
 
-Apps wie Omegle und WhatsApp kommunizieren normalerweise, ohne einen Server dauerhaft dazwischen zu halten. Dieses System arbeitet mit einer aehnlichen Idee.
+Apps wie WhatsApp (bei Anrufen), Omegle oder BitTorrent nutzen **P2P-Technologie (Peer-to-Peer)**, anstatt den gesamten Datenverkehr über einen zentralen Server zu leiten. Die Spieldaten von Millionen Spielern über zentrale Server zu leiten, würde zu hohen Latenzen (Lags) und enormen Serverkosten führen.
 
-Internetanbieter erlauben moeglicherweise keine offenen TCP-Ports, aber UDP-Ports koennen oft genutzt werden.
+### Wie funktioniert das System genau?
 
-In diesem Mod wird die Kommunikation des Minecraft-Servers, die normalerweise ueber TCP laeuft, ueber UDP transportiert und der Gegenseite so dargestellt, als waere es TCP.
+1. Normalerweise verfügen Heim-Internetanschlüsse nicht über offene Ports (da IPv4-Adressen knapp sind und Anbieter CGNAT nutzen, können Ports von außen nicht direkt geöffnet werden).
+2. Wenn du jedoch eine Website aufrufst oder eine Anfrage nach außen sendest, öffnet dein Router/Internetanbieter kurzzeitig einen temporären Port nach draußen.
+3. In diesem System verbindet sich der Mod so, als würde er eine Website wie Google aufrufen, sendet aber keine Nachrichten; er holt sich lediglich diesen temporär geöffneten Port und gibt ihn an deinen Freund weiter, während du den Port deines Freundes erhältst. Es ist praktisch so, als würde man sagen: *"Ich besuche eine Website"*, und über diesen geöffneten Port verbindet man sich direkt mit seinem Freund.
+4. Sobald die Verbindung steht, läuft der gesamte Spielverkehr **ohne Zwischenserver** direkt zwischen deinem Computer und dem deines Freundes (P2P).
 
-Dadurch kannst du kostenlos und fluessig mit deinem Freund spielen, ohne dass der Datenverkehr ueber einen Relay-Server geht.
+---
+
+### Verbindungsunterschied
 
 Zum Beispiel bei aehnlichen Mods:
 
@@ -16,11 +21,7 @@ In diesem Mod:
 
 `Dein Computer (Istanbul) -> Computer deines Freundes (Istanbul)`
 
-Es gibt keinen Server in der Mitte fuer den Spielverkehr.
-
-Die Kommunikation findet nur zwischen dir und deinem Freund statt.
-
-Dieser Mod verwendet einen Server nur dafuer, damit beide Seiten die IP-Adresse des jeweils anderen finden koennen.
+Es gibt keinen Relay-Server dazwischen; die Kommunikation findet ausschliesslich zwischen euch beiden statt.
 
 ## Sicherheit
 

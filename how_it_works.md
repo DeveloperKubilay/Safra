@@ -1,12 +1,17 @@
 # How does this system work?
 
-Apps like Omegle and WhatsApp usually communicate without keeping a server in the middle. This works with a similar idea.
+Apps like WhatsApp (during voice/video calls), Omegle, or BitTorrent use **P2P (Peer-to-Peer)** technology instead of routing all traffic through a central server. Routing millions of players' gameplay data through central servers would cause high latency (lag) and massive server hosting costs.
 
-Internet providers may not allow opening TCP ports, but they may allow UDP ports.
+### How does the system actually work?
 
-In this mod, the communication of the Minecraft server, which normally works with TCP, is carried over UDP and shown to the other side like TCP.
+1. Normally, home internet connections don't have open public ports (due to IPv4 address exhaustion and ISPs using CGNAT, you cannot directly open ports from the outside).
+2. However, whenever you visit a website or send an outgoing request, your router/ISP temporarily opens an outbound port to the outside world.
+3. In this system, the mod connects as if it were visiting a website like Google, but without sending messages; it simply grabs that temporary open port and shares it with your friend, while giving your friend's port to you. It's essentially like saying *"I'm visiting a website"*, and using that opened port to connect directly to your friend.
+4. Once the connection is established, the game traffic flows **without any server in between**, directly between your computer and your friend's computer (P2P).
 
-This lets you play smoothly with your friend for free, without traffic going through a relay server.
+---
+
+### Connection Difference
 
 For example, in similar mods:
 
@@ -16,11 +21,7 @@ In this mod:
 
 `Your computer (Istanbul) -> your friend's computer (Istanbul)`
 
-There is no server in the middle for the game traffic.
-
-The communication is only between you and your friend.
-
-This mod only uses a server so both sides can find each other's IP address.
+There is no relay server in between; communication is directly between you and your friend.
 
 ## Security
 

@@ -1,12 +1,17 @@
 # Bu sistem nasıl çalışır?
 
-Omegle ve WhatsApp gibi uygulamalar, genellikle arada sunucu olmadan iletişim kurarlar. Bu da benzer mantıkla çalışır.
+WhatsApp (arama yaparken), Omegle veya Torrent gibi platformlar trafiği tek bir sunucuya yüklemek yerine **P2P (Peer-to-Peer / Uçtan Uca)** teknolojisi kullanır. Çünkü milyonlarca oyuncunun verisini merkezi sunuculardan geçirmek hem yüksek gecikmeye (lag) yol açar hem de devasa sunucu maliyetleri doğurur.
 
-Internet sağlayıcıları TCP port açmazken UDP port açmaya izin verebilir.
+### Sistem tam olarak nasıl işliyor?
 
-Bu modda TCP ile çalışan Minecraft sunucusunun iletişimi UDP üzerinden sağlanıp karşı tarafa TCP gibi gösterilir.
+1. Normalde ev internetlerinde sabit/açık bir IP ve port bulunmaz (dünyada IPv4 adresleri bittiği ve servis sağlayıcıları CGNAT kullandığı için dışarıdan doğrudan port açılamaz).
+2. Ancak siz bir web sitesine girerken veya dışarıya bir istek attığınızda modeminiz/sağlayıcınız dış dünyaya geçici bir çıkış kapısı (port) açar.
+3. Bu sistemde ise mod, tıpkı web sitesine girecekmiş gibi Google'a bağlanır ancak mesaj iletmez; sadece o açılan portu alır ve arkadaşınıza iletir, arkadaşınızın portunu da size verir. Böylece siz resmen *"web sitesine gireceğim"* deyip açtığınız port üzerinden gidip arkadaşınızla bağlantı kurmuş olursunuz.
+4. Bağlantı bir kez kurulduktan sonra oyun trafiği **arada hiçbir sunucu olmadan**, tamamen sizinle arkadaşınızın bilgisayarı arasında doğrudan (P2P) akar.
 
-Böylece arada hiçbir sunucu geçmeden, sınırsız ve ücretsiz şekilde arkadaşınla akıcı oynayabilirsin.
+---
+
+### Bağlantı Farkı
 
 Örnek olarak benzer modlarda:
 
@@ -16,11 +21,7 @@ Bu modda ise:
 
 `Senin bilgisayarın (Istanbul) -> arkadaşının bilgisayarı (Istanbul)`
 
-Arada herhangi bir sunucu bulunmaz.
-
-Aradaki iletişim sadece aranızda olur.
-
-Bu mod, birbirinizin IP adresini bulabilmeniz için sadece sunucu kullanır.
+Arada herhangi bir aktarma sunucusu bulunmaz; iletişim sadece ikinizin arasındadır.
 
 ## Güvenlik
 
