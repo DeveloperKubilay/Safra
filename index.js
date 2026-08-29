@@ -28,7 +28,7 @@ elenora.connect(console, {
     filename: 'logs/app.log',
     maxSize: config.MAX_LOG_SIZE || 1024 * 1024 * 1024,//1gb
     backupCount: config.LOG_BACKUP_COUNT || 5,//1gb *5 
-    continueFromLast: false,
+    continueFromLast: true,
     interval: 10000,
     timestamp: false
 });
@@ -278,6 +278,7 @@ app.post("/relay-accept", async (req, res) => {
     res.send({ ok: true });
 });
 
+let logCount = 1;
 setInterval(() => {//gc
     const now = Date.now();
     if (bedrockLatestServer > 1000000) bedrockLatestServer = 0;
@@ -307,10 +308,15 @@ setInterval(() => {//gc
         }
     });
 
-    console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}`);
+    logCount--;
+    if (logCount === 0) {
+        const relayUsers = sessions.size > 2000 ? "n/a" : [...sessions.values()].filter(session => session.relay).length;
+        console.log(`[${new Date().toISOString()}] Waiters: ${RelayWaiters.length}, Active sessions: ${SessionWaiters.length}, Relay users: ${relayUsers}, Active sessions by IP: ${activeSessionsByIp.size}`);
+        logCount = 6;
+    }
 }, 10 * 1000)
 
 app.listen({ host: '0.0.0.0', port: process.env.PORT || 3000 }, (err, address) => {
     if (err) console.error(err);
-    console.log(`Server is running at ${address}`);
+    console.log(`[${new Date().toISOString()}] Server is running at ${address}`);
 });
