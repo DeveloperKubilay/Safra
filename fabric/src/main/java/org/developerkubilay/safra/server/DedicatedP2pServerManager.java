@@ -3,7 +3,9 @@ package org.developerkubilay.safra.server;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import net.minecraft.server.MinecraftServer;
@@ -19,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,8 +87,10 @@ public final class DedicatedP2pServerManager {
     }
 
     private static String loadOrCreateFixedCode(Path configPath) {
+        JsonObject config;
+        String fixedCode;
         try {
-            JsonObject config = readConfig(configPath);
+            config = readConfig(configPath);
             JsonElement enabled = config.get("openToLanFixedCodeEnabled");
             if (enabled != null) {
                 if (!enabled.isJsonPrimitive() || !enabled.getAsJsonPrimitive().isBoolean()) {
@@ -101,23 +106,29 @@ public final class DedicatedP2pServerManager {
                 throw new JsonSyntaxException("openToLanFixedCode must be a string");
             }
 
-            String fixedCode = storedCode == null
+            fixedCode = storedCode == null
                 ? null
                 : P2pShareCode.normalizeRendezvousCode(storedCode.getAsString());
             if (fixedCode != null) {
                 return fixedCode;
             }
-
-            fixedCode = P2pShareCode.createRendezvousCode(P2pShareCode.FIXED_RENDEZVOUS_CODE_LENGTH);
-            config.addProperty("openToLanFixedCodeEnabled", true);
-            config.addProperty("openToLanFixedCode", fixedCode);
-            writeConfig(configPath, config);
-            LOGGER.info("Safra dedicated share code created and stored in {}", configPath);
-            return fixedCode;
-        } catch (IOException | RuntimeException exception) {
+        } catch (IOException | JsonParseException exception) {
             LOGGER.warn("Safra dedicated fixed code could not be read from {}", configPath, exception);
             return null;
         }
+
+        fixedCode = P2pShareCode.createRendezvousCode(P2pShareCode.FIXED_RENDEZVOUS_CODE_LENGTH);
+        config.addProperty("openToLanFixedCodeEnabled", true);
+        config.addProperty("openToLanFixedCode", fixedCode);
+        try {
+            writeConfig(configPath, config);
+        } catch (IOException | JsonIOException exception) {
+            LOGGER.warn("Safra dedicated fixed code could not be stored in {}", configPath, exception);
+            return null;
+        }
+
+        LOGGER.info("Safra dedicated share code created and stored in {}", configPath);
+        return fixedCode;
     }
 
     private static JsonObject readConfig(Path configPath) throws IOException {
@@ -125,7 +136,7 @@ public final class DedicatedP2pServerManager {
             return new JsonObject();
         }
 
-        try (Reader reader = Files.newBufferedReader(configPath)) {
+        try (Reader reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
             JsonElement parsed = JsonParser.parseReader(reader);
             if (parsed == null || !parsed.isJsonObject()) {
                 throw new JsonSyntaxException("Safra config root must be a JSON object");
@@ -142,7 +153,7 @@ public final class DedicatedP2pServerManager {
 
         Path temporaryPath = Files.createTempFile(parent, "safra-client", ".json.tmp");
         try {
-            try (Writer writer = Files.newBufferedWriter(temporaryPath)) {
+            try (Writer writer = Files.newBufferedWriter(temporaryPath, StandardCharsets.UTF_8)) {
                 GSON.toJson(config, writer);
             }
 
