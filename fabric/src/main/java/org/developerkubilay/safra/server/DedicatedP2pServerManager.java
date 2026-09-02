@@ -173,14 +173,29 @@ public final class DedicatedP2pServerManager {
      * instead keeps that setup working, and it also keeps the temporary file on the same filesystem
      * as the file it replaces, which is what lets the move stay atomic.
      *
-     * <p>A path that does not exist yet resolves to itself: there is no link to follow, and creating
-     * the file where it was asked for is the only sensible reading.
+     * <p>Links are followed explicitly before {@link Path#toRealPath()} is used. That matters for a
+     * dangling/new symlink: {@code toRealPath()} cannot resolve it because the destination does not
+     * exist yet, but {@link Files#readSymbolicLink(Path)} can still tell us where the operator wants
+     * the config written. A short depth limit also makes a symlink cycle fail safely instead of ever
+     * falling back to replacing one of the links.
      */
-    private static Path resolveTarget(Path configPath) {
+    private static Path resolveTarget(Path configPath) throws IOException {
+        Path target = configPath.toAbsolutePath().normalize();
+        for (int depth = 0; depth < 40 && Files.isSymbolicLink(target); depth++) {
+            Path linkTarget = Files.readSymbolicLink(target);
+            target = linkTarget.isAbsolute()
+                ? linkTarget.normalize()
+                : target.getParent().resolve(linkTarget).normalize();
+        }
+
+        if (Files.isSymbolicLink(target)) {
+            throw new IOException("Too many symbolic links while resolving Safra config: " + configPath);
+        }
+
         try {
-            return configPath.toRealPath();
+            return target.toRealPath();
         } catch (IOException exception) {
-            return configPath;
+            return target;
         }
     }
 
