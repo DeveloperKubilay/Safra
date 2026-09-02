@@ -46,7 +46,7 @@ public final class P2pConstants {
     static final long RENDEZVOUS_RECONNECT_SLOW_AFTER_MS = 60_000L;
     static final long RENDEZVOUS_RECONNECT_SLOW_DELAY_MS = 30_000L;
     static final long VOICE_HOST_WAIT_MS = 5_000L;
-    public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
+    public static final int TURN_REQUEST_TIMEOUT_MS = 8_000;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;
