@@ -83,14 +83,23 @@ public final class DedicatedP2pServerManager {
         try {
             JsonObject config = readConfig(configPath);
             JsonElement enabled = config.get("openToLanFixedCodeEnabled");
-            if (enabled != null && enabled.isJsonPrimitive() && !enabled.getAsBoolean()) {
-                return null;
+            if (enabled != null) {
+                if (!enabled.isJsonPrimitive() || !enabled.getAsJsonPrimitive().isBoolean()) {
+                    throw new JsonSyntaxException("openToLanFixedCodeEnabled must be a boolean");
+                }
+                if (!enabled.getAsBoolean()) {
+                    return null;
+                }
             }
 
             JsonElement storedCode = config.get("openToLanFixedCode");
-            String fixedCode = storedCode != null && storedCode.isJsonPrimitive()
-                ? P2pShareCode.normalizeRendezvousCode(storedCode.getAsString())
-                : null;
+            if (storedCode != null && (!storedCode.isJsonPrimitive() || !storedCode.getAsJsonPrimitive().isString())) {
+                throw new JsonSyntaxException("openToLanFixedCode must be a string");
+            }
+
+            String fixedCode = storedCode == null
+                ? null
+                : P2pShareCode.normalizeRendezvousCode(storedCode.getAsString());
             if (fixedCode != null) {
                 return fixedCode;
             }
