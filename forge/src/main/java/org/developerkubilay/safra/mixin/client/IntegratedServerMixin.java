@@ -3,7 +3,10 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
@@ -84,7 +87,13 @@ abstract class IntegratedServerMixin {
         SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
         client.keyboardHandler.setClipboard(shareCodeText);
 
-        Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
+        Component shareText = Component.literal(shareCodeText)
+            .setStyle(Style.EMPTY
+                .withColor(ChatFormatting.AQUA)
+                .withUnderlined(true)
+                .withInsertion(shareCodeText)
+                .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
+                .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         if (!shareCode.isRendezvous()) {
             client.gui.getChat().addClientSystemMessage(
@@ -103,6 +112,7 @@ abstract class IntegratedServerMixin {
 
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
+        client.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
         safra$startBedrockRelay(client);
     }
 
