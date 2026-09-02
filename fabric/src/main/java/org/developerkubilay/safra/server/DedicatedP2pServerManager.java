@@ -1,5 +1,10 @@
 package org.developerkubilay.safra.server;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.minecraft.server.MinecraftServer;
 import org.developerkubilay.safra.p2p.CachedRendezvousConfigLoader;
 import org.developerkubilay.safra.p2p.ConsoleShareCodePrinter;
@@ -11,16 +16,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class DedicatedP2pServerManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Safra P2P");
-    private static final Pattern FIXED_CODE_ENABLED_PATTERN = Pattern.compile("\"openToLanFixedCodeEnabled\"\\s*:\\s*(true|false)");
-    private static final Pattern FIXED_CODE_PATTERN = Pattern.compile("\"openToLanFixedCode\"\\s*:\\s*\"([^\"]*)\"");
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static P2pHostService hostService;
 
     private DedicatedP2pServerManager() {
@@ -36,7 +40,7 @@ public final class DedicatedP2pServerManager {
         RemoteRendezvousBootstrap.initializeDedicated();
 
         int tcpPort = server.getPort();
-        String fixedCode = loadFixedCode(Paths.get("config", "safra-client.json"));
+        String fixedCode = loadOrCreateFixedCode(Paths.get("config", "safra-client.json"));
         try {
             P2pHostSupport.HostStartResult hostStartResult = P2pHostSupport.startDedicatedHost(tcpPort, server.getLocalIp(), fixedCode, LOGGER);
             hostService = hostStartResult.service();
@@ -74,27 +78,53 @@ public final class DedicatedP2pServerManager {
         hostService = null;
     }
 
-    private static String loadFixedCode(Path configPath) {
+    private static String loadOrCreateFixedCode(Path configPath) {
         try {
-            if (!Files.exists(configPath)) {
+            JsonObject config = readConfig(configPath);
+            JsonElement enabled = config.get("openToLanFixedCodeEnabled");
+            if (enabled != null && enabled.isJsonPrimitive() && !enabled.getAsBoolean()) {
                 return null;
             }
 
-            String json = Files.readString(configPath);
-            Matcher enabledMatcher = FIXED_CODE_ENABLED_PATTERN.matcher(json);
-            if (!enabledMatcher.find() || !Boolean.parseBoolean(enabledMatcher.group(1))) {
-                return null;
+            JsonElement storedCode = config.get("openToLanFixedCode");
+            String fixedCode = storedCode != null && storedCode.isJsonPrimitive()
+                ? P2pShareCode.normalizeRendezvousCode(storedCode.getAsString())
+                : null;
+            if (fixedCode != null) {
+                return fixedCode;
             }
 
-            Matcher codeMatcher = FIXED_CODE_PATTERN.matcher(json);
-            if (!codeMatcher.find()) {
-                return null;
-            }
-
-            return P2pShareCode.normalizeRendezvousCode(codeMatcher.group(1));
-        } catch (IOException exception) {
+            fixedCode = P2pShareCode.createRendezvousCode(P2pShareCode.FIXED_RENDEZVOUS_CODE_LENGTH);
+            config.addProperty("openToLanFixedCodeEnabled", true);
+            config.addProperty("openToLanFixedCode", fixedCode);
+            writeConfig(configPath, config);
+            LOGGER.info("Safra dedicated share code created and stored in {}", configPath);
+            return fixedCode;
+        } catch (IOException | RuntimeException exception) {
             LOGGER.warn("Safra dedicated fixed code could not be read from {}", configPath, exception);
             return null;
+        }
+    }
+
+    private static JsonObject readConfig(Path configPath) throws IOException {
+        if (!Files.isRegularFile(configPath)) {
+            return new JsonObject();
+        }
+
+        try (Reader reader = Files.newBufferedReader(configPath)) {
+            JsonElement parsed = JsonParser.parseReader(reader);
+            return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : new JsonObject();
+        }
+    }
+
+    private static void writeConfig(Path configPath, JsonObject config) throws IOException {
+        Path parent = configPath.toAbsolutePath().getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        try (Writer writer = Files.newBufferedWriter(configPath)) {
+            GSON.toJson(config, writer);
         }
     }
 }
