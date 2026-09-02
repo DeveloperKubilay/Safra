@@ -19,9 +19,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public final class DedicatedP2pServerManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Safra P2P");
@@ -132,13 +134,28 @@ public final class DedicatedP2pServerManager {
     }
 
     private static void writeConfig(Path configPath, JsonObject config) throws IOException {
-        Path parent = configPath.toAbsolutePath().getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
+        Path target = configPath.toAbsolutePath();
+        Path parent = target.getParent();
+        Files.createDirectories(parent);
 
-        try (Writer writer = Files.newBufferedWriter(configPath)) {
-            GSON.toJson(config, writer);
+        Path temporaryPath = Files.createTempFile(parent, "safra-client", ".json.tmp");
+        try {
+            try (Writer writer = Files.newBufferedWriter(temporaryPath)) {
+                GSON.toJson(config, writer);
+            }
+
+            try {
+                Files.move(temporaryPath, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporaryPath, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException | RuntimeException exception) {
+            try {
+                Files.deleteIfExists(temporaryPath);
+            } catch (IOException suppressed) {
+                exception.addSuppressed(suppressed);
+            }
+            throw exception;
         }
     }
 }
