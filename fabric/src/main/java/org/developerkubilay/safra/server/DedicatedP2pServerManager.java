@@ -24,6 +24,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 
 public final class DedicatedP2pServerManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Safra P2P");
@@ -144,6 +146,8 @@ public final class DedicatedP2pServerManager {
                 GSON.toJson(config, writer);
             }
 
+            copyPermissions(target, temporaryPath);
+
             try {
                 Files.move(temporaryPath, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } catch (AtomicMoveNotSupportedException exception) {
@@ -156,6 +160,32 @@ public final class DedicatedP2pServerManager {
                 exception.addSuppressed(suppressed);
             }
             throw exception;
+        }
+    }
+
+    /**
+     * Carries the config's current permissions onto the replacement.
+     *
+     * <p>{@link Files#createTempFile} creates an owner-only file, and replacing the config with it
+     * hands those permissions to the config too. An operator who had deliberately widened the file -
+     * a shared admin group on a dedicated box is the usual reason - would silently lose that on the
+     * first write, which is not something a share-code update should decide. A config that does not
+     * exist yet keeps the restrictive default: nobody has expressed an opinion about it, and that is
+     * the safer of the two ways to guess.
+     */
+    private static void copyPermissions(Path target, Path temporaryPath) {
+        if (!Files.isRegularFile(target)) {
+            return;
+        }
+
+        try {
+            Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(target);
+            Files.setPosixFilePermissions(temporaryPath, permissions);
+        } catch (UnsupportedOperationException exception) {
+            // Windows and any other non-POSIX filesystem: there is nothing to carry, and the
+            // replacement inherits the directory's ACL the same way the original did.
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.warn("Safra could not carry the permissions of {} onto its replacement", target, exception);
         }
     }
 }
