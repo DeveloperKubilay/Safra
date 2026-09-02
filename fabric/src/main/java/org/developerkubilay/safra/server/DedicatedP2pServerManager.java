@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import net.minecraft.server.MinecraftServer;
 import org.developerkubilay.safra.p2p.CachedRendezvousConfigLoader;
 import org.developerkubilay.safra.p2p.ConsoleShareCodePrinter;
@@ -113,7 +114,11 @@ public final class DedicatedP2pServerManager {
 
         try (Reader reader = Files.newBufferedReader(configPath)) {
             JsonElement parsed = JsonParser.parseReader(reader);
-            return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : new JsonObject();
+            if (parsed == null || !parsed.isJsonObject()) {
+                throw new JsonSyntaxException("Safra config root must be a JSON object");
+            }
+
+            return parsed.getAsJsonObject();
         }
     }
 
