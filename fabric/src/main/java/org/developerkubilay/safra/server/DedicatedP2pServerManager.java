@@ -136,7 +136,7 @@ public final class DedicatedP2pServerManager {
     }
 
     private static void writeConfig(Path configPath, JsonObject config) throws IOException {
-        Path target = configPath.toAbsolutePath();
+        Path target = resolveTarget(configPath.toAbsolutePath());
         Path parent = target.getParent();
         Files.createDirectories(parent);
 
@@ -160,6 +160,27 @@ public final class DedicatedP2pServerManager {
                 exception.addSuppressed(suppressed);
             }
             throw exception;
+        }
+    }
+
+    /**
+     * Resolves the config a symlink points at, so the write lands where the operator aimed it.
+     *
+     * <p>Replacing a path atomically means replacing whatever sits at that path, and if that is a
+     * symlink the move destroys the link and leaves a regular file in its place. Someone who pointed
+     * config/safra-client.json at a shared or version-controlled location would find the link gone
+     * and their real config untouched the first time a share code was stored. Following the link
+     * instead keeps that setup working, and it also keeps the temporary file on the same filesystem
+     * as the file it replaces, which is what lets the move stay atomic.
+     *
+     * <p>A path that does not exist yet resolves to itself: there is no link to follow, and creating
+     * the file where it was asked for is the only sensible reading.
+     */
+    private static Path resolveTarget(Path configPath) {
+        try {
+            return configPath.toRealPath();
+        } catch (IOException exception) {
+            return configPath;
         }
     }
 
