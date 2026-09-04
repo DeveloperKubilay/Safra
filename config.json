@@ -5,8 +5,8 @@
     "dedicated":"https://safra.randdcodes.com"
   },
   "api-test-only":{
-    "client":"https://betavsafra.randdcodes.com",
-    "dedicated":"https://betavsafra.randdcodes.com"
+    "client":"http://localhost:3000",
+    "dedicated":"http://localhost:3000"
   },
   "discord":"https://discord.gg/NHjBvRxDXP",
   "latest": {
