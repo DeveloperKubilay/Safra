@@ -65,11 +65,15 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+// Every mixin the loader compiles, wherever its source lives.
+def mixinSources = project.files(
+    project.fileTree('src/main/java') { include '**/*Mixin.java' },
+    project.fileTree(rootProject.file('common-mc/src/client/java')) { include '**/*Mixin.java' }
+)
+
 tasks.register('formatMixinMappings') {
     dependsOn project(':neoforge').tasks.named('createMinecraftArtifacts')
-    inputs.files(project.fileTree('src/main/java') {
-        include '**/*Mixin.java'
-    })
+    inputs.files(mixinSources)
     inputs.property('minecraft_version', mixinMinecraftVersion)
     outputs.file(generatedMixinMappingsFile)
 
@@ -82,9 +86,7 @@ tasks.register('formatMixinMappings') {
         }
 
         def targetClasses = new LinkedHashSet<String>()
-        project.fileTree('src/main/java') {
-            include '**/*Mixin.java'
-        }.files.each { sourceFile ->
+        mixinSources.files.each { sourceFile ->
             def imports = [:]
             sourceFile.eachLine('UTF-8') { line ->
                 def trimmed = line.trim()
