@@ -189,7 +189,9 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private void safra$publishShareCode(int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         this.minecraft.keyboardHandler.setClipboard(shareCodeText);
 
         Component shareText = Component.literal(shareCodeText)
@@ -199,7 +201,9 @@ abstract class OpenToLanScreenMixin extends Screen {
                 .withInsertion(shareCodeText)
                 .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
                 .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
-        this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        }
         if (!shareCode.isRendezvous()) {
             this.safra$addClientSystemMessage(
                 Component.literal("Safra Error: ")
@@ -215,9 +219,11 @@ abstract class OpenToLanScreenMixin extends Screen {
             );
         }
 
-        this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+        if (!hidden) {
+            this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+            this.minecraft.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
+        }
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
-        this.minecraft.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
         this.safra$startBedrockRelay();
     }
 

@@ -87,7 +87,7 @@ final class P2pKwikHostServer implements AutoCloseable {
                     socket.deliver(packet.payload(), peer.address);
                 }
             }
-            case CLOSE -> removePeer(packet.connectionId());
+            case CLOSE -> expire(packet.connectionId());
             default -> {
             }
         }
@@ -148,10 +148,15 @@ final class P2pKwikHostServer implements AutoCloseable {
         }
     }
 
-    private void removePeer(int connectionId) {
-        Peer peer = peersByConnection.remove(connectionId);
+    /**
+     * A joiner announces its departure with a Safra CLOSE and only then closes its QUIC connection,
+     * so dropping the route here would strand the QUIC shutdown that actually ends the Minecraft
+     * session. The route stays until the next sweep, which is long after that datagram lands.
+     */
+    private void expire(int connectionId) {
+        Peer peer = peersByConnection.get(connectionId);
         if (peer != null) {
-            peersByPort.remove(peer.address.getPort());
+            peer.lastSeenAt = System.nanoTime() - PEER_IDLE_NANOS;
         }
     }
 

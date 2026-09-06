@@ -9,6 +9,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -95,7 +96,9 @@ abstract class IntegratedServerMixin {
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         client.keyboardHandler.setClipboard(shareCodeText);
 
         Component shareText = Component.literal(shareCodeText)
@@ -105,7 +108,9 @@ abstract class IntegratedServerMixin {
                 .withInsertion(shareCodeText)
                 .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
                 .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
-        client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+        }
         if (!shareCode.isRendezvous()) {
             client.gui.getChat().addClientSystemMessage(
                 Component.literal("Safra Error: ")
@@ -121,9 +126,11 @@ abstract class IntegratedServerMixin {
             );
         }
 
-        client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+        if (!hidden) {
+            client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+            client.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
+        }
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
-        client.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
         safra$startBedrockRelay(client);
     }
 
