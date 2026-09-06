@@ -6,15 +6,17 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
-import java.security.KeyStore;
+import java.security.spec.ECGenParameterSpec;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Her paylaşım oturumunda üretilen QUIC sunucu kimliği.
@@ -26,10 +28,13 @@ import java.security.KeyStore;
  */
 final class P2pKwikCertificate {
     private static final char[] KEY_PASSWORD = "safra-kwik".toCharArray();
-    private static final byte[] SHA256_WITH_RSA = {
-        0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01, 0x01, 0x0B
+    private static final byte[] ECDSA_WITH_SHA256 = {
+        0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x04, 0x03, 0x02
     };
     private static final byte[] COMMON_NAME = {0x55, 0x04, 0x03};
+    private static final Duration VALIDITY = Duration.ofHours(24);
+    private static final DateTimeFormatter UTC_TIME =
+        DateTimeFormatter.ofPattern("yyMMddHHmmss'Z'").withZone(ZoneOffset.UTC);
 
     private final KeyStore keyStore;
     private final X509Certificate certificate;
@@ -40,8 +45,8 @@ final class P2pKwikCertificate {
     }
 
     static P2pKwikCertificate create() throws GeneralSecurityException {
-        KeyPairGenerator keyGenerator = KeyPairGenerator.getInstance("RSA");
-        keyGenerator.initialize(2048);
+        KeyPairGenerator keyGenerator = KeyPairGenerator.getInstance("EC");
+        keyGenerator.initialize(new ECGenParameterSpec("secp256r1"));
         KeyPair keyPair = keyGenerator.generateKeyPair();
 
         byte[] encodedCertificate = createCertificate(keyPair);
@@ -86,10 +91,10 @@ final class P2pKwikCertificate {
     }
 
     private static byte[] createCertificate(KeyPair keyPair) throws GeneralSecurityException {
-        byte[] signatureAlgorithm = sequence(objectIdentifier(SHA256_WITH_RSA), nullValue());
+        byte[] signatureAlgorithm = sequence(objectIdentifier(ECDSA_WITH_SHA256));
         byte[] distinguishedName = sequence(set(sequence(objectIdentifier(COMMON_NAME), utf8String("Safra P2P Host"))));
-        byte[] validity = sequence(utcTime(new Date(System.currentTimeMillis() - 60_000L)),
-            utcTime(new Date(System.currentTimeMillis() + 86_400_000L * 365L)));
+        Instant now = Instant.now();
+        byte[] validity = sequence(utcTime(now.minusSeconds(60L)), utcTime(now.plus(VALIDITY)));
         byte[] serial = new BigInteger(96, new SecureRandom()).add(BigInteger.ONE).toByteArray();
         byte[] tbsCertificate = sequence(
             explicit(0, integer(new byte[]{2})),
@@ -101,7 +106,7 @@ final class P2pKwikCertificate {
             keyPair.getPublic().getEncoded()
         );
 
-        Signature signer = Signature.getInstance("SHA256withRSA");
+        Signature signer = Signature.getInstance("SHA256withECDSA");
         signer.initSign(keyPair.getPrivate());
         signer.update(tbsCertificate);
         return sequence(tbsCertificate, signatureAlgorithm, bitString(signer.sign()));
@@ -132,18 +137,12 @@ final class P2pKwikCertificate {
         return tagged(0x06, value);
     }
 
-    private static byte[] nullValue() {
-        return new byte[]{0x05, 0x00};
-    }
-
     private static byte[] utf8String(String value) {
         return tagged(0x0C, value.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static byte[] utcTime(Date value) {
-        SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss'Z'");
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return tagged(0x17, format.format(value).getBytes(StandardCharsets.US_ASCII));
+    private static byte[] utcTime(Instant value) {
+        return tagged(0x17, UTC_TIME.format(value).getBytes(StandardCharsets.US_ASCII));
     }
 
     private static byte[] bitString(byte[] value) {
