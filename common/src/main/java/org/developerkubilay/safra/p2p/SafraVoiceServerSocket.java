@@ -28,7 +28,6 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
 
     private DatagramSocket socket;
     private volatile boolean closed = true;
-    private volatile String publishedCode;
 
     @Override
     public synchronized void open(int port, String bindAddress) throws Exception {
@@ -42,50 +41,11 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         socket = openSocket(port, bindAddress);
         closed = false;
         requestStunDiscovery();
-        if (reopening) {
-            P2pRuntime.start("safra-voice-refresh", this::refreshSafraBinding);
-        } else {
+        if (!reopening) {
             SafraVoiceTransportManager.getInstance().registerServerSocket(this);
         }
         scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
             P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
-    }
-
-    synchronized void refreshSafraBinding() {
-        DatagramSocket currentSocket = socket;
-        if (closed || currentSocket == null || currentSocket.isClosed()) {
-            return;
-        }
-
-        SafraVoiceTransportManager manager = SafraVoiceTransportManager.getInstance();
-        SafraRendezvousClient.HostSession session = manager.hostSession();
-        String code = manager.hostCode();
-        if (session == null || code == null || code.isBlank()) {
-            publishedCode = null;
-            return;
-        }
-
-        if (code.equals(publishedCode) && !stunMappings.isEmpty()) {
-            return;
-        }
-
-        if (stunMappings.isEmpty()) {
-            requestStunDiscovery();
-            return;
-        }
-
-        P2pStunClient.DiscoveredEndpoint preferred = stunMappings.preferredCandidate();
-        if (preferred == null || preferred.publicAddress() == null) {
-            LOGGER.warn("Safra voice host could not publish UDP candidates for session {}", code);
-            return;
-        }
-
-        try {
-            session.publishVoice(stunMappings.publicEndpoints());
-            publishedCode = code;
-        } catch (IOException exception) {
-            LOGGER.warn("Safra voice host could not publish UDP candidates for session {}", code, exception);
-        }
     }
 
     private void refreshStunMapping() {
@@ -196,11 +156,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
     }
 
     private boolean handleStunPacket(DatagramPacket packet) {
-        if (!stunMappings.rememberResponse(packet)) {
-            return false;
-        }
-        P2pRuntime.start("safra-voice-publish", this::refreshSafraBinding);
-        return true;
+        return stunMappings.rememberResponse(packet);
     }
 
     private void requestStunDiscovery() {
@@ -250,7 +206,6 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
 
     private void resetCurrentSocket(boolean unregister) {
         closed = true;
-        publishedCode = null;
         stunMappings.clear();
         if (unregister) {
             SafraVoiceTransportManager.getInstance().unregisterServerSocket(this);

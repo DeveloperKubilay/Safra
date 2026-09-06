@@ -165,10 +165,6 @@ final class SafraRendezvousClient {
         }
 
         @Override
-        public void publishVoice(Collection<InetSocketAddress> publicEndpoints) {
-        }
-
-        @Override
         public void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException {
             InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null || code == null || code.isBlank()) {
@@ -812,7 +808,6 @@ final class SafraRendezvousClient {
     }
 
     interface HostSessionBackend {
-        void publishVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException;
         void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException;
         void publishRelayFailure(String mode, String message);
         P2pTurnCredentials consumePendingRelayCredentials();
@@ -841,9 +836,6 @@ final class SafraRendezvousClient {
             return code;
         }
 
-        void publishVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
-            backend.publishVoice(publicEndpoints);
-        }
         void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException {
             backend.publishRelay(publicEndpoints, mode);
         }

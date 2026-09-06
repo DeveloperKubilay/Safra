@@ -133,7 +133,6 @@ public final class P2pHostService implements AutoCloseable {
                 this::ensureRelayAvailable,
                 this::updateJoinerAddress
             );
-            SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
@@ -175,7 +174,6 @@ public final class P2pHostService implements AutoCloseable {
             bedrockRelayHost = null;
         }
         if (rendezvousSession != null) {
-            SafraVoiceTransportManager.getInstance().clearHostSession(rendezvousSession);
             rendezvousSession.close();
             rendezvousSession = null;
         }

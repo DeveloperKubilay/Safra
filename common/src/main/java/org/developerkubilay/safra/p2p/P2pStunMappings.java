@@ -37,10 +37,6 @@ final class P2pStunMappings {
         return P2pStunClient.publicEndpoints(endpoints);
     }
 
-    P2pStunClient.DiscoveredEndpoint preferredCandidate() {
-        return P2pStunClient.preferredCandidate(endpoints);
-    }
-
     void requestCandidates(DatagramSocket socket) {
         pendingRequests.clear();
         pendingRequests.addAll(stunClient.requestCandidates(socket));

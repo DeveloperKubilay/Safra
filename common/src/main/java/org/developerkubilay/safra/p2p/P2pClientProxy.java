@@ -173,14 +173,18 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void acceptLoop() {
-        try (ServerSocket ignored = proxyServer) {
-            Socket localSocket = proxyServer.accept();
-            startKwikTunnel(localSocket);
-        } catch (IOException exception) {
-            if (!closed) {
-                LOGGER.debug("Proxy accept failed: {}", exception.toString());
-                close();
+        while (!closed) {
+            Socket localSocket;
+            try {
+                localSocket = proxyServer.accept();
+            } catch (IOException exception) {
+                if (!closed) {
+                    LOGGER.debug("Proxy accept failed: {}", exception.toString());
+                    close();
+                }
+                return;
             }
+            startKwikTunnel(localSocket);
         }
     }
 
