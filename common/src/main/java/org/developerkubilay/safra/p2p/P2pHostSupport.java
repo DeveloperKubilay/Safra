@@ -5,18 +5,9 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.ThreadLocalRandom;
 
 public final class P2pHostSupport {
     private P2pHostSupport() {
-    }
-
-    public static int createShareToken() {
-        int token;
-        do {
-            token = ThreadLocalRandom.current().nextInt();
-        } while (token == 0);
-        return token;
     }
 
     public static String resolvePreferredRendezvousCode(String preferredRendezvousCode) {
@@ -28,17 +19,11 @@ public final class P2pHostSupport {
         return P2pShareCode.rendezvousTunnelToken(rendezvousCode);
     }
 
-    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
-        return startDedicatedHost(tcpPort, serverIp, null, logger);
-    }
-
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
-        String resolvedCode = P2pConstants.useApi30Rendezvous()
-            ? resolvePreferredRendezvousCode(preferredRendezvousCode)
-            : P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        String resolvedCode = resolvePreferredRendezvousCode(preferredRendezvousCode);
         P2pHostService service = new P2pHostService(
             tcpPort,
-            P2pConstants.useApi30Rendezvous() ? createRendezvousShareToken(resolvedCode) : createShareToken(),
+            createRendezvousShareToken(resolvedCode),
             resolveTargetAddress(serverIp, logger),
             resolvedCode,
             false

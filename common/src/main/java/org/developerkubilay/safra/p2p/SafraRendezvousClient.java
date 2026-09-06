@@ -448,11 +448,6 @@ final class SafraRendezvousClient {
         }
 
         @Override
-        public int tunnelToken() {
-            return P2pShareCode.rendezvousTunnelToken(code);
-        }
-
-        @Override
         public InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
             InetSocketAddress localVoiceEndpoint = preferredEndpoint(publicEndpoints);
             if (localVoiceEndpoint != null) {
@@ -792,8 +787,6 @@ final class SafraRendezvousClient {
         URI baseUri = URI.create(base);
         String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
             case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            case "ws" -> "http";
-            case "wss" -> "https";
             default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
         };
         return URI.create(scheme + "://" + baseUri.getAuthority() + path);
@@ -828,7 +821,6 @@ final class SafraRendezvousClient {
 
     interface JoinSessionBackend {
         InetSocketAddress hostAddress(boolean relayPreferred);
-        int tunnelToken();
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException;
         InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException;
         void publishJoinerAddress(InetSocketAddress endpoint, int connectionId) throws IOException;
@@ -885,10 +877,6 @@ final class SafraRendezvousClient {
 
         InetSocketAddress hostAddress(boolean relayPreferred) {
             return backend.hostAddress(relayPreferred);
-        }
-
-        int tunnelToken() {
-            return backend.tunnelToken();
         }
 
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {

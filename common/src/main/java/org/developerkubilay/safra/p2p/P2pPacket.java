@@ -3,7 +3,7 @@ package org.developerkubilay.safra.p2p;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-record P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+record P2pPacket(Type type, int token, int connectionId, byte[] payload) {
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
     private static final ThreadLocal<ByteBuffer> ENCODE_BUFFER = ThreadLocal.withInitial(
         () -> ByteBuffer.allocate(P2pConstants.HEADER_SIZE + P2pConstants.MAX_PAYLOAD_SIZE)
@@ -35,23 +35,23 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
     }
 
     static P2pPacket punch(int token) {
-        return new P2pPacket(Type.PUNCH, token, 0, 0, 0, EMPTY_PAYLOAD);
+        return new P2pPacket(Type.PUNCH, token, 0, EMPTY_PAYLOAD);
     }
 
     static P2pPacket quicOpen(int token, int connectionId) {
-        return new P2pPacket(Type.QUIC_OPEN, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+        return new P2pPacket(Type.QUIC_OPEN, token, connectionId, EMPTY_PAYLOAD);
     }
 
     static P2pPacket quicCertificate(int token, int connectionId, byte[] certificate) {
-        return new P2pPacket(Type.QUIC_CERTIFICATE, token, connectionId, 0, 0, certificate);
+        return new P2pPacket(Type.QUIC_CERTIFICATE, token, connectionId, certificate);
     }
 
     static P2pPacket quicData(int token, int connectionId, byte[] payload) {
-        return new P2pPacket(Type.QUIC_DATA, token, connectionId, 0, 0, payload);
+        return new P2pPacket(Type.QUIC_DATA, token, connectionId, payload);
     }
 
     static P2pPacket close(int token, int connectionId) {
-        return new P2pPacket(Type.CLOSE, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+        return new P2pPacket(Type.CLOSE, token, connectionId, EMPTY_PAYLOAD);
     }
 
     P2pPacket {
@@ -65,8 +65,6 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
         buffer.put((byte) type.id);
         buffer.putInt(token);
         buffer.putInt(connectionId);
-        buffer.putInt(sequence);
-        buffer.putInt(acknowledgement);
         buffer.put(payload);
         int length = buffer.position();
         return Arrays.copyOf(buffer.array(), length);
@@ -88,12 +86,10 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
 
         int token = readInt(buffer, 2);
         int connectionId = readInt(buffer, 6);
-        int sequence = readInt(buffer, 10);
-        int acknowledgement = readInt(buffer, 14);
         byte[] payload = length == P2pConstants.HEADER_SIZE
             ? EMPTY_PAYLOAD
             : Arrays.copyOfRange(buffer, P2pConstants.HEADER_SIZE, length);
-        return new P2pPacket(type, token, connectionId, sequence, acknowledgement, payload);
+        return new P2pPacket(type, token, connectionId, payload);
     }
 
     private static int readInt(byte[] buffer, int offset) {

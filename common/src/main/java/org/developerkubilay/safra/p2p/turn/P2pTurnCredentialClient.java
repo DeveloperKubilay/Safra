@@ -15,7 +15,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -55,7 +54,7 @@ public final class P2pTurnCredentialClient {
 
         JsonObject json;
         try {
-            json = new JsonParser().parse(response.body()).getAsJsonObject();
+            json = JsonParser.parseString(response.body()).getAsJsonObject();
         } catch (RuntimeException exception) {
             throw new IOException("TURN credential response contained invalid JSON", exception);
         }
@@ -128,8 +127,6 @@ public final class P2pTurnCredentialClient {
         URI baseUri = URI.create(base);
         String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
             case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            case "ws" -> "http";
-            case "wss" -> "https";
             default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
         };
         String identifier = "safra-" + role + "-" + SafraBuildInfo.minecraftVersion() + "-"

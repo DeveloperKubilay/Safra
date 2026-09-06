@@ -23,11 +23,11 @@ public final class CachedRendezvousConfigLoader {
 
         try {
             String body = new String(Files.readAllBytes(configFile), StandardCharsets.UTF_8);
-            if (body == null || body.trim().isEmpty()) {
+            if (body.isBlank()) {
                 return;
             }
 
-            JsonObject json = new JsonParser().parse(body).getAsJsonObject();
+            JsonObject json = JsonParser.parseString(body).getAsJsonObject();
             if (!json.has("rendezvousUrl") || json.get("rendezvousUrl").isJsonNull()) {
                 return;
             }

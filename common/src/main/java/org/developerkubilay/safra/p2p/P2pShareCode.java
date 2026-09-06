@@ -2,7 +2,6 @@ package org.developerkubilay.safra.p2p;
 
 import com.google.common.net.HostAndPort;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
@@ -175,14 +174,6 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
 
         String base = HostAndPort.fromParts(host, port).toString();
         return token == 0 ? base : base + "#" + Integer.toUnsignedString(token, 36);
-    }
-
-    public InetSocketAddress toSocketAddress() {
-        if (isRendezvous()) {
-            throw new IllegalStateException("rendezvous code must be resolved before opening a socket");
-        }
-
-        return new InetSocketAddress(host, port);
     }
 
     public static String normalizeRendezvousCode(String rawCode) {

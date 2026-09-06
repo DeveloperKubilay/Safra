@@ -40,14 +40,6 @@ public final class SafraBuildInfo {
         return minecraftVersion;
     }
 
-    public static String loaderName() {
-        return loaderName;
-    }
-
-    public static String loaderVersion() {
-        return loaderVersion;
-    }
-
     public static String testMode() {
         return testMode;
     }

@@ -17,37 +17,21 @@ final class P2pUdpBindingFactory {
     private P2pUdpBindingFactory() {
     }
 
-    static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort, boolean allowRelayFallback) throws IOException {
-
+    static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort) throws IOException {
         try {
             return createDirectHostBinding(logger, stunClient, preferredPort);
         } catch (IOException exception) {
-            if (P2pConstants.useApi30Rendezvous()) {
-                logger.debug("Safra host STUN could not be opened, trying relay-required flow: {}", exception.toString());
-                return createLocalHostBinding(preferredPort);
-            }
-            if (!(allowRelayFallback && !P2pConstants.neverUseRelayServer())) {
-                throw exception;
-            }
-            logger.debug("Safra host STUN could not be opened, trying TURN relay: {}", exception.toString());
-            return createTurnBinding(logger, "host");
+            logger.debug("Safra host STUN could not be opened, trying relay-required flow: {}", exception.toString());
+            return createLocalHostBinding(preferredPort);
         }
     }
 
     static P2pTransportBinding createBestJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
-
         try {
             return createDirectJoinBinding(logger, stunClient);
         } catch (IOException exception) {
-            if (P2pConstants.useApi30Rendezvous()) {
-                logger.debug("Safra join STUN could not be opened, trying relay-required flow: {}", exception.toString());
-                return createLocalJoinBinding();
-            }
-            if (P2pConstants.neverUseRelayServer()) {
-                throw exception;
-            }
-            logger.debug("Safra join STUN could not be opened, trying TURN relay: {}", exception.toString());
-            return createTurnBinding(logger, "join");
+            logger.debug("Safra join STUN could not be opened, trying relay-required flow: {}", exception.toString());
+            return createLocalJoinBinding();
         }
     }
 

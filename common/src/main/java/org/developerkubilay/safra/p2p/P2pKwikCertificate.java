@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.cert.Certificate;

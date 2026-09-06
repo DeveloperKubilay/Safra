@@ -89,26 +89,16 @@ public final class P2pHostService implements AutoCloseable {
         }
 
         int preferredUdpPort = P2pOptionalIntegrations.isVoiceChatAvailable() ? 0 : tcpPort;
-        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, preferredUdpPort, allowRelayFallback);
+        P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, preferredUdpPort);
         transport = binding.transport();
         primaryTransportRelay = binding.relay();
-        if (closed) {
-            binding.close();
-            throw new IOException("Safra P2P host service was stopped");
-        }
-
-        discoveredEndpoints.clear();
         discoveredEndpoints.putAll(binding.stunEndpoints());
         if (closed) {
             binding.close();
             throw new IOException("Safra P2P host service was stopped");
         }
-        InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
-        if (publishedEndpoint == null && !P2pConstants.useApi30Rendezvous()) {
-            binding.close();
-            throw new IOException("Could not find a public UDP endpoint");
-        }
 
+        InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
         P2pRuntime.start("safra-p2p-host-recv", () -> receiveLoop(transport, primaryTransportRelay));
         if (!primaryTransportRelay && !discoveredEndpoints.isEmpty()) {
             scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
@@ -164,8 +154,7 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {
-        if (closed || bedrockRelayHost != null || rendezvousSession == null || !P2pConstants.useApi30Rendezvous()
-            || !P2pOptionalIntegrations.isGeyserAvailable()) {
+        if (closed || bedrockRelayHost != null || rendezvousSession == null || !P2pOptionalIntegrations.isGeyserAvailable()) {
             return;
         }
         bedrockRelayHost = new SafraBedrockRelayHost(rendezvousSession.code(), readyHandler, unavailableHandler);

@@ -93,15 +93,6 @@ public abstract class BaseSafraClientConfig {
         return siteApiVersion;
     }
 
-    public synchronized void setSiteApiVersion(String siteApiVersion) {
-        String normalized = normalizeSiteApiVersion(siteApiVersion);
-        if (!this.siteApiVersion.equals(normalized)) {
-            this.siteApiVersion = normalized;
-            P2pConstants.setRuntimeSiteApiVersion(normalized);
-            save();
-        }
-    }
-
     public synchronized boolean isOpenToLanAllowCommandsEnabled() {
         return openToLanAllowCommandsEnabled;
     }
@@ -162,14 +153,6 @@ public abstract class BaseSafraClientConfig {
         }
     }
 
-    public synchronized void resetOpenToLanGameRules() {
-        boolean changed = !openToLanGameRules.isEmpty();
-        openToLanGameRules = new LinkedHashMap<>();
-        if (changed) {
-            save();
-        }
-    }
-
     protected synchronized void save() {
         Path path = configPath();
         try {
@@ -220,7 +203,7 @@ public abstract class BaseSafraClientConfig {
             rendezvousUrl = normalizedRendezvousUrl;
             changed = true;
         }
-        String normalizedSiteApiVersion = normalizeSiteApiVersion(siteApiVersion);
+        String normalizedSiteApiVersion = P2pConstants.normalizeSiteApiVersion(siteApiVersion);
         if (!normalizedSiteApiVersion.equals(siteApiVersion)) {
             siteApiVersion = normalizedSiteApiVersion;
             changed = true;
@@ -231,13 +214,6 @@ public abstract class BaseSafraClientConfig {
 
     private static String normalizeRendezvousUrl(String rendezvousUrl) {
         return P2pConstants.isValidRendezvousUrl(rendezvousUrl) ? rendezvousUrl.trim() : "";
-    }
-
-    private static String normalizeSiteApiVersion(String siteApiVersion) {
-        if (siteApiVersion == null || siteApiVersion.isBlank()) {
-            return "3.0";
-        }
-        return "test-only".equalsIgnoreCase(siteApiVersion.trim()) ? "test-only" : "3.0";
     }
 
     private static String normalizeOpenToLanFixedCode(String openToLanFixedCode) {

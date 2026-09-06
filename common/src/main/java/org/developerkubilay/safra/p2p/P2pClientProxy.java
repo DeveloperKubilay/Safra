@@ -118,27 +118,7 @@ public final class P2pClientProxy implements AutoCloseable {
                     binding.close();
                     return;
                 } catch (IOException relayException) {
-                    LOGGER.debug("Safra join relay request failed, trying classic TURN fallback: {}", relayException.toString());
-                }
-
-                if (P2pConstants.useApi30Rendezvous()) {
-                    binding.close();
-                    discardRendezvousSession();
-                    throw exception;
-                }
-
-                binding.close();
-                discardRendezvousSession();
-                P2pTransportBinding classicTurnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
-                try {
-                    resolveRendezvousShareCode(classicTurnBinding);
-                    transport = classicTurnBinding.transport();
-                    relayTransportActive = true;
-                    return;
-                } catch (IOException turnException) {
-                    classicTurnBinding.close();
-                    discardRendezvousSession();
-                    throw turnException;
+                    LOGGER.debug("Safra join relay request failed: {}", relayException.toString());
                 }
             }
             binding.close();
@@ -151,9 +131,7 @@ public final class P2pClientProxy implements AutoCloseable {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
         localPublicAddress = preferredEndpoint(binding.publicEndpoints());
         remoteAddress = rendezvousSession.hostAddress(binding.relay());
-        tunnelToken = P2pConstants.useApi30Rendezvous()
-            ? P2pShareCode.rendezvousTunnelToken(shareCode.rendezvousCode())
-            : rendezvousSession.tunnelToken();
+        tunnelToken = P2pShareCode.rendezvousTunnelToken(shareCode.rendezvousCode());
         if (remoteAddress == null) {
             throw new IOException(binding.relay()
                 ? "Rendezvous server did not return a relay address"
@@ -164,9 +142,6 @@ public final class P2pClientProxy implements AutoCloseable {
         }
 
         if (!binding.relay()) {
-            if (P2pConstants.useApi30Rendezvous() && remoteAddress == null) {
-                throw new IOException("Host address is not ready yet; relay fallback will be attempted");
-            }
             P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = binding.stunEndpoints().get(P2pSockets.addressFamily(remoteAddress));
             if (matchingLocalEndpoint == null) {
                 throw new IOException("Host and joiner are using different IP families ("
@@ -397,26 +372,18 @@ public final class P2pClientProxy implements AutoCloseable {
 
         P2pTransportBinding relayBinding = null;
         try {
-            if (!P2pConstants.useApi30Rendezvous()) {
-                relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
-            }
-
-            SafraRendezvousClient.ResolvedRelay relay = rendezvousSession.requestRelayFallback(
-                relayBinding == null ? java.util.List.of() : relayBinding.publicEndpoints()
-            );
+            SafraRendezvousClient.ResolvedRelay relay = rendezvousSession.requestRelayFallback(java.util.List.of());
             if (relay == null || relay.address() == null) {
                 throw new IOException("Rendezvous server did not return a relay address");
             }
+            if (relay.credentials() == null) {
+                throw new IOException("Rendezvous server did not return TURN credentials");
+            }
 
-            if (relayBinding == null) {
-                if (relay.credentials() == null) {
-                    throw new IOException("Rendezvous server did not return TURN credentials");
-                }
-                relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join", relay.credentials());
-                relay = rendezvousSession.requestRelayFallback(relayBinding.publicEndpoints());
-                if (relay == null || relay.address() == null) {
-                    throw new IOException("Rendezvous server did not return a host relay address");
-                }
+            relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join", relay.credentials());
+            relay = rendezvousSession.requestRelayFallback(relayBinding.publicEndpoints());
+            if (relay == null || relay.address() == null) {
+                throw new IOException("Rendezvous server did not return a host relay address");
             }
 
             int relayTunnelToken = relay.tunnelToken() == 0 ? tunnelToken : relay.tunnelToken();

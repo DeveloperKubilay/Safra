@@ -1,10 +1,13 @@
 package org.developerkubilay.safra.p2p;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 public final class P2pConstants {
     public static final String DEFAULT_RENDEZVOUS_URL = "https://safra.randdcodes.com";
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
-    static final byte PROTOCOL_VERSION = 1;
-    static final int HEADER_SIZE = 18;
+    static final byte PROTOCOL_VERSION = 2;
+    static final int HEADER_SIZE = 10;
     // RFC 9000'nin her ağda güvenle varsaydığı QUIC UDP tavanı 1200 bayttır.
     // Safra başlığı bunun dışındadır; dış UDP paketi 1218 bayta çıkar.
     static final int MAX_PAYLOAD_SIZE = 1200;
@@ -36,6 +39,8 @@ public final class P2pConstants {
     private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
     private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
+    private static final String DEFAULT_SITE_API_VERSION = "3.0";
+    private static final Pattern SITE_API_VERSION_PATTERN = Pattern.compile("[a-z0-9][a-z0-9.-]{0,15}");
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
     private static final String TEST_MODE_HOST_FAIL_SAFE = "hostfailsafe";
     static final String[][] STUN_SERVER_GROUPS = {
@@ -81,12 +86,7 @@ public final class P2pConstants {
         }
 
         String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
-            return true;
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        return legacyEnvironment != null && !legacyEnvironment.isBlank();
+        return environment != null && !environment.isBlank();
     }
 
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
@@ -104,10 +104,7 @@ public final class P2pConstants {
 
         try {
             String scheme = java.net.URI.create(url.trim()).getScheme();
-            return "http".equalsIgnoreCase(scheme)
-                || "https".equalsIgnoreCase(scheme)
-                || "ws".equalsIgnoreCase(scheme)
-                || "wss".equalsIgnoreCase(scheme);
+            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
         } catch (RuntimeException exception) {
             return false;
         }
@@ -122,11 +119,6 @@ public final class P2pConstants {
         String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
         if (environment != null && !environment.isBlank()) {
             return environment.trim();
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
-            return legacyEnvironment.trim();
         }
 
         String runtime = runtimeRendezvousUrl;
@@ -153,12 +145,7 @@ public final class P2pConstants {
             return normalizeSiteApiVersion(runtime);
         }
 
-        return "3.0";
-    }
-
-    public static boolean useApi30Rendezvous() {
-        String version = siteApiVersion();
-        return "3.0".equals(version) || "test-only".equals(version);
+        return DEFAULT_SITE_API_VERSION;
     }
 
     static boolean forceDirectThenTurnRelay() {
@@ -204,7 +191,7 @@ public final class P2pConstants {
     }
 
     private static String buildTestMode() {
-        return SafraBuildInfo.testMode().trim().toLowerCase(java.util.Locale.ROOT);
+        return SafraBuildInfo.testMode().trim().toLowerCase(Locale.ROOT);
     }
 
     public static int turnCredentialTtlSeconds() {
@@ -232,10 +219,11 @@ public final class P2pConstants {
         }
     }
 
-    private static String normalizeSiteApiVersion(String siteApiVersion) {
-        if (siteApiVersion == null || siteApiVersion.isBlank()) {
-            return "3.0";
+    public static String normalizeSiteApiVersion(String siteApiVersion) {
+        if (siteApiVersion == null) {
+            return DEFAULT_SITE_API_VERSION;
         }
-        return "test-only".equalsIgnoreCase(siteApiVersion.trim()) ? "test-only" : "3.0";
+        String trimmed = siteApiVersion.trim().toLowerCase(Locale.ROOT);
+        return SITE_API_VERSION_PATTERN.matcher(trimmed).matches() ? trimmed : DEFAULT_SITE_API_VERSION;
     }
 }

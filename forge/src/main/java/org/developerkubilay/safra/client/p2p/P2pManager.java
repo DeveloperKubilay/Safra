@@ -46,23 +46,11 @@ public final class P2pManager {
         return INSTANCE;
     }
 
-    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
-        return startHostingAsync(tcpPort, null, null);
-    }
-
-    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode) {
-        return startHostingAsync(tcpPort, fixedCode, null);
-    }
-
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
         stopHosting();
 
-        String rendezvousCode = P2pConstants.useApi30Rendezvous()
-            ? P2pHostSupport.resolvePreferredRendezvousCode(fixedCode)
-            : P2pShareCode.normalizeRendezvousCode(fixedCode);
-        int token = P2pConstants.useApi30Rendezvous()
-            ? P2pHostSupport.createRendezvousShareToken(rendezvousCode)
-            : P2pHostSupport.createShareToken();
+        String rendezvousCode = P2pHostSupport.resolvePreferredRendezvousCode(fixedCode);
+        int token = P2pHostSupport.createRendezvousShareToken(rendezvousCode);
         P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;
@@ -123,12 +111,6 @@ public final class P2pManager {
             hostService.close();
             hostService = null;
         }
-    }
-
-    public synchronized RewriteResult createRewrite(ServerData originalServerInfo) throws IOException {
-        long generation = ++rewriteGeneration;
-        cancelPendingRewriteInternal();
-        return createRewrite(originalServerInfo, generation);
     }
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
