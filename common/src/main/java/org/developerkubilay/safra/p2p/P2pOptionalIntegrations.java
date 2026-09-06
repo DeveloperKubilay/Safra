@@ -12,38 +12,29 @@ public final class P2pOptionalIntegrations {
 
     public static boolean isVoiceChatAvailable() {
         Boolean cached = voiceChatAvailable;
-        if (cached != null) {
-            return cached;
+        if (cached == null) {
+            cached = isClassPresent(VOICECHAT_API_CLASS);
+            voiceChatAvailable = cached;
         }
-
-        boolean available;
-        try {
-            Class.forName(VOICECHAT_API_CLASS, false, P2pOptionalIntegrations.class.getClassLoader());
-            available = true;
-        } catch (ClassNotFoundException exception) {
-            available = false;
-        }
-
-        voiceChatAvailable = available;
-        return available;
+        return cached;
     }
 
     public static boolean isGeyserAvailable() {
         Boolean cached = geyserAvailable;
-        if (cached != null) {
-            return cached;
+        if (cached == null) {
+            cached = isClassPresent(GEYSER_API_CLASS);
+            geyserAvailable = cached;
         }
+        return cached;
+    }
 
-        boolean available;
+    private static boolean isClassPresent(String className) {
         try {
-            Class.forName(GEYSER_API_CLASS, false, P2pOptionalIntegrations.class.getClassLoader());
-            available = true;
+            Class.forName(className, false, P2pOptionalIntegrations.class.getClassLoader());
+            return true;
         } catch (ClassNotFoundException exception) {
-            available = false;
+            return false;
         }
-
-        geyserAvailable = available;
-        return available;
     }
 
     public static GeyserListener geyserListener() {

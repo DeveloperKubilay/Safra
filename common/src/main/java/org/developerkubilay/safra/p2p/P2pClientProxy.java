@@ -13,7 +13,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -403,25 +402,6 @@ public final class P2pClientProxy implements AutoCloseable {
         }
         rendezvousSession.close();
         rendezvousSession = null;
-    }
-
-    private static InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {
-        if (endpoints == null) {
-            return null;
-        }
-        InetSocketAddress fallback = null;
-        for (InetSocketAddress endpoint : endpoints) {
-            if (endpoint == null || endpoint.getAddress() == null) {
-                continue;
-            }
-            if (fallback == null) {
-                fallback = endpoint;
-            }
-            if ("ipv4".equals(P2pSockets.addressFamily(endpoint))) {
-                return endpoint;
-            }
-        }
-        return fallback;
     }
 
     private record RelayRoute(P2pTransportBinding binding, InetSocketAddress address, int tunnelToken) {

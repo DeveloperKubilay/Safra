@@ -75,7 +75,7 @@ final class P2pUdpBindingFactory {
                                                             boolean ipv4Only, String failureMessage) throws IOException {
         boolean success = false;
         try {
-            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = ipv4Only
+            Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> discovered = ipv4Only
                 ? stunClient.discoverIpv4Candidates(socket)
                 : stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {

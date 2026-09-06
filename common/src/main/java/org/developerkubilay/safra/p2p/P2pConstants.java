@@ -41,6 +41,7 @@ public final class P2pConstants {
     private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
     private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
+    private static final String RENDEZVOUS_URL_PROPERTY = "safra.rendezvousUrl";
     private static final String DEFAULT_SITE_API_VERSION = "3.0";
     private static final Pattern SITE_API_VERSION_PATTERN = Pattern.compile("[a-z0-9][a-z0-9.-]{0,15}");
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
@@ -78,13 +79,7 @@ public final class P2pConstants {
     }
 
     public static boolean hasExplicitRendezvousUrlOverride() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
-            return true;
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        return environment != null && !environment.isBlank();
+        return override(RENDEZVOUS_URL_PROPERTY, "SAFRA_RENDEZVOUS_URL") != null;
     }
 
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
@@ -109,83 +104,53 @@ public final class P2pConstants {
     }
 
     public static String rendezvousUrl() {
-        String property = System.getProperty("safra.rendezvousUrl");
+        String override = override(RENDEZVOUS_URL_PROPERTY, "SAFRA_RENDEZVOUS_URL");
+        if (override != null) {
+            return override;
+        }
+
+        String runtime = runtimeRendezvousUrl;
+        return runtime == null || runtime.isBlank() ? "" : runtime.trim();
+    }
+
+    public static String siteApiVersion() {
+        String override = override(SITE_API_VERSION_PROPERTY, "SAFRA_SITE_API_VERSION");
+        if (override != null) {
+            return normalizeSiteApiVersion(override);
+        }
+
+        String runtime = runtimeSiteApiVersion;
+        return runtime == null || runtime.isBlank() ? DEFAULT_SITE_API_VERSION : normalizeSiteApiVersion(runtime);
+    }
+
+    static boolean forceDirectThenTurnRelay() {
+        String override = override(FORCE_DIRECT_THEN_TURN_PROPERTY, "SAFRA_FORCE_DIRECT_THEN_TURN");
+        return override != null
+            ? Boolean.parseBoolean(override)
+            : TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
+    }
+
+    static boolean forceHostFailSafeRelay() {
+        String override = override(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY, "SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
+        return override != null
+            ? Boolean.parseBoolean(override)
+            : TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
+    }
+
+    static boolean neverUseRelayServer() {
+        String override = override(NEVER_USE_RELAY_SERVER_PROPERTY, "SAFRA_NEVER_USE_RELAY_SERVER");
+        return override != null ? Boolean.parseBoolean(override) : runtimeNeverUseRelayServer;
+    }
+
+    /** The system property, then the environment variable; null when neither is set. */
+    private static String override(String propertyKey, String environmentKey) {
+        String property = System.getProperty(propertyKey);
         if (property != null && !property.isBlank()) {
             return property.trim();
         }
 
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
-            return environment.trim();
-        }
-
-        String runtime = runtimeRendezvousUrl;
-        if (runtime != null && !runtime.isBlank()) {
-            return runtime.trim();
-        }
-
-        return "";
-    }
-
-    public static String siteApiVersion() {
-        String property = System.getProperty(SITE_API_VERSION_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return normalizeSiteApiVersion(property);
-        }
-
-        String environment = System.getenv("SAFRA_SITE_API_VERSION");
-        if (environment != null && !environment.isBlank()) {
-            return normalizeSiteApiVersion(environment);
-        }
-
-        String runtime = runtimeSiteApiVersion;
-        if (runtime != null && !runtime.isBlank()) {
-            return normalizeSiteApiVersion(runtime);
-        }
-
-        return DEFAULT_SITE_API_VERSION;
-    }
-
-    static boolean forceDirectThenTurnRelay() {
-        String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
-    }
-
-    static boolean forceHostFailSafeRelay() {
-        String property = System.getProperty(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
-    }
-
-    static boolean neverUseRelayServer() {
-        String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_NEVER_USE_RELAY_SERVER");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return runtimeNeverUseRelayServer;
+        String environment = System.getenv(environmentKey);
+        return environment == null || environment.isBlank() ? null : environment.trim();
     }
 
     private static String buildTestMode() {

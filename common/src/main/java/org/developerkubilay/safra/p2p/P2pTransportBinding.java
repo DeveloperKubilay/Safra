@@ -9,7 +9,7 @@ import java.util.Map;
 record P2pTransportBinding(
     P2pDatagramTransport transport,
     Collection<InetSocketAddress> publicEndpoints,
-    Map<String, P2pStunClient.DiscoveredEndpoint> stunEndpoints,
+    Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> stunEndpoints,
     boolean relay
 ) implements AutoCloseable {
     @Override

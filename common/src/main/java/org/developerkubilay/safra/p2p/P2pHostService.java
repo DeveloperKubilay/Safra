@@ -33,7 +33,7 @@ public final class P2pHostService implements AutoCloseable {
 
     private P2pDatagramTransport transport;
     private volatile P2pDatagramTransport relayFallbackTransport;
-    private final Map<String, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
+    private final Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
     private SafraRendezvousClient.HostSession rendezvousSession;
     private SafraBedrockRelayHost bedrockRelayHost;
     private volatile boolean primaryTransportRelay;
@@ -41,24 +41,8 @@ public final class P2pHostService implements AutoCloseable {
     private volatile boolean closed;
     private P2pKwikCertificate kwikCertificate;
 
-    public P2pHostService(int tcpPort, int token) {
-        this(tcpPort, token, P2pSockets.loopbackAddress(), null, true);
-    }
-
-    public P2pHostService(int tcpPort, int token, InetAddress targetAddress) {
-        this(tcpPort, token, targetAddress, null, true);
-    }
-
-    public P2pHostService(int tcpPort, int token, String preferredRendezvousCode) {
-        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true);
-    }
-
     public P2pHostService(int tcpPort, int token, String preferredRendezvousCode, Runnable relayReadyHandler) {
         this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true, relayReadyHandler);
-    }
-
-    public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode) {
-        this(tcpPort, token, targetAddress, preferredRendezvousCode, true);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback) {
@@ -66,8 +50,8 @@ public final class P2pHostService implements AutoCloseable {
         });
     }
 
-    public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback,
-                          Runnable relayReadyHandler) {
+    private P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback,
+                           Runnable relayReadyHandler) {
         this.tcpPort = tcpPort;
         this.token = token;
         this.targetAddress = targetAddress;
@@ -98,7 +82,7 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
-        InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
+        InetSocketAddress publishedEndpoint = P2pSockets.preferredEndpoint(binding.publicEndpoints());
         P2pRuntime.start("safra-p2p-host-recv", () -> receiveLoop(transport, primaryTransportRelay));
         if (!primaryTransportRelay && !discoveredEndpoints.isEmpty()) {
             scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
@@ -362,7 +346,7 @@ public final class P2pHostService implements AutoCloseable {
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());
             notifyRelayReady();
-            LOGGER.info("Safra host TURN fallback ready: {}", preferredEndpoint(relayBinding.publicEndpoints()));
+            LOGGER.info("Safra host TURN fallback ready: {}", P2pSockets.preferredEndpoint(relayBinding.publicEndpoints()));
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }
@@ -403,26 +387,5 @@ public final class P2pHostService implements AutoCloseable {
         } catch (RuntimeException exception) {
             LOGGER.warn("Safra P2P host relay ready handler failed", exception);
         }
-    }
-    private InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {
-        if (endpoints == null) {
-            return null;
-        }
-
-        InetSocketAddress ipv4 = null;
-        InetSocketAddress fallback = null;
-        for (InetSocketAddress endpoint : endpoints) {
-            if (endpoint == null || endpoint.getAddress() == null) {
-                continue;
-            }
-            if (fallback == null) {
-                fallback = endpoint;
-            }
-            if ("ipv4".equals(P2pSockets.addressFamily(endpoint))) {
-                ipv4 = endpoint;
-                break;
-            }
-        }
-        return ipv4 != null ? ipv4 : fallback;
     }
 }

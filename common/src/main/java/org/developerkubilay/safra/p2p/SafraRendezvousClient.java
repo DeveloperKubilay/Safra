@@ -57,8 +57,8 @@ final class SafraRendezvousClient {
                 tcpPort,
                 tunnelToken,
                 preferredCode,
-                preferredEndpoint(publicEndpoints),
-                preferredEndpoint(voicePublicEndpoints)
+                P2pSockets.preferredEndpoint(publicEndpoints),
+                P2pSockets.preferredEndpoint(voicePublicEndpoints)
             );
             return session;
         } catch (IOException exception) {
@@ -69,7 +69,7 @@ final class SafraRendezvousClient {
 
     static JoinSession join(String code, Collection<InetSocketAddress> publicEndpoints) throws IOException {
         JoinSession session = new JoinSession(code);
-        session.open(preferredEndpoint(publicEndpoints));
+        session.open(P2pSockets.preferredEndpoint(publicEndpoints));
         return session;
     }
 
@@ -157,7 +157,7 @@ final class SafraRendezvousClient {
         }
 
         void publishRelay(Collection<InetSocketAddress> publicEndpoints, String mode) throws IOException {
-            InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
+            InetSocketAddress primaryEndpoint = P2pSockets.preferredEndpoint(publicEndpoints);
             if (primaryEndpoint == null || code == null || code.isBlank()) {
                 throw new IOException("Safra relay host requires an active session and UDP endpoint");
             }
@@ -400,7 +400,7 @@ final class SafraRendezvousClient {
         }
 
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
-            InetSocketAddress localVoiceEndpoint = preferredEndpoint(publicEndpoints);
+            InetSocketAddress localVoiceEndpoint = P2pSockets.preferredEndpoint(publicEndpoints);
             if (localVoiceEndpoint != null) {
                 publishVoiceUpdate(localVoiceEndpoint);
             }
@@ -422,7 +422,7 @@ final class SafraRendezvousClient {
         }
 
         InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
-            InetSocketAddress endpoint = preferredEndpoint(publicEndpoints);
+            InetSocketAddress endpoint = P2pSockets.preferredEndpoint(publicEndpoints);
             if (endpoint != null) {
                 joinAddress = endpoint;
             }
@@ -435,7 +435,7 @@ final class SafraRendezvousClient {
 
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
             if (relayAddress != null) {
-                InetSocketAddress localRelayEndpoint = preferredEndpoint(relayEndpoints);
+                InetSocketAddress localRelayEndpoint = P2pSockets.preferredEndpoint(relayEndpoints);
                 if (localRelayEndpoint != null) {
                     refreshHostState(localRelayEndpoint);
                 }
@@ -611,7 +611,7 @@ final class SafraRendezvousClient {
     private static JsonArray toNetwork(InetSocketAddress endpoint) {
         JsonArray network = new JsonArray();
         InetAddress address = endpoint.getAddress();
-        network.add(P2pSockets.addressFamily(endpoint));
+        network.add(P2pSockets.addressFamily(endpoint).wireName());
         network.add(address == null ? endpoint.getHostString() : address.getHostAddress());
         network.add(endpoint.getPort());
         return network;
@@ -679,18 +679,6 @@ final class SafraRendezvousClient {
             LOGGER.debug("Could not resolve Safra endpoint {}:{}", host, port, exception);
             return null;
         }
-    }
-
-    private static InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {
-        if (endpoints == null || endpoints.isEmpty()) {
-            return null;
-        }
-        for (InetSocketAddress endpoint : endpoints) {
-            if (endpoint != null && endpoint.getAddress() != null) {
-                return endpoint;
-            }
-        }
-        return endpoints.iterator().next();
     }
 
     private static URI httpUri(String path) {
