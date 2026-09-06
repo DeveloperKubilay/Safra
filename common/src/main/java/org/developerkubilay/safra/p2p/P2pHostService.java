@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Collection;
 import java.util.Map;
@@ -22,7 +21,7 @@ import java.util.function.Consumer;
 public final class P2pHostService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostService.class);
 
-    private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
+    private final Map<Integer, P2pKwikHostTunnel> connections = new ConcurrentHashMap<>();
     private final P2pStunClient stunClient = new P2pStunClient();
     private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(4);
     private final int tcpPort;
@@ -40,6 +39,7 @@ public final class P2pHostService implements AutoCloseable {
     private volatile boolean primaryTransportRelay;
     private boolean relayReadyNotified;
     private volatile boolean closed;
+    private P2pKwikCertificate kwikCertificate;
 
     public P2pHostService(int tcpPort, int token) {
         this(tcpPort, token, P2pSockets.loopbackAddress(), null, true);
@@ -80,6 +80,12 @@ public final class P2pHostService implements AutoCloseable {
     public P2pShareCode start() throws IOException {
         if (closed) {
             throw new IOException("Safra P2P host service was stopped");
+        }
+
+        try {
+            kwikCertificate = P2pKwikCertificate.create();
+        } catch (java.security.GeneralSecurityException exception) {
+            throw new IOException("Safra Kwik host kimliği oluşturulamadı", exception);
         }
 
         int preferredUdpPort = P2pOptionalIntegrations.isVoiceChatAvailable() ? 0 : tcpPort;
@@ -134,7 +140,8 @@ public final class P2pHostService implements AutoCloseable {
                 voicePublicEndpoints,
                 this::punchRemoteEndpoint,
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint,
-                this::ensureRelayAvailable
+                this::ensureRelayAvailable,
+                this::updateJoinerAddress
             );
             SafraVoiceTransportManager.getInstance().setHostSession(rendezvousSession);
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
@@ -171,7 +178,7 @@ public final class P2pHostService implements AutoCloseable {
             return;
         }
         closed = true;
-        connections.values().forEach(ReliableTunnelConnection::close);
+        connections.values().forEach(P2pKwikHostTunnel::close);
         connections.clear();
         scheduler.shutdownNow();
         if (bedrockRelayHost != null) {
@@ -206,7 +213,7 @@ public final class P2pHostService implements AutoCloseable {
         long[] delays = {0L, 100L, 250L, 500L, 1_000L, 2_000L, 4_000L, 7_000L};
         for (long delay : delays) {
             try {
-                scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.ack(token, 0, 0), remoteAddress), delay, TimeUnit.MILLISECONDS);
+                scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.punch(token), remoteAddress), delay, TimeUnit.MILLISECONDS);
             } catch (RuntimeException exception) {
                 if (!closed) {
                     LOGGER.debug("Could not schedule UDP punch packet: {}", exception.toString());
@@ -265,27 +272,18 @@ public final class P2pHostService implements AutoCloseable {
             }
 
             if (packet.token() != token) {
-                if (packet.type() == P2pPacket.Type.OPEN) {
-                    LOGGER.debug("Safra P2P host ignored tunnel open from {} because the share-code token is old or wrong", datagramPacket.getSocketAddress());
-                }
                 continue;
             }
 
             InetSocketAddress remoteAddress = new InetSocketAddress(datagramPacket.getAddress(), datagramPacket.getPort());
-            if (packet.type() == P2pPacket.Type.OPEN) {
-                handleOpen(packet, remoteAddress, activeTransport);
+            if (packet.type() == P2pPacket.Type.QUIC_OPEN) {
+                handleKwikOpen(packet, remoteAddress, activeTransport);
                 continue;
             }
 
-            ReliableTunnelConnection connection = connections.get(packet.connectionId());
+            P2pKwikHostTunnel connection = connections.get(packet.connectionId());
             if (connection != null) {
-                if (activeTransport == relayFallbackTransport) {
-                    boolean routeChanged = connection.updateRoute(remoteAddress,
-                        (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress));
-                    if (routeChanged) {
-                        LOGGER.info("Safra existing P2P tunnel moved from direct transport to TURN: {}", remoteAddress);
-                    }
-                }
+                connection.updateRemoteAddress(remoteAddress);
                 connection.handlePacket(packet);
             }
         }
@@ -300,49 +298,48 @@ public final class P2pHostService implements AutoCloseable {
         return null;
     }
 
-    private void handleOpen(P2pPacket packet, InetSocketAddress remoteAddress, P2pDatagramTransport activeTransport) {
-        ReliableTunnelConnection existing = connections.get(packet.connectionId());
+    private void handleKwikOpen(P2pPacket packet, InetSocketAddress remoteAddress, P2pDatagramTransport activeTransport) {
+        P2pKwikHostTunnel existing = connections.get(packet.connectionId());
         if (existing != null) {
-            boolean routeChanged = existing.updateRoute(remoteAddress,
-                (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress));
-            if (routeChanged && activeTransport == relayFallbackTransport) {
-                LOGGER.info("Safra existing P2P tunnel moved from direct transport to TURN: {}", remoteAddress);
-            }
-            existing.sendOpenAck();
+            existing.updateRemoteAddress(remoteAddress);
+            existing.handlePacket(packet);
             return;
         }
 
         try {
-            LOGGER.debug("Safra P2P host received tunnel open {} from {}", packet.connectionId(), remoteAddress);
-            Socket tcpSocket = new Socket(targetAddress, tcpPort);
-            ReliableTunnelConnection connection = new ReliableTunnelConnection(
+            LOGGER.debug("Safra Kwik host bağlantı isteği {} aldı: {}", packet.connectionId(), remoteAddress);
+            P2pKwikHostTunnel connection = new P2pKwikHostTunnel(
                 LOGGER,
-                "host",
                 token,
                 packet.connectionId(),
+                tcpPort,
+                targetAddress,
+                kwikCertificate,
                 remoteAddress,
-                tcpSocket,
-                (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress),
-                connections::remove,
-                scheduler,
-                false,
-                null
+                (outgoingPacket, destination) -> sendPacket(activeTransport, outgoingPacket, destination),
+                () -> connections.remove(packet.connectionId())
             );
-            ReliableTunnelConnection raced = connections.putIfAbsent(packet.connectionId(), connection);
+            P2pKwikHostTunnel raced = connections.putIfAbsent(packet.connectionId(), connection);
             if (raced != null) {
-                tcpSocket.close();
-                raced.updateRoute(remoteAddress,
-                    (outgoingPacket, outgoingRemoteAddress) -> sendPacket(activeTransport, outgoingPacket, outgoingRemoteAddress));
-                raced.sendOpenAck();
+                connection.close();
+                raced.handlePacket(packet);
                 return;
             }
 
             connection.start();
-            connection.sendOpenAck();
-            LOGGER.debug("Safra P2P host tunnel {} connected to local Minecraft TCP {}:{}", packet.connectionId(), targetAddress.getHostAddress(), tcpPort);
-        } catch (IOException exception) {
-            LOGGER.warn("Safra P2P host could not open local Minecraft TCP tunnel {}: {}", packet.connectionId(), exception.toString());
+            connection.sendCertificate();
+            LOGGER.debug("Safra Kwik host tunnel {} yerel Minecraft {}:{} için hazır", packet.connectionId(), targetAddress.getHostAddress(), tcpPort);
+        } catch (IOException | java.security.GeneralSecurityException exception) {
+            connections.remove(packet.connectionId());
+            LOGGER.warn("Safra Kwik host tunnel {} açılamadı: {}", packet.connectionId(), exception.toString());
             sendPacket(P2pPacket.close(token, packet.connectionId()), remoteAddress);
+        }
+    }
+
+    private void updateJoinerAddress(int connectionId, InetSocketAddress remoteAddress) {
+        P2pKwikHostTunnel connection = connections.get(connectionId);
+        if (connection != null) {
+            connection.updateRemoteAddress(remoteAddress);
         }
     }
 

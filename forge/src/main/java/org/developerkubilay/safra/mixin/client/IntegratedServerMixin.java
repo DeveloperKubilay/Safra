@@ -64,6 +64,10 @@ abstract class IntegratedServerMixin {
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
             client.gui.getChat().addClientSystemMessage(safra$discordLink());
+            String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+            if (!youtubeUrl.isBlank()) {
+                client.gui.getChat().addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+            }
         })).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
@@ -80,6 +84,12 @@ abstract class IntegratedServerMixin {
         return Component.literal(url)
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
+    }
+
+    private static Component safra$youtubeLink(String url) {
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {

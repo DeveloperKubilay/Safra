@@ -108,7 +108,6 @@ neoForge {
     runs {
         client {
             client()
-            systemProperty 'safra.p2p.diagnostics', 'true'
             if (forceDirectThenTurn) {
                 systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
             }
@@ -117,7 +116,6 @@ neoForge {
         }
         server {
             server()
-            systemProperty 'safra.p2p.diagnostics', 'false'
             programArgument '--nogui'
         }
     }
@@ -129,7 +127,16 @@ neoForge {
     }
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -176,6 +183,11 @@ processResources {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }

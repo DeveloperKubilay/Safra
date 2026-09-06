@@ -52,6 +52,21 @@ public final class SafraBuildInfo {
         return testMode;
     }
 
+    public static String userAgent() {
+        return "Safra/" + userAgentValue(modVersion)
+            + " Minecraft/" + userAgentValue(minecraftVersion)
+            + " Loader/" + userAgentValue(loaderName)
+            + " LoaderVersion/" + userAgentValue(loaderVersion)
+            + " Java/" + userAgentValue(System.getProperty("java.version", DEFAULT_VERSION));
+    }
+
+    private static String userAgentValue(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_VERSION;
+        }
+        return value.trim().replaceAll("[^a-zA-Z0-9._+:-]", "_");
+    }
+
     private static String value(Properties properties, String key) {
         return value(properties, key, DEFAULT_VERSION);
     }

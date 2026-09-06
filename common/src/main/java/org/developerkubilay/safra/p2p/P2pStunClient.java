@@ -51,7 +51,7 @@ final class P2pStunClient {
 
                 int responseWaitMs = P2pConstants.STUN_INITIAL_RETRY_MS << attempt;
                 collectResponses(socket, pendingRequests, responseWaitMs, discovered);
-                if (!discovered.isEmpty()) {
+                if (requiredFamily != null || (discovered.containsKey("ipv4") && discovered.containsKey("ipv6"))) {
                     return discovered;
                 }
             }
@@ -200,26 +200,6 @@ final class P2pStunClient {
         }
     }
 
-    private DiscoveredEndpoint readBindingResponse(DatagramSocket socket, byte[] transactionId, int timeoutMs) throws IOException {
-        byte[] buffer = new byte[512];
-        DatagramPacket response = new DatagramPacket(buffer, buffer.length);
-        int previousTimeout = socket.getSoTimeout();
-        socket.setSoTimeout(timeoutMs);
-        try {
-            while (true) {
-                socket.receive(response);
-                DiscoveredEndpoint parsed = parseResponse(Arrays.copyOf(response.getData(), response.getLength()), transactionId);
-                if (parsed != null) {
-                    return parsed;
-                }
-            }
-        } catch (SocketTimeoutException ignored) {
-            return null;
-        } finally {
-            socket.setSoTimeout(previousTimeout);
-        }
-    }
-
     private DiscoveredEndpoint parseResponse(byte[] payload) {
         if (payload.length < 20) {
             return null;
@@ -333,7 +313,7 @@ final class P2pStunClient {
             Arrays.sort(resolved, (left, right) -> {
                 boolean leftIpv6 = !(left instanceof Inet4Address);
                 boolean rightIpv6 = !(right instanceof Inet4Address);
-                return Boolean.compare(rightIpv6, leftIpv6);
+                return Boolean.compare(leftIpv6, rightIpv6);
             });
             if (resolved.length > 0) {
                 return resolved;

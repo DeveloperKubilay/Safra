@@ -237,7 +237,7 @@ public abstract class BaseSafraClientConfig {
         if (siteApiVersion == null || siteApiVersion.isBlank()) {
             return "3.0";
         }
-        return "3.0";
+        return "test-only".equalsIgnoreCase(siteApiVersion.trim()) ? "test-only" : "3.0";
     }
 
     private static String normalizeOpenToLanFixedCode(String openToLanFixedCode) {

@@ -10,12 +10,11 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
     );
 
     enum Type {
-        OPEN(1),
-        OPEN_ACK(2),
-        DATA(3),
-        ACK(4),
+        PUNCH(4),
         CLOSE(5),
-        NACK(6);
+        QUIC_OPEN(7),
+        QUIC_CERTIFICATE(8),
+        QUIC_DATA(9);
 
         private final int id;
 
@@ -25,39 +24,30 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
 
         static Type fromId(int id) {
             return switch (id) {
-                case 1 -> OPEN;
-                case 2 -> OPEN_ACK;
-                case 3 -> DATA;
-                case 4 -> ACK;
+                case 4 -> PUNCH;
                 case 5 -> CLOSE;
-                case 6 -> NACK;
+                case 7 -> QUIC_OPEN;
+                case 8 -> QUIC_CERTIFICATE;
+                case 9 -> QUIC_DATA;
                 default -> null;
             };
         }
     }
 
-    static P2pPacket open(int token, int connectionId) {
-        return new P2pPacket(Type.OPEN, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+    static P2pPacket punch(int token) {
+        return new P2pPacket(Type.PUNCH, token, 0, 0, 0, EMPTY_PAYLOAD);
     }
 
-    static P2pPacket openAck(int token, int connectionId) {
-        return new P2pPacket(Type.OPEN_ACK, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+    static P2pPacket quicOpen(int token, int connectionId) {
+        return new P2pPacket(Type.QUIC_OPEN, token, connectionId, 0, 0, EMPTY_PAYLOAD);
     }
 
-    static P2pPacket data(int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
-        return new P2pPacket(Type.DATA, token, connectionId, sequence, acknowledgement, payload);
+    static P2pPacket quicCertificate(int token, int connectionId, byte[] certificate) {
+        return new P2pPacket(Type.QUIC_CERTIFICATE, token, connectionId, 0, 0, certificate);
     }
 
-    static P2pPacket ack(int token, int connectionId, int acknowledgement) {
-        return ack(token, connectionId, acknowledgement, 0);
-    }
-
-    static P2pPacket ack(int token, int connectionId, int acknowledgement, int acknowledgementMask) {
-        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, controlPayload(acknowledgementMask));
-    }
-
-    static P2pPacket nack(int token, int connectionId, int missingSequence, int acknowledgement, int acknowledgementMask) {
-        return new P2pPacket(Type.NACK, token, connectionId, missingSequence, acknowledgement, controlPayload(acknowledgementMask));
+    static P2pPacket quicData(int token, int connectionId, byte[] payload) {
+        return new P2pPacket(Type.QUIC_DATA, token, connectionId, 0, 0, payload);
     }
 
     static P2pPacket close(int token, int connectionId) {
@@ -66,14 +56,6 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
 
     P2pPacket {
         payload = payload == null ? EMPTY_PAYLOAD : payload;
-    }
-
-    int acknowledgementMask() {
-        if ((type != Type.ACK && type != Type.NACK) || payload.length < Integer.BYTES) {
-            return 0;
-        }
-
-        return readInt(payload, 0);
     }
 
     byte[] encode() {
@@ -112,19 +94,6 @@ record P2pPacket(Type type, int token, int connectionId, int sequence, int ackno
             ? EMPTY_PAYLOAD
             : Arrays.copyOfRange(buffer, P2pConstants.HEADER_SIZE, length);
         return new P2pPacket(type, token, connectionId, sequence, acknowledgement, payload);
-    }
-
-    private static byte[] controlPayload(int acknowledgementMask) {
-        if (acknowledgementMask == 0) {
-            return EMPTY_PAYLOAD;
-        }
-
-        return new byte[]{
-            (byte) (acknowledgementMask >>> 24),
-            (byte) (acknowledgementMask >>> 16),
-            (byte) (acknowledgementMask >>> 8),
-            (byte) acknowledgementMask
-        };
     }
 
     private static int readInt(byte[] buffer, int offset) {

@@ -29,7 +29,6 @@ loom {
 
     runs {
         client {
-            property 'safra.p2p.diagnostics', 'true'
             if (forceDirectThenTurn) {
                 property 'safra.p2p.forceDirectThenTurn', 'true'
             }
@@ -38,7 +37,6 @@ loom {
         }
         server {
             server()
-            property 'safra.p2p.diagnostics', 'false'
         }
     }
 }
@@ -50,6 +48,11 @@ fabricApi {
 }
 
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    include 'tech.kwik:kwik:0.11'
+    include 'tech.kwik:agent15:3.3'
+    include 'at.favre.lib:hkdf:2.0.0'
+    include 'com.io7m.repackage.io.whitfin:io.whitfin.siphash:2.0.1'
     minecraft "com.mojang:minecraft:${project.fabric_minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"

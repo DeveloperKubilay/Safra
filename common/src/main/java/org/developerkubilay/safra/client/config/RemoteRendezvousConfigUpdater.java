@@ -30,6 +30,7 @@ public final class RemoteRendezvousConfigUpdater {
     private static volatile String latestModVersion = "";
     private static volatile List<String> latestModVersions = List.of();
     private static volatile String discordUrl = DEFAULT_DISCORD_URL;
+    private static volatile String youtubeUrl = "";
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -39,14 +40,17 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        if (!P2pConstants.hasExplicitRendezvousUrlOverride()
+        boolean testOnly = "test-only".equalsIgnoreCase(config.getSiteApiVersion());
+        if (!P2pConstants.hasExplicitRendezvousUrlOverride() && !testOnly
             && !P2pConstants.DEFAULT_RENDEZVOUS_URL.equals(config.getRendezvousUrl())) {
             config.setRendezvousUrl(P2pConstants.DEFAULT_RENDEZVOUS_URL);
         }
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
         P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
         P2pConstants.setRuntimeSiteApiVersion(config.getSiteApiVersion());
-        P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+        if (!testOnly) {
+            P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+        }
         if (!STARTED.compareAndSet(false, true)) {
             return;
         }
@@ -76,6 +80,13 @@ public final class RemoteRendezvousConfigUpdater {
             if (discordElement != null && discordElement.isJsonPrimitive() && isValidDiscordUrl(discordElement.getAsString())) {
                 discordUrl = discordElement.getAsString().trim();
             }
+            JsonElement youtubeElement = json.get("youtube");
+            if (youtubeElement != null && youtubeElement.isJsonPrimitive()) {
+                String value = youtubeElement.getAsString().trim();
+                youtubeUrl = isValidYoutubeUrl(value) ? value : "";
+            } else {
+                youtubeUrl = "";
+            }
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
             if (latestVersions.isEmpty()) {
@@ -85,8 +96,10 @@ public final class RemoteRendezvousConfigUpdater {
             }
             String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
-                config.setRendezvousUrl("");
-                P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+                if (!"test-only".equalsIgnoreCase(config.getSiteApiVersion())) {
+                    config.setRendezvousUrl("");
+                    P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+                }
                 return;
             }
 
@@ -105,10 +118,28 @@ public final class RemoteRendezvousConfigUpdater {
         return discordUrl;
     }
 
+    public static String youtubeUrl() {
+        return youtubeUrl;
+    }
+
     private static boolean isValidDiscordUrl(String value) {
         try {
             java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
             return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isValidYoutubeUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            String host = uri.getHost();
+            return "https".equalsIgnoreCase(uri.getScheme())
+                && host != null
+                && ("youtube.com".equalsIgnoreCase(host)
+                    || host.toLowerCase(java.util.Locale.ROOT).endsWith(".youtube.com")
+                    || "youtu.be".equalsIgnoreCase(host));
         } catch (IllegalArgumentException ignored) {
             return false;
         }

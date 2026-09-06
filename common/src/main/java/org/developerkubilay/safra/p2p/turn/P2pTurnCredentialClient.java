@@ -37,6 +37,7 @@ public final class P2pTurnCredentialClient {
 
         URI uri = turnCredentialsUri(role, turnOnly);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+            .header("User-Agent", SafraBuildInfo.userAgent())
             .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
             .GET();
 

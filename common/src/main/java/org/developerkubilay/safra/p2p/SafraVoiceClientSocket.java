@@ -49,7 +49,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
         SafraRendezvousClient.JoinSession joinSession = SafraVoiceTransportManager.getInstance().joinSession();
         if (joinSession == null) {
             stunMappings.clear();
-            return null;
+            throw new IOException("Safra voice session is not ready");
         }
 
         java.util.Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);

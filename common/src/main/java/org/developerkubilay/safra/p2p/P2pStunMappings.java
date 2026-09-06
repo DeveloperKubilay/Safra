@@ -33,10 +33,6 @@ final class P2pStunMappings {
         return endpoints.isEmpty();
     }
 
-    int size() {
-        return endpoints.size();
-    }
-
     Collection<InetSocketAddress> publicEndpoints() {
         return P2pStunClient.publicEndpoints(endpoints);
     }

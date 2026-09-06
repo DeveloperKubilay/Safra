@@ -5,40 +5,19 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 1;
     static final int HEADER_SIZE = 18;
+    // RFC 9000'nin her ağda güvenle varsaydığı QUIC UDP tavanı 1200 bayttır.
+    // Safra başlığı bunun dışındadır; dış UDP paketi 1218 bayta çıkar.
     static final int MAX_PAYLOAD_SIZE = 1200;
+    static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
+    static final int KWIK_IDLE_TIMEOUT_SECONDS = 30;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
-    static final int MIN_SEND_WINDOW_SIZE = 8;
-    static final int INITIAL_SEND_WINDOW_SIZE = 32;
-    static final int MAX_SEND_WINDOW_SIZE = 256;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
-    static final long MAINTENANCE_TICK_MS = 25L;
-    static final long OPEN_RESEND_MS = 500L;
-    static final long DIRECT_OPEN_FALLBACK_MS = 8_000L;
-    static final long OPEN_TIMEOUT_MS = 20_000L;
+    static final long KWIK_DIRECT_FIRST_TIMEOUT_MS = 8_000L;
+    static final long KWIK_DIRECT_SECOND_TIMEOUT_MS = 5_000L;
+    static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
-    static final long INITIAL_RESEND_MS = 500L;
-    static final long MIN_RESEND_MS = 200L;
-    static final long MAX_RESEND_MS = 1_500L;
-    static final long KEEP_ALIVE_MS = 10_000L;
-    static final long CONNECTION_TIMEOUT_MS = 30_000L;
-    static final int SELECTIVE_ACK_BITS = 32;
-    static final int FAST_RETRANSMIT_DUP_ACKS = 3;
-    static final long DEFAULT_FAST_RETRANSMIT_GUARD_MS = 60L;
-    static final long MIN_FAST_RETRANSMIT_GUARD_MS = 30L;
-    static final long MAX_FAST_RETRANSMIT_GUARD_MS = 250L;
-    static final long NEGATIVE_ACK_REPEAT_MS = 30L;
-    static final long ACK_REINFORCE_DELAY_MS = 8L;
-    static final long DELAYED_ACK_MS = 2L;
-    static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
-    static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
-    static final long HEAD_OF_LINE_WARN_MS = 150L;
-    static final long WINDOW_STALL_WARN_MS = 150L;
-    static final long IDLE_RESTART_MIN_MS = 500L;
-    static final int PACING_BURST_PACKETS = 16;
-    static final long MIN_PACING_INTERVAL_NANOS = 50_000L;
-    static final long MAX_PACING_INTERVAL_NANOS = 50_000_000L;
     static final long STUN_REFRESH_MS = 20_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
     static final long RENDEZVOUS_RECONNECT_FIRST_DELAY_MS = 5_000L;
@@ -52,11 +31,7 @@ public final class P2pConstants {
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;
     public static final int TURN_REFRESH_SAFETY_MARGIN_SECONDS = 60;
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
-    static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
     static final String ADDRESS_SCHEME = "p2p://";
-    private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
-    private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
-    private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
     private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
@@ -87,6 +62,9 @@ public final class P2pConstants {
     }
 
     public static void applyDefaultRendezvousUrlIfAbsent() {
+        if ("test-only".equals(siteApiVersion())) {
+            return;
+        }
         if (!hasExplicitRendezvousUrlOverride() && (runtimeRendezvousUrl == null || runtimeRendezvousUrl.isBlank())) {
             runtimeRendezvousUrl = DEFAULT_RENDEZVOUS_URL;
         }
@@ -179,24 +157,8 @@ public final class P2pConstants {
     }
 
     public static boolean useApi30Rendezvous() {
-        return "3.0".equals(siteApiVersion());
-    }
-
-    static boolean diagnosticsEnabled() {
-        String property = System.getProperty(DIAGNOSTICS_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        return false;
-    }
-
-    static long diagnosticsSummaryMs() {
-        return longProperty(DIAGNOSTICS_INTERVAL_PROPERTY, DIAGNOSTIC_SUMMARY_MS);
-    }
-
-    static long diagnosticsTickDriftWarnMs() {
-        return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
+        String version = siteApiVersion();
+        return "3.0".equals(version) || "test-only".equals(version);
     }
 
     static boolean forceDirectThenTurnRelay() {
@@ -270,23 +232,10 @@ public final class P2pConstants {
         }
     }
 
-    private static long longProperty(String key, long fallback) {
-        String property = System.getProperty(key);
-        if (property == null || property.isBlank()) {
-            return fallback;
-        }
-
-        try {
-            return Long.parseLong(property.trim());
-        } catch (RuntimeException exception) {
-            return fallback;
-        }
-    }
-
     private static String normalizeSiteApiVersion(String siteApiVersion) {
         if (siteApiVersion == null || siteApiVersion.isBlank()) {
             return "3.0";
         }
-        return "3.0";
+        return "test-only".equalsIgnoreCase(siteApiVersion.trim()) ? "test-only" : "3.0";
     }
 }

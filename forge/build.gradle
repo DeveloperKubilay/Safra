@@ -169,7 +169,6 @@ minecraft {
         }
 
         register('client') {
-            systemProperty 'safra.p2p.diagnostics', 'true'
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
             systemProperty 'java.net.preferIPv4Stack', 'false'
             if (forceDirectThenTurn) {
@@ -179,7 +178,6 @@ minecraft {
         }
 
         register('server') {
-            systemProperty 'safra.p2p.diagnostics', 'false'
             args '--nogui'
         }
     }
@@ -192,7 +190,16 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
@@ -244,6 +251,11 @@ processResources {
 }
 
 tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }

@@ -483,16 +483,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
     }
 
-    private static boolean forceDirectThenTurnRelay() {
-        String property = System.getProperty("safra.p2p.forceDirectThenTurn");
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        return environment != null && !environment.isBlank() && Boolean.parseBoolean(environment.trim());
-    }
-
     private record ReceivedDatagram(InetSocketAddress remoteAddress, byte[] data) {
     }
 }

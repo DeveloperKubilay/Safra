@@ -17,10 +17,6 @@ final class P2pUdpBindingFactory {
     private P2pUdpBindingFactory() {
     }
 
-    static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort) throws IOException {
-        return createBestHostBinding(logger, stunClient, preferredPort, true);
-    }
-
     static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort, boolean allowRelayFallback) throws IOException {
 
         try {
