@@ -25,7 +25,6 @@ import java.util.function.Consumer;
 public final class P2pHostService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostService.class);
 
-    private final Map<Integer, P2pKwikHostTunnel> connections = new ConcurrentHashMap<>();
     private final P2pStunClient stunClient = new P2pStunClient();
     private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final int tcpPort;
@@ -44,6 +43,7 @@ public final class P2pHostService implements AutoCloseable {
     private boolean relayReadyNotified;
     private volatile boolean closed;
     private P2pKwikCertificate kwikCertificate;
+    private volatile P2pKwikHostServer kwikServer;
 
     public P2pHostService(int tcpPort, int token, String preferredRendezvousCode, Runnable relayReadyHandler) {
         this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true, relayReadyHandler);
@@ -153,8 +153,10 @@ public final class P2pHostService implements AutoCloseable {
             return;
         }
         closed = true;
-        connections.values().forEach(P2pKwikHostTunnel::close);
-        connections.clear();
+        if (kwikServer != null) {
+            kwikServer.close();
+            kwikServer = null;
+        }
         scheduler.shutdownNow();
         if (bedrockRelayHost != null) {
             bedrockRelayHost.close();
@@ -250,17 +252,27 @@ public final class P2pHostService implements AutoCloseable {
             }
 
             InetSocketAddress remoteAddress = new InetSocketAddress(datagramPacket.getAddress(), datagramPacket.getPort());
-            if (packet.type() == P2pPacket.Type.QUIC_OPEN) {
-                handleKwikOpen(packet, remoteAddress, activeTransport);
-                continue;
-            }
-
-            P2pKwikHostTunnel connection = connections.get(packet.connectionId());
-            if (connection != null) {
-                connection.updateRemoteAddress(remoteAddress);
-                connection.handlePacket(packet);
+            P2pKwikHostServer server = packet.type() == P2pPacket.Type.QUIC_OPEN ? kwikServer() : kwikServer;
+            if (server != null) {
+                server.handlePacket(packet, remoteAddress, activeTransport);
             }
         }
+    }
+
+    /** Started with the first joiner, so a shared world nobody has joined runs no QUIC server. */
+    private synchronized P2pKwikHostServer kwikServer() {
+        if (kwikServer != null || closed) {
+            return kwikServer;
+        }
+
+        try {
+            kwikServer = new P2pKwikHostServer(LOGGER, token, tcpPort, targetAddress, kwikCertificate, this::sendPacket);
+            scheduler.scheduleAtFixedRate(kwikServer::sweepIdlePeers, P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS,
+                P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (IOException | GeneralSecurityException exception) {
+            LOGGER.warn("Safra Kwik host server could not be started: {}", exception.toString());
+        }
+        return kwikServer;
     }
 
     private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(SocketAddress remoteAddress) {
@@ -270,44 +282,6 @@ public final class P2pHostService implements AutoCloseable {
             }
         }
         return null;
-    }
-
-    private void handleKwikOpen(P2pPacket packet, InetSocketAddress remoteAddress, P2pDatagramTransport activeTransport) {
-        P2pKwikHostTunnel existing = connections.get(packet.connectionId());
-        if (existing != null) {
-            existing.updateRemoteAddress(remoteAddress);
-            existing.handlePacket(packet);
-            return;
-        }
-
-        try {
-            LOGGER.debug("Safra Kwik host received connection request {} from {}", packet.connectionId(), remoteAddress);
-            P2pKwikHostTunnel connection = new P2pKwikHostTunnel(
-                LOGGER,
-                token,
-                packet.connectionId(),
-                tcpPort,
-                targetAddress,
-                kwikCertificate,
-                remoteAddress,
-                (outgoingPacket, destination) -> sendPacket(activeTransport, outgoingPacket, destination),
-                () -> connections.remove(packet.connectionId())
-            );
-            P2pKwikHostTunnel raced = connections.putIfAbsent(packet.connectionId(), connection);
-            if (raced != null) {
-                connection.close();
-                raced.handlePacket(packet);
-                return;
-            }
-
-            connection.start();
-            connection.sendCertificate();
-            LOGGER.debug("Safra Kwik host tunnel {} is ready for local Minecraft {}:{}", packet.connectionId(), targetAddress.getHostAddress(), tcpPort);
-        } catch (IOException | GeneralSecurityException exception) {
-            connections.remove(packet.connectionId());
-            LOGGER.warn("Safra Kwik host tunnel {} could not be opened: {}", packet.connectionId(), exception.toString());
-            sendPacket(P2pPacket.close(token, packet.connectionId()), remoteAddress);
-        }
     }
 
     private void sendPacket(P2pDatagramTransport activeTransport, P2pPacket packet, InetSocketAddress remoteAddress) {

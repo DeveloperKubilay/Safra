@@ -87,7 +87,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             }
 
             quicSocket = new P2pKwikDatagramSocket(
-                datagram -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
+                (datagram, destination) -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
 
             QuicClientConnectionImpl.ExtendedBuilder builder = new QuicClientConnectionImpl.ExtendedBuilder();
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
