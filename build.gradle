@@ -57,9 +57,8 @@ def requestedMcVersion = (
     gradle.startParameter.projectProperties['mcVersion']
         ?: findProperty('mcVersion')
         ?: gradle.startParameter.projectProperties['minecraft_version']
-        ?: findProperty('minecraft_version')
-        ?: findProperty('base_minecraft_version')
-        ?: '26.1.1'
+        ?: findProperty('default_minecraft_version')
+        ?: '26.1'
 ).toString()
 def activeVersion = versionConfig[requestedMcVersion]
 if (activeVersion == null) {
