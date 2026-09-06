@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 
@@ -129,10 +128,9 @@ final class P2pUdpBindingFactory {
     }
 
     private static P2pTransportBinding createLocalJoinBinding() throws IOException {
-        DatagramSocket socket = P2pSockets.ipv4DatagramSocket();
         return new P2pTransportBinding(
-            new P2pDirectDatagramTransport(socket),
-            List.of(new InetSocketAddress(P2pSockets.ipv4WildcardAddress(), socket.getLocalPort())),
+            new P2pDirectDatagramTransport(P2pSockets.ipv4DatagramSocket()),
+            List.of(),
             Map.of(),
             false
         );

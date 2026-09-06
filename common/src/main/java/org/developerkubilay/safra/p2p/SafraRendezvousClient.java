@@ -30,7 +30,6 @@ import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** HTTP/SSE client for Safra session negotiation. */
@@ -51,11 +50,9 @@ final class SafraRendezvousClient {
                                  Collection<InetSocketAddress> voicePublicEndpoints,
                                  Consumer<InetSocketAddress> punchHandler,
                                  Consumer<InetSocketAddress> voicePunchHandler,
-                                 Consumer<InetSocketAddress> relayRequestHandler,
-                                 BiConsumer<Integer, InetSocketAddress> joinerAddressUpdateHandler) throws IOException {
+                                 Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
         InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
-        HttpHostSessionBackend backend = new HttpHostSessionBackend(punchHandler, voicePunchHandler, relayRequestHandler,
-            joinerAddressUpdateHandler);
+        HttpHostSessionBackend backend = new HttpHostSessionBackend(punchHandler, voicePunchHandler, relayRequestHandler);
         try {
             String code = backend.open(
                 tcpPort,
@@ -72,13 +69,8 @@ final class SafraRendezvousClient {
     }
 
     static JoinSession join(String code, Collection<InetSocketAddress> publicEndpoints) throws IOException {
-        InetSocketAddress primaryEndpoint = preferredEndpoint(publicEndpoints);
-        if (primaryEndpoint == null) {
-            throw new IOException("Safra join requires at least one UDP endpoint");
-        }
-
         HttpJoinSessionBackend backend = new HttpJoinSessionBackend(code);
-        backend.open(primaryEndpoint);
+        backend.open(preferredEndpoint(publicEndpoints));
         return new JoinSession(code, backend);
     }
 
@@ -116,7 +108,6 @@ final class SafraRendezvousClient {
         private final Consumer<InetSocketAddress> punchHandler;
         private final Consumer<InetSocketAddress> voicePunchHandler;
         private final Consumer<InetSocketAddress> relayRequestHandler;
-        private final BiConsumer<Integer, InetSocketAddress> joinerAddressUpdateHandler;
         private final CompletableFuture<String> codeFuture = new CompletableFuture<>();
         private volatile InputStream stream;
         private volatile Thread streamThread;
@@ -131,12 +122,10 @@ final class SafraRendezvousClient {
 
         private HttpHostSessionBackend(Consumer<InetSocketAddress> punchHandler,
                                        Consumer<InetSocketAddress> voicePunchHandler,
-                                       Consumer<InetSocketAddress> relayRequestHandler,
-                                       BiConsumer<Integer, InetSocketAddress> joinerAddressUpdateHandler) {
+                                       Consumer<InetSocketAddress> relayRequestHandler) {
             this.punchHandler = punchHandler;
             this.voicePunchHandler = voicePunchHandler;
             this.relayRequestHandler = relayRequestHandler;
-            this.joinerAddressUpdateHandler = joinerAddressUpdateHandler;
         }
 
         private String open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint,
@@ -335,19 +324,6 @@ final class SafraRendezvousClient {
                 }
                 return;
             }
-            if ("session-joiner-ip-changed".equals(event)) {
-                InetSocketAddress joiner = fromNetwork(array(data, "joiner"));
-                if (joiner != null && data.has("connectionId")) {
-                    try {
-                        int connectionId = data.get("connectionId").getAsInt();
-                        if (connectionId > 0) {
-                            joinerAddressUpdateHandler.accept(connectionId, joiner);
-                        }
-                    } catch (RuntimeException ignored) {
-                    }
-                }
-                return;
-            }
             if ("voicechat-updated".equals(event)) {
                 InetSocketAddress voiceJoiner = fromNetwork(array(data, "voiceHost"));
                 if (voiceJoiner != null) {
@@ -477,24 +453,6 @@ final class SafraRendezvousClient {
             }
             refreshHostState(joinAddress);
             return hostAddress;
-        }
-
-        @Override
-        public void publishJoinerAddress(InetSocketAddress endpoint, int connectionId) throws IOException {
-            if (endpoint == null || connectionId <= 0) {
-                return;
-            }
-            JsonObject request = new JsonObject();
-            request.addProperty("code", code);
-            request.add("network", toNetwork(endpoint));
-            request.addProperty("connectionId", connectionId);
-            HttpResponse<String> response = sendText(requestBuilder(httpUri("/session-joiner-ip-changed"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
-                .build());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IOException("Safra joiner address update returned HTTP " + response.statusCode());
-            }
         }
 
         @Override
@@ -818,7 +776,6 @@ final class SafraRendezvousClient {
         InetSocketAddress hostAddress(boolean relayPreferred);
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException;
         InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException;
-        void publishJoinerAddress(InetSocketAddress endpoint, int connectionId) throws IOException;
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException;
         void close();
     }
@@ -877,10 +834,6 @@ final class SafraRendezvousClient {
 
         InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
             return backend.refreshDirect(publicEndpoints);
-        }
-
-        void publishJoinerAddress(InetSocketAddress endpoint, int connectionId) throws IOException {
-            backend.publishJoinerAddress(endpoint, connectionId);
         }
 
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {

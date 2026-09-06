@@ -130,8 +130,7 @@ public final class P2pHostService implements AutoCloseable {
                 voicePublicEndpoints,
                 this::punchRemoteEndpoint,
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint,
-                this::ensureRelayAvailable,
-                this::updateJoinerAddress
+                this::ensureRelayAvailable
             );
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
             return P2pShareCode.rendezvous(rendezvousSession.code());
@@ -320,13 +319,6 @@ public final class P2pHostService implements AutoCloseable {
             connections.remove(packet.connectionId());
             LOGGER.warn("Safra Kwik host tunnel {} açılamadı: {}", packet.connectionId(), exception.toString());
             sendPacket(P2pPacket.close(token, packet.connectionId()), remoteAddress);
-        }
-    }
-
-    private void updateJoinerAddress(int connectionId, InetSocketAddress remoteAddress) {
-        P2pKwikHostTunnel connection = connections.get(connectionId);
-        if (connection != null) {
-            connection.updateRemoteAddress(remoteAddress);
         }
     }
 

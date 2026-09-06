@@ -33,7 +33,6 @@ public final class P2pClientProxy implements AutoCloseable {
     private volatile P2pDatagramTransport transport;
     private ServerSocket proxyServer;
     private InetSocketAddress remoteAddress;
-    private volatile InetSocketAddress localPublicAddress;
     private SafraRendezvousClient.JoinSession rendezvousSession;
     private int tunnelToken;
     private volatile boolean relayTransportActive;
@@ -129,7 +128,6 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
-        localPublicAddress = preferredEndpoint(binding.publicEndpoints());
         remoteAddress = rendezvousSession.hostAddress(binding.relay());
         tunnelToken = P2pShareCode.rendezvousTunnelToken(shareCode.rendezvousCode());
         if (remoteAddress == null) {
@@ -224,13 +222,6 @@ public final class P2pClientProxy implements AutoCloseable {
             () -> pendingRetrySockets.remove(localSocket)
         );
         connections.put(connectionId, connection);
-        if (rendezvousSession != null && localPublicAddress != null) {
-            try {
-                rendezvousSession.publishJoinerAddress(localPublicAddress, connectionId);
-            } catch (IOException exception) {
-                LOGGER.debug("Safra joiner adres güncellemesi gönderilemedi: {}", exception.toString());
-            }
-        }
         connection.start();
     }
 
@@ -251,7 +242,6 @@ public final class P2pClientProxy implements AutoCloseable {
 
             P2pDatagramTransport previousTransport = transport;
             transport = freshBinding.transport();
-            localPublicAddress = preferredEndpoint(freshBinding.publicEndpoints());
             remoteAddress = refreshedHostAddress;
             relayTransportActive = false;
             freshBinding = null;
