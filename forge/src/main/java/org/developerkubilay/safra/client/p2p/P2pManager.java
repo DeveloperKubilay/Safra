@@ -19,6 +19,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 public final class P2pManager {
@@ -68,22 +69,16 @@ public final class P2pManager {
                     hostService = service;
                     return shareCode;
                 }
-            } catch (IOException exception) {
+            } catch (IOException | RuntimeException exception) {
                 service.close();
                 synchronized (P2pManager.this) {
                     if (startingHostService == service) {
                         startingHostService = null;
                     }
                 }
-                throw new CompletionException(exception);
-            } catch (RuntimeException exception) {
-                service.close();
-                synchronized (P2pManager.this) {
-                    if (startingHostService == service) {
-                        startingHostService = null;
-                    }
-                }
-                throw exception;
+                throw exception instanceof RuntimeException runtimeException
+                    ? runtimeException
+                    : new CompletionException(exception);
             }
         }, BACKGROUND_EXECUTOR);
 
@@ -147,18 +142,18 @@ public final class P2pManager {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.ip);
 
-        P2pClientProxy[] proxyRef = new P2pClientProxy[1];
+        AtomicReference<P2pClientProxy> proxyReference = new AtomicReference<>();
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
             synchronized (P2pManager.this) {
-                if (activeClientProxy == proxyRef[0]) {
+                if (activeClientProxy == proxyReference.get()) {
                     activeClientProxy = null;
                 }
-                if (startingClientProxy == proxyRef[0]) {
+                if (startingClientProxy == proxyReference.get()) {
                     startingClientProxy = null;
                 }
             }
         });
-        proxyRef[0] = proxy;
+        proxyReference.set(proxy);
         synchronized (this) {
             if (rewriteGeneration != generation) {
                 throw new CancellationException("Safra P2P connection prepare was canceled");

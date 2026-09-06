@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -207,7 +208,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
         int connectionId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-        LOGGER.debug("Safra Kwik client local Minecraft connection {} aldı; {} adresine bağlanıyor (timeout={}ms)",
+        LOGGER.debug("Safra Kwik client accepted local Minecraft connection {}; dialing {} (timeout={}ms)",
             connectionId, remoteAddress, timeoutMs);
         P2pKwikClientTunnel connection = new P2pKwikClientTunnel(
             LOGGER,
@@ -247,7 +248,7 @@ public final class P2pClientProxy implements AutoCloseable {
             if (previousTransport != null && !previousTransport.isClosed()) {
                 previousTransport.close();
             }
-            LOGGER.info("Safra direct P2P ikinci Kwik denemesi başlatılıyor: {}", remoteAddress);
+            LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
             startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_SECOND_TIMEOUT_MS,
                 () -> {
                     if (attempt.compareAndSet(1, 2)) {
@@ -257,7 +258,7 @@ public final class P2pClientProxy implements AutoCloseable {
                     }
                 });
         } catch (IOException | RuntimeException exception) {
-            LOGGER.info("Safra direct P2P ikinci Kwik denemesi hazırlanamadı, TURN kullanılacak: {}", exception.toString());
+            LOGGER.info("Safra could not prepare the second direct Kwik attempt, falling back to TURN: {}", exception.toString());
             openRelayKwik(localSocket);
         } finally {
             if (freshBinding != null) {
@@ -282,10 +283,10 @@ public final class P2pClientProxy implements AutoCloseable {
             if (previousTransport != null && !previousTransport.isClosed()) {
                 previousTransport.close();
             }
-            LOGGER.info("Safra TURN üzerinden Kwik denemesi başlatılıyor: {}", remoteAddress);
+            LOGGER.info("Safra starting a Kwik attempt over TURN against {}", remoteAddress);
             startKwikAttempt(localSocket, P2pConstants.KWIK_RELAY_TIMEOUT_MS, () -> finishKwik(localSocket));
         } catch (IOException | RuntimeException exception) {
-            LOGGER.warn("Safra TURN Kwik fallback kurulamadı", exception);
+            LOGGER.warn("Safra could not set up the TURN Kwik fallback", exception);
             finishKwik(localSocket);
         }
     }
@@ -365,7 +366,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
         P2pTransportBinding relayBinding = null;
         try {
-            SafraRendezvousClient.ResolvedRelay relay = rendezvousSession.requestRelayFallback(java.util.List.of());
+            SafraRendezvousClient.ResolvedRelay relay = rendezvousSession.requestRelayFallback(List.of());
             if (relay == null || relay.address() == null) {
                 throw new IOException("Rendezvous server did not return a relay address");
             }

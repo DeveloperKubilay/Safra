@@ -60,7 +60,7 @@ final class P2pUdpBindingFactory {
             return createDirectBinding(bindIpv4Socket(preferredPort), stunClient, true,
                 "Could not discover a public IPv4 UDP endpoint with STUN");
         } catch (IOException exception) {
-            logger.info("Safra IPv4 zorlamasi ise yaramadi, genel STUN deneniyor: {}", exception.toString());
+            logger.info("Safra could not force IPv4, falling back to general STUN discovery: {}", exception.toString());
         }
         return createDirectBinding(bindSocket(preferredPort), stunClient, false,
             "Could not discover a public UDP endpoint with STUN");

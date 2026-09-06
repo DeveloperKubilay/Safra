@@ -2,12 +2,14 @@ package org.developerkubilay.safra.client.config;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -15,6 +17,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
@@ -55,7 +58,7 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(java.net.URI.create(REMOTE_CONFIG_URL))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
             .timeout(REQUEST_TIMEOUT)
             .GET()
             .build();
@@ -75,7 +78,7 @@ public final class RemoteRendezvousConfigUpdater {
                 return;
             }
 
-            JsonObject json = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
+            JsonObject json = JsonParser.parseString(body).getAsJsonObject();
             JsonElement discordElement = json.get("discord");
             if (discordElement != null && discordElement.isJsonPrimitive() && isValidDiscordUrl(discordElement.getAsString())) {
                 discordUrl = discordElement.getAsString().trim();
@@ -124,7 +127,7 @@ public final class RemoteRendezvousConfigUpdater {
 
     private static boolean isValidDiscordUrl(String value) {
         try {
-            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            URI uri = URI.create(value == null ? "" : value.trim());
             return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
         } catch (IllegalArgumentException ignored) {
             return false;
@@ -133,12 +136,12 @@ public final class RemoteRendezvousConfigUpdater {
 
     private static boolean isValidYoutubeUrl(String value) {
         try {
-            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            URI uri = URI.create(value == null ? "" : value.trim());
             String host = uri.getHost();
             return "https".equalsIgnoreCase(uri.getScheme())
                 && host != null
                 && ("youtube.com".equalsIgnoreCase(host)
-                    || host.toLowerCase(java.util.Locale.ROOT).endsWith(".youtube.com")
+                    || host.toLowerCase(Locale.ROOT).endsWith(".youtube.com")
                     || "youtu.be".equalsIgnoreCase(host));
         } catch (IllegalArgumentException ignored) {
             return false;

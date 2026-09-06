@@ -10,6 +10,7 @@ import tech.kwik.core.server.ServerConnector;
 import tech.kwik.core.log.NullLogger;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
@@ -22,7 +23,7 @@ final class P2pKwikHostTunnel implements AutoCloseable {
     private final int token;
     private final int connectionId;
     private final int minecraftPort;
-    private final java.net.InetAddress minecraftAddress;
+    private final InetAddress minecraftAddress;
     private final P2pKwikCertificate certificate;
     private final BiConsumer<P2pPacket, InetSocketAddress> sender;
     private volatile InetSocketAddress remoteAddress;
@@ -33,7 +34,7 @@ final class P2pKwikHostTunnel implements AutoCloseable {
     private volatile ServerConnector connector;
     private volatile P2pKwikDatagramSocket serverSocket;
 
-    P2pKwikHostTunnel(Logger logger, int token, int connectionId, int minecraftPort, java.net.InetAddress minecraftAddress,
+    P2pKwikHostTunnel(Logger logger, int token, int connectionId, int minecraftPort, InetAddress minecraftAddress,
                       P2pKwikCertificate certificate, InetSocketAddress remoteAddress,
                       BiConsumer<P2pPacket, InetSocketAddress> sender, Runnable removal) {
         this.logger = logger;
@@ -72,7 +73,7 @@ final class P2pKwikHostTunnel implements AutoCloseable {
     void sendCertificate() throws GeneralSecurityException {
         byte[] encoded = certificate.encoded();
         if (encoded.length > P2pConstants.MAX_PAYLOAD_SIZE) {
-            throw new GeneralSecurityException("Kwik host sertifikası Safra UDP paketine sığmıyor");
+            throw new GeneralSecurityException("The Kwik host certificate does not fit in a Safra UDP packet");
         }
         sender.accept(P2pPacket.quicCertificate(token, connectionId, encoded), remoteAddress);
     }
@@ -87,7 +88,7 @@ final class P2pKwikHostTunnel implements AutoCloseable {
             try {
                 sendCertificate();
             } catch (GeneralSecurityException exception) {
-                logger.debug("Safra Kwik host sertifikası yeni adrese gönderilemedi: {}", exception.toString());
+                logger.debug("Safra could not send the Kwik host certificate to the new address: {}", exception.toString());
             }
         }
     }
@@ -97,7 +98,7 @@ final class P2pKwikHostTunnel implements AutoCloseable {
             try {
                 sendCertificate();
             } catch (GeneralSecurityException exception) {
-                logger.warn("Safra Kwik host sertifikası gönderilemedi: {}", exception.toString());
+                logger.warn("Safra could not send the Kwik host certificate: {}", exception.toString());
                 close();
             }
         } else if (packet.type() == P2pPacket.Type.QUIC_DATA && serverSocket != null) {
@@ -130,7 +131,7 @@ final class P2pKwikHostTunnel implements AutoCloseable {
 
     private void handleMinecraftStream(QuicStream stream) {
         if (!streamClaimed.compareAndSet(false, true)) {
-            logger.warn("Safra Kwik host tunnel {} ikinci Minecraft akışını reddetti", connectionId);
+            logger.warn("Safra Kwik host tunnel {} refused a second Minecraft stream", connectionId);
             close();
             return;
         }
@@ -138,9 +139,9 @@ final class P2pKwikHostTunnel implements AutoCloseable {
             Socket minecraftSocket = new Socket(minecraftAddress, minecraftPort);
             P2pSockets.tune(minecraftSocket);
             P2pKwikStreams.pipe(logger, "host", stream, minecraftSocket, this::close);
-            logger.debug("Safra Kwik host tunnel {} yerel Minecraft'a bağlandı", connectionId);
+            logger.debug("Safra Kwik host tunnel {} connected to local Minecraft", connectionId);
         } catch (IOException exception) {
-            logger.warn("Safra Kwik host tunnel {} yerel Minecraft'a bağlanamadı: {}", connectionId, exception.toString());
+            logger.warn("Safra Kwik host tunnel {} could not reach local Minecraft: {}", connectionId, exception.toString());
             close();
         }
     }

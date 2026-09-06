@@ -1,5 +1,7 @@
 package org.developerkubilay.safra.p2p;
 
+import java.lang.reflect.Method;
+
 public final class P2pOptionalIntegrations {
     private static final String VOICECHAT_API_CLASS = "de.maxhenkel.voicechat.api.ClientVoicechatSocket";
     private static final String GEYSER_API_CLASS = "org.geysermc.geyser.api.GeyserApi";
@@ -48,7 +50,7 @@ public final class P2pOptionalIntegrations {
             if (api == null) {
                 return null;
             }
-            java.lang.reflect.Method listenerMethod = apiClass.getMethod("bedrockListener");
+            Method listenerMethod = apiClass.getMethod("bedrockListener");
             Object listener = listenerMethod.invoke(api);
             if (listener == null) {
                 return null;

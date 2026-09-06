@@ -28,7 +28,7 @@ final class P2pKwikStreams {
             try {
                 stream.getInputStream().transferTo(minecraftSocket.getOutputStream());
             } catch (IOException exception) {
-                logger.debug("Safra Kwik {} QUIC -> Minecraft akışı kapandı: {}", side, exception.toString());
+                logger.debug("Safra Kwik {} QUIC -> Minecraft stream closed: {}", side, exception.toString());
             } finally {
                 closeBoth.run();
             }
@@ -38,7 +38,7 @@ final class P2pKwikStreams {
                 minecraftSocket.getInputStream().transferTo(stream.getOutputStream());
                 stream.getOutputStream().close();
             } catch (IOException exception) {
-                logger.debug("Safra Kwik {} Minecraft -> QUIC akışı kapandı: {}", side, exception.toString());
+                logger.debug("Safra Kwik {} Minecraft -> QUIC stream closed: {}", side, exception.toString());
             } finally {
                 closeBoth.run();
             }

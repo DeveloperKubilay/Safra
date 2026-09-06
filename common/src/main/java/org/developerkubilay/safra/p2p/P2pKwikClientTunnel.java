@@ -75,15 +75,15 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 certificateReady.await(500L, TimeUnit.MILLISECONDS);
             }
             if (certificateReady.getCount() != 0) {
-                throw new IOException("Kwik host sertifikası zamanında gelmedi");
+                throw new IOException("The Kwik host certificate did not arrive in time");
             }
             if (certificate == null || certificate.length == 0) {
-                throw new IOException("Kwik host sertifikası boş geldi");
+                throw new IOException("The Kwik host certificate arrived empty");
             }
 
             long remainingNanos = certificateDeadline - System.nanoTime();
             if (remainingNanos <= 0L) {
-                throw new IOException("Kwik denemesi zaman aşımına uğradı");
+                throw new IOException("The Kwik attempt timed out");
             }
 
             quicSocket = new P2pKwikDatagramSocket(
@@ -116,7 +116,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             if (exception instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            logger.warn("Safra Kwik client tunnel {} açılamadı: {}", connectionId, exception.toString());
+            logger.warn("Safra Kwik client tunnel {} could not be opened: {}", connectionId, exception.toString());
             if (!closed.get() && failure != null) {
                 closeForRetry();
                 failure.run();

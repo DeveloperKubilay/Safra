@@ -20,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.net.URI;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
@@ -83,13 +84,13 @@ abstract class IntegratedServerMixin {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
         return Component.literal(url)
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
     }
 
     private static Component safra$youtubeLink(String url) {
         return Component.literal(url)
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {

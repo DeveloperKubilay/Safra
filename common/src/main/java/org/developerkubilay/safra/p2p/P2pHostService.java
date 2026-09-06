@@ -3,6 +3,7 @@ package org.developerkubilay.safra.p2p;
 import org.developerkubilay.safra.p2p.transport.P2pDatagramTransport;
 import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
 import org.developerkubilay.safra.p2p.turn.P2pTurnCredentials;
+import org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,8 +11,11 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
+import java.security.GeneralSecurityException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -68,8 +72,8 @@ public final class P2pHostService implements AutoCloseable {
 
         try {
             kwikCertificate = P2pKwikCertificate.create();
-        } catch (java.security.GeneralSecurityException exception) {
-            throw new IOException("Safra Kwik host kimliği oluşturulamadı", exception);
+        } catch (GeneralSecurityException exception) {
+            throw new IOException("Safra Kwik host identity could not be created", exception);
         }
 
         int preferredUdpPort = P2pOptionalIntegrations.isVoiceChatAvailable() ? 0 : tcpPort;
@@ -103,7 +107,7 @@ public final class P2pHostService implements AutoCloseable {
 
         Collection<InetSocketAddress> voicePublicEndpoints = P2pOptionalIntegrations.isVoiceChatAvailable()
             ? SafraVoiceTransportManager.getInstance().awaitHostVoiceEndpoints(tcpPort, P2pConstants.VOICE_HOST_WAIT_MS)
-            : java.util.List.of();
+            : List.of();
 
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
@@ -259,7 +263,7 @@ public final class P2pHostService implements AutoCloseable {
         }
     }
 
-    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(java.net.SocketAddress remoteAddress) {
+    private P2pStunClient.DiscoveredEndpoint matchingStunEndpoint(SocketAddress remoteAddress) {
         for (P2pStunClient.DiscoveredEndpoint endpoint : discoveredEndpoints.values()) {
             if (endpoint.matches(remoteAddress)) {
                 return endpoint;
@@ -277,7 +281,7 @@ public final class P2pHostService implements AutoCloseable {
         }
 
         try {
-            LOGGER.debug("Safra Kwik host bağlantı isteği {} aldı: {}", packet.connectionId(), remoteAddress);
+            LOGGER.debug("Safra Kwik host received connection request {} from {}", packet.connectionId(), remoteAddress);
             P2pKwikHostTunnel connection = new P2pKwikHostTunnel(
                 LOGGER,
                 token,
@@ -298,10 +302,10 @@ public final class P2pHostService implements AutoCloseable {
 
             connection.start();
             connection.sendCertificate();
-            LOGGER.debug("Safra Kwik host tunnel {} yerel Minecraft {}:{} için hazır", packet.connectionId(), targetAddress.getHostAddress(), tcpPort);
-        } catch (IOException | java.security.GeneralSecurityException exception) {
+            LOGGER.debug("Safra Kwik host tunnel {} is ready for local Minecraft {}:{}", packet.connectionId(), targetAddress.getHostAddress(), tcpPort);
+        } catch (IOException | GeneralSecurityException exception) {
             connections.remove(packet.connectionId());
-            LOGGER.warn("Safra Kwik host tunnel {} açılamadı: {}", packet.connectionId(), exception.toString());
+            LOGGER.warn("Safra Kwik host tunnel {} could not be opened: {}", packet.connectionId(), exception.toString());
             sendPacket(P2pPacket.close(token, packet.connectionId()), remoteAddress);
         }
     }
@@ -359,10 +363,10 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void publishRelayReady() {
-        if (!(relayFallbackTransport instanceof org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport turnTransport)) {
+        if (!(relayFallbackTransport instanceof P2pTurnDatagramTransport turnTransport)) {
             return;
         }
-        publishRelayReady(java.util.List.of(turnTransport.relayAddress()));
+        publishRelayReady(List.of(turnTransport.relayAddress()));
     }
 
     private void publishRelayReady(Collection<InetSocketAddress> publicEndpoints) {

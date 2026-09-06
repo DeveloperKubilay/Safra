@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.p2p;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -19,12 +20,11 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Her paylaşım oturumunda üretilen QUIC sunucu kimliği.
+ * The QUIC server identity, generated once per shared session.
  *
- * <p>Ek bir native kütüphane ya da sertifika dosyası taşımamak için, gerekli
- * küçük X.509 DER yapısını doğrudan JDK ile oluşturur. Sertifikanın açık kısmı
- * Safra'nın token'lı ilk paketiyle katılımcıya gider; Kwik bağlantısı bundan
- * sonra o sertifikaya sabitlenir.</p>
+ * <p>The small X.509 DER structure is built with the JDK alone so that no native library or
+ * certificate file has to ship with the mod. Its public half reaches the joiner in Safra's first
+ * tagged packet, and the Kwik connection is pinned to it from then on.</p>
  */
 final class P2pKwikCertificate {
     private static final char[] KEY_PASSWORD = "safra-kwik".toCharArray();
@@ -80,8 +80,8 @@ final class P2pKwikCertificate {
     private static void loadEmpty(KeyStore keyStore, char[] password) throws GeneralSecurityException {
         try {
             keyStore.load(null, password);
-        } catch (java.io.IOException exception) {
-            throw new GeneralSecurityException("Boş sertifika deposu başlatılamadı", exception);
+        } catch (IOException exception) {
+            throw new GeneralSecurityException("An empty key store could not be initialised", exception);
         }
     }
 

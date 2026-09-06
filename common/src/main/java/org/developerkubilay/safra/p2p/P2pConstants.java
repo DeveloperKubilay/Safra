@@ -1,5 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
+import java.net.URI;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -8,8 +9,8 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 2;
     static final int HEADER_SIZE = 10;
-    // RFC 9000'nin her ağda güvenle varsaydığı QUIC UDP tavanı 1200 bayttır.
-    // Safra başlığı bunun dışındadır; dış UDP paketi 1218 bayta çıkar.
+    // RFC 9000 puts the QUIC UDP ceiling every network is assumed to carry at 1200 bytes.
+    // The Safra header sits outside that, so the outer UDP packet reaches 1210 bytes.
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
     static final int KWIK_VIRTUAL_PORT = 4433;
@@ -96,7 +97,7 @@ public final class P2pConstants {
         }
 
         try {
-            String scheme = java.net.URI.create(url.trim()).getScheme();
+            String scheme = URI.create(url.trim()).getScheme();
             return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
         } catch (RuntimeException exception) {
             return false;
