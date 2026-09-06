@@ -214,8 +214,10 @@ if (config.BEDROCK_SERVERS && config.BEDROCK_SERVERS.length > 0) {
 });
 
 app.post("/session-join", async (req, res) => {
-    const networkValidation = networkControl(req.body.network);
-    if (networkValidation) return res.code(400).send(networkValidation);
+    if (req.body.network != null) {
+        const networkValidation = networkControl(req.body.network);
+        if (networkValidation) return res.code(400).send(networkValidation);
+    }
     req.ip = req.headers["cf-connecting-ip"] || req.ip;
 
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
@@ -224,7 +226,7 @@ app.post("/session-join", async (req, res) => {
     console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
 
     session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
-        host: req.body.network,
+        host: req.body.network ?? null,
     }));
 
     res.send({//Joinere hostun datası iletilir
