@@ -10,7 +10,6 @@ import tech.kwik.core.server.ServerConnector;
 import tech.kwik.core.log.NullLogger;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
@@ -31,9 +30,8 @@ final class P2pKwikHostTunnel implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean streamClaimed = new AtomicBoolean();
 
-    private volatile P2pKwikGateway gateway;
     private volatile ServerConnector connector;
-    private volatile DatagramSocket serverSocket;
+    private volatile P2pKwikDatagramSocket serverSocket;
 
     P2pKwikHostTunnel(Logger logger, int token, int connectionId, int minecraftPort, java.net.InetAddress minecraftAddress,
                       P2pKwikCertificate certificate, InetSocketAddress remoteAddress,
@@ -50,12 +48,8 @@ final class P2pKwikHostTunnel implements AutoCloseable {
     }
 
     void start() throws IOException, CertificateException {
-        serverSocket = localDatagramSocket();
-        DatagramSocket gatewaySocket = localDatagramSocket();
-        gateway = new P2pKwikGateway(logger, gatewaySocket,
-            (InetSocketAddress) serverSocket.getLocalSocketAddress(),
-            datagram -> sender.accept(P2pPacket.quicData(token, connectionId, datagram), remoteAddress),
-            "safra-kwik-host-gateway");
+        serverSocket = new P2pKwikDatagramSocket(
+            datagram -> sender.accept(P2pPacket.quicData(token, connectionId, datagram), remoteAddress));
 
         ServerConnectionConfig configuration = ServerConnectionConfig.builder()
             .maxOpenPeerInitiatedBidirectionalStreams(1)
@@ -106,8 +100,8 @@ final class P2pKwikHostTunnel implements AutoCloseable {
                 logger.warn("Safra Kwik host sertifikası gönderilemedi: {}", exception.toString());
                 close();
             }
-        } else if (packet.type() == P2pPacket.Type.QUIC_DATA && gateway != null) {
-            gateway.deliver(packet.payload());
+        } else if (packet.type() == P2pPacket.Type.QUIC_DATA && serverSocket != null) {
+            serverSocket.deliver(packet.payload());
         } else if (packet.type() == P2pPacket.Type.CLOSE) {
             close(false);
         }
@@ -127,9 +121,6 @@ final class P2pKwikHostTunnel implements AutoCloseable {
         }
         if (connector != null) {
             connector.close();
-        }
-        if (gateway != null) {
-            gateway.close();
         }
         if (serverSocket != null) {
             serverSocket.close();
@@ -152,10 +143,6 @@ final class P2pKwikHostTunnel implements AutoCloseable {
             logger.warn("Safra Kwik host tunnel {} yerel Minecraft'a bağlanamadı: {}", connectionId, exception.toString());
             close();
         }
-    }
-
-    private static DatagramSocket localDatagramSocket() throws IOException {
-        return new DatagramSocket(new InetSocketAddress(P2pSockets.loopbackAddress(), 0));
     }
 
     private final class MinecraftProtocol implements ApplicationProtocolConnectionFactory {

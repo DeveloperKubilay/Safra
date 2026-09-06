@@ -6,8 +6,6 @@ import tech.kwik.core.QuicStream;
 import tech.kwik.core.impl.QuicClientConnectionImpl;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
@@ -31,9 +29,8 @@ final class P2pKwikClientTunnel implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private volatile byte[] certificate;
-    private volatile P2pKwikGateway gateway;
     private volatile QuicClientConnection connection;
-    private volatile DatagramSocket quicSocket;
+    private volatile P2pKwikDatagramSocket quicSocket;
 
     P2pKwikClientTunnel(Logger logger, int token, int connectionId, Socket minecraftSocket,
                          long attemptTimeoutMs, Consumer<P2pPacket> sender, Runnable removal,
@@ -57,8 +54,8 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         if (packet.type() == P2pPacket.Type.QUIC_CERTIFICATE) {
             certificate = Arrays.copyOf(packet.payload(), packet.payload().length);
             certificateReady.countDown();
-        } else if (packet.type() == P2pPacket.Type.QUIC_DATA && gateway != null) {
-            gateway.deliver(packet.payload());
+        } else if (packet.type() == P2pPacket.Type.QUIC_DATA && quicSocket != null) {
+            quicSocket.deliver(packet.payload());
         } else if (packet.type() == P2pPacket.Type.CLOSE) {
             close(false);
         }
@@ -89,12 +86,8 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 throw new IOException("Kwik denemesi zaman aşımına uğradı");
             }
 
-            quicSocket = localDatagramSocket();
-            DatagramSocket gatewaySocket = localDatagramSocket();
-            gateway = new P2pKwikGateway(logger, gatewaySocket,
-                (InetSocketAddress) quicSocket.getLocalSocketAddress(),
-                datagram -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)),
-                "safra-kwik-client-gateway");
+            quicSocket = new P2pKwikDatagramSocket(
+                datagram -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
 
             QuicClientConnectionImpl.ExtendedBuilder builder = new QuicClientConnectionImpl.ExtendedBuilder();
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
@@ -102,7 +95,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             builder.useStrictSmallestAllowedMaximumDatagramSize();
             connection = builder
                 .host(P2pConstants.LOCAL_PROXY_HOST)
-                .port(gateway.port())
+                .port(P2pConstants.KWIK_VIRTUAL_PORT)
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
                 .connectTimeout(Duration.ofNanos(remainingNanos))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
@@ -138,15 +131,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             return;
         }
         sender.accept(P2pPacket.close(token, connectionId));
-        if (connection != null) {
-            connection.close();
-        }
-        if (gateway != null) {
-            gateway.close();
-        }
-        if (quicSocket != null) {
-            quicSocket.close();
-        }
+        closeQuic();
         removal.run();
     }
 
@@ -157,15 +142,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         if (notifyRemote) {
             sender.accept(P2pPacket.close(token, connectionId));
         }
-        if (connection != null) {
-            connection.close();
-        }
-        if (gateway != null) {
-            gateway.close();
-        }
-        if (quicSocket != null) {
-            quicSocket.close();
-        }
+        closeQuic();
         try {
             minecraftSocket.close();
         } catch (IOException ignored) {
@@ -173,7 +150,12 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         removal.run();
     }
 
-    private static DatagramSocket localDatagramSocket() throws IOException {
-        return new DatagramSocket(new InetSocketAddress(P2pSockets.loopbackAddress(), 0));
+    private void closeQuic() {
+        if (connection != null) {
+            connection.close();
+        }
+        if (quicSocket != null) {
+            quicSocket.close();
+        }
     }
 }

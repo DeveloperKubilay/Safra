@@ -12,6 +12,7 @@ public final class P2pConstants {
     // Safra başlığı bunun dışındadır; dış UDP paketi 1218 bayta çıkar.
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
+    static final int KWIK_VIRTUAL_PORT = 4433;
     static final int KWIK_IDLE_TIMEOUT_SECONDS = 30;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;

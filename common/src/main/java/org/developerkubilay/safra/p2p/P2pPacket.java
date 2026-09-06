@@ -5,9 +5,6 @@ import java.util.Arrays;
 
 record P2pPacket(Type type, int token, int connectionId, byte[] payload) {
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
-    private static final ThreadLocal<ByteBuffer> ENCODE_BUFFER = ThreadLocal.withInitial(
-        () -> ByteBuffer.allocate(P2pConstants.HEADER_SIZE + P2pConstants.MAX_PAYLOAD_SIZE)
-    );
 
     enum Type {
         PUNCH(4),
@@ -59,15 +56,13 @@ record P2pPacket(Type type, int token, int connectionId, byte[] payload) {
     }
 
     byte[] encode() {
-        ByteBuffer buffer = ENCODE_BUFFER.get();
-        buffer.clear();
+        ByteBuffer buffer = ByteBuffer.allocate(P2pConstants.HEADER_SIZE + payload.length);
         buffer.put(P2pConstants.PROTOCOL_VERSION);
         buffer.put((byte) type.id);
         buffer.putInt(token);
         buffer.putInt(connectionId);
         buffer.put(payload);
-        int length = buffer.position();
-        return Arrays.copyOf(buffer.array(), length);
+        return buffer.array();
     }
 
     static P2pPacket decode(byte[] buffer, int length) {
