@@ -45,16 +45,12 @@ public final class P2pConstants {
     private static final Pattern SITE_API_VERSION_PATTERN = Pattern.compile("[a-z0-9][a-z0-9.-]{0,15}");
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
     private static final String TEST_MODE_HOST_FAIL_SAFE = "hostfailsafe";
-    static final String[][] STUN_SERVER_GROUPS = {
-        {
-            "stun.l.google.com:19302",
-            "stun1.l.google.com:19302",
-            "stun2.l.google.com:19302"
-        },
-        {
-            "stun.cloudflare.com:3478",
-            "global.stun.twilio.com:3478"
-        }
+    static final String[] STUN_SERVERS = {
+        "stun.l.google.com:19302",
+        "stun1.l.google.com:19302",
+        "stun2.l.google.com:19302",
+        "stun.cloudflare.com:3478",
+        "global.stun.twilio.com:3478"
     };
 
     private static volatile String runtimeRendezvousUrl;

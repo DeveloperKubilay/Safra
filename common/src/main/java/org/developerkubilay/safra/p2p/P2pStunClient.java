@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -38,22 +39,19 @@ final class P2pStunClient {
 
     private Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket, String requiredFamily) {
         Map<String, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
-        for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
-            List<PendingRequest> pendingRequests = requestCandidates(socket, serverGroup, requiredFamily);
-            if (pendingRequests.isEmpty()) {
-                continue;
+        List<PendingRequest> pendingRequests = requestCandidates(socket, requiredFamily);
+        if (pendingRequests.isEmpty()) {
+            return discovered;
+        }
+
+        for (int attempt = 0; attempt < P2pConstants.STUN_DISCOVERY_ATTEMPTS; attempt++) {
+            if (attempt > 0) {
+                resendCandidates(socket, pendingRequests);
             }
 
-            for (int attempt = 0; attempt < P2pConstants.STUN_DISCOVERY_ATTEMPTS; attempt++) {
-                if (attempt > 0) {
-                    resendCandidates(socket, pendingRequests);
-                }
-
-                int responseWaitMs = P2pConstants.STUN_INITIAL_RETRY_MS << attempt;
-                collectResponses(socket, pendingRequests, responseWaitMs, discovered);
-                if (requiredFamily != null || discovered.containsKey("ipv4")) {
-                    return discovered;
-                }
+            collectResponses(socket, pendingRequests, P2pConstants.STUN_INITIAL_RETRY_MS << attempt, discovered);
+            if (requiredFamily != null || discovered.containsKey("ipv4")) {
+                return discovered;
             }
         }
         return discovered;
@@ -66,11 +64,7 @@ final class P2pStunClient {
     }
 
     List<PendingRequest> requestCandidates(DatagramSocket socket) {
-        List<PendingRequest> pendingRequests = new ArrayList<>();
-        for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
-            pendingRequests.addAll(requestCandidates(socket, serverGroup));
-        }
-        return pendingRequests;
+        return requestCandidates(socket, null);
     }
 
     private void resendCandidates(DatagramSocket socket, List<PendingRequest> pendingRequests) {
@@ -82,24 +76,24 @@ final class P2pStunClient {
         }
     }
 
-    List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery) {
-        return requestCandidates(socket, serversToQuery, null);
-    }
-
-    private List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery, String requiredFamily) {
-        List<PendingRequest> pendingRequests = new ArrayList<>();
-        for (String serverSpec : serversToQuery) {
+    private List<PendingRequest> requestCandidates(DatagramSocket socket, String requiredFamily) {
+        LinkedHashSet<InetSocketAddress> servers = new LinkedHashSet<>();
+        for (String serverSpec : P2pConstants.STUN_SERVERS) {
             for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
-                if (requiredFamily != null && !requiredFamily.equals(P2pSockets.addressFamily(server))) {
-                    continue;
+                if (requiredFamily == null || requiredFamily.equals(P2pSockets.addressFamily(server))) {
+                    servers.add(server);
                 }
-                try {
-                    byte[] transactionId = new byte[12];
-                    random.nextBytes(transactionId);
-                    sendBindingRequest(socket, server, transactionId);
-                    pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
-                } catch (IOException ignored) {
-                }
+            }
+        }
+
+        List<PendingRequest> pendingRequests = new ArrayList<>();
+        for (InetSocketAddress server : servers) {
+            try {
+                byte[] transactionId = new byte[12];
+                random.nextBytes(transactionId);
+                sendBindingRequest(socket, server, transactionId);
+                pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
+            } catch (IOException ignored) {
             }
         }
         return pendingRequests;
@@ -123,8 +117,11 @@ final class P2pStunClient {
         String host = rawServer.substring(0, separator);
         int port = Integer.parseInt(rawServer.substring(separator + 1));
         List<InetSocketAddress> servers = new ArrayList<>();
-        for (InetAddress address : resolveAddresses(host)) {
-            servers.add(new InetSocketAddress(address, port));
+        try {
+            for (InetAddress address : resolveAddresses(host)) {
+                servers.add(new InetSocketAddress(address, port));
+            }
+        } catch (RuntimeException ignored) {
         }
         return servers;
     }

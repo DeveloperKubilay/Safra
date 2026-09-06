@@ -233,7 +233,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
         P2pTransportBinding freshBinding = null;
         try {
-            freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(LOGGER, stunClient);
+            freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(stunClient);
             InetSocketAddress refreshedHostAddress = rendezvousSession.refreshDirect(freshBinding.publicEndpoints());
             if (refreshedHostAddress == null
                 || !freshBinding.stunEndpoints().containsKey(P2pSockets.addressFamily(refreshedHostAddress))) {

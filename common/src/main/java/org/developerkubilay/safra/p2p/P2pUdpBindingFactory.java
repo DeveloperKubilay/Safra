@@ -27,7 +27,7 @@ final class P2pUdpBindingFactory {
 
     static P2pTransportBinding createBestJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
         try {
-            return createDirectJoinBinding(logger, stunClient);
+            return createDirectJoinBinding(stunClient);
         } catch (IOException exception) {
             logger.debug("Safra join STUN could not be opened, trying relay-required flow: {}", exception.toString());
             return createLocalJoinBinding();
@@ -66,13 +66,7 @@ final class P2pUdpBindingFactory {
             "Could not discover a public UDP endpoint with STUN");
     }
 
-    static P2pTransportBinding createDirectJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
-        try {
-            return createDirectBinding(P2pSockets.ipv4DatagramSocket(), stunClient, true,
-                "Could not discover a public joiner IPv4 UDP endpoint with STUN");
-        } catch (IOException exception) {
-            logger.info("Safra IPv4 zorlamasi ise yaramadi, genel STUN deneniyor: {}", exception.toString());
-        }
+    static P2pTransportBinding createDirectJoinBinding(P2pStunClient stunClient) throws IOException {
         return createDirectBinding(P2pSockets.datagramSocket(), stunClient, false,
             "Could not discover a public joiner UDP endpoint with STUN");
     }
