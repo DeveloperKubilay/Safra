@@ -27,7 +27,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private final P2pStunClient stunClient = new P2pStunClient();
     private final Map<Integer, P2pKwikClientTunnel> connections = new ConcurrentHashMap<>();
     private final Set<Socket> pendingRetrySockets = ConcurrentHashMap.newKeySet();
-    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(4);
+    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final Runnable onClose;
 
     private volatile P2pDatagramTransport transport;

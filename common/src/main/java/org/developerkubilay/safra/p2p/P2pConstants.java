@@ -24,6 +24,7 @@ public final class P2pConstants {
     static final int STUN_INITIAL_RETRY_MS = 500;
     static final long STUN_REFRESH_MS = 20_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
+    public static final long RENDEZVOUS_REQUEST_TIMEOUT_MS = 8_000L;
     static final long RENDEZVOUS_RECONNECT_FIRST_DELAY_MS = 5_000L;
     static final long RENDEZVOUS_RECONNECT_DELAY_MS = 10_000L;
     static final long RENDEZVOUS_RECONNECT_SLOW_AFTER_MS = 60_000L;

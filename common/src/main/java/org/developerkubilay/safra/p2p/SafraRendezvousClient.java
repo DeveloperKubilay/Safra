@@ -36,10 +36,10 @@ import java.util.function.Consumer;
 final class SafraRendezvousClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
-    private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 1_000, 10_000};
+    private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 750};
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
+        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_REQUEST_TIMEOUT_MS))
         .build();
 
     private SafraRendezvousClient() {
@@ -574,7 +574,7 @@ final class SafraRendezvousClient {
     private static HttpRequest.Builder requestBuilder(URI uri) {
         return HttpRequest.newBuilder(uri)
             .header("User-Agent", SafraBuildInfo.userAgent())
-            .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS));
+            .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_REQUEST_TIMEOUT_MS));
     }
 
     private static HttpResponse<String> sendText(HttpRequest request) throws IOException {

@@ -51,7 +51,7 @@ final class P2pStunClient {
 
                 int responseWaitMs = P2pConstants.STUN_INITIAL_RETRY_MS << attempt;
                 collectResponses(socket, pendingRequests, responseWaitMs, discovered);
-                if (requiredFamily != null || (discovered.containsKey("ipv4") && discovered.containsKey("ipv6"))) {
+                if (requiredFamily != null || discovered.containsKey("ipv4")) {
                     return discovered;
                 }
             }

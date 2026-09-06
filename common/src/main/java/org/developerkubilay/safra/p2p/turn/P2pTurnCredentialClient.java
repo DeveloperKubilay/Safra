@@ -23,7 +23,7 @@ import java.util.UUID;
 
 public final class P2pTurnCredentialClient {
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
+        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_REQUEST_TIMEOUT_MS))
         .build();
 
     private P2pTurnCredentialClient() {
@@ -37,7 +37,7 @@ public final class P2pTurnCredentialClient {
         URI uri = turnCredentialsUri(role, turnOnly);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .header("User-Agent", SafraBuildInfo.userAgent())
-            .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
+            .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_REQUEST_TIMEOUT_MS))
             .GET();
 
         HttpResponse<String> response;
