@@ -72,14 +72,6 @@ public abstract class BaseSafraClientConfig {
         return neverUseRelayServer;
     }
 
-    public synchronized void setNeverUseRelayServer(boolean neverUseRelayServer) {
-        if (this.neverUseRelayServer != neverUseRelayServer) {
-            this.neverUseRelayServer = neverUseRelayServer;
-            P2pConstants.setRuntimeNeverUseRelayServer(neverUseRelayServer);
-            save();
-        }
-    }
-
     public synchronized String getRendezvousUrl() {
         return rendezvousUrl;
     }
