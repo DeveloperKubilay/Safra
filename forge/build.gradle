@@ -31,6 +31,7 @@ abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineA
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
+        java.srcDir(rootProject.file('common-mc/src/client/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }

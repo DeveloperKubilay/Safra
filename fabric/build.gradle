@@ -41,6 +41,8 @@ loom {
     }
 }
 
+sourceSets.client.java.srcDir(rootProject.file('common-mc/src/client/java'))
+
 fabricApi {
     configureDataGeneration {
         client = true
