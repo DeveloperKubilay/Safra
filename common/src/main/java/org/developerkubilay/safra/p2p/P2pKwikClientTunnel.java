@@ -11,7 +11,8 @@ import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -26,7 +27,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
     private final long attemptTimeoutMs;
     private final Runnable failure;
     private final Runnable established;
-    private final CountDownLatch certificateReady = new CountDownLatch(1);
+    private final BlockingQueue<byte[]> certificates = new ArrayBlockingQueue<>(4);
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private volatile byte[] certificate;
@@ -53,8 +54,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
 
     void handlePacket(P2pPacket packet) {
         if (packet.type() == P2pPacket.Type.QUIC_CERTIFICATE) {
-            certificate = Arrays.copyOf(packet.payload(), packet.payload().length);
-            certificateReady.countDown();
+            certificates.offer(Arrays.copyOf(packet.payload(), packet.payload().length));
         } else if (packet.type() == P2pPacket.Type.QUIC_DATA && quicSocket != null) {
             quicSocket.deliver(packet.payload());
         } else if (packet.type() == P2pPacket.Type.CLOSE) {
@@ -71,15 +71,26 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         try {
             P2pSockets.tune(minecraftSocket);
             long certificateDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(attemptTimeoutMs);
-            while (certificateReady.getCount() != 0 && System.nanoTime() < certificateDeadline) {
-                sender.accept(P2pPacket.quicOpen(token, connectionId));
-                certificateReady.await(500L, TimeUnit.MILLISECONDS);
+            long pathRoundTripNanos = 0L;
+            while (certificate == null && System.nanoTime() < certificateDeadline) {
+                pathRoundTripNanos = requestCertificate(500L);
             }
-            if (certificateReady.getCount() != 0) {
+            if (certificate == null) {
                 throw new IOException("The Kwik host certificate did not arrive in time");
             }
-            if (certificate == null || certificate.length == 0) {
+            if (certificate.length == 0) {
                 throw new IOException("The Kwik host certificate arrived empty");
+            }
+
+            // That first answer carries the cost of opening the path and of the host starting its
+            // QUIC server, which on a short link runs to several times the link itself. Asking twice
+            // more of a path that is now warm, and keeping the shortest reply, leaves a figure that
+            // is about the route rather than about setting it up.
+            for (int probe = 0; probe < 2 && System.nanoTime() < certificateDeadline; probe++) {
+                long warm = requestCertificate(250L);
+                if (warm > 0L && warm < pathRoundTripNanos) {
+                    pathRoundTripNanos = warm;
+                }
             }
 
             long remainingNanos = certificateDeadline - System.nanoTime();
@@ -100,13 +111,23 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
                 .connectTimeout(Duration.ofNanos(remainingNanos))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
-                .defaultStreamReceiveBufferSize((long) P2pConstants.tunnelQueueBytes())
+                .defaultStreamReceiveBufferSize((long) P2pConstants.MAX_STREAM_WINDOW_BYTES)
                 .maxOpenPeerInitiatedBidirectionalStreams(1)
                 .noServerCertificateCheck()
                 .customTrustStore(P2pKwikCertificate.trustStore(certificate))
                 .socketFactory(destination -> quicSocket)
                 .build();
             connection.connect();
+            // Kwik fixes a stream's window when the stream is created, so the size has to be settled
+            // here. The handshake's own figure is no use for it: that one carries the key exchange and
+            // the certificate check as well, and comes out an order of magnitude above the path. The
+            // certificate request above crossed the same path carrying nothing else, so it is the
+            // measurement this uses.
+            int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
+            int window = P2pConstants.streamWindowBytes(roundTripMs);
+            connection.setDefaultBidirectionalStreamReceiveBufferSize(window);
+            logger.debug("Safra tunnel {} sized its window to {} bytes for a {}ms round trip (handshake said {}ms)",
+                connectionId, window, roundTripMs, connection.getStats().smoothedRtt());
             QuicStream stream = connection.createStream(true);
             P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             if (established != null) {
@@ -127,6 +148,18 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         }
     }
 
+    /** Asks the host to send its certificate, and reports how long the answer took, or 0 if none came. */
+    private long requestCertificate(long waitMs) throws InterruptedException {
+        long requestedAt = System.nanoTime();
+        sender.accept(P2pPacket.quicOpen(token, connectionId));
+        byte[] answer = certificates.poll(waitMs, TimeUnit.MILLISECONDS);
+        if (answer == null) {
+            return 0L;
+        }
+        certificate = answer;
+        return System.nanoTime() - requestedAt;
+    }
+
     private void closeForRetry() {
         if (!closed.compareAndSet(false, true)) {
             return;
@@ -136,15 +169,15 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         removal.run();
     }
 
-    /** What the link did over the session, so a report of stutter can be checked instead of guessed. */
-    private void logLinkQuality() {
-        try {
-            Statistics stats = connection.getStats();
-            logger.info("Safra tunnel {} closing after {} packets, {} lost, rtt {}ms (variation {}ms)",
-                connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
-        } catch (RuntimeException exception) {
-            logger.debug("Safra tunnel {} could not read its Kwik statistics: {}", connectionId, exception.toString());
+    /** What the link is doing, so a report of stutter can be checked instead of guessed at. */
+    void logLinkQuality() {
+        QuicClientConnection active = connection;
+        if (active == null || closed.get()) {
+            return;
         }
+        Statistics stats = active.getStats();
+        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms)",
+            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
     }
 
     private void close(boolean notifyRemote) {
@@ -164,7 +197,6 @@ final class P2pKwikClientTunnel implements AutoCloseable {
 
     private void closeQuic() {
         if (connection != null) {
-            logLinkQuality();
             connection.close();
         }
         if (quicSocket != null) {

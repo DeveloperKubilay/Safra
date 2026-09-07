@@ -11,6 +11,12 @@ public final class P2pConstants {
     static final int HEADER_SIZE = 10;
     // RFC 9000 puts the QUIC UDP ceiling every network is assumed to carry at 1200 bytes.
     // The Safra header sits outside that, so the outer UDP packet reaches 1210 bytes.
+    /**
+     * Kwik sizes its own datagrams to land a packet on 1280 bytes, the smallest maximum any path has
+     * to carry, and it does not know the Safra header rides along on top. Left to itself it overshoots
+     * that budget by exactly this header; clawing the ten bytes back again would leave 1.8% for the
+     * trouble, so the datagram stays where both ends can always reach each other.
+     */
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
     static final int KWIK_VIRTUAL_PORT = 4433;
@@ -19,7 +25,9 @@ public final class P2pConstants {
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     /** How many datagrams a receive queue holds before it drops, sized like the socket buffer it stands in for. */
     public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
-    static final int DEFAULT_TUNNEL_QUEUE_BYTES = 64 * 1024;
+    static final int MIN_STREAM_WINDOW_BYTES = 32 * 1024;
+    static final int MAX_STREAM_WINDOW_BYTES = 256 * 1024;
+    private static final int STREAM_WINDOW_TARGET_BYTES_PER_SECOND = 1_500_000;
     static final long KWIK_DIRECT_FIRST_TIMEOUT_MS = 8_000L;
     static final long KWIK_DIRECT_SECOND_TIMEOUT_MS = 5_000L;
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
@@ -166,12 +174,16 @@ public final class P2pConstants {
     }
 
     /**
-     * How much game data may wait on one hop of the tunnel. Minecraft sends chunks and movement down
-     * a single ordered stream, so whatever is queued ahead of a movement packet is time it spends
-     * waiting. Past the bandwidth-delay product the queue stops buying throughput and only adds delay.
+     * How much game data may be in flight before the sender has to wait for an acknowledgement.
+     * Minecraft sends terrain and movement down a single ordered stream, so anything queued ahead of
+     * a movement packet is time that packet spends waiting; but a window smaller than the round trip
+     * can carry leaves the link idle instead. The balance is the bandwidth-delay product, which is
+     * why this is measured per connection rather than picked once for everybody: the same number that
+     * keeps a player next door at four milliseconds would throttle one across an ocean.
      */
-    public static int tunnelQueueBytes() {
-        return integerProperty("safra.p2p.tunnelQueueBytes", DEFAULT_TUNNEL_QUEUE_BYTES);
+    static int streamWindowBytes(int roundTripMs) {
+        long window = (long) STREAM_WINDOW_TARGET_BYTES_PER_SECOND * Math.max(1, roundTripMs) / 1000L;
+        return (int) Math.clamp(window, MIN_STREAM_WINDOW_BYTES, MAX_STREAM_WINDOW_BYTES);
     }
 
     public static int turnAllocationLifetimeSeconds() {

@@ -46,8 +46,8 @@ public final class P2pSockets {
     static void tune(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
-        trySet(() -> socket.setReceiveBufferSize(P2pConstants.tunnelQueueBytes()));
-        trySet(() -> socket.setSendBufferSize(P2pConstants.tunnelQueueBytes()));
+        trySet(() -> socket.setReceiveBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES));
+        trySet(() -> socket.setSendBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES));
     }
 
     static InetAddress loopbackAddress() {
