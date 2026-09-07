@@ -9,13 +9,9 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 2;
     static final int HEADER_SIZE = 10;
-    /**
-     * RFC 9000 puts the QUIC datagram every network is assumed to carry at 1200 bytes, which leaves the
-     * outer UDP packet at 1210 with the Safra header on top. Kwik will size its own datagrams instead,
-     * but it sizes them to fill that budget exactly and does not know the header rides along, so left
-     * to itself it overshoots by the width of the header; clawing those ten bytes back again would
-     * leave 1.8% for the trouble.
-     */
+    // 1200 is the QUIC datagram RFC 9000 assumes every network carries; the Safra header takes the
+    // outer packet to 1210. Kwik will pick its own size, but it fills that budget exactly without
+    // knowing about the header, so it overshoots by ten bytes for a gain of 1.8%.
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
     static final int KWIK_VIRTUAL_PORT = 4433;
@@ -171,12 +167,9 @@ public final class P2pConstants {
     }
 
     /**
-     * How much game data may be in flight before the sender has to wait for an acknowledgement.
-     * Minecraft sends terrain and movement down a single ordered stream, so anything queued ahead of
-     * a movement packet is time that packet spends waiting; but a window smaller than the round trip
-     * can carry leaves the link idle instead. The balance is the bandwidth-delay product, which is
-     * why this is measured per connection rather than picked once for everybody: the same number that
-     * keeps a player next door at four milliseconds would throttle one across an ocean.
+     * Terrain and movement share one ordered stream, so whatever is queued ahead of a movement packet
+     * is time that packet waits; but a window below what a round trip carries leaves the link idle
+     * instead. The balance is the bandwidth-delay product, so it is measured per connection.
      */
     static int streamWindowBytes(int roundTripMs) {
         long window = (long) STREAM_WINDOW_TARGET_BYTES_PER_SECOND * Math.max(1, roundTripMs) / 1000L;

@@ -18,11 +18,10 @@ import java.util.function.BiConsumer;
  * so one socket can serve several peers.
  */
 final class P2pKwikDatagramSocket extends DatagramSocket {
-    /** The peer of a socket that only ever talks to one, and the address the client dials. */
+    /** Kwik drops datagrams that do not come from the address it dialled, so this has to be that one. */
     static final InetSocketAddress SINGLE_PEER =
         new InetSocketAddress(P2pSockets.loopbackAddress(), P2pConstants.KWIK_VIRTUAL_PORT);
     private static final Datagram CLOSE_SIGNAL = new Datagram(new byte[0], SINGLE_PEER);
-    /** As many datagrams as the socket buffer this stands in for would have held. */
 
     private final BiConsumer<byte[], InetSocketAddress> outbound;
     private final BlockingQueue<Datagram> inbound = new ArrayBlockingQueue<>(P2pConstants.DATAGRAM_QUEUE_CAPACITY);

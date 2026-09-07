@@ -90,7 +90,6 @@ public final class P2pSockets {
 
         private final String wireName = name().toLowerCase(Locale.ROOT);
 
-        /** The spelling the rendezvous protocol uses. */
         String wireName() {
             return wireName;
         }
