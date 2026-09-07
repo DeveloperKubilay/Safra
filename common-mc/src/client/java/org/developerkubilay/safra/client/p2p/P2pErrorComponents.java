@@ -1,5 +1,6 @@
 package org.developerkubilay.safra.client.p2p;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ClickEvent;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
@@ -39,7 +40,7 @@ public final class P2pErrorComponents {
     private static Component safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
         return Component.literal("\n" + url)
-            .withStyle(net.minecraft.ChatFormatting.BLUE, net.minecraft.ChatFormatting.UNDERLINE)
+            .withStyle(ChatFormatting.WHITE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
     }
 

@@ -167,7 +167,7 @@ abstract class OpenToLanScreenMixin extends Screen {
     private static Component safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
         return Component.literal(url)
-            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(ChatFormatting.WHITE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
     }
 
