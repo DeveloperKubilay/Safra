@@ -209,12 +209,17 @@ public final class P2pManager {
 
     public void tick(Minecraft client) {
         P2pHostService service = hostService;
-        if (service == null) {
+        if (service == null && startingHostService == null) {
             return;
         }
 
+        // A host that is still resolving STUN and the rendezvous has no port to compare yet, but it
+        // does have to hear that the world it was opening is gone.
         if (client.level == null) {
             stopHosting();
+            return;
+        }
+        if (service == null) {
             return;
         }
 

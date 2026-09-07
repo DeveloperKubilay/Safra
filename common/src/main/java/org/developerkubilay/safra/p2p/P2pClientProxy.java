@@ -357,7 +357,9 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void removeConnection(int connectionId) {
         connections.remove(connectionId);
-        scheduler.schedule(this::closeIfIdle, 1L, TimeUnit.SECONDS);
+        if (!closed) {
+            scheduler.schedule(this::closeIfIdle, 1L, TimeUnit.SECONDS);
+        }
     }
 
     private RelayRoute createRelayRoute() throws IOException {
