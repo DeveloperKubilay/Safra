@@ -63,7 +63,6 @@ public final class P2pClientProxy implements AutoCloseable {
 
         P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
         P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
-        scheduler.scheduleAtFixedRate(this::logLinkQuality, 30L, 30L, TimeUnit.SECONDS);
         return proxyServer.getLocalPort();
     }
 
@@ -168,16 +167,6 @@ public final class P2pClientProxy implements AutoCloseable {
         return joinerInetAddress != null
             && hostInetAddress != null
             && joinerInetAddress.equals(hostInetAddress);
-    }
-
-    private void logLinkQuality() {
-        for (P2pKwikClientTunnel connection : connections.values()) {
-            try {
-                connection.logLinkQuality();
-            } catch (RuntimeException exception) {
-                LOGGER.debug("Safra could not read the Kwik statistics: {}", exception.toString());
-            }
-        }
     }
 
     private void acceptLoop() {

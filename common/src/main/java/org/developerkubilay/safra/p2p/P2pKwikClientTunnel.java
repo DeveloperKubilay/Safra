@@ -3,7 +3,6 @@ package org.developerkubilay.safra.p2p;
 import org.slf4j.Logger;
 import tech.kwik.core.QuicClientConnection;
 import tech.kwik.core.QuicStream;
-import tech.kwik.core.Statistics;
 import tech.kwik.core.impl.QuicClientConnectionImpl;
 
 import java.io.IOException;
@@ -126,8 +125,8 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
             int window = P2pConstants.streamWindowBytes(roundTripMs);
             connection.setDefaultBidirectionalStreamReceiveBufferSize(window);
-            logger.debug("Safra tunnel {} sized its window to {} bytes for a {}ms round trip (handshake said {}ms)",
-                connectionId, window, roundTripMs, connection.getStats().smoothedRtt());
+            logger.debug("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
+                connectionId, window, roundTripMs);
             QuicStream stream = connection.createStream(true);
             P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             if (established != null) {
@@ -167,17 +166,6 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         sender.accept(P2pPacket.close(token, connectionId));
         closeQuic();
         removal.run();
-    }
-
-    /** What the link is doing, so a report of stutter can be checked instead of guessed at. */
-    void logLinkQuality() {
-        QuicClientConnection active = connection;
-        if (active == null || closed.get()) {
-            return;
-        }
-        Statistics stats = active.getStats();
-        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms)",
-            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
     }
 
     private void close(boolean notifyRemote) {
