@@ -322,9 +322,12 @@ public final class P2pHostService implements AutoCloseable {
 
         try {
             P2pTurnCredentials pendingCredentials = rendezvousSession == null ? null : rendezvousSession.consumePendingRelayCredentials();
-            P2pTransportBinding relayBinding = pendingCredentials == null
-                ? P2pUdpBindingFactory.createTurnBinding(LOGGER, "host")
-                : P2pUdpBindingFactory.createTurnBinding(LOGGER, "host", pendingCredentials);
+            if (pendingCredentials == null) {
+                // Relay credentials come with the rendezvous stream's relay-assigned event, and a host
+                // without that stream has no way to tell a joiner where the relay is either.
+                throw new IOException("TURN relay needs credentials from the rendezvous session");
+            }
+            P2pTransportBinding relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "host", pendingCredentials);
             relayFallbackTransport = relayBinding.transport();
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());

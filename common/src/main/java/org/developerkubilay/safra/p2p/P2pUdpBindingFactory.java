@@ -1,7 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
 import org.developerkubilay.safra.p2p.transport.P2pDirectDatagramTransport;
-import org.developerkubilay.safra.p2p.turn.P2pTurnCredentialClient;
 import org.developerkubilay.safra.p2p.turn.P2pTurnCredentials;
 import org.developerkubilay.safra.p2p.turn.P2pTurnDatagramTransport;
 import org.slf4j.Logger;
@@ -32,14 +31,6 @@ final class P2pUdpBindingFactory {
             logger.debug("Safra join STUN could not be opened, trying relay-required flow: {}", exception.toString());
             return createLocalJoinBinding();
         }
-    }
-
-    static P2pTransportBinding createTurnBinding(Logger logger, String role) throws IOException {
-        if (P2pConstants.neverUseRelayServer()) {
-            throw new IOException("TURN relay is disabled in config");
-        }
-        P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, false);
-        return createTurnBinding(logger, role, credentials);
     }
 
     static P2pTransportBinding createTurnBinding(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
