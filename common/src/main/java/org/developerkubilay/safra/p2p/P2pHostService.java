@@ -17,6 +17,7 @@ import java.security.GeneralSecurityException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,11 @@ public final class P2pHostService implements AutoCloseable {
     private P2pDatagramTransport transport;
     private volatile P2pDatagramTransport relayFallbackTransport;
     private final Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> discoveredEndpoints = new ConcurrentHashMap<>();
+    /**
+     * The tunnel tags joiners were announced with over the rendezvous stream. A packet carrying
+     * anything else is dropped, so holding the share code is no longer enough to disturb a tunnel.
+     */
+    private final Set<Integer> acceptedTunnelTokens = ConcurrentHashMap.newKeySet();
     private SafraRendezvousClient.HostSession rendezvousSession;
     private SafraBedrockRelayHost bedrockRelayHost;
     private volatile boolean primaryTransportRelay;
@@ -116,7 +122,7 @@ public final class P2pHostService implements AutoCloseable {
                 preferredRendezvousCode,
                 binding.publicEndpoints(),
                 voicePublicEndpoints,
-                this::punchRemoteEndpoint,
+                this::announceJoiner,
                 SafraVoiceTransportManager.getInstance()::punchHostVoiceEndpoint,
                 this::ensureRelayAvailable
             );
@@ -131,6 +137,8 @@ public final class P2pHostService implements AutoCloseable {
                 throw exception;
             }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
+            // A direct share code carries the tag itself, so that one has to be accepted.
+            acceptedTunnelTokens.add(token);
             return directShareCode;
         }
     }
@@ -176,12 +184,13 @@ public final class P2pHostService implements AutoCloseable {
         LOGGER.debug("Safra P2P host UDP transport closed for local Minecraft TCP port {}", tcpPort);
     }
 
-    private void punchRemoteEndpoint(InetSocketAddress remoteAddress) {
-        punchRemoteEndpoint(transport, remoteAddress);
+    private void announceJoiner(InetSocketAddress remoteAddress, int tunnelToken) {
+        acceptedTunnelTokens.add(tunnelToken);
+        punchRemoteEndpoint(transport, remoteAddress, tunnelToken);
     }
 
-    private void punchRemoteEndpoint(P2pDatagramTransport activeTransport, InetSocketAddress remoteAddress) {
-        if (closed || remoteAddress == null || remoteAddress.isUnresolved()) {
+    private void punchRemoteEndpoint(P2pDatagramTransport activeTransport, InetSocketAddress remoteAddress, int tunnelToken) {
+        if (closed || remoteAddress == null || remoteAddress.isUnresolved() || tunnelToken == 0) {
             return;
         }
 
@@ -189,7 +198,7 @@ public final class P2pHostService implements AutoCloseable {
         long[] delays = {0L, 100L, 250L, 500L, 1_000L, 2_000L, 4_000L, 7_000L};
         for (long delay : delays) {
             try {
-                scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.punch(token), remoteAddress), delay, TimeUnit.MILLISECONDS);
+                scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.punch(tunnelToken), remoteAddress), delay, TimeUnit.MILLISECONDS);
             } catch (RuntimeException exception) {
                 if (!closed) {
                     LOGGER.debug("Could not schedule UDP punch packet: {}", exception.toString());
@@ -247,7 +256,7 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             }
 
-            if (packet.token() != token) {
+            if (!acceptedTunnelTokens.contains(packet.token())) {
                 continue;
             }
 
@@ -266,7 +275,7 @@ public final class P2pHostService implements AutoCloseable {
         }
 
         try {
-            kwikServer = new P2pKwikHostServer(LOGGER, token, tcpPort, targetAddress, kwikCertificate, this::sendPacket);
+            kwikServer = new P2pKwikHostServer(LOGGER, tcpPort, targetAddress, kwikCertificate, this::sendPacket);
             scheduler.scheduleAtFixedRate(kwikServer::sweepIdlePeers, P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS,
                 P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (IOException | GeneralSecurityException exception) {
@@ -301,7 +310,7 @@ public final class P2pHostService implements AutoCloseable {
         sendPacket(transport, packet, remoteAddress);
     }
 
-    private synchronized void ensureRelayAvailable(InetSocketAddress joinerRelayAddress) {
+    private synchronized void ensureRelayAvailable(InetSocketAddress joinerRelayAddress, int tunnelToken) {
         if (closed || primaryTransportRelay || !allowRelayFallback || P2pConstants.neverUseRelayServer()) {
             return;
         }
@@ -310,7 +319,7 @@ public final class P2pHostService implements AutoCloseable {
             publishRelayReady();
             notifyRelayReady();
             if (joinerRelayAddress != null) {
-                punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
+                punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress, tunnelToken);
             }
             return;
         }
@@ -326,7 +335,7 @@ public final class P2pHostService implements AutoCloseable {
             notifyRelayReady();
             LOGGER.info("Safra host TURN fallback ready: {}", P2pSockets.preferredEndpoint(relayBinding.publicEndpoints()));
             if (joinerRelayAddress != null) {
-                punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
+                punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress, tunnelToken);
             }
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P host relay provisioning failed", exception);

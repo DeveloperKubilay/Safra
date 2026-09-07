@@ -33,7 +33,6 @@ final class P2pKwikHostServer implements AutoCloseable {
     private static final int FIRST_PEER_PORT = P2pConstants.KWIK_VIRTUAL_PORT + 1;
 
     private final Logger logger;
-    private final int token;
     private final int minecraftPort;
     private final InetAddress minecraftAddress;
     private final P2pKwikCertificate certificate;
@@ -45,10 +44,9 @@ final class P2pKwikHostServer implements AutoCloseable {
     private final ServerConnector connector;
     private volatile boolean closed;
 
-    P2pKwikHostServer(Logger logger, int token, int minecraftPort, InetAddress minecraftAddress,
+    P2pKwikHostServer(Logger logger, int minecraftPort, InetAddress minecraftAddress,
                       P2pKwikCertificate certificate, Sender sender) throws IOException, CertificateException {
         this.logger = logger;
-        this.token = token;
         this.minecraftPort = minecraftPort;
         this.minecraftAddress = minecraftAddress;
         this.certificate = certificate;
@@ -79,7 +77,7 @@ final class P2pKwikHostServer implements AutoCloseable {
         }
 
         switch (packet.type()) {
-            case QUIC_OPEN -> sendCertificate(peer(packet.connectionId(), remoteAddress, transport));
+            case QUIC_OPEN -> sendCertificate(peer(packet.connectionId(), packet.token(), remoteAddress, transport));
             case QUIC_DATA -> {
                 Peer peer = peersByConnection.get(packet.connectionId());
                 if (peer != null) {
@@ -118,10 +116,10 @@ final class P2pKwikHostServer implements AutoCloseable {
         socket.close();
     }
 
-    private Peer peer(int connectionId, InetSocketAddress remoteAddress, P2pDatagramTransport transport) {
+    private Peer peer(int connectionId, int token, InetSocketAddress remoteAddress, P2pDatagramTransport transport) {
         Peer existing = peersByConnection.get(connectionId);
         if (existing == null) {
-            Peer created = new Peer(connectionId, new InetSocketAddress(P2pSockets.loopbackAddress(), allocatePort()));
+            Peer created = new Peer(connectionId, token, new InetSocketAddress(P2pSockets.loopbackAddress(), allocatePort()));
             existing = peersByConnection.putIfAbsent(connectionId, created);
             if (existing == null) {
                 existing = created;
@@ -143,7 +141,7 @@ final class P2pKwikHostServer implements AutoCloseable {
         boolean moved = peer.remote != null;
         peer.remote = remoteAddress;
         if (moved) {
-            sender.send(transport, P2pPacket.punch(token), remoteAddress);
+            sender.send(transport, P2pPacket.punch(peer.token), remoteAddress);
             sendCertificate(peer);
         }
     }
@@ -163,7 +161,7 @@ final class P2pKwikHostServer implements AutoCloseable {
     private void route(byte[] datagram, InetSocketAddress destination) {
         Peer peer = destination == null ? null : peersByPort.get(destination.getPort());
         if (peer != null && peer.remote != null) {
-            sender.send(peer.transport, P2pPacket.quicData(token, peer.connectionId, datagram), peer.remote);
+            sender.send(peer.transport, P2pPacket.quicData(peer.token, peer.connectionId, datagram), peer.remote);
         }
     }
 
@@ -177,7 +175,7 @@ final class P2pKwikHostServer implements AutoCloseable {
             if (encoded.length > P2pConstants.MAX_PAYLOAD_SIZE) {
                 throw new GeneralSecurityException("The Kwik host certificate does not fit in a Safra UDP packet");
             }
-            sender.send(peer.transport, P2pPacket.quicCertificate(token, peer.connectionId, encoded), peer.remote);
+            sender.send(peer.transport, P2pPacket.quicCertificate(peer.token, peer.connectionId, encoded), peer.remote);
         } catch (GeneralSecurityException exception) {
             logger.warn("Safra could not send the Kwik host certificate: {}", exception.toString());
         }
@@ -207,13 +205,15 @@ final class P2pKwikHostServer implements AutoCloseable {
 
     private static final class Peer {
         private final int connectionId;
+        private final int token;
         private final InetSocketAddress address;
         private volatile InetSocketAddress remote;
         private volatile P2pDatagramTransport transport;
         private volatile long lastSeenAt;
 
-        private Peer(int connectionId, InetSocketAddress address) {
+        private Peer(int connectionId, int token, InetSocketAddress address) {
             this.connectionId = connectionId;
+            this.token = token;
             this.address = address;
         }
     }

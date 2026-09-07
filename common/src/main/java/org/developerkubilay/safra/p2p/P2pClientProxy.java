@@ -129,7 +129,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
         remoteAddress = rendezvousSession.hostAddress(binding.relay());
-        tunnelToken = P2pShareCode.rendezvousTunnelToken(shareCode.rendezvousCode());
+        tunnelToken = rendezvousSession.tunnelToken();
         if (remoteAddress == null) {
             throw new IOException(binding.relay()
                 ? "Rendezvous server did not return a relay address"

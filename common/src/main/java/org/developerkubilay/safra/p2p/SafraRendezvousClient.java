@@ -25,11 +25,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** HTTP/SSE client for Safra session negotiation. */
@@ -37,6 +39,7 @@ final class SafraRendezvousClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraRendezvousClient.class);
     private static final Gson GSON = new Gson();
     private static final int[] CONNECT_RETRY_DELAYS_MS = {0, 750};
+    private static final SecureRandom TOKEN_RANDOM = new SecureRandom();
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_REQUEST_TIMEOUT_MS))
@@ -48,9 +51,9 @@ final class SafraRendezvousClient {
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode,
                                  Collection<InetSocketAddress> publicEndpoints,
                                  Collection<InetSocketAddress> voicePublicEndpoints,
-                                 Consumer<InetSocketAddress> punchHandler,
+                                 BiConsumer<InetSocketAddress, Integer> punchHandler,
                                  Consumer<InetSocketAddress> voicePunchHandler,
-                                 Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
+                                 BiConsumer<InetSocketAddress, Integer> relayRequestHandler) throws IOException {
         HostSession session = new HostSession(punchHandler, voicePunchHandler, relayRequestHandler);
         try {
             session.open(
@@ -104,9 +107,9 @@ final class SafraRendezvousClient {
     }
 
     static final class HostSession implements AutoCloseable {
-        private final Consumer<InetSocketAddress> punchHandler;
+        private final BiConsumer<InetSocketAddress, Integer> punchHandler;
         private final Consumer<InetSocketAddress> voicePunchHandler;
-        private final Consumer<InetSocketAddress> relayRequestHandler;
+        private final BiConsumer<InetSocketAddress, Integer> relayRequestHandler;
         private final CompletableFuture<String> codeFuture = new CompletableFuture<>();
         private volatile InputStream stream;
         private volatile Thread streamThread;
@@ -115,13 +118,14 @@ final class SafraRendezvousClient {
         private volatile JsonObject hostRequest;
         private volatile String code;
         private volatile InetSocketAddress lastJoinerAddress;
+        private volatile int lastJoinerToken;
         private volatile P2pTurnCredentials pendingRelayCredentials;
         private volatile boolean relayAssigned;
         private volatile boolean relayRequestQueued;
 
-        private HostSession(Consumer<InetSocketAddress> punchHandler,
+        private HostSession(BiConsumer<InetSocketAddress, Integer> punchHandler,
                             Consumer<InetSocketAddress> voicePunchHandler,
-                            Consumer<InetSocketAddress> relayRequestHandler) {
+                            BiConsumer<InetSocketAddress, Integer> relayRequestHandler) {
             this.punchHandler = punchHandler;
             this.voicePunchHandler = voicePunchHandler;
             this.relayRequestHandler = relayRequestHandler;
@@ -284,7 +288,7 @@ final class SafraRendezvousClient {
                 code = receivedCode;
                 codeFuture.complete(code);
                 if (relayAssigned) {
-                    relayRequestHandler.accept(lastJoinerAddress);
+                    relayRequestHandler.accept(lastJoinerAddress, lastJoinerToken);
                 }
                 if (booleanValue(data, "relayRequired")) {
                     queueRelayRequest();
@@ -293,10 +297,11 @@ final class SafraRendezvousClient {
             }
             if ("session-joined".equals(event)) {
                 lastJoinerAddress = fromNetwork(array(data, "host"));
-                if (lastJoinerAddress != null) {
-                    punchHandler.accept(lastJoinerAddress);
+                lastJoinerToken = integerValue(data, "tunnelToken");
+                if (lastJoinerToken != 0) {
+                    punchHandler.accept(lastJoinerAddress, lastJoinerToken);
                     if (relayAssigned) {
-                        relayRequestHandler.accept(lastJoinerAddress);
+                        relayRequestHandler.accept(lastJoinerAddress, lastJoinerToken);
                     }
                 }
                 InetSocketAddress voiceJoiner = fromNetwork(array(data, "voiceHost"));
@@ -315,7 +320,7 @@ final class SafraRendezvousClient {
             if ("relay-assigned".equals(event)) {
                 pendingRelayCredentials = P2pTurnCredentialClient.parse(wrapIceServers(data));
                 relayAssigned = true;
-                relayRequestHandler.accept(lastJoinerAddress);
+                relayRequestHandler.accept(lastJoinerAddress, lastJoinerToken);
             }
         }
 
@@ -356,6 +361,11 @@ final class SafraRendezvousClient {
 
     static final class JoinSession implements AutoCloseable {
         private final String code;
+        /**
+         * Random rather than derived from the share code, so that one joiner cannot work out
+         * another's and redirect its tunnel. It travels to the host over HTTPS, never over UDP.
+         */
+        private final int tunnelToken = randomTunnelToken();
         private InetSocketAddress joinAddress;
         private InetSocketAddress hostAddress;
         private InetSocketAddress voiceAddress;
@@ -366,10 +376,15 @@ final class SafraRendezvousClient {
             this.code = code;
         }
 
+        int tunnelToken() {
+            return tunnelToken;
+        }
+
         private void open(InetSocketAddress endpoint) throws IOException {
             joinAddress = endpoint;
             JsonObject request = new JsonObject();
             request.addProperty("code", code);
+            request.addProperty("tunnelToken", tunnelToken);
             if (endpoint != null) {
                 request.add("network", toNetwork(endpoint));
             }
@@ -439,7 +454,7 @@ final class SafraRendezvousClient {
                 if (localRelayEndpoint != null) {
                     refreshHostState(localRelayEndpoint);
                 }
-                return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code), relayCredentials);
+                return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
             }
 
             JsonObject request = new JsonObject();
@@ -468,7 +483,7 @@ final class SafraRendezvousClient {
                 if (relayAddress == null) {
                     throw new IOException("Safra relay response did not include a network endpoint");
                 }
-                return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code), relayCredentials);
+                return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
             });
             if (resolved != null) {
                 return resolved;
@@ -488,6 +503,7 @@ final class SafraRendezvousClient {
 
             JsonObject request = new JsonObject();
             request.addProperty("code", code);
+            request.addProperty("tunnelToken", tunnelToken);
             request.add("network", toNetwork(endpoint));
             HttpResponse<String> response = sendText(requestBuilder(httpUri("/session-join"))
                 .header("Content-Type", "application/json")
@@ -649,6 +665,18 @@ final class SafraRendezvousClient {
         return element != null && element.isJsonPrimitive() && element.getAsBoolean();
     }
 
+    private static int integerValue(JsonObject object, String key) {
+        if (object == null) {
+            return 0;
+        }
+        JsonElement element = object.get(key);
+        try {
+            return element != null && element.isJsonPrimitive() ? element.getAsInt() : 0;
+        } catch (RuntimeException exception) {
+            return 0;
+        }
+    }
+
     private static InetSocketAddress relayNetwork(JsonObject relay) {
         if (relay == null) {
             return null;
@@ -736,6 +764,14 @@ final class SafraRendezvousClient {
     @FunctionalInterface
     private interface SseEventHandler<T> {
         T handle(String event, JsonObject data) throws IOException;
+    }
+
+    private static int randomTunnelToken() {
+        int token;
+        do {
+            token = TOKEN_RANDOM.nextInt();
+        } while (token == 0);
+        return token;
     }
 
     private static void sleepQuietly(long delayMs) throws IOException {
