@@ -17,6 +17,8 @@ public final class P2pConstants {
     static final int KWIK_IDLE_TIMEOUT_SECONDS = 30;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
+    /** How many datagrams a receive queue holds before it drops, sized like the socket buffer it stands in for. */
+    public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
     static final long KWIK_DIRECT_FIRST_TIMEOUT_MS = 8_000L;
     static final long KWIK_DIRECT_SECOND_TIMEOUT_MS = 5_000L;
@@ -32,6 +34,7 @@ public final class P2pConstants {
     static final long RENDEZVOUS_RECONNECT_SLOW_DELAY_MS = 30_000L;
     static final long VOICE_HOST_WAIT_MS = 5_000L;
     public static final int TURN_REQUEST_TIMEOUT_MS = 8_000;
+    public static final int TURN_UDP_PROBE_TIMEOUT_MS = 2_500;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;

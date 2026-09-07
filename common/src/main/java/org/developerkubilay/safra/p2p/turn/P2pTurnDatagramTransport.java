@@ -23,11 +23,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,11 +42,12 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private final OutputStream streamOutput;
     private final InetSocketAddress serverAddress;
     private final String clientTransport;
+    private final int requestTimeoutMs;
     private final Object sendMonitor = new Object();
     private final SecureRandom random = new SecureRandom();
-    private final BlockingQueue<ReceivedDatagram> incoming = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ReceivedDatagram> incoming = new ArrayBlockingQueue<>(P2pConstants.DATAGRAM_QUEUE_CAPACITY);
     private final Map<String, CompletableFuture<P2pTurnMessage>> pendingTransactions = new ConcurrentHashMap<>();
-    private final Map<String, Long> permissionExpirations = new ConcurrentHashMap<>();
+    private final Map<String, InetSocketAddress> permittedPeers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final String username;
     private final String credential;
@@ -58,7 +59,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private volatile ScheduledFuture<?> refreshTask;
 
     private P2pTurnDatagramTransport(Logger logger, String role, DatagramSocket datagramSocket, Socket streamSocket,
-                                     InetSocketAddress serverAddress, String clientTransport,
+                                     InetSocketAddress serverAddress, String clientTransport, int requestTimeoutMs,
                                      String username, String credential) throws IOException {
         this.logger = logger;
         this.role = role;
@@ -68,19 +69,42 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         this.streamOutput = streamSocket == null ? null : streamSocket.getOutputStream();
         this.serverAddress = serverAddress;
         this.clientTransport = clientTransport;
+        this.requestTimeoutMs = requestTimeoutMs;
         this.username = username;
         this.credential = credential;
     }
 
+    /**
+     * A relayed tunnel still carries QUIC, and QUIC inside a TCP or TLS stream stalls every datagram
+     * behind one lost segment while two congestion controllers argue over the same link. So UDP is
+     * asked first and the streams are kept for the networks that block UDP outright, which is what
+     * they exist for. The UDP attempt gets a short deadline because nothing here retransmits: a lost
+     * request is lost however long we wait for it.
+     */
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
-        for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tlsServers(), 443)) {
+        for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
+            DatagramSocket socket = P2pSockets.datagramSocket();
+            InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
             try {
-                P2pTurnDatagramTransport transport = openStream(logger, role, credentials, server, true);
-                logger.info("Safra TURN {} transport active via TLS: {}", role, server.host() + ":" + server.port());
+                socket.connect(serverAddress);
+                P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
+                    logger,
+                    role,
+                    socket,
+                    null,
+                    serverAddress,
+                    "UDP",
+                    P2pConstants.TURN_UDP_PROBE_TIMEOUT_MS,
+                    credentials.username(),
+                    credentials.credential()
+                );
+                transport.start(credentials.ttlSeconds());
+                logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
-                failures.add("tls://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
+                socket.close();
+                failures.add("udp://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
             }
         }
 
@@ -94,27 +118,13 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             }
         }
 
-        for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
-            DatagramSocket socket = P2pSockets.datagramSocket();
-            InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+        for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tlsServers(), 443)) {
             try {
-                socket.connect(serverAddress);
-                P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
-                    logger,
-                    role,
-                    socket,
-                    null,
-                    serverAddress,
-                    "UDP",
-                    credentials.username(),
-                    credentials.credential()
-                );
-                transport.start(credentials.ttlSeconds());
-                logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
+                P2pTurnDatagramTransport transport = openStream(logger, role, credentials, server, true);
+                logger.info("Safra TURN {} transport active via TLS: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
-                socket.close();
-                failures.add(server.host() + ":" + server.port() + " -> " + exception.getMessage());
+                failures.add("tls://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
             }
         }
 
@@ -154,6 +164,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 socket,
                 serverAddress,
                 tls ? "TLS" : "TCP",
+                P2pConstants.TURN_REQUEST_TIMEOUT_MS,
                 credentials.username(),
                 credentials.credential()
             );
@@ -258,6 +269,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         P2pRuntime.start("safra-turn-recv-" + role, this::receiveLoop);
         allocate(requestedTtlSeconds);
         scheduleRefresh();
+        long renewalMs = TimeUnit.SECONDS.toMillis(
+            Math.max(30, P2pConstants.turnPermissionLifetimeSeconds() - P2pConstants.TURN_PERMISSION_REFRESH_MARGIN_SECONDS));
+        scheduler.scheduleAtFixedRate(this::renewPermissions, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
     }
 
     private void allocate(int requestedTtlSeconds) throws IOException {
@@ -301,20 +315,33 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
     }
 
-    private synchronized void ensurePermission(InetSocketAddress remoteAddress) throws IOException {
-        String key = P2pTurnProtocol.permissionKey(remoteAddress);
-        long now = System.currentTimeMillis();
-        Long expiresAt = permissionExpirations.get(key);
-        if (expiresAt != null && expiresAt - now > TimeUnit.SECONDS.toMillis(P2pConstants.TURN_PERMISSION_REFRESH_MARGIN_SECONDS)) {
-            return;
+    /**
+     * Only the first packet to a peer waits for a round trip; after that the scheduler keeps the
+     * permission alive, so Kwik's sender thread never stops to talk to the TURN server itself.
+     */
+    private void ensurePermission(InetSocketAddress remoteAddress) throws IOException {
+        if (!permittedPeers.containsKey(P2pTurnProtocol.permissionKey(remoteAddress))) {
+            createPermission(remoteAddress);
         }
+    }
 
+    private synchronized void createPermission(InetSocketAddress remoteAddress) throws IOException {
         sendTurnRequest(P2pTurnProtocol.TURN_CREATE_PERMISSION_REQUEST, (out, transactionId) ->
             P2pTurnProtocol.putXorPeerAddress(out, remoteAddress, transactionId), false);
-        permissionExpirations.put(
-            key,
-            now + TimeUnit.SECONDS.toMillis(P2pConstants.turnPermissionLifetimeSeconds())
-        );
+        permittedPeers.put(P2pTurnProtocol.permissionKey(remoteAddress), remoteAddress);
+    }
+
+    private void renewPermissions() {
+        for (InetSocketAddress peer : permittedPeers.values()) {
+            if (closed) {
+                return;
+            }
+            try {
+                createPermission(peer);
+            } catch (IOException exception) {
+                logger.warn("Safra TURN permission renewal failed for {}: {}", peer, exception.toString());
+            }
+        }
     }
 
     private void receiveLoop() {
@@ -466,7 +493,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
         try {
             sendBytes(requestBytes);
-            return future.get(P2pConstants.TURN_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            return future.get(requestTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IOException("TURN request was interrupted", exception);

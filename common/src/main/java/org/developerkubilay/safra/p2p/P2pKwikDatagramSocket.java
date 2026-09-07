@@ -23,10 +23,9 @@ final class P2pKwikDatagramSocket extends DatagramSocket {
         new InetSocketAddress(P2pSockets.loopbackAddress(), P2pConstants.KWIK_VIRTUAL_PORT);
     private static final Datagram CLOSE_SIGNAL = new Datagram(new byte[0], SINGLE_PEER);
     /** As many datagrams as the socket buffer this stands in for would have held. */
-    private static final int QUEUE_CAPACITY = P2pConstants.SOCKET_BUFFER_SIZE / P2pConstants.MAX_DATAGRAM_SIZE;
 
     private final BiConsumer<byte[], InetSocketAddress> outbound;
-    private final BlockingQueue<Datagram> inbound = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+    private final BlockingQueue<Datagram> inbound = new ArrayBlockingQueue<>(P2pConstants.DATAGRAM_QUEUE_CAPACITY);
     private volatile boolean closed;
 
     P2pKwikDatagramSocket(BiConsumer<byte[], InetSocketAddress> outbound) throws SocketException {

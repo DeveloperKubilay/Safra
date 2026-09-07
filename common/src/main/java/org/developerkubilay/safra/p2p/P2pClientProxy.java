@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public final class P2pClientProxy implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pClientProxy.class);
@@ -32,9 +31,9 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private volatile P2pDatagramTransport transport;
     private ServerSocket proxyServer;
-    private InetSocketAddress remoteAddress;
-    private SafraRendezvousClient.JoinSession rendezvousSession;
-    private int tunnelToken;
+    private volatile InetSocketAddress remoteAddress;
+    private volatile SafraRendezvousClient.JoinSession rendezvousSession;
+    private volatile int tunnelToken;
     private volatile boolean relayTransportActive;
     private volatile boolean closed;
 
@@ -187,23 +186,18 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void startKwikTunnel(Socket localSocket) {
-        if (shareCode.isRendezvous()) {
-            pendingRetrySockets.add(localSocket);
+        if (!shareCode.isRendezvous()) {
+            startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_FIRST_TIMEOUT_MS, () -> finishKwik(localSocket));
+            return;
         }
+
+        pendingRetrySockets.add(localSocket);
         if (relayTransportActive) {
             startKwikAttempt(localSocket, P2pConstants.KWIK_RELAY_TIMEOUT_MS, () -> finishKwik(localSocket));
             return;
         }
-        AtomicInteger attempt = new AtomicInteger();
-        startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_FIRST_TIMEOUT_MS, () -> {
-            if (shareCode.isRendezvous() && attempt.compareAndSet(0, 1)) {
-                P2pRuntime.start("safra-kwik-direct-retry", () -> retryDirectKwik(localSocket, attempt));
-            } else if (shareCode.isRendezvous() && attempt.compareAndSet(1, 2)) {
-                P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket));
-            } else {
-                finishKwik(localSocket);
-            }
-        });
+        startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_FIRST_TIMEOUT_MS,
+            () -> P2pRuntime.start("safra-kwik-direct-retry", () -> retryDirectKwik(localSocket)));
     }
 
     private void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
@@ -225,7 +219,7 @@ public final class P2pClientProxy implements AutoCloseable {
         connection.start();
     }
 
-    private void retryDirectKwik(Socket localSocket, AtomicInteger attempt) {
+    private void retryDirectKwik(Socket localSocket) {
         if (closed || rendezvousSession == null || relayTransportActive) {
             openRelayKwik(localSocket);
             return;
@@ -250,13 +244,7 @@ public final class P2pClientProxy implements AutoCloseable {
             }
             LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
             startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_SECOND_TIMEOUT_MS,
-                () -> {
-                    if (attempt.compareAndSet(1, 2)) {
-                        P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket));
-                    } else {
-                        finishKwik(localSocket);
-                    }
-                });
+                () -> P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket)));
         } catch (IOException | RuntimeException exception) {
             LOGGER.info("Safra could not prepare the second direct Kwik attempt, falling back to TURN: {}", exception.toString());
             openRelayKwik(localSocket);
