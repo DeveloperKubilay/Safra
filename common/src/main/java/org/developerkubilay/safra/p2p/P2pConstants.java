@@ -19,7 +19,7 @@ public final class P2pConstants {
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     /** How many datagrams a receive queue holds before it drops, sized like the socket buffer it stands in for. */
     public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
-    static final int TCP_BUFFER_SIZE = 256 * 1024;
+    static final int DEFAULT_TUNNEL_QUEUE_BYTES = 64 * 1024;
     static final long KWIK_DIRECT_FIRST_TIMEOUT_MS = 8_000L;
     static final long KWIK_DIRECT_SECOND_TIMEOUT_MS = 5_000L;
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
@@ -163,6 +163,15 @@ public final class P2pConstants {
 
     public static int turnCredentialTtlSeconds() {
         return integerProperty("safra.p2p.turnCredentialTtlSeconds", TURN_DEFAULT_CREDENTIAL_TTL_SECONDS);
+    }
+
+    /**
+     * How much game data may wait on one hop of the tunnel. Minecraft sends chunks and movement down
+     * a single ordered stream, so whatever is queued ahead of a movement packet is time it spends
+     * waiting. Past the bandwidth-delay product the queue stops buying throughput and only adds delay.
+     */
+    public static int tunnelQueueBytes() {
+        return integerProperty("safra.p2p.tunnelQueueBytes", DEFAULT_TUNNEL_QUEUE_BYTES);
     }
 
     public static int turnAllocationLifetimeSeconds() {

@@ -46,16 +46,12 @@ public final class P2pSockets {
     static void tune(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
-        trySet(() -> socket.setReceiveBufferSize(P2pConstants.TCP_BUFFER_SIZE));
-        trySet(() -> socket.setSendBufferSize(P2pConstants.TCP_BUFFER_SIZE));
+        trySet(() -> socket.setReceiveBufferSize(P2pConstants.tunnelQueueBytes()));
+        trySet(() -> socket.setSendBufferSize(P2pConstants.tunnelQueueBytes()));
     }
 
     static InetAddress loopbackAddress() {
         return IPV4_LOOPBACK;
-    }
-
-    static InetAddress ipv4WildcardAddress() {
-        return IPV4_ANY;
     }
 
     static AddressFamily addressFamily(InetSocketAddress address) {

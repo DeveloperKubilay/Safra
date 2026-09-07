@@ -306,10 +306,6 @@ public final class P2pHostService implements AutoCloseable {
         }
     }
 
-    private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
-        sendPacket(transport, packet, remoteAddress);
-    }
-
     private synchronized void ensureRelayAvailable(InetSocketAddress joinerRelayAddress, int tunnelToken) {
         if (closed || primaryTransportRelay || !allowRelayFallback || P2pConstants.neverUseRelayServer()) {
             return;

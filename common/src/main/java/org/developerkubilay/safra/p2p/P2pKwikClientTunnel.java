@@ -3,6 +3,7 @@ package org.developerkubilay.safra.p2p;
 import org.slf4j.Logger;
 import tech.kwik.core.QuicClientConnection;
 import tech.kwik.core.QuicStream;
+import tech.kwik.core.Statistics;
 import tech.kwik.core.impl.QuicClientConnectionImpl;
 
 import java.io.IOException;
@@ -99,7 +100,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
                 .connectTimeout(Duration.ofNanos(remainingNanos))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
-                .defaultStreamReceiveBufferSize((long) P2pConstants.TCP_BUFFER_SIZE)
+                .defaultStreamReceiveBufferSize((long) P2pConstants.tunnelQueueBytes())
                 .maxOpenPeerInitiatedBidirectionalStreams(1)
                 .noServerCertificateCheck()
                 .customTrustStore(P2pKwikCertificate.trustStore(certificate))
@@ -135,6 +136,17 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         removal.run();
     }
 
+    /** What the link did over the session, so a report of stutter can be checked instead of guessed. */
+    private void logLinkQuality() {
+        try {
+            Statistics stats = connection.getStats();
+            logger.info("Safra tunnel {} closing after {} packets, {} lost, rtt {}ms (variation {}ms)",
+                connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
+        } catch (RuntimeException exception) {
+            logger.debug("Safra tunnel {} could not read its Kwik statistics: {}", connectionId, exception.toString());
+        }
+    }
+
     private void close(boolean notifyRemote) {
         if (!closed.compareAndSet(false, true)) {
             return;
@@ -152,6 +164,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
 
     private void closeQuic() {
         if (connection != null) {
+            logLinkQuality();
             connection.close();
         }
         if (quicSocket != null) {
