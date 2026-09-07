@@ -63,7 +63,7 @@ abstract class IntegratedServerMixin {
         String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> {
             safra$addChatLines(client, Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
-            client.gui.getChat().addClientSystemMessage(safra$discordLink());
+            client.gui.getChat().addClientSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
                 client.gui.getChat().addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
