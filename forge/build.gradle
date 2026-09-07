@@ -32,6 +32,7 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         java.srcDir(rootProject.file('common-mc/src/client/java'))
+        java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }
@@ -68,7 +69,8 @@ tasks.withType(JavaCompile).configureEach {
 // Every mixin the loader compiles, wherever its source lives.
 def mixinSources = project.files(
     project.fileTree('src/main/java') { include '**/*Mixin.java' },
-    project.fileTree(rootProject.file('common-mc/src/client/java')) { include '**/*Mixin.java' }
+    project.fileTree(rootProject.file('common-mc/src/client/java')) { include '**/*Mixin.java' },
+    project.fileTree(rootProject.file('common-mc/src/forgelike/java')) { include '**/*Mixin.java' }
 )
 
 tasks.register('formatMixinMappings') {
