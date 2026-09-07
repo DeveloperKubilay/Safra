@@ -97,6 +97,8 @@ ext.devBooleanProperty = { String name ->
     return value != null && Boolean.parseBoolean(value)
 }
 
+ext.buildDiagnostics = ext.devBooleanProperty('diagnostics')
+
 ext.buildTestMode = {
     def normalize = { Object raw ->
         def value = raw == null ? '' : raw.toString().trim()

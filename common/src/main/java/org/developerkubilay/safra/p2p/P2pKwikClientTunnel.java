@@ -3,6 +3,7 @@ package org.developerkubilay.safra.p2p;
 import org.slf4j.Logger;
 import tech.kwik.core.QuicClientConnection;
 import tech.kwik.core.QuicStream;
+import tech.kwik.core.Statistics;
 import tech.kwik.core.impl.QuicClientConnectionImpl;
 
 import java.io.IOException;
@@ -157,6 +158,16 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         }
         certificate = answer;
         return System.nanoTime() - requestedAt;
+    }
+
+    void logLinkQuality() {
+        QuicClientConnection active = connection;
+        if (active == null || closed.get()) {
+            return;
+        }
+        Statistics stats = active.getStats();
+        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms)",
+            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
     }
 
     private void closeForRetry() {

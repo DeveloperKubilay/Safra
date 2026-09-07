@@ -12,6 +12,7 @@ public final class SafraBuildInfo {
     private static final String loaderName;
     private static final String loaderVersion;
     private static final String testMode;
+    private static final boolean diagnostics;
 
     static {
         Properties properties = new Properties();
@@ -27,6 +28,7 @@ public final class SafraBuildInfo {
         loaderName = value(properties, "loaderName");
         loaderVersion = value(properties, "loaderVersion");
         testMode = value(properties, "testMode", DEFAULT_TEST_MODE);
+        diagnostics = Boolean.parseBoolean(value(properties, "diagnostics", "false"));
     }
 
     private SafraBuildInfo() {
@@ -42,6 +44,11 @@ public final class SafraBuildInfo {
 
     public static String testMode() {
         return testMode;
+    }
+
+    /** Whether this build measures and reports what its links are doing. Off in a release. */
+    public static boolean diagnostics() {
+        return diagnostics;
     }
 
     public static String userAgent() {

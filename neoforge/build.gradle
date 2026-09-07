@@ -156,6 +156,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/neoforge.mods.toml') {
@@ -179,7 +180,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
             loader_version: project.neo_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 }
