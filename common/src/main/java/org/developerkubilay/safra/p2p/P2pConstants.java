@@ -84,7 +84,7 @@ public final class P2pConstants {
     }
 
     public static boolean hasExplicitRendezvousUrlOverride() {
-        return override(RENDEZVOUS_URL_PROPERTY, "SAFRA_RENDEZVOUS_URL") != null;
+        return override(RENDEZVOUS_URL_PROPERTY) != null;
     }
 
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
@@ -109,7 +109,7 @@ public final class P2pConstants {
     }
 
     public static String rendezvousUrl() {
-        String override = override(RENDEZVOUS_URL_PROPERTY, "SAFRA_RENDEZVOUS_URL");
+        String override = override(RENDEZVOUS_URL_PROPERTY);
         if (override != null) {
             return override;
         }
@@ -119,7 +119,7 @@ public final class P2pConstants {
     }
 
     public static String siteApiVersion() {
-        String override = override(SITE_API_VERSION_PROPERTY, "SAFRA_SITE_API_VERSION");
+        String override = override(SITE_API_VERSION_PROPERTY);
         if (override != null) {
             return normalizeSiteApiVersion(override);
         }
@@ -143,19 +143,17 @@ public final class P2pConstants {
     }
 
     static boolean neverUseRelayServer() {
-        String override = override(NEVER_USE_RELAY_SERVER_PROPERTY, "SAFRA_NEVER_USE_RELAY_SERVER");
+        String override = override(NEVER_USE_RELAY_SERVER_PROPERTY);
         return override != null ? Boolean.parseBoolean(override) : runtimeNeverUseRelayServer;
     }
 
-    /** The system property, then the environment variable; null when neither is set. */
-    private static String override(String propertyKey, String environmentKey) {
+    /**
+     * A system property alone. An environment variable is inherited by everything a machine launches
+     * and outlives the session that set it, which is more reach than a developer switch needs.
+     */
+    private static String override(String propertyKey) {
         String property = System.getProperty(propertyKey);
-        if (property != null && !property.isBlank()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv(environmentKey);
-        return environment == null || environment.isBlank() ? null : environment.trim();
+        return property == null || property.isBlank() ? null : property.trim();
     }
 
     private static String buildTestMode() {
