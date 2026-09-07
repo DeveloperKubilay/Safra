@@ -226,7 +226,7 @@ app.post("/session-join", async (req, res) => {
     if (!session) return res.code(404).send("Session not found");
     console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
 
-   session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
+    session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
         host: req.body.network ?? null,
         tunnelToken: req.body.tunnelToken ?? null,
     }));
