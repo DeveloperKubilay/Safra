@@ -9,13 +9,12 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 2;
     static final int HEADER_SIZE = 10;
-    // RFC 9000 puts the QUIC UDP ceiling every network is assumed to carry at 1200 bytes.
-    // The Safra header sits outside that, so the outer UDP packet reaches 1210 bytes.
     /**
-     * Kwik sizes its own datagrams to land a packet on 1280 bytes, the smallest maximum any path has
-     * to carry, and it does not know the Safra header rides along on top. Left to itself it overshoots
-     * that budget by exactly this header; clawing the ten bytes back again would leave 1.8% for the
-     * trouble, so the datagram stays where both ends can always reach each other.
+     * RFC 9000 puts the QUIC datagram every network is assumed to carry at 1200 bytes, which leaves the
+     * outer UDP packet at 1210 with the Safra header on top. Kwik will size its own datagrams instead,
+     * but it sizes them to fill that budget exactly and does not know the header rides along, so left
+     * to itself it overshoots by the width of the header; clawing those ten bytes back again would
+     * leave 1.8% for the trouble.
      */
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
@@ -49,8 +48,6 @@ public final class P2pConstants {
     public static final int TURN_REFRESH_SAFETY_MARGIN_SECONDS = 60;
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
     static final String ADDRESS_SCHEME = "p2p://";
-    private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
-    private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
     private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
     private static final String RENDEZVOUS_URL_PROPERTY = "safra.rendezvousUrl";
@@ -135,18 +132,18 @@ public final class P2pConstants {
         return runtime == null || runtime.isBlank() ? DEFAULT_SITE_API_VERSION : normalizeSiteApiVersion(runtime);
     }
 
+    /**
+     * Both of these force a session onto the relay, and relay traffic is metered to whoever runs the
+     * TURN servers. A property or an environment variable would let anyone talk a player into paying
+     * that bill on their behalf, so the answer is baked in at build time and a release simply cannot
+     * be told to do it: -Pbuild_mode=directThenTurn produces the build that can.
+     */
     static boolean forceDirectThenTurnRelay() {
-        String override = override(FORCE_DIRECT_THEN_TURN_PROPERTY, "SAFRA_FORCE_DIRECT_THEN_TURN");
-        return override != null
-            ? Boolean.parseBoolean(override)
-            : TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
+        return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
     }
 
     static boolean forceHostFailSafeRelay() {
-        String override = override(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY, "SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
-        return override != null
-            ? Boolean.parseBoolean(override)
-            : TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
+        return TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
     }
 
     static boolean neverUseRelayServer() {
