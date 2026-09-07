@@ -218,6 +218,7 @@ app.post("/session-join", async (req, res) => {
         const networkValidation = networkControl(req.body.network);
         if (networkValidation) return res.code(400).send(networkValidation);
     }
+    if (req.body.tunnelToken != null && !Number.isInteger(req.body.tunnelToken)) return res.code(400).send("tunnelToken must be an integer");
     req.ip = req.headers["cf-connecting-ip"] || req.ip;
 
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
@@ -225,8 +226,9 @@ app.post("/session-join", async (req, res) => {
     if (!session) return res.code(404).send("Session not found");
     console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
 
-    session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
+   session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
         host: req.body.network ?? null,
+        tunnelToken: req.body.tunnelToken ?? null,
     }));
 
     res.send({//Joinere hostun datası iletilir
