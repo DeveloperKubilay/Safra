@@ -62,9 +62,7 @@ abstract class IntegratedServerMixin {
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         String fixedCode = NeoForgeLanSessionState.isFixedCodeEnabled() ? NeoForgeLanSessionState.getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> {
-            client.gui.getChat().addClientSystemMessage(
-                Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
-            );
+            safra$addChatLines(client, Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
             client.gui.getChat().addClientSystemMessage(safra$discordLink());
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
@@ -81,10 +79,16 @@ abstract class IntegratedServerMixin {
             });
         });
     }
+    private static void safra$addChatLines(Minecraft client, Component message, ChatFormatting colour) {
+        for (String line : message.getString().split("\n")) {
+            client.gui.getChat().addClientSystemMessage(Component.literal(line).withStyle(colour));
+        }
+    }
+
     private static Component safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
         return Component.literal(url)
-            .withStyle(ChatFormatting.WHITE, ChatFormatting.UNDERLINE)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
     }
 
@@ -112,11 +116,9 @@ abstract class IntegratedServerMixin {
             client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         }
         if (!shareCode.isRendezvous()) {
-            client.gui.getChat().addClientSystemMessage(
-                Component.literal("Safra Error: ")
-                    .append(Component.translatable("safra.p2p.error.direct_fallback"))
-                    .withStyle(ChatFormatting.RED)
-            );
+            safra$addChatLines(client,
+                Component.literal("Safra Error: ").append(Component.translatable("safra.p2p.error.direct_fallback")),
+                ChatFormatting.RED);
         }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.gui.getChat().addClientSystemMessage(
