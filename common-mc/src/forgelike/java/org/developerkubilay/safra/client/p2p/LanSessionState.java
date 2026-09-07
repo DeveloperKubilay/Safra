@@ -7,7 +7,7 @@ import org.developerkubilay.safra.p2p.P2pShareCode;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public final class NeoForgeLanSessionState {
+public final class LanSessionState {
     private static volatile boolean p2pEnabled = true;
     private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
@@ -16,7 +16,7 @@ public final class NeoForgeLanSessionState {
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
     private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
 
-    private NeoForgeLanSessionState() {
+    private LanSessionState() {
     }
 
     public static void loadFromConfig() {
@@ -35,7 +35,7 @@ public final class NeoForgeLanSessionState {
 
     public static void initializeGameRules(Minecraft client) {
         if (defaultGameRuleSnapshot.isEmpty()) {
-            defaultGameRuleSnapshot = new LinkedHashMap<>(NeoForgeLanGameRules.createDefaultSnapshot(client));
+            defaultGameRuleSnapshot = new LinkedHashMap<>(LanGameRules.createDefaultSnapshot(client));
         }
         if (gameRuleSnapshot.isEmpty()) {
             gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);

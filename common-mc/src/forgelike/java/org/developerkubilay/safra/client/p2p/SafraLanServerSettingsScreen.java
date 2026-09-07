@@ -25,21 +25,21 @@ public final class SafraLanServerSettingsScreen extends Screen {
     protected void init() {
         int top = this.height / 4 - 20;
         this.allowCommandsButton = this.addRenderableWidget(Button.builder(this.getAllowCommandsText(), button -> {
-                NeoForgeLanSessionState.setAllowCommandsEnabled(!NeoForgeLanSessionState.isAllowCommandsEnabled());
+                LanSessionState.setAllowCommandsEnabled(!LanSessionState.isAllowCommandsEnabled());
                 button.setMessage(this.getAllowCommandsText());
             })
             .bounds(this.width / 2 - 100, top + 24, 200, 20)
             .build());
 
         this.fixedCodeButton = this.addRenderableWidget(Button.builder(this.getFixedCodeText(), button -> {
-                NeoForgeLanSessionState.setFixedCodeEnabled(!NeoForgeLanSessionState.isFixedCodeEnabled());
+                LanSessionState.setFixedCodeEnabled(!LanSessionState.isFixedCodeEnabled());
                 button.setMessage(this.getFixedCodeText());
             })
             .bounds(this.width / 2 - 100, top + 48, 200, 20)
             .build());
 
         this.addRenderableWidget(Button.builder(Component.translatable("safra.p2p.fixed_code.refresh"), button -> {
-                NeoForgeLanSessionState.regenerateFixedCode();
+                LanSessionState.regenerateFixedCode();
                 this.clearWidgetFocus();
             })
             .bounds(this.width / 2 - 100, top + 72, 200, 20)
@@ -60,7 +60,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
             .build());
 
         this.addRenderableWidget(Button.builder(Component.translatable("safra.p2p.game_rules.reset"), button -> {
-                NeoForgeLanSessionState.resetGameRules();
+                LanSessionState.resetGameRules();
                 this.clearWidgetFocus();
             })
             .bounds(this.width / 2 - 100, top + 120, 200, 20)
@@ -90,7 +90,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
 
     private Component getAllowCommandsText() {
         return Component.translatable(
-            NeoForgeLanSessionState.isAllowCommandsEnabled()
+            LanSessionState.isAllowCommandsEnabled()
                 ? "safra.p2p.allow_commands.on"
                 : "safra.p2p.allow_commands.off"
         );
@@ -98,7 +98,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
 
     private Component getFixedCodeText() {
         return Component.translatable(
-            NeoForgeLanSessionState.isFixedCodeEnabled()
+            LanSessionState.isFixedCodeEnabled()
                 ? "safra.p2p.fixed_code.on"
                 : "safra.p2p.fixed_code.off"
         );
@@ -109,7 +109,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     }
 
     private void handleGameRulesClose(Optional<GameRules> rules) {
-        rules.ifPresent(gameRules -> NeoForgeLanSessionState.setGameRuleSnapshot(NeoForgeLanGameRules.serialize(gameRules)));
+        rules.ifPresent(gameRules -> LanSessionState.setGameRuleSnapshot(LanGameRules.serialize(gameRules)));
         if (this.minecraft != null) {
             this.minecraft.setScreen(this);
         }

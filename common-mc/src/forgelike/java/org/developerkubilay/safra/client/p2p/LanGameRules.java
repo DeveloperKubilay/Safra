@@ -11,8 +11,8 @@ import net.minecraft.world.level.gamerules.GameRules;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public final class ForgeLanGameRules {
-    private ForgeLanGameRules() {
+public final class LanGameRules {
+    private LanGameRules() {
     }
 
     public static GameRules createEditableGameRules(Minecraft client, Map<String, String> snapshot) {

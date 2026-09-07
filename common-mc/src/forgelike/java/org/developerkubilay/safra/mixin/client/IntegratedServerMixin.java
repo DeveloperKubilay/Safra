@@ -10,8 +10,8 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
-import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
-import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
+import org.developerkubilay.safra.client.p2p.LanGameRules;
+import org.developerkubilay.safra.client.p2p.LanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
@@ -32,8 +32,8 @@ abstract class IntegratedServerMixin {
     @Inject(method = "publishServer", at = @At("HEAD"))
     private void safra$applyOnlineMode(GameType gameType, boolean allowCommands, int port, CallbackInfoReturnable<Boolean> cir) {
         IntegratedServer server = (IntegratedServer) (Object) this;
-        server.setUsesAuthentication(ForgeLanSessionState.isOnlineModeEnabled());
-        if (ForgeLanSessionState.isP2pEnabled()) {
+        server.setUsesAuthentication(LanSessionState.isOnlineModeEnabled());
+        if (LanSessionState.isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
         SAFRA_LOGGER.debug(
@@ -50,17 +50,17 @@ abstract class IntegratedServerMixin {
             return;
         }
 
-        if (!ForgeLanSessionState.isP2pEnabled()) {
+        if (!LanSessionState.isP2pEnabled()) {
             P2pManager.getInstance().stopHosting();
             return;
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
-        ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+        LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
-        String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
+        String fixedCode = LanSessionState.isFixedCodeEnabled() ? LanSessionState.getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> {
             safra$addChatLines(client, Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
             client.gui.getChat().addClientSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
