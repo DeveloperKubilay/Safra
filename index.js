@@ -48,7 +48,7 @@ function codeCheck(code) {
     return null
 }
 
-async function getTurnCredentials() {
+async function getTurnCredentials(customIdentifier) {
     try {
         const response = await fetch(
             `https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.TURN_KEY_ID}/credentials/generate-ice-servers`,
@@ -58,7 +58,7 @@ async function getTurnCredentials() {
                     "Authorization": `Bearer ${process.env.TURN_KEY_API_TOKEN}`,
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ ttl: config.TURN_TTL })
+                body: JSON.stringify({ ttl: config.TURN_TTL, customIdentifier: customIdentifier || null })
             }
         );
 
@@ -245,8 +245,10 @@ app.post("/relay-request", async (req, res) => {
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
     if (session.relay) return res.code(409).send("Relay already assigned for this session");
-    console.slientlog(`[${new Date().toISOString()}] Relay request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
-    const turnCredentials = await getTurnCredentials();
+    const RelayId = randomBytes(16).toString("hex");
+    console.slientlog(`[${new Date().toISOString()}] Relay request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'} | RelayId: ${RelayId}`);
+    const turnCredentials = await getTurnCredentials(RelayId);
+    if (!turnCredentials) return res.code(502).send("TURN credentials unavailable");
     session.write(eventMessage("relay-assigned", turnCredentials));
     session.relay = turnCredentials;
     eventStream(res);
