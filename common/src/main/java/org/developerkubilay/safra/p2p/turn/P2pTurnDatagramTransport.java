@@ -78,8 +78,8 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
      * A relayed tunnel still carries QUIC, and QUIC inside a TCP or TLS stream stalls every datagram
      * behind one lost segment while two congestion controllers argue over the same link. So UDP is
      * asked first and the streams are kept for the networks that block UDP outright, which is what
-     * they exist for. The UDP attempt gets a short deadline because nothing here retransmits: a lost
-     * request is lost however long we wait for it.
+     * they exist for. The UDP attempt keeps a shorter deadline than the streams, which have a
+     * connection to establish before they can ask anything.
      */
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
@@ -95,7 +95,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     null,
                     serverAddress,
                     "UDP",
-                    P2pConstants.TURN_UDP_PROBE_TIMEOUT_MS,
+                    P2pConstants.TURN_UDP_REQUEST_TIMEOUT_MS,
                     credentials.username(),
                     credentials.credential()
                 );
@@ -485,6 +485,13 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         nonce = newNonce;
     }
 
+    /**
+     * A stream carries a request once and the transport itself makes sure it arrives. On UDP nothing
+     * does, so a single lost datagram used to end the whole attempt and drop the session to a TCP
+     * relay, which is how a host and a joiner ended up on different transports and never met. RFC 5389
+     * asks for the request to go again after half a second, then a second, doubling until the deadline,
+     * and a retransmission repeats the transaction id so a late first answer still counts.
+     */
     private P2pTurnMessage sendRequestAwait(byte[] requestBytes) throws IOException {
         byte[] transactionId = Arrays.copyOfRange(requestBytes, 8, 20);
         String key = P2pTurnProtocol.transactionKey(transactionId);
@@ -492,8 +499,23 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         pendingTransactions.put(key, future);
 
         try {
-            sendBytes(requestBytes);
-            return future.get(requestTimeoutMs, TimeUnit.MILLISECONDS);
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestTimeoutMs);
+            long waitMs = datagramSocket == null ? requestTimeoutMs : P2pConstants.TURN_RETRANSMIT_FIRST_MS;
+            while (true) {
+                sendBytes(requestBytes);
+                long remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+                if (remainingMs <= 0L) {
+                    throw new IOException("TURN request timed out");
+                }
+                try {
+                    return future.get(Math.min(waitMs, remainingMs), TimeUnit.MILLISECONDS);
+                } catch (TimeoutException retry) {
+                    if (datagramSocket == null) {
+                        throw new IOException("TURN request timed out", retry);
+                    }
+                    waitMs *= 2;
+                }
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IOException("TURN request was interrupted", exception);
@@ -503,8 +525,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 throw ioException;
             }
             throw new IOException("TURN request failed", cause);
-        } catch (TimeoutException exception) {
-            throw new IOException("TURN request timed out", exception);
         } finally {
             pendingTransactions.remove(key);
         }
