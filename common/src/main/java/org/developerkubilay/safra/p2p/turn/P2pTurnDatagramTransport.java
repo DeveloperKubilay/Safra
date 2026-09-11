@@ -18,6 +18,7 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +58,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private volatile String realm = "";
     private volatile String nonce = "";
     private volatile ScheduledFuture<?> refreshTask;
+    private volatile int grantedLifetimeSeconds = P2pConstants.turnAllocationLifetimeSeconds();
 
     private P2pTurnDatagramTransport(Logger logger, String role, DatagramSocket datagramSocket, Socket streamSocket,
                                      InetSocketAddress serverAddress, String clientTransport, int requestTimeoutMs,
@@ -84,9 +86,10 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
         for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
-            DatagramSocket socket = P2pSockets.datagramSocket();
-            InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+            DatagramSocket socket = null;
             try {
+                InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+                socket = P2pSockets.datagramSocket();
                 socket.connect(serverAddress);
                 P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
                     logger,
@@ -103,7 +106,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
-                socket.close();
+                if (socket != null) {
+                    socket.close();
+                }
                 failures.add("udp://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
             }
         }
@@ -146,6 +151,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             socket.connect(serverAddress, P2pConstants.TURN_REQUEST_TIMEOUT_MS);
             socket.setTcpNoDelay(true);
             socket.setKeepAlive(true);
+            // Only while the handshake runs: blocking forever is what a relay is meant to do once it
+            // is carrying traffic, but a server that never answers has to give way to the next one.
+            socket.setSoTimeout(P2pConstants.TURN_REQUEST_TIMEOUT_MS);
             if (tls) {
                 SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault())
                     .createSocket(socket, server.host(), server.port(), true);
@@ -156,6 +164,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 sslSocket.startHandshake();
                 socket = sslSocket;
             }
+            socket.setSoTimeout(0);
 
             P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
                 logger,
@@ -282,12 +291,30 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             throw new IOException("TURN allocate response did not include a relay address");
         }
         relayAddress = resolvedRelayAddress;
+        grantedLifetimeSeconds = grantedLifetime(response);
     }
 
     private void refreshAllocation() throws IOException {
-        sendTurnRequest(P2pTurnProtocol.TURN_REFRESH_REQUEST, (out, transactionId) ->
+        P2pTurnMessage response = sendTurnRequest(P2pTurnProtocol.TURN_REFRESH_REQUEST, (out, transactionId) ->
             P2pTurnProtocol.putLifetime(out, P2pConstants.turnAllocationLifetimeSeconds()), false);
+        grantedLifetimeSeconds = grantedLifetime(response);
         scheduleRefresh();
+    }
+
+    /**
+     * What we asked for is a request; the server answers with what it is willing to hold, and RFC 8656
+     * says that answer is the one to keep time by. Renewing on our own figure works right up until a
+     * server offers less than it was asked for, and then the allocation dies mid-session while the
+     * refresh is still waiting its turn.
+     */
+    private int grantedLifetime(P2pTurnMessage response) {
+        byte[] lifetime = response.attribute(P2pTurnProtocol.ATTR_LIFETIME);
+        if (lifetime == null || lifetime.length < 4) {
+            return P2pConstants.turnAllocationLifetimeSeconds();
+        }
+
+        long seconds = ByteBuffer.wrap(lifetime, 0, 4).getInt() & 0xFFFFFFFFL;
+        return seconds <= 0 ? P2pConstants.turnAllocationLifetimeSeconds() : (int) Math.min(seconds, Integer.MAX_VALUE);
     }
 
     private void scheduleRefresh() {
@@ -297,7 +324,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
         long delayMs = Math.max(
             TimeUnit.SECONDS.toMillis(30L),
-            TimeUnit.SECONDS.toMillis(P2pConstants.turnAllocationLifetimeSeconds())
+            TimeUnit.SECONDS.toMillis(grantedLifetimeSeconds)
                 - TimeUnit.SECONDS.toMillis(P2pConstants.TURN_REFRESH_SAFETY_MARGIN_SECONDS)
         );
         refreshTask = scheduler.schedule(this::refreshAllocationSafely, delayMs, TimeUnit.MILLISECONDS);
