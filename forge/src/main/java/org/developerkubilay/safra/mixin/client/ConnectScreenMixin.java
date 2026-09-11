@@ -55,9 +55,14 @@ abstract class ConnectScreenMixin {
                 }
 
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
-                    client.execute(() ->
-                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState)
-                    )
+                    client.execute(() -> {
+                        // Cancelling during the wait leaves the player back where they started, and
+                        // this would otherwise pull them into a connection they had just called off.
+                        if (client.screen != progressScreen) {
+                            return;
+                        }
+                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState);
+                    })
                 );
             })
         );
