@@ -76,12 +76,14 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
+        long startedAt = System.nanoTime();
         try {
             kwikCertificate = P2pKwikCertificate.create();
         } catch (GeneralSecurityException exception) {
             throw new IOException("Safra Kwik host identity could not be created", exception);
         }
 
+        long certificateAt = System.nanoTime();
         int preferredUdpPort = P2pOptionalIntegrations.isVoiceChatAvailable() ? 0 : tcpPort;
         P2pTransportBinding binding = P2pUdpBindingFactory.createBestHostBinding(LOGGER, stunClient, preferredUdpPort);
         transport = binding.transport();
@@ -92,6 +94,7 @@ public final class P2pHostService implements AutoCloseable {
             throw new IOException("Safra P2P host service was stopped");
         }
 
+        long bindingAt = System.nanoTime();
         InetSocketAddress publishedEndpoint = P2pSockets.preferredEndpoint(binding.publicEndpoints());
         P2pRuntime.start("safra-p2p-host-recv", () -> receiveLoop(transport, primaryTransportRelay));
         if (!primaryTransportRelay && !discoveredEndpoints.isEmpty()) {
@@ -115,6 +118,7 @@ public final class P2pHostService implements AutoCloseable {
             ? SafraVoiceTransportManager.getInstance().awaitHostVoiceEndpoints(tcpPort, P2pConstants.VOICE_HOST_WAIT_MS)
             : List.of();
 
+        long voiceAt = System.nanoTime();
         try {
             rendezvousSession = SafraRendezvousClient.startHost(
                 tcpPort,
@@ -127,6 +131,7 @@ public final class P2pHostService implements AutoCloseable {
                 this::ensureRelayAvailable
             );
             LOGGER.debug("Safra P2P rendezvous session registered. Code: {}", rendezvousSession.code());
+            logStartTiming(startedAt, certificateAt, bindingAt, voiceAt);
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
             if (primaryTransportRelay) {
@@ -182,6 +187,17 @@ public final class P2pHostService implements AutoCloseable {
             relayFallbackTransport = null;
         }
         LOGGER.debug("Safra P2P host UDP transport closed for local Minecraft TCP port {}", tcpPort);
+    }
+
+    /** Where the wait before a share code appears actually went, when somebody reports it was long. */
+    private static void logStartTiming(long startedAt, long certificateAt, long bindingAt, long voiceAt) {
+        LOGGER.debug("Safra P2P host ready in {}ms: certificate {}, STUN {}, voice {}, rendezvous {}",
+            millis(startedAt, System.nanoTime()), millis(startedAt, certificateAt),
+            millis(certificateAt, bindingAt), millis(bindingAt, voiceAt), millis(voiceAt, System.nanoTime()));
+    }
+
+    private static long millis(long from, long to) {
+        return TimeUnit.NANOSECONDS.toMillis(to - from);
     }
 
     private void announceJoiner(InetSocketAddress remoteAddress, int tunnelToken) {
