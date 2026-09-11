@@ -495,18 +495,18 @@ final class SafraRendezvousClient {
         private ResolvedRelay readRelayEvents() throws IOException {
             try {
                 return readEventStream(relayStream, (event, json) -> {
-                if ("relay-timeout".equals(event)) {
-                    throw new IOException(string(json, "message"));
-                }
-                if (!"relay-accepted".equals(event)) {
-                    return null;
-                }
-                JsonObject relay = object(json, "relay");
-                relayAddress = relay != null ? relayNetwork(relay) : fromNetwork(array(json, "network"));
-                relayCredentials = relay != null ? relayCredentials(relay) : relayCredentials;
-                if (relayAddress == null) {
-                    throw new IOException("Safra relay response did not include a network endpoint");
-                }
+                    if ("relay-timeout".equals(event)) {
+                        throw new IOException(string(json, "message"));
+                    }
+                    if (!"relay-accepted".equals(event)) {
+                        return null;
+                    }
+                    JsonObject relay = object(json, "relay");
+                    relayAddress = relay != null ? relayNetwork(relay) : fromNetwork(array(json, "network"));
+                    relayCredentials = relay != null ? relayCredentials(relay) : relayCredentials;
+                    if (relayAddress == null) {
+                        throw new IOException("Safra relay response did not include a network endpoint");
+                    }
                     return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
                 });
             } finally {
