@@ -354,7 +354,7 @@ public final class P2pHostService implements AutoCloseable {
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P host relay provisioning failed", exception);
             if (rendezvousSession != null) {
-                rendezvousSession.publishRelayFailure("auto", exception.getMessage());
+                rendezvousSession.logRelayFailure("auto", exception.getMessage());
             }
         }
     }

@@ -178,7 +178,7 @@ final class SafraRendezvousClient {
             }
         }
 
-        void publishRelayFailure(String mode, String message) {
+        void logRelayFailure(String mode, String message) {
             LOGGER.warn("Safra relay publish failed mode={} message={}",
                 mode == null || mode.isBlank() ? "auto" : mode,
                 message == null ? "" : message);
