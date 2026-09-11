@@ -241,7 +241,10 @@ final class P2pStunClient {
         while (buffer.remaining() >= 4) {
             int type = Short.toUnsignedInt(buffer.getShort());
             int length = Short.toUnsignedInt(buffer.getShort());
-            if (length > buffer.remaining()) {
+            // Attributes are walked past on a four byte boundary, so the padding has to fit as well
+            // as the value: a response that ends mid-padding would otherwise seek past the limit.
+            int paddedLength = (length + 3) & ~3;
+            if (paddedLength > buffer.remaining()) {
                 return null;
             }
 
@@ -253,14 +256,13 @@ final class P2pStunClient {
                 }
             }
 
-            int paddedLength = (length + 3) & ~3;
             buffer.position(attributeStart + paddedLength);
         }
         return null;
     }
 
     private DiscoveredEndpoint parseAddressAttribute(ByteBuffer buffer, boolean xor, byte[] transactionId, int length) {
-        if (length < 8) {
+        if (length < 8 || length > buffer.remaining()) {
             return null;
         }
 
@@ -273,7 +275,7 @@ final class P2pStunClient {
         }
 
         byte[] addressBytes;
-        if (family == 0x01) {
+        if (family == 0x01 && length >= 8) {
             addressBytes = new byte[4];
             buffer.get(addressBytes);
             if (xor) {
@@ -282,7 +284,7 @@ final class P2pStunClient {
                     addressBytes[i] ^= cookie[i];
                 }
             }
-        } else if (family == 0x02) {
+        } else if (family == 0x02 && length >= 20) {
             addressBytes = new byte[16];
             buffer.get(addressBytes);
             if (xor) {
