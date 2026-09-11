@@ -7,6 +7,7 @@ import net.minecraft.client.server.IntegratedServer;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.P2pErrorKind;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
@@ -269,9 +270,10 @@ public final class P2pManager {
     public synchronized ClientFailureContext consumeClientFailureContext() {
         boolean p2p = pendingClientFailureContext || activeClientProxy != null;
         boolean direct = pendingDirectShareFailureContext || activeClientUsesDirectShareAddress();
+        P2pErrorKind kind = activeClientProxy == null ? P2pErrorKind.OTHER : activeClientProxy.failureKind();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
-        return new ClientFailureContext(p2p, direct);
+        return new ClientFailureContext(p2p, direct, kind);
     }
 
     private void cancelPendingRewriteInternal() {
@@ -296,6 +298,6 @@ public final class P2pManager {
     public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
     }
 
-    public record ClientFailureContext(boolean p2p, boolean directShareAddress) {
+    public record ClientFailureContext(boolean p2p, boolean directShareAddress, P2pErrorKind kind) {
     }
 }

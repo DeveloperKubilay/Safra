@@ -36,6 +36,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private volatile int tunnelToken;
     private volatile boolean relayTransportActive;
     private volatile boolean closed;
+    private volatile P2pErrorKind failureKind = P2pErrorKind.OTHER;
 
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
         this.shareCode = shareCode;
@@ -71,6 +72,11 @@ public final class P2pClientProxy implements AutoCloseable {
 
     public boolean usesRendezvousShareCode() {
         return shareCode.isRendezvous();
+    }
+
+    /** Why the last join attempt gave up, when the reason was clear enough to tell the player. */
+    public P2pErrorKind failureKind() {
+        return failureKind;
     }
 
     @Override
@@ -288,6 +294,7 @@ public final class P2pClientProxy implements AutoCloseable {
             startKwikAttempt(localSocket, P2pConstants.KWIK_RELAY_TIMEOUT_MS, () -> finishKwik(localSocket));
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn("Safra could not set up the TURN Kwik fallback", exception);
+            failureKind = P2pErrorKind.classify(exception);
             finishKwik(localSocket);
         }
     }
