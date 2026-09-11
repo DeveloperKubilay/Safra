@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceClientSocket.class);
 
-    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
+    private ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final P2pStunMappings stunMappings = new P2pStunMappings();
 
     private DatagramSocket socket;
@@ -29,6 +29,9 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     public synchronized void open() throws Exception {
         if (socket != null && !socket.isClosed()) {
             throw new IllegalStateException("Voice socket already opened");
+        }
+        if (scheduler.isShutdown()) {
+            scheduler = P2pRuntime.singleScheduler();
         }
 
         DatagramSocket createdSocket = P2pSockets.datagramSocket();
