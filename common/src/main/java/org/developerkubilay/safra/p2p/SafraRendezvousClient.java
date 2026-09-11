@@ -371,6 +371,9 @@ final class SafraRendezvousClient {
         private InetSocketAddress voiceAddress;
         private InetSocketAddress relayAddress;
         private P2pTurnCredentials relayCredentials;
+        private volatile boolean closed;
+        private volatile InputStream relayStream;
+        private volatile Thread relayThread;
 
         private JoinSession(String code) {
             this.code = code;
@@ -465,12 +468,33 @@ final class SafraRendezvousClient {
                 .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(request)))
                 .build();
 
+            if (closed) {
+                throw new IOException("Safra join session was closed");
+            }
+
             HttpResponse<InputStream> response = sendInputStream(httpRequest, "Safra relay request was interrupted");
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IOException("Safra relay request returned HTTP " + response.statusCode());
             }
 
-            ResolvedRelay resolved = readEventStream(response.body(), (event, json) -> {
+            relayStream = response.body();
+            relayThread = Thread.currentThread();
+            if (closed) {
+                closeQuietly(relayStream);
+                throw new IOException("Safra join session was closed");
+            }
+
+            ResolvedRelay resolved = readRelayEvents();
+            if (resolved != null) {
+                return resolved;
+            }
+
+            throw new IOException("Safra relay event stream closed");
+        }
+
+        private ResolvedRelay readRelayEvents() throws IOException {
+            try {
+                return readEventStream(relayStream, (event, json) -> {
                 if ("relay-timeout".equals(event)) {
                     throw new IOException(string(json, "message"));
                 }
@@ -483,17 +507,25 @@ final class SafraRendezvousClient {
                 if (relayAddress == null) {
                     throw new IOException("Safra relay response did not include a network endpoint");
                 }
-                return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
-            });
-            if (resolved != null) {
-                return resolved;
+                    return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
+                });
+            } finally {
+                relayThread = null;
+                closeQuietly(relayStream);
+                relayStream = null;
             }
-
-            throw new IOException("Safra relay event stream closed");
         }
 
         @Override
         public void close() {
+            // The relay request parks on a stream the backend may hold open without ever finishing.
+            // Only closing that stream ends the read, which is what the cancel button is asking for.
+            closed = true;
+            closeQuietly(relayStream);
+            Thread thread = relayThread;
+            if (thread != null) {
+                thread.interrupt();
+            }
         }
 
         private void refreshHostState(InetSocketAddress endpoint) throws IOException {

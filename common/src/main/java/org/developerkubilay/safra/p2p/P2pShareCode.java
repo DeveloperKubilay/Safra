@@ -6,12 +6,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.ThreadLocalRandom;
+import java.security.SecureRandom;
 import java.util.regex.Pattern;
 
 public record P2pShareCode(String host, int port, int token, String rendezvousCode) {
     public static final int DEFAULT_RENDEZVOUS_CODE_LENGTH = 12;
     public static final int FIXED_RENDEZVOUS_CODE_LENGTH = 16;
+    private static final SecureRandom CODE_RANDOM = new SecureRandom();
     private static final String RENDEZVOUS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final Pattern RENDEZVOUS_CODE_PATTERN = Pattern.compile("[A-HJ-NP-Z2-9]{6,16}");
 
@@ -153,10 +154,9 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
             throw new IllegalArgumentException("rendezvous code length out of range");
         }
 
-        ThreadLocalRandom random = ThreadLocalRandom.current();
         StringBuilder builder = new StringBuilder(length);
         for (int index = 0; index < length; index++) {
-            builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(random.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
+            builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(CODE_RANDOM.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
         }
         return builder.toString();
     }
