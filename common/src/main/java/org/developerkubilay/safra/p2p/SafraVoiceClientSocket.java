@@ -21,6 +21,8 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     private final P2pStunMappings stunMappings = new P2pStunMappings();
 
     private DatagramSocket socket;
+    private final java.util.concurrent.atomic.AtomicLong sent = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong received = new java.util.concurrent.atomic.AtomicLong();
     private volatile boolean closed = true;
     private volatile InetSocketAddress safraRemoteAddress;
     private volatile SocketAddress logicalRemoteAddress;
@@ -44,8 +46,13 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             createdSocket.close();
             throw exception;
         }
+        LOGGER.debug("Safra voice socket open on local port {}, sending to host voice endpoint {}",
+            socket.getLocalPort(), safraRemoteAddress);
         scheduler.scheduleAtFixedRate(this::refreshStunMapping, P2pConstants.STUN_REFRESH_MS,
             P2pConstants.STUN_REFRESH_MS, TimeUnit.MILLISECONDS);
+        if (SafraBuildInfo.diagnostics()) {
+            scheduler.scheduleAtFixedRate(this::logTraffic, 10L, 10L, TimeUnit.SECONDS);
+        }
     }
 
     private InetSocketAddress resolveSafraRemote(DatagramSocket discoverySocket) throws IOException {
@@ -90,6 +97,7 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             if (isPunchPacket(packet)) {
                 continue;
             }
+            received.incrementAndGet();
             return new SafraRawUdpPacket(
                 Arrays.copyOf(packet.getData(), packet.getLength()),
                 logicalRemoteAddress != null ? logicalRemoteAddress : packet.getSocketAddress(),
@@ -114,6 +122,12 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             return;
         }
         currentSocket.send(new DatagramPacket(data, data.length, target));
+        sent.incrementAndGet();
+    }
+
+    /** Voice carries no error of its own when it goes nowhere, so it says how much went each way. */
+    private void logTraffic() {
+        LOGGER.info("Safra voice: {} packets sent to {}, {} received", sent.get(), safraRemoteAddress, received.get());
     }
 
     @Override
