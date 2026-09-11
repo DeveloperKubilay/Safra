@@ -95,7 +95,7 @@ final class P2pTurnProtocol {
         InetAddress[] addresses = InetAddress.getAllByName(server.host());
         Arrays.sort(addresses, (left, right) -> Boolean.compare(!(left instanceof Inet4Address), !(right instanceof Inet4Address)));
         if (addresses.length == 0) {
-            throw new IOException("TURN sunucusu cozulmedi: " + server.host());
+            throw new IOException("TURN server could not be resolved: " + server.host());
         }
         return new InetSocketAddress(addresses[0], server.port());
     }
@@ -130,7 +130,7 @@ final class P2pTurnProtocol {
         };
         int errorCode = response.errorCode();
         String reason = response.errorReason();
-        return new IOException("TURN " + type + " patladi: " + errorCode + (reason.isBlank() ? "" : " " + reason));
+        return new IOException("TURN " + type + " failed: " + errorCode + (reason.isBlank() ? "" : " " + reason));
     }
 
     static String transactionKey(byte[] transactionId) {
@@ -199,7 +199,7 @@ final class P2pTurnProtocol {
             MessageDigest messageDigest = MessageDigest.getInstance("MD5");
             return messageDigest.digest((username + ":" + realm + ":" + credential).getBytes(StandardCharsets.UTF_8));
         } catch (Exception exception) {
-            throw new IOException("TURN auth anahtari olusmadi", exception);
+            throw new IOException("TURN auth key could not be created", exception);
         }
     }
 
@@ -209,7 +209,7 @@ final class P2pTurnProtocol {
             mac.init(new SecretKeySpec(key, "HmacSHA1"));
             return mac.doFinal(message);
         } catch (Exception exception) {
-            throw new IOException("TURN HMAC olusmadi", exception);
+            throw new IOException("TURN HMAC could not be created", exception);
         }
     }
 

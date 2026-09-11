@@ -1,11 +1,12 @@
 package org.developerkubilay.safra.client.p2p;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.gamerules.GameRules;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pShareCode;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class FabricLanSessionState {
     private static volatile boolean p2pEnabled = true;

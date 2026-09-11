@@ -31,6 +31,8 @@ abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineA
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
+        java.srcDir(rootProject.file('common-mc/src/client/java'))
+        java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }
@@ -108,7 +110,6 @@ neoForge {
     runs {
         client {
             client()
-            systemProperty 'safra.p2p.diagnostics', 'true'
             if (forceDirectThenTurn) {
                 systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
             }
@@ -117,7 +118,6 @@ neoForge {
         }
         server {
             server()
-            systemProperty 'safra.p2p.diagnostics', 'false'
             programArgument '--nogui'
         }
     }
@@ -129,14 +129,23 @@ neoForge {
     }
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
 processResources {
-    inputs.property 'minecraft_version', project.neoforge_minecraft_version
-    inputs.property 'minecraft_version_range', project.neoforge_minecraft_version_range
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'minecraft_version_range', project.minecraft_version_range
     inputs.property 'neo_version', project.neo_version
     inputs.property 'neo_version_range', project.neo_version_range
     inputs.property 'loader_version_range', project.loader_version_range
@@ -147,12 +156,13 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/neoforge.mods.toml') {
         expand(
-            minecraft_version: project.neoforge_minecraft_version,
-            minecraft_version_range: project.neoforge_minecraft_version_range,
+            minecraft_version: project.minecraft_version,
+            minecraft_version_range: project.minecraft_version_range,
             neo_version: project.neo_version,
             neo_version_range: project.neo_version_range,
             loader_version_range: project.loader_version_range,
@@ -167,24 +177,25 @@ processResources {
     filesMatching('safra-build.properties') {
         expand(
             mod_version: project.mod_version,
-            minecraft_version: project.neoforge_minecraft_version,
+            minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
             loader_version: project.neo_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 }
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
-}
-
-tasks.named('sourcesJar') {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 publishing {

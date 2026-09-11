@@ -1,22 +1,35 @@
 package org.developerkubilay.safra.p2p;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.ThreadLocalRandom;
 
 public final class P2pHostSupport {
+    private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostSupport.class);
+
     private P2pHostSupport() {
     }
 
-    public static int createShareToken() {
-        int token;
-        do {
-            token = ThreadLocalRandom.current().nextInt();
-        } while (token == 0);
-        return token;
+    /**
+     * A loader's transforming class loader reaches these for the first time when a world is opened to
+     * LAN, and it took two and a half seconds to do it on a discovery that runs in twelve milliseconds
+     * once the classes are in memory. That is the one moment a player is sitting there waiting for a
+     * share code, so the loading happens here instead, where the game is starting and nobody is.
+     */
+    public static void warmUp() {
+        P2pRuntime.start("safra-warmup", () -> {
+            try (DatagramSocket socket = P2pSockets.datagramSocket()) {
+                new P2pStunClient();
+                P2pKwikCertificate.create();
+                LOGGER.debug("Safra P2P classes ready on local port {}", socket.getLocalPort());
+            } catch (Exception exception) {
+                LOGGER.debug("Safra P2P warm-up did not finish: {}", exception.toString());
+            }
+        });
     }
 
     public static String resolvePreferredRendezvousCode(String preferredRendezvousCode) {
@@ -28,17 +41,11 @@ public final class P2pHostSupport {
         return P2pShareCode.rendezvousTunnelToken(rendezvousCode);
     }
 
-    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
-        return startDedicatedHost(tcpPort, serverIp, null, logger);
-    }
-
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
-        String resolvedCode = P2pConstants.useApi30Rendezvous()
-            ? resolvePreferredRendezvousCode(preferredRendezvousCode)
-            : P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        String resolvedCode = resolvePreferredRendezvousCode(preferredRendezvousCode);
         P2pHostService service = new P2pHostService(
             tcpPort,
-            P2pConstants.useApi30Rendezvous() ? createRendezvousShareToken(resolvedCode) : createShareToken(),
+            createRendezvousShareToken(resolvedCode),
             resolveTargetAddress(serverIp, logger),
             resolvedCode,
             false

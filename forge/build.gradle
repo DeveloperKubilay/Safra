@@ -31,6 +31,8 @@ abstract class SafraMixinCompilerArgs implements org.gradle.process.CommandLineA
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
+        java.srcDir(rootProject.file('common-mc/src/client/java'))
+        java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
     }
 }
@@ -64,11 +66,16 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+// Every mixin the loader compiles, wherever its source lives.
+def mixinSources = project.files(
+    project.fileTree('src/main/java') { include '**/*Mixin.java' },
+    project.fileTree(rootProject.file('common-mc/src/client/java')) { include '**/*Mixin.java' },
+    project.fileTree(rootProject.file('common-mc/src/forgelike/java')) { include '**/*Mixin.java' }
+)
+
 tasks.register('formatMixinMappings') {
     dependsOn project(':neoforge').tasks.named('createMinecraftArtifacts')
-    inputs.files(project.fileTree('src/main/java') {
-        include '**/*Mixin.java'
-    })
+    inputs.files(mixinSources)
     inputs.property('minecraft_version', mixinMinecraftVersion)
     outputs.file(generatedMixinMappingsFile)
 
@@ -81,9 +88,7 @@ tasks.register('formatMixinMappings') {
         }
 
         def targetClasses = new LinkedHashSet<String>()
-        project.fileTree('src/main/java') {
-            include '**/*Mixin.java'
-        }.files.each { sourceFile ->
+        mixinSources.files.each { sourceFile ->
             def imports = [:]
             sourceFile.eachLine('UTF-8') { line ->
                 def trimmed = line.trim()
@@ -160,7 +165,7 @@ tasks.register('formatMixinMappings') {
 }
 
 minecraft {
-    mappings channel: 'official', version: project.forge_minecraft_version
+    mappings channel: 'official', version: project.minecraft_version
 
     runs {
         configureEach {
@@ -169,9 +174,7 @@ minecraft {
         }
 
         register('client') {
-            systemProperty 'safra.p2p.diagnostics', 'true'
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-            systemProperty 'io.netty.transport.noNative', 'true'
             systemProperty 'java.net.preferIPv4Stack', 'false'
             if (forceDirectThenTurn) {
                 systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
@@ -180,7 +183,6 @@ minecraft {
         }
 
         register('server') {
-            systemProperty 'safra.p2p.diagnostics', 'false'
             args '--nogui'
         }
     }
@@ -193,8 +195,17 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${project.forge_minecraft_version}-${project.forge_version}")
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -207,22 +218,22 @@ tasks.named('compileJava', JavaCompile).configure {
 }
 
 processResources {
-    inputs.property 'minecraft_version', project.forge_minecraft_version
+    inputs.property 'minecraft_version', project.minecraft_version
     inputs.property 'forge_minecraft_version_range', project.forge_minecraft_version_range
     inputs.property 'forge_loader_version_range', project.forge_loader_version_range
     inputs.property 'forge_version_range', project.forge_version_range
-    inputs.property 'loader_name', 'forge'
     inputs.property 'mod_id', project.mod_id
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/mods.toml') {
         expand(
-            minecraft_version: project.forge_minecraft_version,
+            minecraft_version: project.minecraft_version,
             forge_minecraft_version_range: project.forge_minecraft_version_range,
             forge_loader_version_range: project.forge_loader_version_range,
             forge_version_range: project.forge_version_range,
@@ -237,16 +248,21 @@ processResources {
     filesMatching('safra-build.properties') {
         expand(
             mod_version: project.mod_version,
-            minecraft_version: project.forge_minecraft_version,
+            minecraft_version: project.minecraft_version,
             loader_name: 'forge',
             loader_version: project.forge_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 }
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
@@ -254,10 +270,6 @@ tasks.named('jar', Jar) {
     manifest {
         attributes['MixinConfigs'] = "${project.mod_id}.forge.mixins.json"
     }
-}
-
-tasks.named('sourcesJar') {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 publishing {

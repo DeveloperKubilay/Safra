@@ -5,8 +5,75 @@ plugins {
     id 'base'
 }
 
+def versionConfig = [
+    '26.1': [
+        base_minecraft_version       : '26.1',
+        fabric_minecraft_version     : '26.1',
+        fabric_mod_minecraft_version : '26.1',
+        fabric_version               : '0.145.1+26.1',
+        minecraft_version            : '26.1',
+        minecraft_version_range      : '[26.1,26.2)',
+        neo_version                  : '26.1.0.19-beta',
+        neo_version_range            : '[26.1.0.19-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '62.0.9',
+        forge_version_range          : '[62,)',
+        forge_loader_version_range   : '[62,)',
+        forge_minecraft_version_range: '[26.1,26.2)'
+    ],
+    '26.1.1': [
+        base_minecraft_version       : '26.1.1',
+        fabric_minecraft_version     : '26.1.1',
+        fabric_mod_minecraft_version : '26.1.1',
+        fabric_version               : '0.145.2+26.1.1',
+        minecraft_version            : '26.1.1',
+        minecraft_version_range      : '[26.1.1,26.2)',
+        neo_version                  : '26.1.1.15-beta',
+        neo_version_range            : '[26.1.1.15-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '63.0.2',
+        forge_version_range          : '[63,)',
+        forge_loader_version_range   : '[63,)',
+        forge_minecraft_version_range: '[26.1.1,26.2)'
+    ],
+    '26.1.2': [
+        base_minecraft_version       : '26.1.2',
+        fabric_minecraft_version     : '26.1.2',
+        fabric_mod_minecraft_version : '26.1.2',
+        fabric_version               : '0.149.0+26.1.2',
+        minecraft_version            : '26.1.2',
+        minecraft_version_range      : '[26.1.2,26.2)',
+        neo_version                  : '26.1.2.54-beta',
+        neo_version_range            : '[26.1.2.54-beta,)',
+        loader_version_range         : '[1,)',
+        forge_version                : '64.0.6',
+        forge_version_range          : '[64,)',
+        forge_loader_version_range   : '[64,)',
+        forge_minecraft_version_range: '[26.1.2,26.2)'
+    ]
+]
+
+def requestedMcVersion = (
+    gradle.startParameter.projectProperties['mcVersion']
+        ?: findProperty('mcVersion')
+        ?: gradle.startParameter.projectProperties['minecraft_version']
+        ?: findProperty('default_minecraft_version')
+        ?: '26.1'
+).toString()
+def activeVersion = versionConfig[requestedMcVersion]
+if (activeVersion == null) {
+    throw new GradleException("Unknown mcVersion '${requestedMcVersion}'. Supported versions: ${versionConfig.keySet().join(', ')}")
+}
+
+ext.mcVersion = requestedMcVersion
+ext.activeVersion = activeVersion
+ext.versionConfig = versionConfig
+ext.supportedMcVersions = versionConfig.keySet() as List
+ext.buildDirectorySuffix = requestedMcVersion.replaceAll('[^0-9A-Za-z.-]+', '_')
+layout.buildDirectory.set(file("build/${ext.buildDirectorySuffix}/root"))
+
 group = project.maven_group
-version = "${project.base_minecraft_version}-${project.mod_version}"
+version = "${requestedMcVersion}-${project.mod_version}"
 
 ext.devRunUsername = { Project targetProject ->
     def override = gradle.startParameter.projectProperties['devUsername']
@@ -29,6 +96,8 @@ ext.devBooleanProperty = { String name ->
     def value = gradle.startParameter.projectProperties[name]
     return value != null && Boolean.parseBoolean(value)
 }
+
+ext.buildDiagnostics = ext.devBooleanProperty('diagnostics')
 
 ext.buildTestMode = {
     def normalize = { Object raw ->
@@ -57,12 +126,30 @@ ext.buildTestMode = {
 
     return 'off'
 }.call()
+
 allprojects {
     group = rootProject.group
     version = rootProject.version
 }
 
 subprojects {
+    ext.base_minecraft_version = rootProject.ext.activeVersion.base_minecraft_version
+    ext.fabric_minecraft_version = rootProject.ext.activeVersion.fabric_minecraft_version
+    ext.fabric_mod_minecraft_version = rootProject.ext.activeVersion.fabric_mod_minecraft_version
+    ext.fabric_version = rootProject.ext.activeVersion.fabric_version
+    ext.minecraft_version = rootProject.ext.activeVersion.minecraft_version
+    ext.minecraft_version_range = rootProject.ext.activeVersion.minecraft_version_range
+    ext.neo_version = rootProject.ext.activeVersion.neo_version
+    ext.neo_version_range = rootProject.ext.activeVersion.neo_version_range
+    ext.loader_version_range = rootProject.ext.activeVersion.loader_version_range
+    ext.forge_version = rootProject.ext.activeVersion.forge_version
+    ext.forge_version_range = rootProject.ext.activeVersion.forge_version_range
+    ext.forge_loader_version_range = rootProject.ext.activeVersion.forge_loader_version_range
+    ext.forge_minecraft_version_range = rootProject.ext.activeVersion.forge_minecraft_version_range
+    ext.build_directory_suffix = rootProject.ext.buildDirectorySuffix
+
+    layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.buildDirectorySuffix}/${project.name}"))
+
     repositories {
         mavenCentral()
         maven {
@@ -78,70 +165,150 @@ subprojects {
             url = 'https://maven.neoforged.net/releases/'
         }
         maven {
-            name = 'Minecraft'
-            url = 'https://libraries.minecraft.net/'
-        }
-        maven {
             name = 'MaxHenkel'
             url = 'https://maven.maxhenkel.de/repository/public'
+            content {
+                includeGroup 'de.maxhenkel.voicechat'
+            }
         }
     }
 }
 
-project(':neoforge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
+def fabricProject = findProject(':fabric')
+def neoforgeProject = findProject(':neoforge')
+def forgeProject = findProject(':forge')
+def rootRunClientRequested = gradle.startParameter.taskNames.any {
+    it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
+}
+def runningFromRootDir = gradle.startParameter.currentDir?.canonicalFile == rootProject.projectDir.canonicalFile
+def rootTaskSelectorRunClient = rootRunClientRequested && runningFromRootDir
+def wrapperExecutable = System.getProperty('os.name', '').toLowerCase(Locale.ROOT).contains('win') ? 'gradlew.bat' : './gradlew'
+def forwardedProjectProperties = gradle.startParameter.projectProperties.collect { key, value ->
+    value == null || value.isBlank() ? "-P${key}" : "-P${key}=${value}"
 }
 
-project(':forge').tasks.matching { it.name == 'runClient' }.configureEach {
-    onlyIf { !gradle.taskGraph.hasTask(':runClient') }
+fabricProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+neoforgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
+}
+forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
+    onlyIf { !rootTaskSelectorRunClient }
 }
 
 tasks.register('collectBuildLibs', Copy) {
-    dependsOn(':fabric:build', ':neoforge:build', ':forge:build')
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(project(':fabric').layout.buildDirectory.dir('libs'))
-    from(project(':neoforge').layout.buildDirectory.dir('libs'))
-    from(project(':forge').layout.buildDirectory.dir('libs'))
     into(layout.buildDirectory.dir('libs'))
     include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+
+    if (fabricProject != null) {
+        dependsOn(':fabric:build')
+        from(fabricProject.layout.buildDirectory.dir('libs'))
+    }
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:build')
+        from(neoforgeProject.layout.buildDirectory.dir('libs'))
+    }
+    if (forgeProject != null) {
+        dependsOn(':forge:build')
+        from(forgeProject.layout.buildDirectory.dir('libs'))
+    }
 
     doFirst {
         delete(layout.buildDirectory.dir('libs').get().asFile)
     }
-    doLast {
-        def launcherForgeProject = findProject(':forge')
-        if (launcherForgeProject == null) {
-            return
-        }
+}
 
-        def rootLibsDir = layout.buildDirectory.dir('libs').get().asFile
-        def rootForgeJar = new File(rootLibsDir, "${project.archives_base_name}-forge-${project.version}.jar")
-        def forgeDevJar = launcherForgeProject.layout.buildDirectory.file("libs/${project.archives_base_name}-forge-${project.version}-dev.jar").get().asFile
-
-        if (!forgeDevJar.isFile()) {
-            return
-        }
-
-        if (rootForgeJar.exists() && !rootForgeJar.delete()) {
-            throw new GradleException("Could not replace root Forge jar: ${rootForgeJar}")
-        }
-
-        copy {
-            from(forgeDevJar)
-            into(rootLibsDir)
-            rename { "${project.archives_base_name}-forge-${project.version}.jar" }
-        }
+tasks.register('runClient', Exec) {
+    group = 'application'
+    description = 'Runs the NeoForge client from the root project.'
+    workingDir rootProject.projectDir
+    if (neoforgeProject != null) {
+        commandLine([wrapperExecutable, ':neoforge:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
+    } else if (fabricProject != null) {
+        commandLine([wrapperExecutable, ':fabric:runClient', '--no-daemon', '--console=plain'] + forwardedProjectProperties)
     }
 }
 
-tasks.register('runClient') {
+tasks.register('runFabricClient') {
     group = 'application'
     description = 'Runs the Fabric client from the root project.'
-    dependsOn(':fabric:runClient')
+    if (fabricProject != null) {
+        dependsOn(':fabric:runClient')
+    }
+}
+
+tasks.register('runNeoForgeClient') {
+    group = 'application'
+    description = 'Runs the NeoForge client from the root project.'
+    if (neoforgeProject != null) {
+        dependsOn(':neoforge:runClient')
+    }
+}
+
+tasks.register('runForgeClient') {
+    group = 'application'
+    description = 'Runs the Forge client from the root project.'
+    if (forgeProject != null) {
+        dependsOn(':forge:runClient')
+    }
 }
 
 tasks.named('build') {
+    doFirst {
+        delete(layout.buildDirectory.file('reports/problems/problems-report.html').get().asFile)
+    }
     dependsOn(tasks.named('collectBuildLibs'))
+}
+
+def releaseTaskNames = []
+ext.supportedMcVersions.each { profileName ->
+    def taskName = "buildRelease${profileName.replace('.', '').replace('-', '').replaceAll('[^0-9A-Za-z]', '')}"
+    releaseTaskNames << taskName
+    tasks.register(taskName, Exec) {
+        group = 'release'
+        description = "Builds the ${profileName} release line."
+        workingDir rootProject.projectDir
+        commandLine([wrapperExecutable, 'clean', 'build', '--no-daemon', '--console=plain'] + forwardedProjectProperties + [
+            "-PmcVersion=${profileName}"
+        ])
+    }
+}
+
+tasks.register('buildReleaseMatrix') {
+    group = 'release'
+    description = 'Builds every configured Minecraft release line.'
+    dependsOn(releaseTaskNames.collect { tasks.named(it) })
+}
+
+tasks.register('collectReleaseMatrixArtifacts') {
+    group = 'release'
+    description = 'Collects all built release artifacts into one folder tree.'
+    dependsOn(tasks.named('buildReleaseMatrix'))
+
+    doLast {
+        def outputDir = rootProject.file("build/release-matrix/${project.mod_version}")
+        delete(outputDir)
+        outputDir.mkdirs()
+
+        rootProject.ext.supportedMcVersions.each { profileName ->
+            def versionLibDir = file("${rootProject.projectDir}/build/${profileName}/root/libs")
+            if (!versionLibDir.exists()) {
+                throw new GradleException("Missing built artifact directory for ${profileName}: ${versionLibDir}")
+            }
+
+            def targetDir = file("${outputDir}/${profileName}")
+            targetDir.mkdirs()
+
+            copy {
+                from(versionLibDir)
+                into(targetDir)
+                include('*.jar')
+                exclude('*-dev.jar', '*-srg.jar')
+            }
+        }
+    }
 }
 
 tasks.register('verifyMixinArtifacts') {
@@ -289,10 +456,10 @@ tasks.register('verifyMixinArtifacts') {
                         throw new GradleException("Empty refmap ${refmapName} in ${jarFile.name}")
                     }
 
-                    if (loader == 'neoforge') {
+                    if (loader == 'forge' || loader == 'neoforge') {
                         def serializedRefmap = groovy.json.JsonOutput.toJson(refmap)
                         if (serializedRefmap.contains(';m_') || serializedRefmap.contains(' f_')) {
-                            throw new GradleException("NeoForge refmap ${refmapName} in ${jarFile.name} still contains obfuscated member names.")
+                            throw new GradleException("${loader.capitalize()} refmap ${refmapName} in ${jarFile.name} still contains obfuscated member names.")
                         }
                     }
                 }

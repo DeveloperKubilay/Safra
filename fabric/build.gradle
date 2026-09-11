@@ -29,7 +29,6 @@ loom {
 
     runs {
         client {
-            property 'safra.p2p.diagnostics', 'true'
             if (forceDirectThenTurn) {
                 property 'safra.p2p.forceDirectThenTurn', 'true'
             }
@@ -38,10 +37,11 @@ loom {
         }
         server {
             server()
-            property 'safra.p2p.diagnostics', 'false'
         }
     }
 }
+
+sourceSets.client.java.srcDir(rootProject.file('common-mc/src/client/java'))
 
 fabricApi {
     configureDataGeneration {
@@ -50,10 +50,14 @@ fabricApi {
 }
 
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    include 'tech.kwik:kwik:0.11'
+    include 'tech.kwik:agent15:3.3'
+    include 'at.favre.lib:hkdf:2.0.0'
+    include 'com.io7m.repackage.io.whitfin:io.whitfin.siphash:2.0.1'
     minecraft "com.mojang:minecraft:${project.fabric_minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 }
 
@@ -61,11 +65,11 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'minecraft_version', project.fabric_mod_minecraft_version
     inputs.property 'loader_version', project.loader_version
-    inputs.property 'loader_name', 'fabric'
     inputs.property 'mod_name', project.mod_name
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('fabric.mod.json') {
@@ -85,7 +89,8 @@ processResources {
             minecraft_version: project.fabric_minecraft_version,
             loader_name: 'fabric',
             loader_version: project.loader_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 }
@@ -103,14 +108,9 @@ java {
 }
 
 jar {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }
-}
-
-tasks.named('sourcesJar') {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 publishing {

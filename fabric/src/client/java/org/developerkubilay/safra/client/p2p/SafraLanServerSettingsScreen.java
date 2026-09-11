@@ -1,6 +1,5 @@
 package org.developerkubilay.safra.client.p2p;
 
-import java.util.Optional;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -8,6 +7,8 @@ import net.minecraft.client.gui.screens.options.InWorldGameRulesScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.gamerules.GameRules;
+
+import java.util.Optional;
 
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;

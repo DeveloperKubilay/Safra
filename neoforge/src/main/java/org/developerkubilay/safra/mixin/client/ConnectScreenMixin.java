@@ -35,7 +35,7 @@ abstract class ConnectScreenMixin {
             parent,
             () -> P2pManager.getInstance().cancelPendingRewrite()
         );
-        client.gui.setScreen(progressScreen);
+        client.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
@@ -46,7 +46,7 @@ abstract class ConnectScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    client.gui.setScreen(new DisconnectedScreen(
+                    client.setScreen(new DisconnectedScreen(
                         parent,
                         Component.translatable("connect.failed"),
                         P2pErrorComponents.preparationFailure(cause)
@@ -55,9 +55,14 @@ abstract class ConnectScreenMixin {
                 }
 
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
-                    client.execute(() ->
-                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState)
-                    )
+                    client.execute(() -> {
+                        // Cancelling during the wait leaves the player back where they started, and
+                        // this would otherwise pull them into a connection they had just called off.
+                        if (client.screen != progressScreen) {
+                            return;
+                        }
+                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState);
+                    })
                 );
             })
         );
