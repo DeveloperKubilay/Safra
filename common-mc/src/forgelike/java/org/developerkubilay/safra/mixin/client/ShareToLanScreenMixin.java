@@ -3,7 +3,7 @@ package org.developerkubilay.safra.mixin.client;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.ShareToLanScreen;
+import net.minecraft.client.gui.screens.MultiplayerOptionsScreen;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.LanSessionState;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(ShareToLanScreen.class)
+@Mixin(MultiplayerOptionsScreen.class)
 abstract class ShareToLanScreenMixin extends Screen {
     @Shadow
     private EditBox portEdit;
@@ -73,7 +73,7 @@ abstract class ShareToLanScreenMixin extends Screen {
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
             Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                    this.minecraft.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
+                    this.minecraft.setScreenAndShow(new SafraLanServerSettingsScreen((Screen) (Object) this)))
                 .bounds(this.width / 2 + 2, 180, 98, 20)
                 .build()
         );

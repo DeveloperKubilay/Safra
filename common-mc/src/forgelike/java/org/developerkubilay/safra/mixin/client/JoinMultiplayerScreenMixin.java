@@ -34,7 +34,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             (Screen) (Object) this,
             () -> P2pManager.getInstance().cancelPendingRewrite()
         );
-        Minecraft.getInstance().setScreen(progressScreen);
+        Minecraft.getInstance().gui.setScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             Minecraft.getInstance().execute(() -> {
                 if (throwable != null) {
@@ -45,7 +45,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    Minecraft.getInstance().setScreen(new DisconnectedScreen(
+                    Minecraft.getInstance().gui.setScreen(new DisconnectedScreen(
                         (Screen) (Object) this,
                         Component.translatable("connect.failed"),
                         P2pErrorComponents.preparationFailure(cause)

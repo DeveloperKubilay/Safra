@@ -59,14 +59,14 @@ abstract class IntegratedServerMixin {
         LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
-        client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
+        client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         String fixedCode = LanSessionState.isFixedCodeEnabled() ? LanSessionState.getFixedCode() : null;
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> {
             safra$addChatLines(client, Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
-            client.gui.getChat().addClientSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
+            client.gui.hud.getChat().addClientSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
-                client.gui.getChat().addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+                client.gui.hud.getChat().addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
             }
         })).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
@@ -81,7 +81,7 @@ abstract class IntegratedServerMixin {
     }
     private static void safra$addChatLines(Minecraft client, Component message, ChatFormatting colour) {
         for (String line : message.getString().split("\n")) {
-            client.gui.getChat().addClientSystemMessage(Component.literal(line).withStyle(colour));
+            client.gui.hud.getChat().addClientSystemMessage(Component.literal(line).withStyle(colour));
         }
     }
 
@@ -113,7 +113,7 @@ abstract class IntegratedServerMixin {
                 .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
                 .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
         if (!hidden) {
-            client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+            client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         }
         if (!shareCode.isRendezvous()) {
             safra$addChatLines(client,
@@ -121,7 +121,7 @@ abstract class IntegratedServerMixin {
                 ChatFormatting.RED);
         }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
-            client.gui.getChat().addClientSystemMessage(
+            client.gui.hud.getChat().addClientSystemMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
                     .copy()
                     .withStyle(ChatFormatting.YELLOW)
@@ -129,27 +129,27 @@ abstract class IntegratedServerMixin {
         }
 
         if (!hidden) {
-            client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+            client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
             client.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
         }
-        client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
+        client.gui.hud.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
         safra$startBedrockRelay(client);
     }
 
     private static void safra$startBedrockRelay(Minecraft client) {
         P2pManager.getInstance().startBedrockRelay(
             address -> client.execute(() -> {
-                client.gui.getChat().addClientSystemMessage(
+                client.gui.hud.getChat().addClientSystemMessage(
                     Component.translatable("safra.bedrock.host.started", address).copy().withStyle(ChatFormatting.AQUA)
                 );
                 IntegratedServer server = client.getSingleplayerServer();
                 if (server != null && !server.getPlayerList().isUsingWhitelist()) {
-                    client.gui.getChat().addClientSystemMessage(
+                    client.gui.hud.getChat().addClientSystemMessage(
                         Component.translatable("safra.bedrock.whitelist_warning").copy().withStyle(ChatFormatting.RED)
                     );
                 }
             }),
-            () -> client.execute(() -> client.gui.getChat().addClientSystemMessage(
+            () -> client.execute(() -> client.gui.hud.getChat().addClientSystemMessage(
                 Component.translatable("safra.bedrock.host.unavailable").copy().withStyle(ChatFormatting.YELLOW)
             ))
         );
@@ -165,7 +165,7 @@ abstract class IntegratedServerMixin {
 
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
-        client.gui.getChat().addClientSystemMessage(
+        client.gui.hud.getChat().addClientSystemMessage(
             Component.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED)
         );
     }

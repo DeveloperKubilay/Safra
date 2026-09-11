@@ -54,7 +54,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
                 if (connection == null) {
                     return;
                 }
-                minecraft.setScreen(new InWorldGameRulesScreen(connection, this::handleGameRulesClose, this));
+                minecraft.gui.setScreen(new InWorldGameRulesScreen(connection, this::handleGameRulesClose, this));
             })
             .bounds(this.width / 2 - 100, top + 96, 200, 20)
             .build());
@@ -77,7 +77,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     public void onClose() {
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.gui.setScreen(this.parent);
         }
     }
 
@@ -111,7 +111,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private void handleGameRulesClose(Optional<GameRules> rules) {
         rules.ifPresent(gameRules -> LanSessionState.setGameRuleSnapshot(LanGameRules.serialize(gameRules)));
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this);
+            this.minecraft.gui.setScreen(this);
         }
     }
 }

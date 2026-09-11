@@ -4,7 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.ShareToLanScreen;
+import net.minecraft.client.gui.screens.MultiplayerOptionsScreen;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -30,7 +30,7 @@ import java.net.URI;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
-@Mixin(ShareToLanScreen.class)
+@Mixin(MultiplayerOptionsScreen.class)
 abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
@@ -268,6 +268,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Unique
     private void safra$addClientSystemMessage(Component message) {
-        this.minecraft.gui.getChat().addClientSystemMessage(message);
+        this.minecraft.gui.hud.getChat().addClientSystemMessage(message);
     }
 }
