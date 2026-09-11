@@ -8,7 +8,6 @@
     "ConnectScreenMixin",
     "DisconnectedScreenMixin",
     "DirectJoinServerScreenMixin",
-    "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
     "ManageServerScreenMixin",
     "MinecraftLifecycleMixin",
