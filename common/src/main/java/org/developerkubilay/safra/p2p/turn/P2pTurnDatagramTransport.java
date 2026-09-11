@@ -327,6 +327,8 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             TimeUnit.SECONDS.toMillis(grantedLifetimeSeconds)
                 - TimeUnit.SECONDS.toMillis(P2pConstants.TURN_REFRESH_SAFETY_MARGIN_SECONDS)
         );
+        logger.debug("Safra TURN {} allocation holds for {}s, renewing in {}s",
+            role, grantedLifetimeSeconds, TimeUnit.MILLISECONDS.toSeconds(delayMs));
         refreshTask = scheduler.schedule(this::refreshAllocationSafely, delayMs, TimeUnit.MILLISECONDS);
     }
 
