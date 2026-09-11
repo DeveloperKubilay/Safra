@@ -195,8 +195,7 @@ public final class P2pHostService implements AutoCloseable {
         }
 
         LOGGER.debug("Safra P2P host punching UDP endpoint {}", remoteAddress);
-        long[] delays = {0L, 100L, 250L, 500L, 1_000L, 2_000L, 4_000L, 7_000L};
-        for (long delay : delays) {
+        for (long delay : P2pConstants.PUNCH_DELAYS_MS) {
             try {
                 scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.punch(tunnelToken), remoteAddress), delay, TimeUnit.MILLISECONDS);
             } catch (RuntimeException exception) {
