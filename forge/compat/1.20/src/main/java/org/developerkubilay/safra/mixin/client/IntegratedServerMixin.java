@@ -64,7 +64,13 @@ abstract class IntegratedServerMixin {
             client.gui.getChat().addMessage(
                 ForgeComponentCompat.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
-            client.gui.getChat().addMessage(ForgeComponentCompat.clickableUrl(RemoteRendezvousConfigUpdater.discordUrl()));
+            client.gui.getChat().addMessage(ForgeComponentCompat.literal("Discord: ").copy()
+                .append(ForgeComponentCompat.clickableUrl(RemoteRendezvousConfigUpdater.discordUrl())));
+            String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+            if (!youtubeUrl.isBlank()) {
+                client.gui.getChat().addMessage(ForgeComponentCompat.literal("Youtube: ").copy()
+                    .append(ForgeComponentCompat.clickableUrl(youtubeUrl)));
+            }
         })).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {

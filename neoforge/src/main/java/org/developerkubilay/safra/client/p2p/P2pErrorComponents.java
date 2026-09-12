@@ -40,8 +40,8 @@ public final class P2pErrorComponents {
 
     private static Component safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
-        return Component.literal("\n" + url)
+        return Component.literal("\nDiscord: ").append(Component.literal(url)
             .withStyle(net.minecraft.ChatFormatting.BLUE, net.minecraft.ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
+            .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))));
     }
 }

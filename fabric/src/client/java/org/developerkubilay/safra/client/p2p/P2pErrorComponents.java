@@ -41,10 +41,10 @@ public final class P2pErrorComponents {
 
     private static Text safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
-        return Text.literal("\n" + url).setStyle(Style.EMPTY
+        return Text.literal("\nDiscord: ").append(Text.literal(url).setStyle(Style.EMPTY
             .withColor(Formatting.BLUE)
             .withUnderline(true)
             .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
-        );
+        ));
     }
 }

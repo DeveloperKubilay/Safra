@@ -140,7 +140,11 @@ abstract class OpenToLanScreenMixin extends Screen {
             this.client.inGameHud.getChatHud().addMessage(
                 Text.translatable("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
             );
-            this.client.inGameHud.getChatHud().addMessage(safra$discordLink());
+            this.client.inGameHud.getChatHud().addMessage(Text.literal("Discord: ").append(safra$discordLink()));
+            String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+            if (!youtubeUrl.isBlank()) {
+                this.client.inGameHud.getChatHud().addMessage(Text.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+            }
         })).whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
                 return;
@@ -160,6 +164,15 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private static Text safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Text.literal(url).setStyle(Style.EMPTY
+            .withColor(Formatting.BLUE)
+            .withUnderline(true)
+            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
+        );
+    }
+
+    @Unique
+    private static Text safra$youtubeLink(String url) {
         return Text.literal(url).setStyle(Style.EMPTY
             .withColor(Formatting.BLUE)
             .withUnderline(true)

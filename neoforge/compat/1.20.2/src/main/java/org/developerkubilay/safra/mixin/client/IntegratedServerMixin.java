@@ -56,7 +56,11 @@ abstract class IntegratedServerMixin {
             client.gui.getChat().addMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
-            client.gui.getChat().addMessage(safra$discordLink());
+            client.gui.getChat().addMessage(Component.literal("Discord: ").append(safra$discordLink()));
+            String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+            if (!youtubeUrl.isBlank()) {
+                client.gui.getChat().addMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+            }
         })).whenComplete((shareCode, throwable) -> {
             client.execute(() -> {
                 if (throwable != null) {
@@ -70,6 +74,12 @@ abstract class IntegratedServerMixin {
     }
     private static Component safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_URL, url)));
+    }
+
+    private static Component safra$youtubeLink(String url) {
         return Component.literal(url)
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_URL, url)));

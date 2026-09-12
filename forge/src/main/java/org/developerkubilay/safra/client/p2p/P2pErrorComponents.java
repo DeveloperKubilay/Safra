@@ -29,7 +29,7 @@ public final class P2pErrorComponents {
         }
         if (context.directShareAddress()) {
             return safraError(Component.translatable("safra.p2p.error.direct_fallback", new Object[0])
-                .append(Component.literal("\n"))
+                .append(Component.literal("\nDiscord: "))
                 .append(ForgeComponentCompat.clickableUrl(RemoteRendezvousConfigUpdater.discordUrl())));
         }
         return details;
