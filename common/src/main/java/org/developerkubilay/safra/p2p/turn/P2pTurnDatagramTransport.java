@@ -87,6 +87,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         List<String> failures = new ArrayList<>();
         for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
             DatagramSocket socket = null;
+            P2pTurnDatagramTransport started = null;
             try {
                 InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
                 socket = P2pSockets.datagramSocket();
@@ -102,14 +103,19 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                     credentials.username(),
                     credentials.credential()
                 );
+                started = transport;
                 transport.start(credentials.ttlSeconds());
                 logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
-                if (socket != null) {
+                // start() has a receive loop running before the allocation answers, and closing the
+                // socket under it makes that loop report our own teardown as a failure.
+                if (started != null) {
+                    started.close();
+                } else if (socket != null) {
                     socket.close();
                 }
-                failures.add("udp://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
+                failures.add(refused(logger, role, "udp", server, exception));
             }
         }
 
@@ -119,7 +125,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 logger.info("Safra TURN {} transport active via TCP: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
-                failures.add("tcp://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
+                failures.add(refused(logger, role, "tcp", server, exception));
             }
         }
 
@@ -129,11 +135,19 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 logger.info("Safra TURN {} transport active via TLS: {}", role, server.host() + ":" + server.port());
                 return transport;
             } catch (IOException exception) {
-                failures.add("tls://" + server.host() + ":" + server.port() + " -> " + exception.getMessage());
+                failures.add(refused(logger, role, "tls", server, exception));
             }
         }
 
         throw new IOException("TURN relay could not be opened: " + String.join(" | ", failures));
+    }
+
+    /** Which relay we had to give up on, said once, because the next one succeeding used to hide it. */
+    private static String refused(Logger logger, String role, String scheme,
+                                  P2pTurnCredentials.TurnServer server, IOException exception) {
+        String endpoint = scheme + "://" + server.host() + ":" + server.port();
+        logger.warn("Safra TURN {} could not use {}: {}", role, endpoint, exception.toString());
+        return endpoint + " -> " + exception.getMessage();
     }
 
     private static List<P2pTurnCredentials.TurnServer> preferPort(List<P2pTurnCredentials.TurnServer> servers, int preferredPort) {
