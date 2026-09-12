@@ -332,7 +332,7 @@ final class P2pStunClient {
             Arrays.sort(resolved, (left, right) -> {
                 boolean leftIpv6 = !(left instanceof Inet4Address);
                 boolean rightIpv6 = !(right instanceof Inet4Address);
-                return Boolean.compare(rightIpv6, leftIpv6);
+                return Boolean.compare(leftIpv6, rightIpv6);
             });
             if (resolved.length > 0) {
                 return resolved;
