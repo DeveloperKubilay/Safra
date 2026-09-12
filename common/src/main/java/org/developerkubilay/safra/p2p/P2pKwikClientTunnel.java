@@ -82,10 +82,6 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 throw new IOException("The Kwik host certificate arrived empty");
             }
 
-            // That first answer carries the cost of opening the path and of the host starting its
-            // QUIC server, which on a short link runs to several times the link itself. Asking twice
-            // more of a path that is now warm, and keeping the shortest reply, leaves a figure that
-            // is about the route rather than about setting it up.
             for (int probe = 0; probe < 2 && System.nanoTime() < certificateDeadline; probe++) {
                 long warm = requestCertificate(250L);
                 if (warm > 0L && warm < pathRoundTripNanos) {
@@ -118,11 +114,6 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .socketFactory(destination -> quicSocket)
                 .build();
             connection.connect();
-            // Kwik fixes a stream's window when the stream is created, so the size has to be settled
-            // here. The handshake's own figure is no use for it: that one carries the key exchange and
-            // the certificate check as well, and comes out an order of magnitude above the path. The
-            // certificate request above crossed the same path carrying nothing else, so it is the
-            // measurement this uses.
             int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
             int window = P2pConstants.streamWindowBytes(roundTripMs);
             connection.setDefaultBidirectionalStreamReceiveBufferSize(window);

@@ -85,9 +85,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
      */
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
-        // Cloudflare offers one UDP relay, so a single timeout used to hand the whole session to a
-        // stream for good - and a stream is the thing the note above says to avoid. One more pass
-        // costs a UDP-blocked network the wait again, and buys every other network the right relay.
         for (int attempt = 0; attempt < P2pConstants.TURN_UDP_ATTEMPTS; attempt++) {
             for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
                 try {
@@ -160,8 +157,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
             return transport;
         } catch (IOException exception) {
-            // start() has a receive loop running before the allocation answers, and closing the
-            // socket under it makes that loop report our own teardown as a failure.
             if (started != null) {
                 started.close();
             } else if (socket != null) {
@@ -180,8 +175,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             socket.connect(serverAddress, P2pConstants.TURN_REQUEST_TIMEOUT_MS);
             socket.setTcpNoDelay(true);
             socket.setKeepAlive(true);
-            // Only while the handshake runs: blocking forever is what a relay is meant to do once it
-            // is carrying traffic, but a server that never answers has to give way to the next one.
             socket.setSoTimeout(P2pConstants.TURN_REQUEST_TIMEOUT_MS);
             if (tls) {
                 SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault())
