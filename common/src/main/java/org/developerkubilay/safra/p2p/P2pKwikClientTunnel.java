@@ -126,8 +126,10 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
             int window = P2pConstants.streamWindowBytes(roundTripMs);
             connection.setDefaultBidirectionalStreamReceiveBufferSize(window);
-            logger.debug("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
-                connectionId, window, roundTripMs);
+            if (SafraBuildInfo.diagnostics()) {
+                logger.info("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
+                    connectionId, window, roundTripMs);
+            }
             QuicStream stream = connection.createStream(true);
             P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             if (established != null) {
