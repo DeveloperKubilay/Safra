@@ -46,6 +46,7 @@ loom {
 sourceSets.named('client') {
     java.srcDir(rootProject.file('common-mc/src/client/java'))
     rootProject.ext.versionSplitDirs(file('src/client/versionSplit')).each { java.srcDir(it) }
+    rootProject.ext.versionSplitDirs(rootProject.file('common-mc/src/client/versionSplit')).each { java.srcDir(it) }
 }
 
 fabricApi {

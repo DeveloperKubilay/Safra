@@ -35,6 +35,8 @@ sourceSets {
         java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
         rootProject.ext.versionSplitDirs(file('src/main/versionSplit')).each { java.srcDir(it) }
+        rootProject.ext.versionSplitDirs(rootProject.file('common-mc/src/client/versionSplit')).each { java.srcDir(it) }
+        rootProject.ext.versionSplitDirs(rootProject.file('common-mc/src/forgelike/versionSplit')).each { java.srcDir(it) }
     }
 }
 
