@@ -148,7 +148,6 @@ public final class P2pHostService implements AutoCloseable {
                 throw exception;
             }
             LOGGER.warn("Safra P2P rendezvous registration failed; falling back to direct UDP share code", exception);
-            // A direct share code carries the tag itself, so that one has to be accepted.
             acceptedTunnelTokens.add(token);
             return directShareCode;
         }
@@ -262,7 +261,6 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             } catch (IOException exception) {
                 if (!closed) {
-                    // Bu donus kalicidir: dongu biter ve host hicbir joiner'i daha duymaz.
                     LOGGER.warn("Safra P2P host stopped listening on UDP: {}", exception.toString());
                 }
                 return;
@@ -274,7 +272,6 @@ public final class P2pHostService implements AutoCloseable {
                 if (refreshed != null) {
                     P2pStunClient.DiscoveredEndpoint previous =
                         discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
-                    // Paylasim kodu bir kez yaziliyor. Burasi degisirse kod bayat bir adresi gosteriyor demektir.
                     if (SafraBuildInfo.diagnostics() && previous != null
                         && !previous.publicAddress().equals(refreshed.publicAddress())) {
                         LOGGER.info("Safra P2P host public endpoint moved from {} to {}",
@@ -290,8 +287,6 @@ public final class P2pHostService implements AutoCloseable {
             }
 
             if (!acceptedTunnelTokens.contains(packet.token())) {
-                // Joiner'in paketi geldi ama tag'ini tanimiyoruz; sessiz dusurme bir joiner'i
-                // sonsuza dek bekletir, o yuzden her tag icin bir kez soyle.
                 if (SafraBuildInfo.diagnostics() && unknownTokensSeen.add(packet.token())) {
                     LOGGER.info("Safra P2P host dropped a packet from {} with unknown tunnel tag {}",
                         datagramPacket.getSocketAddress(), packet.token());
@@ -362,8 +357,6 @@ public final class P2pHostService implements AutoCloseable {
         try {
             P2pTurnCredentials pendingCredentials = rendezvousSession == null ? null : rendezvousSession.consumePendingRelayCredentials();
             if (pendingCredentials == null) {
-                // Relay credentials come with the rendezvous stream's relay-assigned event, and a host
-                // without that stream has no way to tell a joiner where the relay is either.
                 throw new IOException("TURN relay needs credentials from the rendezvous session");
             }
             P2pTransportBinding relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "host", pendingCredentials);

@@ -518,8 +518,6 @@ final class SafraRendezvousClient {
 
         @Override
         public void close() {
-            // The relay request parks on a stream the backend may hold open without ever finishing.
-            // Only closing that stream ends the read, which is what the cancel button is asking for.
             closed = true;
             closeQuietly(relayStream);
             Thread thread = relayThread;

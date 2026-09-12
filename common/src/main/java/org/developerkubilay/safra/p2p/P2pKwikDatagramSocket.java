@@ -38,8 +38,6 @@ final class P2pKwikDatagramSocket extends DatagramSocket {
 
     void deliver(byte[] quicDatagram, InetSocketAddress peer) {
         if (!closed && quicDatagram.length > 0 && quicDatagram.length <= P2pConstants.MAX_PAYLOAD_SIZE) {
-            // Dropped rather than queued when full, the way a full socket buffer drops: QUIC recovers
-            // from loss, but a datagram delivered late distorts its round-trip estimate.
             inbound.offer(new Datagram(quicDatagram, peer));
         }
     }
