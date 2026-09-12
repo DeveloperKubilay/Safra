@@ -35,31 +35,14 @@ sourceSets {
     }
 }
 
-def neoforgeCompatBucket = (rootProject.ext.neoforge_bucket ?: '').toString()
-if (!neoforgeCompatBucket.isBlank()) {
-    def neoforgeCompatSourceRoot = project.file("compat/${neoforgeCompatBucket}/src/main/java")
-    def neoforgeCompatFiles = []
-    if (neoforgeCompatSourceRoot.isDirectory()) {
-        neoforgeCompatFiles = fileTree(neoforgeCompatSourceRoot) {
-            include '**/*.java'
-        }.collect { file ->
-            neoforgeCompatSourceRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
-        }.toSet()
-    }
-    sourceSets.main {
-        java {
-            exclude { details ->
-                def relativePath = project.file('src/main/java').toPath().relativize(details.file.toPath()).toString().replace('\\', '/')
-                neoforgeCompatFiles.contains(relativePath)
-            }
-            srcDir("compat/${neoforgeCompatBucket}/src/main/java")
-        }
-        if (neoforgeCompatBucket == '1.20.3-1.20.4') {
-            resources {
-                exclude 'META-INF/neoforge.mods.toml'
-                srcDir("compat/${neoforgeCompatBucket}/src/main/resources")
-            }
-        }
+rootProject.ext.versionSplitDirs(project.file('src/main/versionSplit')).each {
+    sourceSets.main.java.srcDir(it)
+}
+
+if (rootProject.ext.selected_mc_profile in ['1.20.3', '1.20.4']) {
+    sourceSets.main.resources {
+        exclude 'META-INF/neoforge.mods.toml'
+        srcDir('src/main/resources-legacy')
     }
 }
 

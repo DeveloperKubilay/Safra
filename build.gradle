@@ -23,9 +23,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[46,)',
         forge_minecraft_version_range: '[1.20,1.20.1)',
         java_target_version          : 17,
-        fabric_bucket                : '1.20',
-        forge_bucket                 : '1.20',
-        neoforge_bucket              : ''
     ],
     '1.20.1': [
         release_minecraft_line       : '1.20.1',
@@ -44,9 +41,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[46,)',
         forge_minecraft_version_range: '[1.20,1.20.2)',
         java_target_version          : 17,
-        fabric_bucket                : '1.20.1',
-        forge_bucket                 : '1.20.1',
-        neoforge_bucket              : ''
     ],
     '1.20.2': [
         release_minecraft_line       : '1.20.2',
@@ -68,9 +62,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[48,)',
         forge_minecraft_version_range: '[1.20.2,1.20.3)',
         java_target_version          : 17,
-        fabric_bucket                : '1.20.2',
-        forge_bucket                 : '1.20.2',
-        neoforge_bucket              : '1.20.2'
     ],
     '1.20.3': [
         release_minecraft_line       : '1.20.3',
@@ -92,9 +83,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[49,)',
         forge_minecraft_version_range: '[1.20.3,1.20.4)',
         java_target_version          : 17,
-        fabric_bucket                : '1.20.3-1.20.4',
-        forge_bucket                 : '1.20.3-1.20.4',
-        neoforge_bucket              : '1.20.3-1.20.4'
     ],
     '1.20.4': [
         release_minecraft_line       : '1.20.4',
@@ -116,9 +104,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[49,)',
         forge_minecraft_version_range: '[1.20.3,1.20.5)',
         java_target_version          : 17,
-        fabric_bucket                : '1.20.3-1.20.4',
-        forge_bucket                 : '1.20.3-1.20.4',
-        neoforge_bucket              : '1.20.3-1.20.4'
     ],
     '1.20.5-1.20.6': [
         release_minecraft_line       : '1.20.5-1.20.6',
@@ -140,9 +125,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[50,)',
         forge_minecraft_version_range: '[1.20.5,1.20.7)',
         java_target_version          : 21,
-        fabric_bucket                : '1.20.5-1.20.6',
-        forge_bucket                 : '1.20.5-1.20.6',
-        neoforge_bucket              : ''
     ]
 ]
 
@@ -158,6 +140,24 @@ if (selectedMcProfile == null) {
 selectedMcProfile.each { key, value ->
     ext.set(key, value)
 }
+ext.versionSplitDirs = { File root ->
+    if (!root.isDirectory()) {
+        return []
+    }
+
+    List order = ext.mcProfiles.keySet() as List
+    int active = order.indexOf(requestedMcProfile)
+    root.listFiles().findAll { it.isDirectory() }.sort { it.name }.collect { holder ->
+        holder.listFiles().findAll { it.isDirectory() }.collect {
+            int index = order.indexOf(it.name.replace('_', '.'))
+            if (index < 0) {
+                throw new GradleException("Unknown version directory ${it}")
+            }
+            [dir: it, index: index]
+        }.findAll { it.index <= active }.max { it.index }?.dir
+    }.findAll { it != null }
+}
+
 ext.set('selected_mc_profile', requestedMcProfile)
 ext.set('build_directory_suffix', requestedMcProfile.replaceAll('[^0-9A-Za-z.-]+', '_'))
 layout.buildDirectory.set(file("build/${ext.build_directory_suffix}/root"))
@@ -247,9 +247,6 @@ subprojects {
             'forge_version_range',
             'forge_loader_version_range',
             'forge_minecraft_version_range',
-            'fabric_bucket',
-            'forge_bucket',
-            'neoforge_bucket'
         ]
     }.each { key, value ->
         ext.set(key, value)

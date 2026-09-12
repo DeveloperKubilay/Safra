@@ -10,26 +10,8 @@ sourceSets {
     }
 }
 
-def fabricCompatBucket = (rootProject.ext.fabric_bucket ?: '').toString()
-if (!fabricCompatBucket.isBlank()) {
-    def fabricCompatClientSourceRoot = project.file("compat/${fabricCompatBucket}/src/client/java")
-    def compatClientFiles = []
-    if (fabricCompatClientSourceRoot.isDirectory()) {
-        compatClientFiles = fileTree(fabricCompatClientSourceRoot) {
-            include '**/*.java'
-        }.collect { file ->
-            fabricCompatClientSourceRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
-        }.toSet()
-    }
-    sourceSets.matching { it.name == 'client' }.configureEach {
-        java {
-            exclude { details ->
-                def relativePath = project.file('src/client/java').toPath().relativize(details.file.toPath()).toString().replace('\\', '/')
-                compatClientFiles.contains(relativePath)
-            }
-            srcDir("compat/${fabricCompatBucket}/src/client/java")
-        }
-    }
+sourceSets.matching { it.name == 'client' }.configureEach {
+    rootProject.ext.versionSplitDirs(project.file('src/client/versionSplit')).each { java.srcDir(it) }
 }
 
 base {

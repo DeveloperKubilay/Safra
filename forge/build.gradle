@@ -36,24 +36,8 @@ sourceSets {
     }
 }
 
-def forgeCompatBucket = (rootProject.ext.forge_bucket ?: '').toString()
-if (!forgeCompatBucket.isBlank()) {
-    def forgeCompatSourceRoot = project.file("compat/${forgeCompatBucket}/src/main/java")
-    def forgeCompatFiles = []
-    if (forgeCompatSourceRoot.isDirectory()) {
-        forgeCompatFiles = fileTree(forgeCompatSourceRoot) {
-            include '**/*.java'
-        }.collect { file ->
-            forgeCompatSourceRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
-        }.toSet()
-    }
-    sourceSets.main.java {
-        exclude { details ->
-            def relativePath = project.file('src/main/java').toPath().relativize(details.file.toPath()).toString().replace('\\', '/')
-            forgeCompatFiles.contains(relativePath)
-        }
-        srcDir("compat/${forgeCompatBucket}/src/main/java")
-    }
+rootProject.ext.versionSplitDirs(project.file('src/main/versionSplit')).each {
+    sourceSets.main.java.srcDir(it)
 }
 
 base {
