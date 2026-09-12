@@ -72,17 +72,28 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         this.credential = credential;
     }
 
+    /**
+     * A relayed tunnel carries its own retransmissions, and putting those inside a TCP or TLS stream
+     * stalls every datagram behind one lost segment while two retransmit timers argue over the same
+     * link. So UDP is asked first and the streams are kept for the networks that block UDP outright,
+     * which is what they exist for. The UDP list is walked twice before it is given up on: only one
+     * relay offers UDP, so a single transient timeout used to sentence the whole session to TCP.
+     */
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
         trace("turn " + role + " open start servers=" + describeServers(credentials)
             + " timeoutMs=" + P2pConstants.TURN_REQUEST_TIMEOUT_MS);
-        for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tlsServers(), 443)) {
-            try {
-                return openStream(logger, role, credentials, server, true);
-            } catch (IOException exception) {
-                failures.add("tls://" + describeServer(server) + " -> " + exception.getMessage());
+        for (int attempt = 0; attempt < P2pConstants.TURN_UDP_ATTEMPTS; attempt++) {
+            for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
+                try {
+                    return openDatagram(logger, role, credentials, server);
+                } catch (IOException exception) {
+                    failures.add("udp://" + describeServer(server) + " -> " + exception.getMessage());
+                    trace("turn " + role + " failed server=" + describeServer(server) + " error=" + exception.toString());
+                }
             }
         }
+
         for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tcpServers(), 80)) {
             try {
                 return openStream(logger, role, credentials, server, false);
@@ -90,36 +101,52 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 failures.add("tcp://" + describeServer(server) + " -> " + exception.getMessage());
             }
         }
-        for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
-            DatagramSocket socket = P2pSockets.datagramSocket();
+
+        for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tlsServers(), 443)) {
             try {
-                trace("turn " + role + " trying server=" + describeServer(server));
-                InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
-                trace("turn " + role + " resolved server=" + describeServer(server) + " -> " + serverAddress);
-                socket.connect(serverAddress);
-                trace("turn " + role + " connected local=" + socket.getLocalSocketAddress() + " remote=" + serverAddress);
-                P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
-                    logger,
-                    role,
-                    socket,
-                    null,
-                    serverAddress,
-                    "UDP",
-                    credentials.username(),
-                    credentials.credential()
-                );
-                transport.start(credentials.ttlSeconds());
-                trace("turn " + role + " ready relay=" + transport.relayAddress + " via=" + serverAddress);
-                logger.info("Safra TURN {} transport active via UDP: {}", role, describeServer(server));
-                return transport;
+                return openStream(logger, role, credentials, server, true);
             } catch (IOException exception) {
-                socket.close();
-                failures.add(describeServer(server) + " -> " + exception.getMessage());
-                trace("turn " + role + " failed server=" + describeServer(server) + " error=" + exception.toString());
+                failures.add("tls://" + describeServer(server) + " -> " + exception.getMessage());
             }
         }
 
         throw new IOException("TURN relay acilamadi: " + String.join(" | ", failures));
+    }
+
+    private static P2pTurnDatagramTransport openDatagram(Logger logger, String role, P2pTurnCredentials credentials,
+                                                         P2pTurnCredentials.TurnServer server) throws IOException {
+        DatagramSocket socket = null;
+        P2pTurnDatagramTransport started = null;
+        try {
+            trace("turn " + role + " trying server=" + describeServer(server));
+            InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+            trace("turn " + role + " resolved server=" + describeServer(server) + " -> " + serverAddress);
+            socket = P2pSockets.datagramSocket();
+            socket.connect(serverAddress);
+            trace("turn " + role + " connected local=" + socket.getLocalSocketAddress() + " remote=" + serverAddress);
+            P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
+                logger,
+                role,
+                socket,
+                null,
+                serverAddress,
+                "UDP",
+                credentials.username(),
+                credentials.credential()
+            );
+            started = transport;
+            transport.start(credentials.ttlSeconds());
+            trace("turn " + role + " ready relay=" + transport.relayAddress + " via=" + serverAddress);
+            logger.info("Safra TURN {} transport active via UDP: {}", role, describeServer(server));
+            return transport;
+        } catch (IOException exception) {
+            if (started != null) {
+                started.close();
+            } else if (socket != null) {
+                socket.close();
+            }
+            throw exception;
+        }
     }
 
     private static List<P2pTurnCredentials.TurnServer> preferPort(List<P2pTurnCredentials.TurnServer> servers, int preferredPort) {
