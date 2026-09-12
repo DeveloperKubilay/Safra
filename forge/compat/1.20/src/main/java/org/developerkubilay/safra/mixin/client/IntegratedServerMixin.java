@@ -6,6 +6,7 @@ import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.ForgeComponentCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
@@ -78,11 +79,15 @@ abstract class IntegratedServerMixin {
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         safra$copyToClipboard(client, shareCodeText);
 
         Component shareText = ForgeComponentCompat.copyableLiteral(shareCodeText, "safra.p2p.copy_hint");
-        safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            safra$pushClientMessage(client, ForgeComponentCompat.translatable("safra.p2p.host.started", shareText));
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             safra$pushClientMessage(
                 client,
