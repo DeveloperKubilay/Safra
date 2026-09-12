@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -86,19 +87,23 @@ final class P2pStunClient {
     }
 
     private List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery, String requiredFamily) {
-        List<PendingRequest> pendingRequests = new ArrayList<>();
+        LinkedHashSet<InetSocketAddress> servers = new LinkedHashSet<>();
         for (String serverSpec : serversToQuery) {
             for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
-                if (requiredFamily != null && !requiredFamily.equals(P2pSockets.addressFamily(server))) {
-                    continue;
+                if (requiredFamily == null || requiredFamily.equals(P2pSockets.addressFamily(server))) {
+                    servers.add(server);
                 }
-                try {
-                    byte[] transactionId = new byte[12];
-                    random.nextBytes(transactionId);
-                    sendBindingRequest(socket, server, transactionId);
-                    pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
-                } catch (IOException ignored) {
-                }
+            }
+        }
+
+        List<PendingRequest> pendingRequests = new ArrayList<>();
+        for (InetSocketAddress server : servers) {
+            try {
+                byte[] transactionId = new byte[12];
+                random.nextBytes(transactionId);
+                sendBindingRequest(socket, server, transactionId);
+                pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
+            } catch (IOException ignored) {
             }
         }
         return pendingRequests;
@@ -122,8 +127,11 @@ final class P2pStunClient {
         String host = rawServer.substring(0, separator);
         int port = Integer.parseInt(rawServer.substring(separator + 1));
         List<InetSocketAddress> servers = new ArrayList<>();
-        for (InetAddress address : resolveAddresses(host)) {
-            servers.add(new InetSocketAddress(address, port));
+        try {
+            for (InetAddress address : resolveAddresses(host)) {
+                servers.add(new InetSocketAddress(address, port));
+            }
+        } catch (RuntimeException ignored) {
         }
         return servers;
     }
@@ -261,7 +269,8 @@ final class P2pStunClient {
         while (buffer.remaining() >= 4) {
             int type = Short.toUnsignedInt(buffer.getShort());
             int length = Short.toUnsignedInt(buffer.getShort());
-            if (length > buffer.remaining()) {
+            int paddedLength = (length + 3) & ~3;
+            if (paddedLength > buffer.remaining()) {
                 return null;
             }
 
@@ -273,14 +282,13 @@ final class P2pStunClient {
                 }
             }
 
-            int paddedLength = (length + 3) & ~3;
             ((Buffer) buffer).position(attributeStart + paddedLength);
         }
         return null;
     }
 
     private DiscoveredEndpoint parseAddressAttribute(ByteBuffer buffer, boolean xor, byte[] transactionId, int length) {
-        if (length < 8) {
+        if (length < 8 || length > buffer.remaining()) {
             return null;
         }
 
@@ -293,7 +301,7 @@ final class P2pStunClient {
         }
 
         byte[] addressBytes;
-        if (family == 0x01) {
+        if (family == 0x01 && length >= 8) {
             addressBytes = new byte[4];
             buffer.get(addressBytes);
             if (xor) {
@@ -302,7 +310,7 @@ final class P2pStunClient {
                     addressBytes[i] ^= cookie[i];
                 }
             }
-        } else if (family == 0x02) {
+        } else if (family == 0x02 && length >= 20) {
             addressBytes = new byte[16];
             buffer.get(addressBytes);
             if (xor) {
