@@ -5,8 +5,6 @@ plugins {
     id 'net.minecraftforge.renamer' version '1.0.14'
 }
 
-def versionSourceDir = rootProject.ext.versionSourceDir
-def forgeEventSourceDir = rootProject.ext.forgeEventSourceDir
 
 sourceSets {
     main {
@@ -14,9 +12,7 @@ sourceSets {
         java.srcDir(rootProject.file('common-mc/src/client/java'))
         java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
-        java.srcDir(file("src/main/versionSpecific/${versionSourceDir}/java"))
-        java.srcDir(file("src/main/versionEvents/${forgeEventSourceDir}/java"))
-        resources.srcDir(file("src/main/versionSpecific/${versionSourceDir}/resources"))
+        rootProject.ext.versionSplitDirs(file('src/main/versionSplit')).each { java.srcDir(it) }
     }
 }
 

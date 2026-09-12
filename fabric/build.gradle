@@ -3,8 +3,6 @@ plugins {
     id 'maven-publish'
 }
 
-def versionSourceDir = rootProject.ext.fabricClientSourceDir
-
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
@@ -47,8 +45,7 @@ loom {
 
 sourceSets.named('client') {
     java.srcDir(rootProject.file('common-mc/src/client/java'))
-    java.srcDir(file("src/client/versionSpecific/${versionSourceDir}/java"))
-    resources.srcDir(file("src/client/versionSpecific/${versionSourceDir}/resources"))
+    rootProject.ext.versionSplitDirs(file('src/client/versionSplit')).each { java.srcDir(it) }
 }
 
 fabricApi {

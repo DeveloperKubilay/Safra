@@ -7,9 +7,6 @@ plugins {
 
 def versionConfig = [
     '1.21'   : [
-        sourceBucket              : '1_21_0',
-        forgeEventSourceDir       : '1_21_pre_6',
-        fabricClientSourceDir     : '1_21_0',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.102.0+1.21',
         packFormat                : 34,
@@ -23,9 +20,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21,1.21.1)'
     ],
     '1.21.1' : [
-        sourceBucket              : '1_21_0',
-        forgeEventSourceDir       : '1_21_pre_6',
-        fabricClientSourceDir     : '1_21_0',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.116.12+1.21.1',
         packFormat                : 34,
@@ -39,9 +33,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.1,1.21.2)'
     ],
     '1.21.2' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_pre_6',
-        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.106.1+1.21.2',
         packFormat                : 42,
@@ -55,9 +46,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.2,1.21.3)'
     ],
     '1.21.3' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_pre_6',
-        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.114.1+1.21.3',
         packFormat                : 42,
@@ -71,9 +59,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.3,1.21.4)'
     ],
     '1.21.4' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_pre_6',
-        fabricClientSourceDir     : '1_21_2',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.119.4+1.21.4',
         packFormat                : 46,
@@ -87,9 +72,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.4,1.21.5)'
     ],
     '1.21.5' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_pre_6',
-        fabricClientSourceDir     : '1_21_5',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.128.2+1.21.5',
         packFormat                : 55,
@@ -103,9 +85,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.5,1.21.6)'
     ],
     '1.21.6' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.128.2+1.21.6',
         packFormat                : 63,
@@ -119,9 +98,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.6,1.21.9)'
     ],
     '1.21.7' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.129.0+1.21.7',
         packFormat                : 64,
@@ -135,9 +111,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.7,1.21.8)'
     ],
     '1.21.8' : [
-        sourceBucket              : '1_21_2',
-        forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_6',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.132.0+1.21.8',
         packFormat                : 69,
@@ -151,9 +124,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.8,1.21.9)'
     ],
     '1.21.9' : [
-        sourceBucket              : '1_21_9',
-        forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_9',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.134.1+1.21.9',
         packFormat                : 69,
@@ -167,9 +137,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.9,1.21.11)'
     ],
     '1.21.10': [
-        sourceBucket              : '1_21_9',
-        forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_9',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.136.0+1.21.10',
         packFormat                : 69,
@@ -183,9 +150,6 @@ def versionConfig = [
         forgeMinecraftVersionRange: '[1.21.10,1.21.11)'
     ],
     '1.21.11': [
-        sourceBucket              : '1_21_11',
-        forgeEventSourceDir       : '1_21_6_plus',
-        fabricClientSourceDir     : '1_21_11',
         loaderVersion             : '0.19.2',
         fabricVersion             : '0.141.3+1.21.11',
         packFormat                : 75,
@@ -208,9 +172,26 @@ if (activeVersion == null) {
 
 ext.mcVersion = requestedMcVersion
 ext.activeVersion = activeVersion
-ext.versionSourceDir = activeVersion.sourceBucket
-ext.fabricClientSourceDir = activeVersion.fabricClientSourceDir ?: activeVersion.sourceBucket
-ext.forgeEventSourceDir = activeVersion.forgeEventSourceDir
+// Bir sinifin her varyant klasoru, o varyantin gecerli oldugu ILK surumun adini tasir.
+// Aktif surumu gecmeyen en yeni varyant kazanir: degismemis bir sinif tek kopya kalir,
+// ve yeni bir surum ancak gercekten degisen sinif icin klasor ister.
+ext.versionSplitDirs = { File root ->
+    if (!root.isDirectory()) {
+        return []
+    }
+
+    List order = versionConfig.keySet() as List
+    int active = order.indexOf(requestedMcVersion)
+    root.listFiles().findAll { it.isDirectory() }.sort { it.name }.collect { holder ->
+        holder.listFiles().findAll { it.isDirectory() }.collect {
+            int index = order.indexOf(it.name.replace('_', '.'))
+            if (index < 0) {
+                throw new GradleException("Unknown version directory ${it}")
+            }
+            [dir: it, index: index]
+        }.findAll { it.index <= active }.max { it.index }?.dir
+    }.findAll { it != null }
+}
 ext.versionConfig = versionConfig
 ext.supportedMcVersions = versionConfig.keySet() as List
 ext.buildDirectorySuffix = requestedMcVersion.replaceAll('[^0-9A-Za-z.-]+', '_')
@@ -302,9 +283,6 @@ subprojects {
     ext.forge_version_range = rootProject.ext.activeVersion.forgeVersionRange
     ext.forge_loader_version_range = rootProject.ext.activeVersion.forgeLoaderVersionRange
     ext.forge_minecraft_version_range = rootProject.ext.activeVersion.forgeMinecraftVersionRange
-    ext.versionSourceDir = rootProject.ext.versionSourceDir
-    ext.fabric_client_source_dir = rootProject.ext.fabricClientSourceDir
-    ext.forgeEventSourceDir = rootProject.ext.activeVersion.forgeEventSourceDir
     ext.pack_format = rootProject.ext.activeVersion.packFormat
     ext.supported_formats_json = "[${rootProject.ext.activeVersion.supportedFormats.join(', ')}]"
     ext.build_directory_suffix = rootProject.ext.buildDirectorySuffix
