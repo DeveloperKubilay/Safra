@@ -9,6 +9,7 @@ import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.NeoForgeVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -44,11 +45,10 @@ abstract class ConnectScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
                     client.setScreen(new DisconnectedScreen(
                         parent,
                         Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        P2pErrorComponents.preparationFailure(cause)
                     ));
                     return;
                 }
