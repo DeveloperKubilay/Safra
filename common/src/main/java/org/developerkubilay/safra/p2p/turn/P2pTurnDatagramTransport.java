@@ -85,37 +85,16 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
      */
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
-        for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
-            DatagramSocket socket = null;
-            P2pTurnDatagramTransport started = null;
-            try {
-                InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
-                socket = P2pSockets.datagramSocket();
-                socket.connect(serverAddress);
-                P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
-                    logger,
-                    role,
-                    socket,
-                    null,
-                    serverAddress,
-                    "UDP",
-                    P2pConstants.TURN_UDP_REQUEST_TIMEOUT_MS,
-                    credentials.username(),
-                    credentials.credential()
-                );
-                started = transport;
-                transport.start(credentials.ttlSeconds());
-                logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
-                return transport;
-            } catch (IOException exception) {
-                // start() has a receive loop running before the allocation answers, and closing the
-                // socket under it makes that loop report our own teardown as a failure.
-                if (started != null) {
-                    started.close();
-                } else if (socket != null) {
-                    socket.close();
+        // Cloudflare offers one UDP relay, so a single timeout used to hand the whole session to a
+        // stream for good - and a stream is the thing the note above says to avoid. One more pass
+        // costs a UDP-blocked network the wait again, and buys every other network the right relay.
+        for (int attempt = 0; attempt < P2pConstants.TURN_UDP_ATTEMPTS; attempt++) {
+            for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
+                try {
+                    return openDatagram(logger, role, credentials, server);
+                } catch (IOException exception) {
+                    failures.add(refused(logger, role, "udp", server, exception));
                 }
-                failures.add(refused(logger, role, "udp", server, exception));
             }
         }
 
@@ -154,6 +133,42 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         List<P2pTurnCredentials.TurnServer> ordered = new ArrayList<>(servers);
         ordered.sort((left, right) -> Boolean.compare(left.port() != preferredPort, right.port() != preferredPort));
         return ordered;
+    }
+
+    private static P2pTurnDatagramTransport openDatagram(Logger logger, String role,
+                                                          P2pTurnCredentials credentials,
+                                                          P2pTurnCredentials.TurnServer server) throws IOException {
+        DatagramSocket socket = null;
+        P2pTurnDatagramTransport started = null;
+        try {
+            InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+            socket = P2pSockets.datagramSocket();
+            socket.connect(serverAddress);
+            P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
+                logger,
+                role,
+                socket,
+                null,
+                serverAddress,
+                "UDP",
+                P2pConstants.TURN_UDP_REQUEST_TIMEOUT_MS,
+                credentials.username(),
+                credentials.credential()
+            );
+            started = transport;
+            transport.start(credentials.ttlSeconds());
+            logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
+            return transport;
+        } catch (IOException exception) {
+            // start() has a receive loop running before the allocation answers, and closing the
+            // socket under it makes that loop report our own teardown as a failure.
+            if (started != null) {
+                started.close();
+            } else if (socket != null) {
+                socket.close();
+            }
+            throw exception;
+        }
     }
 
     private static P2pTurnDatagramTransport openStream(Logger logger, String role, P2pTurnCredentials credentials,
