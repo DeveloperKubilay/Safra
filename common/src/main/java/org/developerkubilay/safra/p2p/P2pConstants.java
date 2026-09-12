@@ -175,7 +175,7 @@ public final class P2pConstants {
      */
     static int streamWindowBytes(int roundTripMs) {
         long window = (long) STREAM_WINDOW_TARGET_BYTES_PER_SECOND * Math.max(1, roundTripMs) / 1000L;
-        return (int) Math.clamp(window, MIN_STREAM_WINDOW_BYTES, MAX_STREAM_WINDOW_BYTES);
+        return (int) Math.min(MAX_STREAM_WINDOW_BYTES, Math.max(MIN_STREAM_WINDOW_BYTES, window));
     }
 
     public static int turnAllocationLifetimeSeconds() {
