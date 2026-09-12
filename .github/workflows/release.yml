@@ -10,9 +10,7 @@ on:
         type: choice
         options:
           - all
-          - 26.1
-          - 26.1.1
-          - 26.1.2
+          - 26.2
       version_number:
         description: Mod version
         required: true
@@ -57,7 +55,7 @@ jobs:
           selected_version="${{ github.event.inputs.version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
-          supported_versions='["26.1","26.1.1","26.1.2"]'
+          supported_versions='["26.2"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
             echo "Invalid version_number: $version_number"
@@ -75,9 +73,9 @@ jobs:
 
           if [[ "$selected_version" == "all" ]]; then
             versions_json="$supported_versions"
-            release_tag="Safra-26.1.x-$version_number"
-            release_title="Safra 26.1.x-$version_number"
-            release_versions_label="26.1.x"
+            release_tag="Safra-26.2.x-$version_number"
+            release_title="Safra 26.2.x-$version_number"
+            release_versions_label="26.2.x"
           else
             versions_json="[\"$selected_version\"]"
             release_tag="Safra-$selected_version-$version_number"

@@ -44,7 +44,7 @@ jobs:
           build-mode: manual
 
       - name: Build project
-        run: ./gradlew clean build --stacktrace -PmcVersion=26.1.2
+        run: ./gradlew clean build --stacktrace -PmcVersion=26.2
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
