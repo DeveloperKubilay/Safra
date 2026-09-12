@@ -61,7 +61,7 @@ abstract class IntegratedServerMixin {
             client.gui.getChat().addMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
-            client.gui.getChat().addMessage(safra$discordLink());
+            client.gui.getChat().addMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
                 client.gui.getChat().addMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));

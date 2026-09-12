@@ -142,7 +142,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             this.safra$addClientSystemMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
-            this.safra$addClientSystemMessage(safra$discordLink());
+            this.safra$addClientSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
                 this.safra$addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
