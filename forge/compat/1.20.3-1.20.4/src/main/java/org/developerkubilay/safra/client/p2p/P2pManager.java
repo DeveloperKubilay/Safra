@@ -6,6 +6,7 @@ import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.P2pErrorKind;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pRuntime;
@@ -34,6 +35,7 @@ public final class P2pManager {
     private volatile CompletableFuture<RewriteResult> rewriteFuture;
     private boolean pendingClientFailureContext;
     private boolean pendingDirectShareFailureContext;
+    private P2pErrorKind pendingFailureKind = P2pErrorKind.OTHER;
     private long hostStartGeneration;
     private long rewriteGeneration;
 
@@ -161,6 +163,7 @@ public final class P2pManager {
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
             synchronized (P2pManager.this) {
                 if (activeClientProxy == proxyRef[0]) {
+                    pendingFailureKind = activeClientProxy.failureKind();
                     activeClientProxy = null;
                 }
                 if (startingClientProxy == proxyRef[0]) {
@@ -175,6 +178,7 @@ public final class P2pManager {
             }
             pendingClientFailureContext = false;
             pendingDirectShareFailureContext = false;
+            pendingFailureKind = P2pErrorKind.OTHER;
             startingClientProxy = proxy;
         }
         int localPort;
@@ -212,6 +216,7 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
+        pendingFailureKind = P2pErrorKind.OTHER;
     }
 
     public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {
@@ -282,9 +287,11 @@ public final class P2pManager {
     public synchronized ClientFailureContext consumeClientFailureContext() {
         boolean p2p = pendingClientFailureContext || activeClientProxy != null;
         boolean direct = pendingDirectShareFailureContext || activeClientUsesDirectShareAddress();
+        P2pErrorKind kind = activeClientProxy == null ? pendingFailureKind : activeClientProxy.failureKind();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
-        return new ClientFailureContext(p2p, direct);
+        pendingFailureKind = P2pErrorKind.OTHER;
+        return new ClientFailureContext(p2p, direct, kind);
     }
 
     private void cancelPendingRewriteInternal() {
@@ -309,6 +316,6 @@ public final class P2pManager {
     public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
     }
 
-    public record ClientFailureContext(boolean p2p, boolean directShareAddress) {
+    public record ClientFailureContext(boolean p2p, boolean directShareAddress, P2pErrorKind kind) {
     }
 }

@@ -25,7 +25,10 @@ public final class P2pErrorComponents {
         if (!context.p2p()) {
             return details;
         }
-        P2pErrorKind kind = P2pErrorKind.classify(details.getString());
+        if (context.kind() != P2pErrorKind.OTHER) {
+            return safraError(Text.translatable(context.kind().translationKey()));
+        }
+        P2pErrorKind kind = P2pErrorKind.classify(details.getString() + " " + details);
         if (kind != P2pErrorKind.OTHER) {
             return safraError(Text.translatable(kind.translationKey()));
         }
