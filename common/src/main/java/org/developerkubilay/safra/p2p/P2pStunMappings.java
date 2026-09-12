@@ -15,11 +15,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 final class P2pStunMappings {
     private final P2pStunClient stunClient = new P2pStunClient();
-    private final Map<String, P2pStunClient.DiscoveredEndpoint> endpoints = new ConcurrentHashMap<>();
+    private final Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> endpoints = new ConcurrentHashMap<>();
     private final List<P2pStunClient.PendingRequest> pendingRequests = new CopyOnWriteArrayList<>();
 
     Collection<InetSocketAddress> discoverPublicEndpoints(DatagramSocket socket) {
-        Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
+        Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
         replaceWith(discovered);
         return P2pStunClient.publicEndpoints(discovered);
     }
@@ -33,16 +33,8 @@ final class P2pStunMappings {
         return endpoints.isEmpty();
     }
 
-    int size() {
-        return endpoints.size();
-    }
-
     Collection<InetSocketAddress> publicEndpoints() {
         return P2pStunClient.publicEndpoints(endpoints);
-    }
-
-    P2pStunClient.DiscoveredEndpoint preferredCandidate() {
-        return P2pStunClient.preferredCandidate(endpoints);
     }
 
     void requestCandidates(DatagramSocket socket) {
@@ -93,7 +85,7 @@ final class P2pStunMappings {
         return false;
     }
 
-    private void replaceWith(Map<String, P2pStunClient.DiscoveredEndpoint> discovered) {
+    private void replaceWith(Map<P2pSockets.AddressFamily, P2pStunClient.DiscoveredEndpoint> discovered) {
         endpoints.clear();
         endpoints.putAll(discovered);
     }

@@ -7,19 +7,6 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
-        def commonCompatBucket = (rootProject.ext.common_bucket ?: '').toString()
-        if (commonCompatBucket == '1.20' || commonCompatBucket == '1.20.1') {
-            java {
-                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
-            }
-        } else if (commonCompatBucket == '1.20.3-1.20.4') {
-            java {
-                exclude { details ->
-                    details.file.canonicalFile == project(':common').file('src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java').canonicalFile
-                }
-                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
-            }
-        }
     }
 }
 
@@ -87,6 +74,9 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    implementation 'tech.kwik:kwik:0.11'
+    include 'tech.kwik:kwik:0.11'
+    include 'tech.kwik:agent15:3.3'
 }
 
 processResources {

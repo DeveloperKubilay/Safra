@@ -23,7 +23,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[46,)',
         forge_minecraft_version_range: '[1.20,1.20.1)',
         java_target_version          : 17,
-        common_bucket                : '1.20',
         fabric_bucket                : '1.20',
         forge_bucket                 : '1.20',
         neoforge_bucket              : ''
@@ -45,7 +44,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[46,)',
         forge_minecraft_version_range: '[1.20,1.20.2)',
         java_target_version          : 17,
-        common_bucket                : '1.20.1',
         fabric_bucket                : '1.20.1',
         forge_bucket                 : '1.20.1',
         neoforge_bucket              : ''
@@ -70,7 +68,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[48,)',
         forge_minecraft_version_range: '[1.20.2,1.20.3)',
         java_target_version          : 17,
-        common_bucket                : '',
         fabric_bucket                : '1.20.2',
         forge_bucket                 : '1.20.2',
         neoforge_bucket              : '1.20.2'
@@ -95,7 +92,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[49,)',
         forge_minecraft_version_range: '[1.20.3,1.20.4)',
         java_target_version          : 17,
-        common_bucket                : '1.20.3-1.20.4',
         fabric_bucket                : '1.20.3-1.20.4',
         forge_bucket                 : '1.20.3-1.20.4',
         neoforge_bucket              : '1.20.3-1.20.4'
@@ -120,7 +116,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[49,)',
         forge_minecraft_version_range: '[1.20.3,1.20.5)',
         java_target_version          : 17,
-        common_bucket                : '1.20.3-1.20.4',
         fabric_bucket                : '1.20.3-1.20.4',
         forge_bucket                 : '1.20.3-1.20.4',
         neoforge_bucket              : '1.20.3-1.20.4'
@@ -145,7 +140,6 @@ ext.mcProfiles = [
         forge_loader_version_range   : '[50,)',
         forge_minecraft_version_range: '[1.20.5,1.20.7)',
         java_target_version          : 21,
-        common_bucket                : '',
         fabric_bucket                : '1.20.5-1.20.6',
         forge_bucket                 : '1.20.5-1.20.6',
         neoforge_bucket              : ''
@@ -251,7 +245,6 @@ subprojects {
             'forge_version_range',
             'forge_loader_version_range',
             'forge_minecraft_version_range',
-            'common_bucket',
             'fabric_bucket',
             'forge_bucket',
             'neoforge_bucket'

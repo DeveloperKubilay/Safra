@@ -32,19 +32,6 @@ sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
-        def commonCompatBucket = (rootProject.ext.common_bucket ?: '').toString()
-        if (commonCompatBucket == '1.20' || commonCompatBucket == '1.20.1') {
-            java {
-                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
-            }
-        } else if (commonCompatBucket == '1.20.3-1.20.4') {
-            java {
-                exclude { details ->
-                    details.file.canonicalFile == project(':common').file('src/main/java/org/developerkubilay/safra/p2p/P2pClientProxy.java').canonicalFile
-                }
-                srcDir(project(':common').file("src/compat/${commonCompatBucket}/java"))
-            }
-        }
     }
 }
 
@@ -174,7 +161,16 @@ neoForge {
 }
 
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -222,6 +218,10 @@ processResources {
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }

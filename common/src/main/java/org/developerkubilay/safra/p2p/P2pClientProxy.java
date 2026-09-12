@@ -11,7 +11,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -22,18 +24,19 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private final P2pShareCode shareCode;
     private final P2pStunClient stunClient = new P2pStunClient();
-    private final Map<Integer, ReliableTunnelConnection> connections = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(4);
+    private final Map<Integer, P2pKwikClientTunnel> connections = new ConcurrentHashMap<>();
+    private final Set<Socket> pendingRetrySockets = ConcurrentHashMap.newKeySet();
+    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final Runnable onClose;
 
     private volatile P2pDatagramTransport transport;
     private ServerSocket proxyServer;
-    private InetSocketAddress remoteAddress;
-    private SafraRendezvousClient.JoinSession rendezvousSession;
-    private int tunnelToken;
+    private volatile InetSocketAddress remoteAddress;
+    private volatile SafraRendezvousClient.JoinSession rendezvousSession;
+    private volatile int tunnelToken;
     private volatile boolean relayTransportActive;
-    private volatile boolean directRetryAttempted;
     private volatile boolean closed;
+    private volatile P2pErrorKind failureKind = P2pErrorKind.OTHER;
 
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
         this.shareCode = shareCode;
@@ -56,14 +59,24 @@ public final class P2pClientProxy implements AutoCloseable {
         }
 
         proxyServer = new ServerSocket(0, 16, P2pSockets.loopbackAddress());
+        LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
+            proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
 
         P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
         P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
+        if (SafraBuildInfo.diagnostics()) {
+            scheduler.scheduleAtFixedRate(this::logLinkQuality, 30L, 30L, TimeUnit.SECONDS);
+        }
         return proxyServer.getLocalPort();
     }
 
     public boolean usesRendezvousShareCode() {
         return shareCode.isRendezvous();
+    }
+
+    /** Why the last join attempt gave up, when the reason was clear enough to tell the player. */
+    public P2pErrorKind failureKind() {
+        return failureKind;
     }
 
     @Override
@@ -72,8 +85,9 @@ public final class P2pClientProxy implements AutoCloseable {
             return;
         }
         closed = true;
-        connections.values().forEach(ReliableTunnelConnection::close);
+        connections.values().forEach(P2pKwikClientTunnel::close);
         connections.clear();
+        pendingRetrySockets.clear();
         scheduler.shutdownNow();
         if (proxyServer != null && !proxyServer.isClosed()) {
             try {
@@ -111,27 +125,7 @@ public final class P2pClientProxy implements AutoCloseable {
                     binding.close();
                     return;
                 } catch (IOException relayException) {
-                    LOGGER.debug("Safra join relay request failed, trying classic TURN fallback: {}", relayException.toString());
-                }
-
-                if (P2pConstants.useApi30Rendezvous()) {
-                    binding.close();
-                    discardRendezvousSession();
-                    throw exception;
-                }
-
-                binding.close();
-                discardRendezvousSession();
-                P2pTransportBinding classicTurnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
-                try {
-                    resolveRendezvousShareCode(classicTurnBinding);
-                    transport = classicTurnBinding.transport();
-                    relayTransportActive = true;
-                    return;
-                } catch (IOException turnException) {
-                    classicTurnBinding.close();
-                    discardRendezvousSession();
-                    throw turnException;
+                    LOGGER.debug("Safra join relay request failed: {}", relayException.toString());
                 }
             }
             binding.close();
@@ -143,9 +137,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
         remoteAddress = rendezvousSession.hostAddress(binding.relay());
-        tunnelToken = P2pConstants.useApi30Rendezvous()
-            ? P2pShareCode.rendezvousTunnelToken(shareCode.rendezvousCode())
-            : rendezvousSession.tunnelToken();
+        tunnelToken = rendezvousSession.tunnelToken();
         if (remoteAddress == null) {
             throw new IOException(binding.relay()
                 ? "Rendezvous server did not return a relay address"
@@ -156,9 +148,6 @@ public final class P2pClientProxy implements AutoCloseable {
         }
 
         if (!binding.relay()) {
-            if (P2pConstants.useApi30Rendezvous() && remoteAddress == null) {
-                throw new IOException("Host address is not ready yet; relay fallback will be attempted");
-            }
             P2pStunClient.DiscoveredEndpoint matchingLocalEndpoint = binding.stunEndpoints().get(P2pSockets.addressFamily(remoteAddress));
             if (matchingLocalEndpoint == null) {
                 throw new IOException("Host and joiner are using different IP families ("
@@ -189,41 +178,143 @@ public final class P2pClientProxy implements AutoCloseable {
             && joinerInetAddress.equals(hostInetAddress);
     }
 
-    private void acceptLoop() {
-        try (ServerSocket ignored = proxyServer) {
-            Socket localSocket = proxyServer.accept();
-            startReliableTunnel(localSocket);
-        } catch (IOException exception) {
-            if (!closed) {
-                LOGGER.debug("Proxy accept failed: {}", exception.toString());
-                close();
+    private void logLinkQuality() {
+        for (P2pKwikClientTunnel connection : connections.values()) {
+            try {
+                connection.logLinkQuality();
+            } catch (RuntimeException exception) {
+                LOGGER.debug("Safra could not read the Kwik statistics: {}", exception.toString());
             }
         }
     }
 
-    private void startReliableTunnel(Socket localSocket) throws IOException {
+    private void acceptLoop() {
+        while (!closed) {
+            Socket localSocket;
+            try {
+                localSocket = proxyServer.accept();
+            } catch (IOException exception) {
+                if (!closed) {
+                    LOGGER.debug("Proxy accept failed: {}", exception.toString());
+                    close();
+                }
+                return;
+            }
+            startKwikTunnel(localSocket);
+        }
+    }
+
+    private void startKwikTunnel(Socket localSocket) {
+        if (!shareCode.isRendezvous()) {
+            startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS, () -> finishKwik(localSocket));
+            return;
+        }
+
+        pendingRetrySockets.add(localSocket);
+        if (relayTransportActive) {
+            startKwikAttempt(localSocket, P2pConstants.KWIK_RELAY_TIMEOUT_MS, () -> finishKwik(localSocket));
+            return;
+        }
+        startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS,
+            () -> P2pRuntime.start("safra-kwik-direct-retry", () -> retryDirectKwik(localSocket)));
+    }
+
+    private void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
         int connectionId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-        ReliableTunnelConnection connection = new ReliableTunnelConnection(
+        LOGGER.debug("Safra Kwik client accepted local Minecraft connection {}; dialing {} (timeout={}ms)",
+            connectionId, remoteAddress, timeoutMs);
+        P2pKwikClientTunnel connection = new P2pKwikClientTunnel(
             LOGGER,
-            "client",
             tunnelToken,
             connectionId,
-            remoteAddress,
             localSocket,
-            this::sendPacket,
-            this::removeConnection,
-            scheduler,
-            true,
-            relayTransportActive ? null : this::fallbackOpenToRelay
+            timeoutMs,
+            packet -> sendPacket(packet, remoteAddress),
+            () -> removeConnection(connectionId),
+            failure,
+            () -> pendingRetrySockets.remove(localSocket)
         );
         connections.put(connectionId, connection);
         connection.start();
     }
 
+    private void retryDirectKwik(Socket localSocket) {
+        if (closed || rendezvousSession == null || relayTransportActive) {
+            openRelayKwik(localSocket);
+            return;
+        }
+
+        P2pTransportBinding freshBinding = null;
+        try {
+            freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(stunClient);
+            InetSocketAddress refreshedHostAddress = rendezvousSession.refreshDirect(freshBinding.publicEndpoints());
+            if (refreshedHostAddress == null
+                || !freshBinding.stunEndpoints().containsKey(P2pSockets.addressFamily(refreshedHostAddress))) {
+                throw new IOException("Fresh direct endpoint and host use different IP families");
+            }
+
+            P2pDatagramTransport previousTransport = transport;
+            transport = freshBinding.transport();
+            remoteAddress = refreshedHostAddress;
+            relayTransportActive = false;
+            freshBinding = null;
+            if (previousTransport != null && !previousTransport.isClosed()) {
+                previousTransport.close();
+            }
+            LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
+            startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS,
+                () -> P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket)));
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.info("Safra could not prepare the second direct Kwik attempt, falling back to TURN: {}", exception.toString());
+            openRelayKwik(localSocket);
+        } finally {
+            if (freshBinding != null) {
+                freshBinding.close();
+            }
+        }
+    }
+
+    private void openRelayKwik(Socket localSocket) {
+        if (closed || rendezvousSession == null || P2pConstants.neverUseRelayServer()) {
+            finishKwik(localSocket);
+            return;
+        }
+
+        try {
+            RelayRoute relayRoute = createRelayRoute();
+            P2pDatagramTransport previousTransport = transport;
+            transport = relayRoute.binding().transport();
+            remoteAddress = relayRoute.address();
+            tunnelToken = relayRoute.tunnelToken();
+            relayTransportActive = true;
+            if (previousTransport != null && !previousTransport.isClosed()) {
+                previousTransport.close();
+            }
+            LOGGER.info("Safra starting a Kwik attempt over TURN against {}", remoteAddress);
+            startKwikAttempt(localSocket, P2pConstants.KWIK_RELAY_TIMEOUT_MS, () -> finishKwik(localSocket));
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.warn("Safra could not set up the TURN Kwik fallback", exception);
+            failureKind = P2pErrorKind.classify(exception);
+            finishKwik(localSocket);
+        }
+    }
+
+    private void finishKwik(Socket localSocket) {
+        pendingRetrySockets.remove(localSocket);
+        closeQuietly(localSocket);
+    }
+
+    private void closeQuietly(Socket socket) {
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+        }
+    }
+
     private void receiveLoop() {
-        P2pDatagramTransport activeTransport = transport;
         byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
         while (!closed) {
+            P2pDatagramTransport activeTransport = transport;
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 if (activeTransport == null) {
@@ -233,6 +324,9 @@ public final class P2pClientProxy implements AutoCloseable {
             } catch (IOException exception) {
                 if (!closed) {
                     LOGGER.debug("Client UDP receive failed: {}", exception.toString());
+                    if (activeTransport != transport) {
+                        continue;
+                    }
                 }
                 return;
             }
@@ -242,7 +336,13 @@ public final class P2pClientProxy implements AutoCloseable {
                 continue;
             }
 
-            ReliableTunnelConnection connection = connections.get(decoded.connectionId());
+            if (decoded.type() == P2pPacket.Type.PUNCH) {
+                InetSocketAddress senderAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
+                sendPacket(P2pPacket.punch(tunnelToken), senderAddress);
+                continue;
+            }
+
+            P2pKwikClientTunnel connection = connections.get(decoded.connectionId());
             if (connection != null) {
                 connection.handlePacket(decoded);
             }
@@ -264,89 +364,8 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void removeConnection(int connectionId) {
         connections.remove(connectionId);
-        scheduler.schedule(this::closeIfIdle, 1L, TimeUnit.SECONDS);
-    }
-
-    private void fallbackOpenToRelay(ReliableTunnelConnection connection) {
-        if (closed || rendezvousSession == null) {
-            connection.failOpenFallback();
-            return;
-        }
-
-        if (!directRetryAttempted && P2pConstants.useApi30Rendezvous()) {
-            directRetryAttempted = true;
-            try {
-                if (retryOpenWithFreshDirectBinding(connection)) {
-                    return;
-                }
-            } catch (IOException | RuntimeException exception) {
-                LOGGER.info("Safra fresh direct P2P retry could not be prepared, TURN will be used: {}", exception.toString());
-            }
-        }
-
-        if (P2pConstants.neverUseRelayServer()) {
-            connection.failOpenFallback();
-            return;
-        }
-
-        LOGGER.info("Safra direct P2P tuneli acilmadi, TURN fallback baslatiliyor: {}", remoteAddress);
-        try {
-            RelayRoute relayRoute = createRelayRoute();
-            if (closed || connection.isOpened()) {
-                relayRoute.binding().close();
-                return;
-            }
-            P2pDatagramTransport previousTransport = transport;
-            transport = relayRoute.binding().transport();
-            relayTransportActive = true;
-            remoteAddress = relayRoute.address();
-            tunnelToken = relayRoute.tunnelToken();
-            P2pRuntime.start("safra-p2p-client-relay-recv", this::receiveLoop);
-            connection.retryOpen(remoteAddress);
-            if (previousTransport != null && previousTransport != transport && !previousTransport.isClosed()) {
-                previousTransport.close();
-            }
-            LOGGER.info("Safra TURN fallback hazir, tunel yeniden deneniyor: {}", remoteAddress);
-        } catch (IOException | RuntimeException exception) {
-            LOGGER.warn("Safra TURN fallback kurulamadı", exception);
-            connection.failOpenFallback();
-        }
-    }
-
-    private boolean retryOpenWithFreshDirectBinding(ReliableTunnelConnection connection) throws IOException {
-        P2pTransportBinding freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(LOGGER, stunClient);
-        boolean switched = false;
-        try {
-            if (closed || connection.isOpened()) {
-                return true;
-            }
-            InetSocketAddress refreshedHostAddress = rendezvousSession.refreshDirect(freshBinding.publicEndpoints());
-            if (refreshedHostAddress == null) {
-                throw new IOException("Rendezvous server did not refresh the direct host address");
-            }
-            if (!freshBinding.stunEndpoints().containsKey(P2pSockets.addressFamily(refreshedHostAddress))) {
-                throw new IOException("Fresh direct endpoint and host use different IP families");
-            }
-            if (closed || connection.isOpened()) {
-                return true;
-            }
-
-            P2pDatagramTransport previousTransport = transport;
-            transport = freshBinding.transport();
-            relayTransportActive = false;
-            remoteAddress = refreshedHostAddress;
-            P2pRuntime.start("safra-p2p-client-direct-retry-recv", this::receiveLoop);
-            connection.retryDirectOpen(remoteAddress);
-            switched = true;
-            if (previousTransport != null && previousTransport != transport && !previousTransport.isClosed()) {
-                previousTransport.close();
-            }
-            LOGGER.info("Safra P2P fresh STUN mapping ready, direct tunnel is being retried: {}", remoteAddress);
-            return true;
-        } finally {
-            if (!switched) {
-                freshBinding.close();
-            }
+        if (!closed) {
+            scheduler.schedule(this::closeIfIdle, 1L, TimeUnit.SECONDS);
         }
     }
 
@@ -357,26 +376,18 @@ public final class P2pClientProxy implements AutoCloseable {
 
         P2pTransportBinding relayBinding = null;
         try {
-            if (!P2pConstants.useApi30Rendezvous()) {
-                relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
-            }
-
-            SafraRendezvousClient.ResolvedRelay relay = rendezvousSession.requestRelayFallback(
-                relayBinding == null ? java.util.List.of() : relayBinding.publicEndpoints()
-            );
+            SafraRendezvousClient.ResolvedRelay relay = rendezvousSession.requestRelayFallback(List.of());
             if (relay == null || relay.address() == null) {
                 throw new IOException("Rendezvous server did not return a relay address");
             }
+            if (relay.credentials() == null) {
+                throw new IOException("Rendezvous server did not return TURN credentials");
+            }
 
-            if (relayBinding == null) {
-                if (relay.credentials() == null) {
-                    throw new IOException("Rendezvous server did not return TURN credentials");
-                }
-                relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join", relay.credentials());
-                relay = rendezvousSession.requestRelayFallback(relayBinding.publicEndpoints());
-                if (relay == null || relay.address() == null) {
-                    throw new IOException("Rendezvous server did not return a host relay address");
-                }
+            relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join", relay.credentials());
+            relay = rendezvousSession.requestRelayFallback(relayBinding.publicEndpoints());
+            if (relay == null || relay.address() == null) {
+                throw new IOException("Rendezvous server did not return a host relay address");
             }
 
             int relayTunnelToken = relay.tunnelToken() == 0 ? tunnelToken : relay.tunnelToken();
@@ -391,7 +402,7 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void closeIfIdle() {
-        if (!closed && connections.isEmpty()) {
+        if (!closed && connections.isEmpty() && pendingRetrySockets.isEmpty()) {
             close();
         }
     }

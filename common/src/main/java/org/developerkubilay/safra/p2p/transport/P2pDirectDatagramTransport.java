@@ -23,9 +23,7 @@ public final class P2pDirectDatagramTransport implements P2pDatagramTransport {
 
     @Override
     public void send(DatagramPacket packet) throws IOException {
-        synchronized (socket) {
-            socket.send(packet);
-        }
+        socket.send(packet);
     }
 
     @Override

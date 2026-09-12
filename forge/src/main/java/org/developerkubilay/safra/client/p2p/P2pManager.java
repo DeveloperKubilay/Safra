@@ -55,12 +55,8 @@ public final class P2pManager {
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
         stopHosting();
 
-        String rendezvousCode = P2pConstants.useApi30Rendezvous()
-            ? P2pHostSupport.resolvePreferredRendezvousCode(fixedCode)
-            : P2pShareCode.normalizeRendezvousCode(fixedCode);
-        int token = P2pConstants.useApi30Rendezvous()
-            ? P2pHostSupport.createRendezvousShareToken(rendezvousCode)
-            : P2pHostSupport.createShareToken();
+        String rendezvousCode = P2pHostSupport.resolvePreferredRendezvousCode(fixedCode);
+        int token = P2pHostSupport.createRendezvousShareToken(rendezvousCode);
         P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;

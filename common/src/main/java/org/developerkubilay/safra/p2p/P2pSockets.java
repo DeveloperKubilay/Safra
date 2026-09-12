@@ -8,6 +8,8 @@ import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Collection;
+import java.util.Locale;
 
 public final class P2pSockets {
     private static final InetAddress IPV4_LOOPBACK = createIpv4Loopback();
@@ -44,24 +46,53 @@ public final class P2pSockets {
     static void tune(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
-        trySet(() -> socket.setReceiveBufferSize(P2pConstants.TCP_BUFFER_SIZE));
-        trySet(() -> socket.setSendBufferSize(P2pConstants.TCP_BUFFER_SIZE));
+        trySet(() -> socket.setReceiveBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES));
+        trySet(() -> socket.setSendBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES));
     }
 
     static InetAddress loopbackAddress() {
         return IPV4_LOOPBACK;
     }
 
-    static InetAddress ipv4WildcardAddress() {
-        return IPV4_ANY;
-    }
-
-    static String addressFamily(InetSocketAddress address) {
+    static AddressFamily addressFamily(InetSocketAddress address) {
         if (address == null || address.getAddress() == null) {
-            return "unknown";
+            return AddressFamily.UNKNOWN;
         }
 
-        return address.getAddress() instanceof Inet4Address ? "ipv4" : "ipv6";
+        return address.getAddress() instanceof Inet4Address ? AddressFamily.IPV4 : AddressFamily.IPV6;
+    }
+
+    /** The endpoint a peer should be told about: IPv4 when there is one, because the protocol carries a single address. */
+    static InetSocketAddress preferredEndpoint(Collection<InetSocketAddress> endpoints) {
+        if (endpoints == null) {
+            return null;
+        }
+
+        InetSocketAddress fallback = null;
+        for (InetSocketAddress endpoint : endpoints) {
+            if (endpoint == null || endpoint.getAddress() == null) {
+                continue;
+            }
+            if (addressFamily(endpoint) == AddressFamily.IPV4) {
+                return endpoint;
+            }
+            if (fallback == null) {
+                fallback = endpoint;
+            }
+        }
+        return fallback;
+    }
+
+    enum AddressFamily {
+        IPV4,
+        IPV6,
+        UNKNOWN;
+
+        private final String wireName = name().toLowerCase(Locale.ROOT);
+
+        String wireName() {
+            return wireName;
+        }
     }
 
     private static void tune(DatagramSocket socket) {
