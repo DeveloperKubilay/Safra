@@ -105,53 +105,18 @@ public final class P2pClientProxy implements AutoCloseable {
         } catch (IOException exception) {
             if (!binding.relay()) {
                 LOGGER.debug("Safra join direct path failed, trying TURN relay fallback: {}", exception.toString());
-                P2pTransportBinding turnBinding = null;
-                try {
-                    java.util.Collection<InetSocketAddress> relayRequestEndpoints = java.util.Collections.emptyList();
-                    if (!P2pConstants.useApi30Rendezvous()) {
-                        turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join");
-                        relayRequestEndpoints = turnBinding.publicEndpoints();
+                if (rendezvousSession != null) {
+                    try {
+                        RelayRoute relayRoute = createRelayRoute();
+                        transport = relayRoute.binding.transport();
+                        relayTransportActive = true;
+                        remoteAddress = relayRoute.address;
+                        tunnelToken = relayRoute.tunnelToken;
+                        binding.close();
+                        return;
+                    } catch (IOException relayException) {
+                        LOGGER.debug("Safra join relay request failed, trying the plain TURN fallback: {}", relayException.toString());
                     }
-                    SafraRendezvousClient.ResolvedRelay relay = rendezvousSession == null
-                        ? null
-                        : rendezvousSession.requestRelayFallback(relayRequestEndpoints);
-                    if (relay != null && relay.address() != null) {
-                        try {
-                            remoteAddress = relay.address();
-                            if (relay.tunnelToken() != 0) {
-                                tunnelToken = relay.tunnelToken();
-                            }
-                            if (turnBinding == null && relay.credentials() != null) {
-                                turnBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "join", relay.credentials());
-                                if (P2pConstants.useApi30Rendezvous() && rendezvousSession != null) {
-                                    relay = rendezvousSession.requestRelayFallback(turnBinding.publicEndpoints());
-                                    if (relay != null && relay.address() != null) {
-                                        remoteAddress = relay.address();
-                                    }
-                                }
-                            }
-                            if (turnBinding != null) {
-                                transport = turnBinding.transport();
-                                relayTransportActive = true;
-                                binding.close();
-                            }
-                            return;
-                        } catch (RuntimeException exception2) {
-                            if (turnBinding != null) {
-                                turnBinding.close();
-                            }
-                            throw exception2;
-                        }
-                    }
-                } catch (IOException relayException) {
-                    if (turnBinding != null) {
-                        turnBinding.close();
-                        turnBinding = null;
-                    }
-                    LOGGER.debug("Safra join relay request failed, trying the plain TURN fallback: {}", relayException.toString());
-                }
-                if (turnBinding != null) {
-                    turnBinding.close();
                 }
 
                 if (P2pConstants.useApi30Rendezvous()) {
