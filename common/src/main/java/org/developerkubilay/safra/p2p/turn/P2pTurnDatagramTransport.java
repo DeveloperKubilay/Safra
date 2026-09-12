@@ -42,6 +42,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private final OutputStream streamOutput;
     private final InetSocketAddress serverAddress;
     private final String clientTransport;
+    private final int requestTimeoutMs;
     private final Object sendMonitor = new Object();
     private final SecureRandom random = new SecureRandom();
     private final BlockingQueue<ReceivedDatagram> incoming = new LinkedBlockingQueue<>();
@@ -58,7 +59,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private volatile ScheduledFuture<?> refreshTask;
 
     private P2pTurnDatagramTransport(Logger logger, String role, DatagramSocket datagramSocket, Socket streamSocket,
-                                     InetSocketAddress serverAddress, String clientTransport,
+                                     InetSocketAddress serverAddress, String clientTransport, int requestTimeoutMs,
                                      String username, String credential) throws IOException {
         this.logger = logger;
         this.role = role;
@@ -68,6 +69,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         this.streamOutput = streamSocket == null ? null : streamSocket.getOutputStream();
         this.serverAddress = serverAddress;
         this.clientTransport = clientTransport;
+        this.requestTimeoutMs = requestTimeoutMs;
         this.username = username;
         this.credential = credential;
     }
@@ -131,6 +133,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 null,
                 serverAddress,
                 "UDP",
+                P2pConstants.TURN_UDP_REQUEST_TIMEOUT_MS,
                 credentials.username(),
                 credentials.credential()
             );
@@ -164,6 +167,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             socket.connect(serverAddress, P2pConstants.TURN_REQUEST_TIMEOUT_MS);
             socket.setTcpNoDelay(true);
             socket.setKeepAlive(true);
+            socket.setSoTimeout(P2pConstants.TURN_REQUEST_TIMEOUT_MS);
             if (tls) {
                 SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault())
                     .createSocket(socket, server.host(), server.port(), true);
@@ -173,9 +177,19 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 sslSocket.startHandshake();
                 socket = sslSocket;
             }
+            socket.setSoTimeout(0);
+
             P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
-                logger, role, null, socket, serverAddress, tls ? "TLS" : "TCP",
-                credentials.username(), credentials.credential());
+                logger,
+                role,
+                null,
+                socket,
+                serverAddress,
+                tls ? "TLS" : "TCP",
+                P2pConstants.TURN_REQUEST_TIMEOUT_MS,
+                credentials.username(),
+                credentials.credential()
+            );
             transport.start(credentials.ttlSeconds());
             success = true;
             logger.info("Safra TURN {} transport active via {}: {}", role, tls ? "TLS" : "TCP", describeServer(server));
@@ -442,6 +456,13 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         nonce = newNonce;
     }
 
+    /**
+     * A stream carries a request once and the transport itself makes sure it arrives. On UDP nothing
+     * does, so a single lost datagram ended the whole attempt and dropped the session to a stream
+     * relay, which is how a host and a joiner ended up on different transports and never met. RFC 5389
+     * asks for the request to go again after half a second, then a second, doubling until the deadline,
+     * and a retransmission repeats the transaction id so a late first answer still counts.
+     */
     private P2pTurnMessage sendRequestAwait(byte[] requestBytes) throws IOException {
         int requestType = messageType(requestBytes);
         byte[] transactionId = Arrays.copyOfRange(requestBytes, 8, 20);
@@ -451,12 +472,29 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         pendingTransactions.put(key, future);
 
         try {
-            trace("turn " + role + " send " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
-            sendBytes(requestBytes);
-            P2pTurnMessage response = future.get(P2pConstants.TURN_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            trace("turn " + role + " recv " + requestName(response.type()) + " tx=" + shortKey
-                + " code=" + response.errorCode() + " server=" + serverAddress);
-            return response;
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestTimeoutMs);
+            long waitMs = datagramSocket == null ? requestTimeoutMs : P2pConstants.TURN_RETRANSMIT_FIRST_MS;
+            while (true) {
+                trace("turn " + role + " send " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
+                sendBytes(requestBytes);
+                long remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+                if (remainingMs <= 0L) {
+                    trace("turn " + role + " timeout " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
+                    throw new IOException("TURN istegi zaman asimina ugradi");
+                }
+                try {
+                    P2pTurnMessage response = future.get(Math.min(waitMs, remainingMs), TimeUnit.MILLISECONDS);
+                    trace("turn " + role + " recv " + requestName(response.type()) + " tx=" + shortKey
+                        + " code=" + response.errorCode() + " server=" + serverAddress);
+                    return response;
+                } catch (TimeoutException retry) {
+                    if (datagramSocket == null) {
+                        trace("turn " + role + " timeout " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
+                        throw new IOException("TURN istegi zaman asimina ugradi", retry);
+                    }
+                    waitMs *= 2L;
+                }
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IOException("TURN istegi yarida kesildi", exception);
@@ -466,9 +504,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 throw (IOException) cause;
             }
             throw new IOException("TURN istegi basarisiz", cause);
-        } catch (TimeoutException exception) {
-            trace("turn " + role + " timeout " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
-            throw new IOException("TURN istegi zaman asimina ugradi", exception);
         } finally {
             pendingTransactions.remove(key);
         }
