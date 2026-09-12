@@ -143,6 +143,10 @@ abstract class OpenToLanScreenMixin extends Screen {
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
             this.safra$addClientSystemMessage(safra$discordLink());
+            String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+            if (!youtubeUrl.isBlank()) {
+                this.safra$addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+            }
         })).whenComplete((shareCode, throwable) -> {
             if (this.minecraft == null) {
                 return;
@@ -162,6 +166,13 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private static Component safra$discordLink() {
         String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
+    }
+
+    @Unique
+    private static Component safra$youtubeLink(String url) {
         return Component.literal(url)
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
