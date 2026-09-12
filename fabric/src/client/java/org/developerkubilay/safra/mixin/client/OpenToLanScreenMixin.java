@@ -180,21 +180,27 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private void safra$publishShareCode(int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         this.client.keyboard.setClipboard(shareCodeText);
 
         Text shareText = new LiteralText(shareCodeText)
             .setStyle(Style.EMPTY
                 .withColor(Formatting.AQUA)
             );
-        this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             this.client.inGameHud.getChatHud().addMessage(
                 new TranslatableText("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).formatted(Formatting.YELLOW)
             );
         }
 
-        this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.copied"));
+        if (!hidden) {
+            this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.copied"));
+        }
         this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.instructions"));
     }
 

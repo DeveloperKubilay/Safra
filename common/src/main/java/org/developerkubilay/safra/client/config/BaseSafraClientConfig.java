@@ -26,6 +26,7 @@ public abstract class BaseSafraClientConfig {
     protected String openToLanFixedCode = "";
     protected Map<String, String> openToLanGameRules = new LinkedHashMap<>();
     protected boolean directConnectP2pEnabled = true;
+    protected boolean dontSayCode = false;
     protected boolean neverUseRelayServer = false;
     protected String rendezvousUrl = "";
     protected String siteApiVersion = "3.0";
@@ -63,6 +64,10 @@ public abstract class BaseSafraClientConfig {
             this.directConnectP2pEnabled = directConnectP2pEnabled;
             save();
         }
+    }
+
+    public synchronized boolean isDontSayCode() {
+        return dontSayCode;
     }
 
     public synchronized boolean isNeverUseRelayServer() {
