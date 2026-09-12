@@ -576,16 +576,6 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
     }
 
-    private static boolean forceDirectThenTurnRelay() {
-        String property = System.getProperty("safra.p2p.forceDirectThenTurn");
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        return environment != null && !environment.trim().isEmpty() && Boolean.parseBoolean(environment.trim());
-    }
-
     private static String describeServers(P2pTurnCredentials credentials) {
         if (credentials == null || credentials.udpServers() == null || credentials.udpServers().isEmpty()) {
             return "[]";

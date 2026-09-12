@@ -66,10 +66,10 @@ public final class P2pConstants {
     private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
-    private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
-    private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
     private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
+    private static final String RENDEZVOUS_URL_PROPERTY = "safra.rendezvousUrl";
+    private static final String RENDEZVOUS_TOKEN_PROPERTY = "safra.rendezvousToken";
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
     private static final String TEST_MODE_HOST_FAIL_SAFE = "hostfailsafe";
     static final String[][] STUN_SERVER_GROUPS = {
@@ -106,17 +106,7 @@ public final class P2pConstants {
     }
 
     public static boolean hasExplicitRendezvousUrlOverride() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.trim().isEmpty()) {
-            return true;
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return true;
-        }
-
-        return false;
+        return override(RENDEZVOUS_URL_PROPERTY) != null;
     }
 
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
@@ -144,60 +134,28 @@ public final class P2pConstants {
     }
 
     public static String rendezvousUrl() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.trim().isEmpty()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return environment.trim();
+        String override = override(RENDEZVOUS_URL_PROPERTY);
+        if (override != null) {
+            return override;
         }
 
         String runtime = runtimeRendezvousUrl;
-        if (runtime != null && !runtime.trim().isEmpty()) {
-            return runtime.trim();
-        }
-
-        return "";
+        return runtime == null || runtime.trim().isEmpty() ? "" : runtime.trim();
     }
 
     public static String rendezvousToken() {
-        String property = System.getProperty("safra.rendezvousToken");
-        if (property != null && !property.trim().isEmpty()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_TOKEN");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return environment.trim();
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_TOKEN");
-        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
-            return legacyEnvironment.trim();
-        }
-
-        return "";
+        String override = override(RENDEZVOUS_TOKEN_PROPERTY);
+        return override == null ? "" : override;
     }
 
     public static String siteApiVersion() {
-        String property = System.getProperty(SITE_API_VERSION_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return normalizeSiteApiVersion(property);
-        }
-
-        String environment = System.getenv("SAFRA_SITE_API_VERSION");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return normalizeSiteApiVersion(environment);
+        String override = override(SITE_API_VERSION_PROPERTY);
+        if (override != null) {
+            return normalizeSiteApiVersion(override);
         }
 
         String runtime = runtimeSiteApiVersion;
-        if (runtime != null && !runtime.trim().isEmpty()) {
-            return normalizeSiteApiVersion(runtime);
-        }
-
-        return "3.0";
+        return runtime == null || runtime.trim().isEmpty() ? "3.0" : normalizeSiteApiVersion(runtime);
     }
 
     public static boolean useApi30Rendezvous() {
@@ -225,46 +183,32 @@ public final class P2pConstants {
         return booleanProperty("safra.p2p.trace", false);
     }
 
+    /**
+     * Both of these force a session onto the relay, and relay traffic is metered to whoever runs the
+     * TURN servers. A property or an environment variable would let anyone talk a player into paying
+     * that bill on their behalf, so the answer is baked in at build time and a release simply cannot
+     * be told to do it: -Pbuild_mode=directThenTurn produces the build that can.
+     */
     static boolean forceDirectThenTurnRelay() {
-        String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
         return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
     }
 
     static boolean forceHostFailSafeRelay() {
-        String property = System.getProperty(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
         return TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
     }
 
     static boolean neverUseRelayServer() {
-        String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
+        String override = override(NEVER_USE_RELAY_SERVER_PROPERTY);
+        return override != null ? Boolean.parseBoolean(override) : runtimeNeverUseRelayServer;
+    }
 
-        String environment = System.getenv("SAFRA_NEVER_USE_RELAY_SERVER");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return runtimeNeverUseRelayServer;
+    /**
+     * A system property alone. An environment variable is inherited by everything a machine launches
+     * and outlives the session that set it, which is more reach than a developer switch needs.
+     */
+    private static String override(String propertyKey) {
+        String property = System.getProperty(propertyKey);
+        return property == null || property.trim().isEmpty() ? null : property.trim();
     }
 
     private static String buildTestMode() {
