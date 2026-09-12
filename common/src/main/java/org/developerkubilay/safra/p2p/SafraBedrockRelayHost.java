@@ -157,6 +157,9 @@ final class SafraBedrockRelayHost implements AutoCloseable {
         try {
             PlayerTunnel player = new PlayerTunnel(playerId, geyserAddress);
             player.start();
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra relayed Bedrock player {} to the local Geyser on {}", playerId, geyserAddress);
+            }
             return player;
         } catch (IOException exception) {
             LOGGER.warn("Safra could not open local Geyser tunnel for Bedrock player {}: {}", playerId, exception.toString());

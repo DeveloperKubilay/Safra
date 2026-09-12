@@ -5,61 +5,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.developerkubilay.safra.p2p.P2pConstants;
-import org.developerkubilay.safra.p2p.SafraBuildInfo;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 
 public final class P2pTurnCredentialClient {
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
-        .build();
-
     private P2pTurnCredentialClient() {
-    }
-
-    public static P2pTurnCredentials fetch(String role, boolean turnOnly) throws IOException {
-        if (!P2pConstants.hasRendezvousUrl()) {
-            throw new IOException("TURN requires a rendezvous URL");
-        }
-
-        URI uri = turnCredentialsUri(role, turnOnly);
-        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
-            .timeout(Duration.ofMillis(P2pConstants.RENDEZVOUS_TIMEOUT_MS))
-            .GET();
-
-        HttpResponse<String> response;
-        try {
-            response = HTTP_CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IOException("TURN credential request was interrupted", exception);
-        }
-
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("TURN credential request returned HTTP " + response.statusCode());
-        }
-
-        JsonObject json;
-        try {
-            json = new JsonParser().parse(response.body()).getAsJsonObject();
-        } catch (RuntimeException exception) {
-            throw new IOException("TURN credential response contained invalid JSON", exception);
-        }
-
-        return parse(json);
     }
 
     public static P2pTurnCredentials parse(JsonObject json) throws IOException {
@@ -122,23 +76,6 @@ public final class P2pTurnCredentialClient {
         );
     }
 
-    private static URI turnCredentialsUri(String role, boolean turnOnly) {
-        String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
-        URI baseUri = URI.create(base);
-        String scheme = switch (baseUri.getScheme().toLowerCase(Locale.ROOT)) {
-            case "http", "https" -> baseUri.getScheme().toLowerCase(Locale.ROOT);
-            case "ws" -> "http";
-            case "wss" -> "https";
-            default -> throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
-        };
-        String identifier = "safra-" + role + "-" + SafraBuildInfo.minecraftVersion() + "-"
-            + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        String query = "mode=" + encode(turnOnly ? "turn-only" : "auto")
-            + "&ttl=" + P2pConstants.turnCredentialTtlSeconds()
-            + "&customIdentifier=" + encode(identifier);
-        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v3/turn/credentials?" + query);
-    }
-
     private static void addServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers,
                                   Set<P2pTurnCredentials.TurnServer> tcpServers,
                                   Set<P2pTurnCredentials.TurnServer> tlsServers) {
@@ -199,10 +136,6 @@ public final class P2pTurnCredentialClient {
             }
         }
         return null;
-    }
-
-    private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String string(JsonObject object, String key) {

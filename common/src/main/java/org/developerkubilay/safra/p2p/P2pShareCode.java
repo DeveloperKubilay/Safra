@@ -2,16 +2,17 @@ package org.developerkubilay.safra.p2p;
 
 import com.google.common.net.HostAndPort;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.ThreadLocalRandom;
+import java.security.SecureRandom;
 import java.util.regex.Pattern;
 
 public record P2pShareCode(String host, int port, int token, String rendezvousCode) {
     public static final int DEFAULT_RENDEZVOUS_CODE_LENGTH = 12;
     public static final int FIXED_RENDEZVOUS_CODE_LENGTH = 16;
+    private static final SecureRandom CODE_RANDOM = new SecureRandom();
     private static final String RENDEZVOUS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final Pattern RENDEZVOUS_CODE_PATTERN = Pattern.compile("[A-HJ-NP-Z2-9]{6,16}");
 
@@ -133,13 +134,14 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
         return new P2pShareCode("", 0, 0, code);
     }
 
+    /** A demultiplexing tag derived from the share code, not a secret: anyone holding the code can compute it. */
     public static int rendezvousTunnelToken(String code) {
         String normalized = normalizeRendezvousCode(code);
         if (normalized == null) {
             throw new IllegalArgumentException("rendezvous code is invalid");
         }
 
-        int token = java.util.Arrays.hashCode(normalized.getBytes(StandardCharsets.UTF_8));
+        int token = Arrays.hashCode(normalized.getBytes(StandardCharsets.UTF_8));
         return token == 0 ? 0x51F15EED : token;
     }
 
@@ -152,10 +154,9 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
             throw new IllegalArgumentException("rendezvous code length out of range");
         }
 
-        ThreadLocalRandom random = ThreadLocalRandom.current();
         StringBuilder builder = new StringBuilder(length);
         for (int index = 0; index < length; index++) {
-            builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(random.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
+            builder.append(RENDEZVOUS_CODE_ALPHABET.charAt(CODE_RANDOM.nextInt(RENDEZVOUS_CODE_ALPHABET.length())));
         }
         return builder.toString();
     }
@@ -175,14 +176,6 @@ public record P2pShareCode(String host, int port, int token, String rendezvousCo
 
         String base = HostAndPort.fromParts(host, port).toString();
         return token == 0 ? base : base + "#" + Integer.toUnsignedString(token, 36);
-    }
-
-    public InetSocketAddress toSocketAddress() {
-        if (isRendezvous()) {
-            throw new IllegalStateException("rendezvous code must be resolved before opening a socket");
-        }
-
-        return new InetSocketAddress(host, port);
     }
 
     public static String normalizeRendezvousCode(String rawCode) {

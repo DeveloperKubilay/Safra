@@ -45,7 +45,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 def targetJavaVersion = 21
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
@@ -118,16 +117,11 @@ neoForge {
     runs {
         client {
             client()
-            systemProperty 'safra.p2p.diagnostics', 'true'
-            if (forceDirectThenTurn) {
-                systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
-            }
             programArgument '--username'
             programArgument devUsername
         }
         server {
             server()
-            systemProperty 'safra.p2p.diagnostics', 'false'
             programArgument '--nogui'
         }
     }
@@ -139,7 +133,16 @@ neoForge {
     }
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -157,6 +160,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     inputs.property 'pack_format', project.pack_format
     inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
@@ -182,7 +186,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'neoforge',
             loader_version: project.neo_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 
@@ -195,6 +200,11 @@ processResources {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(mixinRefmapFile)
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }

@@ -23,9 +23,6 @@ base {
 }
 
 def devUsername = rootProject.ext.devRunUsername(project)
-def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
-def quicNettyVersion = rootProject.ext.quicNettyVersion
-def quicNativeClassifier = rootProject.ext.quicNativeClassifier()
 def rootRunClientRequested = gradle.startParameter.taskNames.any {
     it.equalsIgnoreCase('runClient') || it.equalsIgnoreCase(':runClient')
 }
@@ -68,17 +65,10 @@ minecraft {
             register('client') {
                 systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
                 systemProperty 'java.net.preferIPv4Stack', 'false'
-                systemProperty 'safra.p2p.diagnostics', 'true'
-                systemProperty 'safra.p2p.experimentalQuic', 'true'
-                if (forceDirectThenTurn) {
-                    systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
-                }
                 args '--username', devUsername
             }
 
             register('server') {
-                systemProperty 'safra.p2p.diagnostics', 'true'
-                systemProperty 'safra.p2p.experimentalQuic', 'true'
                 args '--nogui'
             }
         }
@@ -92,13 +82,17 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
-    compileOnly "io.netty:netty-codec-classes-quic:${quicNettyVersion}"
-    runtimeOnly "io.netty:netty-pkitesting:${quicNettyVersion}"
-    if (quicNativeClassifier != null) {
-        runtimeOnly "io.netty:netty-codec-native-quic:${quicNettyVersion}:${quicNativeClassifier}"
-    }
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -263,6 +257,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     inputs.property 'pack_format', project.pack_format
     inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
@@ -287,7 +282,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'forge',
             loader_version: project.forge_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 
@@ -301,6 +297,10 @@ processResources {
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }

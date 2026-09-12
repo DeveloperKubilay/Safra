@@ -12,6 +12,7 @@ public final class SafraBuildInfo {
     private static final String loaderName;
     private static final String loaderVersion;
     private static final String testMode;
+    private static final boolean diagnostics;
 
     static {
         Properties properties = new Properties();
@@ -27,6 +28,7 @@ public final class SafraBuildInfo {
         loaderName = value(properties, "loaderName");
         loaderVersion = value(properties, "loaderVersion");
         testMode = value(properties, "testMode", DEFAULT_TEST_MODE);
+        diagnostics = Boolean.parseBoolean(value(properties, "diagnostics", "false"));
     }
 
     private SafraBuildInfo() {
@@ -40,16 +42,28 @@ public final class SafraBuildInfo {
         return minecraftVersion;
     }
 
-    public static String loaderName() {
-        return loaderName;
-    }
-
-    public static String loaderVersion() {
-        return loaderVersion;
-    }
-
     public static String testMode() {
         return testMode;
+    }
+
+    /** Whether this build measures and reports what its links are doing. Off in a release. */
+    public static boolean diagnostics() {
+        return diagnostics;
+    }
+
+    public static String userAgent() {
+        return "Safra/" + userAgentValue(modVersion)
+            + " Minecraft/" + userAgentValue(minecraftVersion)
+            + " Loader/" + userAgentValue(loaderName)
+            + " LoaderVersion/" + userAgentValue(loaderVersion)
+            + " Java/" + userAgentValue(System.getProperty("java.version", DEFAULT_VERSION));
+    }
+
+    private static String userAgentValue(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_VERSION;
+        }
+        return value.trim().replaceAll("[^a-zA-Z0-9._+:-]", "_");
     }
 
     private static String value(Properties properties, String key) {

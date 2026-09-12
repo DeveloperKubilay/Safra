@@ -19,6 +19,7 @@ java {
 }
 
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
@@ -31,6 +32,7 @@ processResources {
     inputs.property 'loader_name', 'common'
     inputs.property 'loader_version', 'unknown'
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     inputs.property 'pack_format', project.pack_format
     inputs.property 'supported_formats_json', project.supported_formats_json
     filteringCharset = 'UTF-8'
@@ -41,7 +43,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'common',
             loader_version: 'unknown',
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 

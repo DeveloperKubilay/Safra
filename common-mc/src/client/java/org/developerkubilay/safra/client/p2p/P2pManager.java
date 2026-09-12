@@ -7,6 +7,7 @@ import net.minecraft.client.server.IntegratedServer;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.P2pErrorKind;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
@@ -19,6 +20,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 public final class P2pManager {
@@ -36,6 +38,7 @@ public final class P2pManager {
     private volatile CompletableFuture<RewriteResult> rewriteFuture;
     private boolean pendingClientFailureContext;
     private boolean pendingDirectShareFailureContext;
+    private P2pErrorKind pendingFailureKind = P2pErrorKind.OTHER;
     private long hostStartGeneration;
     private long rewriteGeneration;
 
@@ -46,23 +49,11 @@ public final class P2pManager {
         return INSTANCE;
     }
 
-    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
-        return startHostingAsync(tcpPort, null, null);
-    }
-
-    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode) {
-        return startHostingAsync(tcpPort, fixedCode, null);
-    }
-
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
         stopHosting();
 
-        String rendezvousCode = P2pConstants.useApi30Rendezvous()
-            ? P2pHostSupport.resolvePreferredRendezvousCode(fixedCode)
-            : P2pShareCode.normalizeRendezvousCode(fixedCode);
-        int token = P2pConstants.useApi30Rendezvous()
-            ? P2pHostSupport.createRendezvousShareToken(rendezvousCode)
-            : P2pHostSupport.createShareToken();
+        String rendezvousCode = P2pHostSupport.resolvePreferredRendezvousCode(fixedCode);
+        int token = P2pHostSupport.createRendezvousShareToken(rendezvousCode);
         P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;
@@ -80,22 +71,16 @@ public final class P2pManager {
                     hostService = service;
                     return shareCode;
                 }
-            } catch (IOException exception) {
+            } catch (IOException | RuntimeException exception) {
                 service.close();
                 synchronized (P2pManager.this) {
                     if (startingHostService == service) {
                         startingHostService = null;
                     }
                 }
-                throw new CompletionException(exception);
-            } catch (RuntimeException exception) {
-                service.close();
-                synchronized (P2pManager.this) {
-                    if (startingHostService == service) {
-                        startingHostService = null;
-                    }
-                }
-                throw exception;
+                throw exception instanceof RuntimeException runtimeException
+                    ? runtimeException
+                    : new CompletionException(exception);
             }
         }, BACKGROUND_EXECUTOR);
 
@@ -123,12 +108,6 @@ public final class P2pManager {
             hostService.close();
             hostService = null;
         }
-    }
-
-    public synchronized RewriteResult createRewrite(ServerData originalServerInfo) throws IOException {
-        long generation = ++rewriteGeneration;
-        cancelPendingRewriteInternal();
-        return createRewrite(originalServerInfo, generation);
     }
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
@@ -165,24 +144,28 @@ public final class P2pManager {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         P2pShareCode shareCode = P2pShareCode.parse(originalServerInfo.ip);
 
-        P2pClientProxy[] proxyRef = new P2pClientProxy[1];
+        AtomicReference<P2pClientProxy> proxyReference = new AtomicReference<>();
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
             synchronized (P2pManager.this) {
-                if (activeClientProxy == proxyRef[0]) {
+                if (activeClientProxy == proxyReference.get()) {
+                    // The proxy closes a second after it gives up, which can be before the
+                    // disconnect screen asks why. Keep the reason it carried.
+                    pendingFailureKind = activeClientProxy.failureKind();
                     activeClientProxy = null;
                 }
-                if (startingClientProxy == proxyRef[0]) {
+                if (startingClientProxy == proxyReference.get()) {
                     startingClientProxy = null;
                 }
             }
         });
-        proxyRef[0] = proxy;
+        proxyReference.set(proxy);
         synchronized (this) {
             if (rewriteGeneration != generation) {
                 throw new CancellationException("Safra P2P connection prepare was canceled");
             }
             pendingClientFailureContext = false;
             pendingDirectShareFailureContext = false;
+            pendingFailureKind = P2pErrorKind.OTHER;
             startingClientProxy = proxy;
         }
         int localPort;
@@ -222,6 +205,7 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
+        pendingFailureKind = P2pErrorKind.OTHER;
     }
 
     public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {
@@ -232,12 +216,17 @@ public final class P2pManager {
 
     public void tick(Minecraft client) {
         P2pHostService service = hostService;
-        if (service == null) {
+        if (service == null && startingHostService == null) {
             return;
         }
 
+        // A host that is still resolving STUN and the rendezvous has no port to compare yet, but it
+        // does have to hear that the world it was opening is gone.
         if (client.level == null) {
             stopHosting();
+            return;
+        }
+        if (service == null) {
             return;
         }
 
@@ -287,9 +276,11 @@ public final class P2pManager {
     public synchronized ClientFailureContext consumeClientFailureContext() {
         boolean p2p = pendingClientFailureContext || activeClientProxy != null;
         boolean direct = pendingDirectShareFailureContext || activeClientUsesDirectShareAddress();
+        P2pErrorKind kind = activeClientProxy == null ? pendingFailureKind : activeClientProxy.failureKind();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
-        return new ClientFailureContext(p2p, direct);
+        pendingFailureKind = P2pErrorKind.OTHER;
+        return new ClientFailureContext(p2p, direct, kind);
     }
 
     private void cancelPendingRewriteInternal() {
@@ -314,6 +305,6 @@ public final class P2pManager {
     public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
     }
 
-    public record ClientFailureContext(boolean p2p, boolean directShareAddress) {
+    public record ClientFailureContext(boolean p2p, boolean directShareAddress, P2pErrorKind kind) {
     }
 }

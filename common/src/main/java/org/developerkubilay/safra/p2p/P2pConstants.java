@@ -1,78 +1,73 @@
 package org.developerkubilay.safra.p2p;
 
+import java.net.URI;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 public final class P2pConstants {
     public static final String DEFAULT_RENDEZVOUS_URL = "https://safra.randdcodes.com";
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
-    static final byte PROTOCOL_VERSION = 1;
-    static final int HEADER_SIZE = 18;
+    static final byte PROTOCOL_VERSION = 2;
+    static final int HEADER_SIZE = 10;
+    // 1200 is the QUIC datagram RFC 9000 assumes every network carries; the Safra header takes the
+    // outer packet to 1210. Kwik will pick its own size, but it fills that budget exactly without
+    // knowing about the header, so it overshoots by ten bytes for a gain of 1.8%.
     static final int MAX_PAYLOAD_SIZE = 1200;
+    static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
+    static final int KWIK_VIRTUAL_PORT = 4433;
+    static final int KWIK_IDLE_TIMEOUT_SECONDS = 30;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
-    static final int MIN_SEND_WINDOW_SIZE = 8;
-    static final int INITIAL_SEND_WINDOW_SIZE = 32;
-    static final int MAX_SEND_WINDOW_SIZE = 256;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
-    static final int TCP_BUFFER_SIZE = 256 * 1024;
-    static final long MAINTENANCE_TICK_MS = 25L;
-    static final long OPEN_RESEND_MS = 500L;
-    static final long DIRECT_OPEN_FALLBACK_MS = 8_000L;
-    static final long OPEN_TIMEOUT_MS = 20_000L;
+    /** How many datagrams a receive queue holds before it drops, sized like the socket buffer it stands in for. */
+    public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
+    static final int MIN_STREAM_WINDOW_BYTES = 32 * 1024;
+    static final int MAX_STREAM_WINDOW_BYTES = 256 * 1024;
+    private static final int STREAM_WINDOW_TARGET_BYTES_PER_SECOND = 1_500_000;
+    static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 7_000L;
+    /**
+     * When the host punches, spread over the attempt it is punching for. The last packet lands a
+     * second before the joiner gives up: a schedule that outlives the attempt is a packet the peer
+     * was never awake to answer, which is what the second attempt used to do at five seconds.
+     */
+    static final long[] PUNCH_DELAYS_MS = {0L, 100L, 250L, 500L, 1_000L, 1_500L, 2_500L, 4_000L, 6_000L};
+    static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
-    static final long INITIAL_RESEND_MS = 500L;
-    static final long MIN_RESEND_MS = 200L;
-    static final long MAX_RESEND_MS = 1_500L;
-    static final long KEEP_ALIVE_MS = 10_000L;
-    static final long CONNECTION_TIMEOUT_MS = 30_000L;
-    static final int SELECTIVE_ACK_BITS = 32;
-    static final int FAST_RETRANSMIT_DUP_ACKS = 3;
-    static final long DEFAULT_FAST_RETRANSMIT_GUARD_MS = 60L;
-    static final long MIN_FAST_RETRANSMIT_GUARD_MS = 30L;
-    static final long MAX_FAST_RETRANSMIT_GUARD_MS = 250L;
-    static final long NEGATIVE_ACK_REPEAT_MS = 30L;
-    static final long ACK_REINFORCE_DELAY_MS = 8L;
-    static final long DELAYED_ACK_MS = 2L;
-    static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
-    static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
-    static final long HEAD_OF_LINE_WARN_MS = 150L;
-    static final long WINDOW_STALL_WARN_MS = 150L;
-    static final long IDLE_RESTART_MIN_MS = 500L;
-    static final int PACING_BURST_PACKETS = 16;
-    static final long MIN_PACING_INTERVAL_NANOS = 50_000L;
-    static final long MAX_PACING_INTERVAL_NANOS = 50_000_000L;
-    static final long STUN_REFRESH_MS = 20_000L;
+    // A share code carries the public port STUN reported, and it is written once. The router only
+    // holds that port while something keeps using it, and a home router measured here dropped it
+    // somewhere between fifteen and twenty seconds, so refreshing every twenty arrived after the
+    // port had already been handed out again. Ten leaves room for the schedule to slip.
+    static final long STUN_REFRESH_MS = 10_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
+    public static final long RENDEZVOUS_REQUEST_TIMEOUT_MS = 8_000L;
     static final long RENDEZVOUS_RECONNECT_FIRST_DELAY_MS = 5_000L;
     static final long RENDEZVOUS_RECONNECT_DELAY_MS = 10_000L;
     static final long RENDEZVOUS_RECONNECT_SLOW_AFTER_MS = 60_000L;
     static final long RENDEZVOUS_RECONNECT_SLOW_DELAY_MS = 30_000L;
     static final long VOICE_HOST_WAIT_MS = 5_000L;
-    public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
+    public static final int TURN_REQUEST_TIMEOUT_MS = 8_000;
+    public static final int TURN_UDP_REQUEST_TIMEOUT_MS = 5_000;
+    public static final int TURN_UDP_ATTEMPTS = 2;
+    public static final int TURN_RETRANSMIT_FIRST_MS = 500;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;
     public static final int TURN_REFRESH_SAFETY_MARGIN_SECONDS = 60;
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
-    static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
     static final String ADDRESS_SCHEME = "p2p://";
-    private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
-    private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
-    private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
-    private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
-    private static final String FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY = "safra.p2p.forceHostFailSafeRelay";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
     private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
+    private static final String RENDEZVOUS_URL_PROPERTY = "safra.rendezvousUrl";
+    private static final String DEFAULT_SITE_API_VERSION = "3.0";
+    private static final Pattern SITE_API_VERSION_PATTERN = Pattern.compile("[a-z0-9][a-z0-9.-]{0,15}");
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
     private static final String TEST_MODE_HOST_FAIL_SAFE = "hostfailsafe";
-    static final String[][] STUN_SERVER_GROUPS = {
-        {
-            "stun.l.google.com:19302",
-            "stun1.l.google.com:19302",
-            "stun2.l.google.com:19302"
-        },
-        {
-            "stun.cloudflare.com:3478",
-            "global.stun.twilio.com:3478"
-        }
+    static final String[] STUN_SERVERS = {
+        "stun.l.google.com:19302",
+        "stun1.l.google.com:19302",
+        "stun2.l.google.com:19302",
+        "stun.cloudflare.com:3478",
+        "global.stun.twilio.com:3478"
     };
 
     private static volatile String runtimeRendezvousUrl;
@@ -87,6 +82,9 @@ public final class P2pConstants {
     }
 
     public static void applyDefaultRendezvousUrlIfAbsent() {
+        if ("test-only".equals(siteApiVersion())) {
+            return;
+        }
         if (!hasExplicitRendezvousUrlOverride() && (runtimeRendezvousUrl == null || runtimeRendezvousUrl.isBlank())) {
             runtimeRendezvousUrl = DEFAULT_RENDEZVOUS_URL;
         }
@@ -97,18 +95,7 @@ public final class P2pConstants {
     }
 
     public static boolean hasExplicitRendezvousUrlOverride() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
-            return true;
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
-            return true;
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        return legacyEnvironment != null && !legacyEnvironment.isBlank();
+        return override(RENDEZVOUS_URL_PROPERTY) != null;
     }
 
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
@@ -125,128 +112,77 @@ public final class P2pConstants {
         }
 
         try {
-            String scheme = java.net.URI.create(url.trim()).getScheme();
-            return "http".equalsIgnoreCase(scheme)
-                || "https".equalsIgnoreCase(scheme)
-                || "ws".equalsIgnoreCase(scheme)
-                || "wss".equalsIgnoreCase(scheme);
+            String scheme = URI.create(url.trim()).getScheme();
+            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
         } catch (RuntimeException exception) {
             return false;
         }
     }
 
     public static String rendezvousUrl() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.isBlank()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.isBlank()) {
-            return environment.trim();
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        if (legacyEnvironment != null && !legacyEnvironment.isBlank()) {
-            return legacyEnvironment.trim();
+        String override = override(RENDEZVOUS_URL_PROPERTY);
+        if (override != null) {
+            return override;
         }
 
         String runtime = runtimeRendezvousUrl;
-        if (runtime != null && !runtime.isBlank()) {
-            return runtime.trim();
-        }
-
-        return "";
+        return runtime == null || runtime.isBlank() ? "" : runtime.trim();
     }
 
     public static String siteApiVersion() {
-        String property = System.getProperty(SITE_API_VERSION_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return normalizeSiteApiVersion(property);
-        }
-
-        String environment = System.getenv("SAFRA_SITE_API_VERSION");
-        if (environment != null && !environment.isBlank()) {
-            return normalizeSiteApiVersion(environment);
+        String override = override(SITE_API_VERSION_PROPERTY);
+        if (override != null) {
+            return normalizeSiteApiVersion(override);
         }
 
         String runtime = runtimeSiteApiVersion;
-        if (runtime != null && !runtime.isBlank()) {
-            return normalizeSiteApiVersion(runtime);
-        }
-
-        return "3.0";
+        return runtime == null || runtime.isBlank() ? DEFAULT_SITE_API_VERSION : normalizeSiteApiVersion(runtime);
     }
 
-    public static boolean useApi30Rendezvous() {
-        return "3.0".equals(siteApiVersion());
-    }
-
-    static boolean diagnosticsEnabled() {
-        String property = System.getProperty(DIAGNOSTICS_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        return false;
-    }
-
-    static long diagnosticsSummaryMs() {
-        return longProperty(DIAGNOSTICS_INTERVAL_PROPERTY, DIAGNOSTIC_SUMMARY_MS);
-    }
-
-    static long diagnosticsTickDriftWarnMs() {
-        return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
-    }
-
+    /**
+     * Both of these force a session onto the relay, and relay traffic is metered to whoever runs the
+     * TURN servers. A property or an environment variable would let anyone talk a player into paying
+     * that bill on their behalf, so the answer is baked in at build time and a release simply cannot
+     * be told to do it: -Pbuild_mode=directThenTurn produces the build that can.
+     */
     static boolean forceDirectThenTurnRelay() {
-        String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
         return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
     }
 
     static boolean forceHostFailSafeRelay() {
-        String property = System.getProperty(FORCE_HOST_FAIL_SAFE_RELAY_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_HOST_FAIL_SAFE_RELAY");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
         return TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
     }
 
     static boolean neverUseRelayServer() {
-        String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
-        if (property != null && !property.isBlank()) {
-            return Boolean.parseBoolean(property.trim());
-        }
+        String override = override(NEVER_USE_RELAY_SERVER_PROPERTY);
+        return override != null ? Boolean.parseBoolean(override) : runtimeNeverUseRelayServer;
+    }
 
-        String environment = System.getenv("SAFRA_NEVER_USE_RELAY_SERVER");
-        if (environment != null && !environment.isBlank()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return runtimeNeverUseRelayServer;
+    /**
+     * A system property alone. An environment variable is inherited by everything a machine launches
+     * and outlives the session that set it, which is more reach than a developer switch needs.
+     */
+    private static String override(String propertyKey) {
+        String property = System.getProperty(propertyKey);
+        return property == null || property.isBlank() ? null : property.trim();
     }
 
     private static String buildTestMode() {
-        return SafraBuildInfo.testMode().trim().toLowerCase(java.util.Locale.ROOT);
+        return SafraBuildInfo.testMode().trim().toLowerCase(Locale.ROOT);
     }
 
     public static int turnCredentialTtlSeconds() {
         return integerProperty("safra.p2p.turnCredentialTtlSeconds", TURN_DEFAULT_CREDENTIAL_TTL_SECONDS);
+    }
+
+    /**
+     * Terrain and movement share one ordered stream, so whatever is queued ahead of a movement packet
+     * is time that packet waits; but a window below what a round trip carries leaves the link idle
+     * instead. The balance is the bandwidth-delay product, so it is measured per connection.
+     */
+    static int streamWindowBytes(int roundTripMs) {
+        long window = (long) STREAM_WINDOW_TARGET_BYTES_PER_SECOND * Math.max(1, roundTripMs) / 1000L;
+        return (int) Math.clamp(window, MIN_STREAM_WINDOW_BYTES, MAX_STREAM_WINDOW_BYTES);
     }
 
     public static int turnAllocationLifetimeSeconds() {
@@ -270,23 +206,11 @@ public final class P2pConstants {
         }
     }
 
-    private static long longProperty(String key, long fallback) {
-        String property = System.getProperty(key);
-        if (property == null || property.isBlank()) {
-            return fallback;
+    public static String normalizeSiteApiVersion(String siteApiVersion) {
+        if (siteApiVersion == null) {
+            return DEFAULT_SITE_API_VERSION;
         }
-
-        try {
-            return Long.parseLong(property.trim());
-        } catch (RuntimeException exception) {
-            return fallback;
-        }
-    }
-
-    private static String normalizeSiteApiVersion(String siteApiVersion) {
-        if (siteApiVersion == null || siteApiVersion.isBlank()) {
-            return "3.0";
-        }
-        return "3.0";
+        String trimmed = siteApiVersion.trim().toLowerCase(Locale.ROOT);
+        return SITE_API_VERSION_PATTERN.matcher(trimmed).matches() ? trimmed : DEFAULT_SITE_API_VERSION;
     }
 }
