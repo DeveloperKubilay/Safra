@@ -165,7 +165,9 @@ final class SafraRendezvousClient {
         private String open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint,
                             InetSocketAddress voiceEndpoint) throws IOException {
             JsonObject request = new JsonObject();
-            request.add("network", toNetwork(endpoint));
+            if (!P2pConstants.forceHostFailSafeRelay()) {
+                request.add("network", toNetwork(endpoint));
+            }
             if (voiceEndpoint != null) {
                 request.add("voicechat", toNetwork(voiceEndpoint));
             }
