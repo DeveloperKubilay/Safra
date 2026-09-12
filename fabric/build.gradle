@@ -51,7 +51,6 @@ loom {
 
     runs {
         client {
-            property 'safra.p2p.diagnostics', 'true'
             if (forceDirectThenTurn) {
                 property 'safra.p2p.forceDirectThenTurn', 'true'
             }
@@ -89,6 +88,7 @@ processResources {
     inputs.property 'mod_license', project.mod_license
     inputs.property 'mod_description', project.mod_description
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('fabric.mod.json') {
@@ -108,7 +108,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'fabric',
             loader_version: project.loader_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 }

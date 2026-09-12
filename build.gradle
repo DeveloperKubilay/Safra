@@ -187,6 +187,8 @@ ext.devBooleanProperty = { String name ->
     return value != null && Boolean.parseBoolean(value)
 }
 
+ext.buildDiagnostics = ext.devBooleanProperty('diagnostics')
+
 ext.buildTestMode = {
     def normalize = { Object raw ->
         def value = raw == null ? '' : raw.toString().trim()
@@ -195,11 +197,11 @@ ext.buildTestMode = {
         }
 
         def normalized = value.toLowerCase(Locale.ROOT)
-        if (normalized == 'off' || normalized == 'directthenturn') {
+        if (normalized == 'off' || normalized == 'directthenturn' || normalized == 'hostfailsafe') {
             return normalized
         }
 
-        throw new GradleException("Unsupported build test mode '${value}'. Supported values: off, directThenTurn")
+        throw new GradleException("Unsupported build test mode '${value}'. Supported values: off, directThenTurn, hostFailSafe")
     }
 
     def explicitMode = gradle.startParameter.projectProperties['build_mode']

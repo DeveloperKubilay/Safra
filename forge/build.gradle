@@ -161,7 +161,6 @@ minecraft {
                 systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
                 systemProperty 'io.netty.transport.noNative', 'true'
                 systemProperty 'java.net.preferIPv4Stack', 'false'
-                systemProperty 'safra.p2p.diagnostics', 'true'
                 if (forceDirectThenTurn) {
                     systemProperty 'safra.p2p.forceDirectThenTurn', 'true'
                 }
@@ -360,6 +359,7 @@ processResources {
     inputs.property 'mod_version', project.mod_version
     inputs.property 'mod_description', modDescription
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/mods.toml') {
@@ -382,7 +382,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'forge',
             loader_version: project.forge_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 }
