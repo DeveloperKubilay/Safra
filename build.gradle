@@ -154,6 +154,7 @@ ext.buildTestMode = {
 
     return 'off'
 }.call()
+ext.buildDiagnostics = ext.devBooleanProperty('diagnostics')
 allprojects {
     group = rootProject.group
     version = rootProject.version

@@ -63,7 +63,6 @@ public final class P2pConstants {
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
     static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
     static final String ADDRESS_SCHEME = "p2p://";
-    private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
@@ -162,13 +161,12 @@ public final class P2pConstants {
         return "3.0".equals(siteApiVersion());
     }
 
+    /**
+     * A build constant rather than a property, so the JIT drops every reporting block a release
+     * contains instead of asking about it, and so a release cannot be made to measure itself.
+     */
     static boolean diagnosticsEnabled() {
-        String property = System.getProperty(DIAGNOSTICS_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        return false;
+        return SafraBuildInfo.diagnostics();
     }
 
     static long diagnosticsSummaryMs() {
