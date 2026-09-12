@@ -43,6 +43,7 @@ public final class P2pHostService implements AutoCloseable {
      * anything else is dropped, so holding the share code is no longer enough to disturb a tunnel.
      */
     private final Set<Integer> acceptedTunnelTokens = ConcurrentHashMap.newKeySet();
+    private final Set<Integer> unknownTokensSeen = ConcurrentHashMap.newKeySet();
     private SafraRendezvousClient.HostSession rendezvousSession;
     private SafraBedrockRelayHost bedrockRelayHost;
     private volatile boolean primaryTransportRelay;
@@ -106,8 +107,13 @@ public final class P2pHostService implements AutoCloseable {
         if (publishedEndpoint != null) {
             InetAddress address = publishedEndpoint.getAddress();
             String host = address == null ? publishedEndpoint.getHostString() : address.getHostAddress();
-            LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
-                primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
+                    primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
+            } else {
+                LOGGER.debug("Safra P2P host UDP {} transport local port {}, published endpoint {}:{}",
+                    primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
+            }
             directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
         } else {
             LOGGER.debug("Safra P2P host UDP {} transport local port {}, no STUN endpoint; relay-required host flow will be attempted",
@@ -210,7 +216,11 @@ public final class P2pHostService implements AutoCloseable {
             return;
         }
 
-        LOGGER.debug("Safra P2P host punching UDP endpoint {}", remoteAddress);
+        if (SafraBuildInfo.diagnostics()) {
+            LOGGER.info("Safra P2P host punching UDP endpoint {} for tunnel tag {}", remoteAddress, tunnelToken);
+        } else {
+            LOGGER.debug("Safra P2P host punching UDP endpoint {}", remoteAddress);
+        }
         for (long delay : P2pConstants.PUNCH_DELAYS_MS) {
             try {
                 scheduler.schedule(() -> sendPacket(activeTransport, P2pPacket.punch(tunnelToken), remoteAddress), delay, TimeUnit.MILLISECONDS);
@@ -252,7 +262,8 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             } catch (IOException exception) {
                 if (!closed) {
-                    LOGGER.debug("Host UDP receive failed: {}", exception.toString());
+                    // Bu donus kalicidir: dongu biter ve host hicbir joiner'i daha duymaz.
+                    LOGGER.warn("Safra P2P host stopped listening on UDP: {}", exception.toString());
                 }
                 return;
             }
@@ -261,7 +272,14 @@ public final class P2pHostService implements AutoCloseable {
             if (!relayTransportActive && stunEndpoint != null) {
                 P2pStunClient.DiscoveredEndpoint refreshed = stunClient.tryParseResponse(datagramPacket);
                 if (refreshed != null) {
-                    discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
+                    P2pStunClient.DiscoveredEndpoint previous =
+                        discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
+                    // Paylasim kodu bir kez yaziliyor. Burasi degisirse kod bayat bir adresi gosteriyor demektir.
+                    if (SafraBuildInfo.diagnostics() && previous != null
+                        && !previous.publicAddress().equals(refreshed.publicAddress())) {
+                        LOGGER.info("Safra P2P host public endpoint moved from {} to {}",
+                            previous.publicAddress(), refreshed.publicAddress());
+                    }
                 }
                 continue;
             }
@@ -272,6 +290,12 @@ public final class P2pHostService implements AutoCloseable {
             }
 
             if (!acceptedTunnelTokens.contains(packet.token())) {
+                // Joiner'in paketi geldi ama tag'ini tanimiyoruz; sessiz dusurme bir joiner'i
+                // sonsuza dek bekletir, o yuzden her tag icin bir kez soyle.
+                if (SafraBuildInfo.diagnostics() && unknownTokensSeen.add(packet.token())) {
+                    LOGGER.info("Safra P2P host dropped a packet from {} with unknown tunnel tag {}",
+                        datagramPacket.getSocketAddress(), packet.token());
+                }
                 continue;
             }
 

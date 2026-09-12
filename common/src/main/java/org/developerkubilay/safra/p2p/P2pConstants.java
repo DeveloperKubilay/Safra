@@ -33,7 +33,11 @@ public final class P2pConstants {
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
-    static final long STUN_REFRESH_MS = 20_000L;
+    // A share code carries the public port STUN reported, and it is written once. The router only
+    // holds that port while something keeps using it, and a home router measured here dropped it
+    // somewhere between fifteen and twenty seconds, so refreshing every twenty arrived after the
+    // port had already been handed out again. Ten leaves room for the schedule to slip.
+    static final long STUN_REFRESH_MS = 10_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
     public static final long RENDEZVOUS_REQUEST_TIMEOUT_MS = 8_000L;
     static final long RENDEZVOUS_RECONNECT_FIRST_DELAY_MS = 5_000L;
