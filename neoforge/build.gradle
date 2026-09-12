@@ -33,6 +33,8 @@ def versionSourceDir = rootProject.ext.versionSourceDir
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
+        java.srcDir(rootProject.file('common-mc/src/client/java'))
+        java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
         java.srcDir(file("src/main/versionSpecific/${versionSourceDir}/java"))
         resources.srcDir(file("src/main/versionSpecific/${versionSourceDir}/resources"))

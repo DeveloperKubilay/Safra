@@ -46,6 +46,7 @@ loom {
 }
 
 sourceSets.named('client') {
+    java.srcDir(rootProject.file('common-mc/src/client/java'))
     java.srcDir(file("src/client/versionSpecific/${versionSourceDir}/java"))
     resources.srcDir(file("src/client/versionSpecific/${versionSourceDir}/resources"))
 }

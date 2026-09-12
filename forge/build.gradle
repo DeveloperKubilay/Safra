@@ -11,6 +11,8 @@ def forgeEventSourceDir = rootProject.ext.forgeEventSourceDir
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
+        java.srcDir(rootProject.file('common-mc/src/client/java'))
+        java.srcDir(rootProject.file('common-mc/src/forgelike/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
         java.srcDir(file("src/main/versionSpecific/${versionSourceDir}/java"))
         java.srcDir(file("src/main/versionEvents/${forgeEventSourceDir}/java"))
