@@ -114,7 +114,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             }
         }
 
-        throw new IOException("TURN relay acilamadi: " + String.join(" | ", failures));
+        throw new IOException("TURN relay could not be opened: " + String.join(" | ", failures));
     }
 
     private static P2pTurnDatagramTransport openDatagram(Logger logger, String role, P2pTurnCredentials credentials,
@@ -215,7 +215,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 datagram = incoming.poll(1L, TimeUnit.SECONDS);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IOException("TURN receive yarida kesildi", exception);
+                throw new IOException("TURN receive was interrupted", exception);
             }
             if (datagram == null) {
                 continue;
@@ -231,16 +231,16 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             return;
         }
 
-        throw new IOException("TURN transport kapali");
+        throw new IOException("TURN transport is closed");
     }
 
     @Override
     public void send(DatagramPacket packet) throws IOException {
         if (closed) {
-            throw new IOException("TURN transport kapali");
+            throw new IOException("TURN transport is closed");
         }
         if (!(packet.getSocketAddress() instanceof InetSocketAddress)) {
-            throw new IOException("TURN peer adresi gecersiz");
+            throw new IOException("TURN peer address is invalid");
         }
         InetSocketAddress remoteAddress = (InetSocketAddress) packet.getSocketAddress();
         ensurePermission(remoteAddress);
@@ -285,7 +285,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             } catch (IOException ignored) {
             }
         }
-        pendingTransactions.values().forEach(future -> future.completeExceptionally(new IOException("TURN transport kapandi")));
+        pendingTransactions.values().forEach(future -> future.completeExceptionally(new IOException("TURN transport is closed")));
         pendingTransactions.clear();
         incoming.clear();
     }
@@ -303,7 +303,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             P2pTurnProtocol.putRequestedTransport(out, P2pTurnProtocol.REQUESTED_TRANSPORT_UDP), true);
         InetSocketAddress resolvedRelayAddress = response.xorAddress(P2pTurnProtocol.ATTR_XOR_RELAYED_ADDRESS);
         if (resolvedRelayAddress == null) {
-            throw new IOException("TURN allocate cevabinda relay adresi yok");
+            throw new IOException("TURN allocate response did not include a relay address");
         }
         relayAddress = resolvedRelayAddress;
         grantedLifetimeSeconds = grantedLifetime(response);
@@ -356,7 +356,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         try {
             refreshAllocation();
         } catch (IOException exception) {
-            logger.warn("Safra TURN allocation refresh patladi: {}", exception.toString());
+            logger.warn("Safra TURN allocation refresh failed: {}", exception.toString());
             close();
         }
     }
@@ -472,7 +472,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         String newRealm = response.stringAttribute(P2pTurnProtocol.ATTR_REALM);
         String newNonce = response.stringAttribute(P2pTurnProtocol.ATTR_NONCE);
         if (newRealm.trim().isEmpty() || newNonce.trim().isEmpty()) {
-            throw new IOException("TURN auth challenge eksik realm/nonce dondu");
+            throw new IOException("TURN auth challenge returned missing realm/nonce");
         }
 
         realm = newRealm;
@@ -503,7 +503,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 long remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
                 if (remainingMs <= 0L) {
                     trace("turn " + role + " timeout " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
-                    throw new IOException("TURN istegi zaman asimina ugradi");
+                    throw new IOException("TURN request timed out");
                 }
                 try {
                     P2pTurnMessage response = future.get(Math.min(waitMs, remainingMs), TimeUnit.MILLISECONDS);
@@ -513,20 +513,20 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 } catch (TimeoutException retry) {
                     if (datagramSocket == null) {
                         trace("turn " + role + " timeout " + requestName(requestType) + " tx=" + shortKey + " server=" + serverAddress);
-                        throw new IOException("TURN istegi zaman asimina ugradi", retry);
+                        throw new IOException("TURN request timed out", retry);
                     }
                     waitMs *= 2L;
                 }
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IOException("TURN istegi yarida kesildi", exception);
+            throw new IOException("TURN request was interrupted", exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
             if (cause instanceof IOException) {
                 throw (IOException) cause;
             }
-            throw new IOException("TURN istegi basarisiz", cause);
+            throw new IOException("TURN request failed", cause);
         } finally {
             pendingTransactions.remove(key);
         }

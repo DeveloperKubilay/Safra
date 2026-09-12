@@ -27,13 +27,13 @@ final class P2pUdpBindingFactory {
             return createDirectHostBinding(logger, stunClient, preferredPort);
         } catch (IOException exception) {
             if (P2pConstants.useApi30Rendezvous()) {
-                logger.debug("Safra host STUN acilamadi, relay-required akisi denenecek: {}", exception.toString());
+                logger.debug("Safra host STUN could not be opened, trying relay-required flow: {}", exception.toString());
                 return createLocalHostBinding(preferredPort);
             }
             if (!(allowRelayFallback && !P2pConstants.neverUseRelayServer())) {
                 throw exception;
             }
-            logger.debug("Safra host STUN acilamadi, TURN relay denenecek: {}", exception.toString());
+            logger.debug("Safra host STUN could not be opened, trying TURN relay: {}", exception.toString());
             return createTurnBinding(logger, "host");
         }
     }
@@ -44,20 +44,20 @@ final class P2pUdpBindingFactory {
             return createDirectJoinBinding(logger, stunClient);
         } catch (IOException exception) {
             if (P2pConstants.useApi30Rendezvous()) {
-                logger.debug("Safra join STUN acilamadi, relay-required akisi denenecek: {}", exception.toString());
+                logger.debug("Safra join STUN could not be opened, trying relay-required flow: {}", exception.toString());
                 return createLocalJoinBinding();
             }
             if (P2pConstants.neverUseRelayServer()) {
                 throw exception;
             }
-            logger.debug("Safra join STUN acilamadi, TURN relay denenecek: {}", exception.toString());
+            logger.debug("Safra join STUN could not be opened, trying TURN relay: {}", exception.toString());
             return createTurnBinding(logger, "join");
         }
     }
 
     static P2pTransportBinding createTurnBinding(Logger logger, String role) throws IOException {
         if (P2pConstants.neverUseRelayServer()) {
-            throw new IOException("TURN relay configde kapali");
+            throw new IOException("TURN relay is disabled in config");
         }
         P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, false);
         return createTurnBinding(logger, role, credentials);
@@ -65,7 +65,7 @@ final class P2pUdpBindingFactory {
 
     static P2pTransportBinding createTurnBinding(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         if (P2pConstants.neverUseRelayServer()) {
-            throw new IOException("TURN relay configde kapali");
+            throw new IOException("TURN relay is disabled in config");
         }
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
         return new P2pTransportBinding(
@@ -79,20 +79,20 @@ final class P2pUdpBindingFactory {
     private static P2pTransportBinding createDirectHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort) throws IOException {
         boolean success = false;
         try {
-            return createDirectBinding(bindIpv4Socket(preferredPort), stunClient, true, "STUN ile IPv4 UDP ucu bulunamadi");
+            return createDirectBinding(bindIpv4Socket(preferredPort), stunClient, true, "Could not discover a public IPv4 UDP endpoint with STUN");
         } catch (IOException exception) {
-            logger.info("Safra IPv4 STUN basarisiz, genel STUN deneniyor: {}", exception.toString());
+            logger.info("Safra could not force IPv4, falling back to general STUN discovery: {}", exception.toString());
         }
-        return createDirectBinding(bindSocket(preferredPort), stunClient, false, "STUN ile genel UDP ucu bulunamadi");
+        return createDirectBinding(bindSocket(preferredPort), stunClient, false, "Could not discover a public UDP endpoint with STUN");
     }
 
     static P2pTransportBinding createDirectJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
         try {
-            return createDirectBinding(P2pSockets.ipv4DatagramSocket(), stunClient, true, "STUN ile IPv4 joiner ucu bulunamadi");
+            return createDirectBinding(P2pSockets.ipv4DatagramSocket(), stunClient, true, "Could not discover a public IPv4 joiner UDP endpoint with STUN");
         } catch (IOException exception) {
-            logger.info("Safra IPv4 STUN basarisiz, genel STUN deneniyor: {}", exception.toString());
+            logger.info("Safra could not force IPv4, falling back to general STUN discovery: {}", exception.toString());
         }
-        return createDirectBinding(P2pSockets.datagramSocket(), stunClient, false, "STUN ile joiner genel UDP ucu bulunamadi");
+        return createDirectBinding(P2pSockets.datagramSocket(), stunClient, false, "Could not discover a public joiner UDP endpoint with STUN");
     }
 
     private static P2pTransportBinding createDirectBinding(DatagramSocket socket, P2pStunClient stunClient,

@@ -98,7 +98,7 @@ public final class P2pHostService implements AutoCloseable {
         InetSocketAddress publishedEndpoint = preferredEndpoint(binding.publicEndpoints());
         if (publishedEndpoint == null && !P2pConstants.useApi30Rendezvous()) {
             binding.close();
-            throw new IOException("genel UDP ucu bulunamadi");
+            throw new IOException("Could not discover a public UDP endpoint");
         }
 
         P2pRuntime.start("safra-p2p-host-recv", () -> receiveLoop(transport, primaryTransportRelay));
@@ -115,7 +115,7 @@ public final class P2pHostService implements AutoCloseable {
                 primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort(), host, publishedEndpoint.getPort());
             directShareCode = new P2pShareCode(host, publishedEndpoint.getPort(), token);
         } else {
-            LOGGER.debug("Safra P2P host UDP {} transport local port {}, STUN endpoint yok; relay-required host akisi denenecek",
+            LOGGER.debug("Safra P2P host UDP {} transport local port {}, no STUN endpoint; relay-required host flow will be attempted",
                 primaryTransportRelay ? "TURN" : "direct", transport.getLocalPort());
         }
 
@@ -139,7 +139,7 @@ public final class P2pHostService implements AutoCloseable {
             return P2pShareCode.rendezvous(rendezvousSession.code());
         } catch (IOException exception) {
             if (primaryTransportRelay) {
-                LOGGER.warn("Safra P2P TURN relay aktifken rendezvous kaydi patladi", exception);
+                LOGGER.warn("Safra P2P rendezvous registration failed while TURN relay was active", exception);
                 throw exception;
             }
             if (directShareCode == null) {
@@ -366,12 +366,12 @@ public final class P2pHostService implements AutoCloseable {
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());
             notifyRelayReady();
-            LOGGER.info("Safra host TURN fallback hazir: {}", preferredEndpoint(relayBinding.publicEndpoints()));
+            LOGGER.info("Safra host TURN fallback ready: {}", preferredEndpoint(relayBinding.publicEndpoints()));
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }
         } catch (IOException exception) {
-            LOGGER.warn("Safra P2P host relay provisioning patladi", exception);
+            LOGGER.warn("Safra P2P host relay provisioning failed", exception);
             if (rendezvousSession != null) {
                 rendezvousSession.publishRelayFailure("auto", exception.getMessage());
             }
@@ -395,7 +395,7 @@ public final class P2pHostService implements AutoCloseable {
         try {
             rendezvousSession.publishRelay(publicEndpoints, "auto");
         } catch (IOException exception) {
-            LOGGER.warn("Safra P2P host relay publish patladi", exception);
+            LOGGER.warn("Safra P2P host relay publish failed", exception);
         }
     }
 
