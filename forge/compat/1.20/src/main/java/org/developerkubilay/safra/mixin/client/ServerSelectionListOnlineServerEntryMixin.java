@@ -38,7 +38,6 @@ abstract class ServerSelectionListOnlineServerEntryMixin {
             return;
         }
 
-        // Stop vanilla from replacing the row with "pinging" and scheduling a real ping.
         ForgeVersionCompat.setServerPinged(serverData, true);
         ForgeVersionCompat.setServerPing(serverData, 0L);
         ForgeVersionCompat.setServerPlayers(serverData, null);
