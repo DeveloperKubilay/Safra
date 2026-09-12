@@ -241,8 +241,6 @@ final class P2pStunClient {
         while (buffer.remaining() >= 4) {
             int type = Short.toUnsignedInt(buffer.getShort());
             int length = Short.toUnsignedInt(buffer.getShort());
-            // Attributes are walked past on a four byte boundary, so the padding has to fit as well
-            // as the value: a response that ends mid-padding would otherwise seek past the limit.
             int paddedLength = (length + 3) & ~3;
             if (paddedLength > buffer.remaining()) {
                 return null;

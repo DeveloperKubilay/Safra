@@ -56,8 +56,6 @@ abstract class ConnectScreenMixin {
 
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
                     client.execute(() -> {
-                        // Cancelling during the wait leaves the player back where they started, and
-                        // this would otherwise pull them into a connection they had just called off.
                         if (client.gui.screen() != progressScreen) {
                             return;
                         }

@@ -148,8 +148,6 @@ public final class P2pManager {
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
             synchronized (P2pManager.this) {
                 if (activeClientProxy == proxyReference.get()) {
-                    // The proxy closes a second after it gives up, which can be before the
-                    // disconnect screen asks why. Keep the reason it carried.
                     pendingFailureKind = activeClientProxy.failureKind();
                     activeClientProxy = null;
                 }
@@ -220,8 +218,6 @@ public final class P2pManager {
             return;
         }
 
-        // A host that is still resolving STUN and the rendezvous has no port to compare yet, but it
-        // does have to hear that the world it was opening is gone.
         if (client.level == null) {
             stopHosting();
             return;

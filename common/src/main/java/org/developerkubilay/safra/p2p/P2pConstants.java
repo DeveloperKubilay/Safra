@@ -9,9 +9,6 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 2;
     static final int HEADER_SIZE = 10;
-    // 1200 is the QUIC datagram RFC 9000 assumes every network carries; the Safra header takes the
-    // outer packet to 1210. Kwik will pick its own size, but it fills that budget exactly without
-    // knowing about the header, so it overshoots by ten bytes for a gain of 1.8%.
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
     static final int KWIK_VIRTUAL_PORT = 4433;
@@ -33,10 +30,6 @@ public final class P2pConstants {
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
-    // A share code carries the public port STUN reported, and it is written once. The router only
-    // holds that port while something keeps using it, and a home router measured here dropped it
-    // somewhere between fifteen and twenty seconds, so refreshing every twenty arrived after the
-    // port had already been handed out again. Ten leaves room for the schedule to slip.
     static final long STUN_REFRESH_MS = 10_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
     public static final long RENDEZVOUS_REQUEST_TIMEOUT_MS = 8_000L;
