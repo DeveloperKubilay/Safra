@@ -7,12 +7,14 @@ import net.fabricmc.api.ClientModInitializer;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 
 public class SafraClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
         RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
+        P2pHostSupport.warmUp();
         ClientTickEvents.END_CLIENT_TICK.register(P2pManager.getInstance()::tick);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> P2pManager.getInstance().shutdown());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> P2pManager.getInstance().shutdown());
