@@ -159,11 +159,18 @@ abstract class OpenToLanScreenMixin extends Screen {
             new TranslatableText("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
         );
         String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
-        this.client.inGameHud.getChatHud().addMessage(
-            new LiteralText(discordUrl).setStyle(Style.EMPTY
-                .withFormatting(Formatting.BLUE, Formatting.UNDERLINE)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, discordUrl))
-            )
+        this.client.inGameHud.getChatHud().addMessage(safra$clickableLink(discordUrl));
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isEmpty()) {
+            this.client.inGameHud.getChatHud().addMessage(safra$clickableLink(youtubeUrl));
+        }
+    }
+
+    @Unique
+    private static Text safra$clickableLink(String url) {
+        return new LiteralText(url).setStyle(Style.EMPTY
+            .withFormatting(Formatting.BLUE, Formatting.UNDERLINE)
+            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
         );
     }
 

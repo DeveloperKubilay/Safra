@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -33,6 +34,7 @@ public final class RemoteRendezvousConfigUpdater {
     private static volatile String latestModVersion = "";
     private static volatile List<String> latestModVersions = java.util.Collections.emptyList();
     private static volatile String discordUrl = DEFAULT_DISCORD_URL;
+    private static volatile String youtubeUrl = "";
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -89,6 +91,13 @@ public final class RemoteRendezvousConfigUpdater {
             if (discordElement != null && discordElement.isJsonPrimitive() && isValidDiscordUrl(discordElement.getAsString())) {
                 discordUrl = discordElement.getAsString().trim();
             }
+            JsonElement youtubeElement = json.get("youtube");
+            if (youtubeElement != null && youtubeElement.isJsonPrimitive()) {
+                String value = youtubeElement.getAsString().trim();
+                youtubeUrl = isValidYoutubeUrl(value) ? value : "";
+            } else {
+                youtubeUrl = "";
+            }
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
             if (latestVersions.isEmpty()) {
@@ -118,10 +127,28 @@ public final class RemoteRendezvousConfigUpdater {
         return discordUrl;
     }
 
+    public static String youtubeUrl() {
+        return youtubeUrl;
+    }
+
     private static boolean isValidDiscordUrl(String value) {
         try {
             java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
             return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isValidYoutubeUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            String host = uri.getHost();
+            return "https".equalsIgnoreCase(uri.getScheme())
+                && host != null
+                && ("youtube.com".equalsIgnoreCase(host)
+                    || host.toLowerCase(Locale.ROOT).endsWith(".youtube.com")
+                    || "youtu.be".equalsIgnoreCase(host));
         } catch (IllegalArgumentException ignored) {
             return false;
         }

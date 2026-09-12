@@ -85,6 +85,10 @@ abstract class IntegratedServerMixin {
         );
         String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
         client.ingameGUI.getChatGUI().printChatMessage(safra$clickableLink(discordUrl));
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isEmpty()) {
+            client.ingameGUI.getChatGUI().printChatMessage(safra$clickableLink(youtubeUrl));
+        }
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
