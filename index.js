@@ -169,7 +169,6 @@ app.post("/voicechat-update", async (req, res) => {
     if (networkValidation) return res.code(400).send(networkValidation);
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
-    console.slientlog(`[${new Date().toISOString()}] Voicechat update from IP: ${req.ip} with code: ${req.body.code}`);
     session.write(eventMessage("voicechat-updated", { voiceHost: req.body.voicechat }));
     res.send({ ok: true });
 });
@@ -224,7 +223,6 @@ app.post("/session-join", async (req, res) => {
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
-    console.slientlog(`[${new Date().toISOString()}] Session join request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'}`);
 
     session.write(eventMessage("session-joined", {//Hosta joinerin datası iletilir
         host: req.body.network ?? null,
@@ -321,6 +319,15 @@ setInterval(() => {//gc
         logCount = 6;
     }
 }, 10 * 1000)
+
+app.addHook("onResponse", (request, reply, done) => {
+    const ip = request.headers["cf-connecting-ip"] || request.ip;
+    const ua = request.headers["user-agent"] || "-";
+    const ray = request.headers["cf-ray"] || "-";
+    const code = typeof request.body?.code === "string" ? ` | Code: ${request.body.code}` : "";
+    console.slientlog(`[${new Date().toISOString()}] ${request.method} ${request.url} - ${reply.statusCode} | IP: ${ip}${code} | UA: ${ua} | Ray: ${ray}`);
+    done();
+});
 
 app.listen({ host: '0.0.0.0', port: process.env.PORT || 3000 }, (err, address) => {
     if (err) console.error(err);
