@@ -57,7 +57,7 @@ Foi testado com mais de 180 mods e funcionou sem problemas.
     <td width="70%" align="left">
       ✨ Precisa de um recurso, teve uma ideia de versao ou encontrou um bug?<br />
       Você pode nos contatar a qualquer momento pelo <a href="https://discord.gg/NHjBvRxDXP">Discord</a>.<br /><br />
-      ❤️ O projeto open source vive aqui<br />
+      ❤️ O projeto com código acessível vive aqui<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/pt-br/how_it_works.md">👀 Quer ver como isso funciona?</a>
     </td>

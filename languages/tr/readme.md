@@ -57,7 +57,7 @@ Senin ve arkadaşlarının kurduğu modlarla rahatça oynayabilirsin
     <td width="70%" align="left">
       ✨ Özellik istiyorsan, sürüm fikrin varsa ya da bug bulduysan<br />
       <a href="https://discord.gg/NHjBvRxDXP">Discord</a>'dan bizimle iletişime geçebilirsin<br /><br />
-      ❤️ Açık kaynak proje burada<br />
+      ❤️ Kaynak kodu erişilebilir projeler burada<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/tr/how_it_works.md">👀 Nasıl çalışıyor öğrenmek ister misin?</a>
     </td>
