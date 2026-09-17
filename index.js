@@ -1,4 +1,4 @@
-require("dotenv").config({ quiet: true });
+﻿require("dotenv").config({ quiet: true });
 const Fastify = require("fastify");
 const elenora = require('elenora');
 const { randomBytes } = require("node:crypto");
@@ -29,7 +29,7 @@ elenora.connect(console, {
     maxSize: config.MAX_LOG_SIZE || 1024 * 1024 * 1024,//1gb
     backupCount: config.LOG_BACKUP_COUNT || 5,//1gb *5 
     continueFromLast: true,
-    interval: 10000,
+    interval: 5000,
     timestamp: false
 });
 
@@ -200,6 +200,7 @@ if (config.BEDROCK_SERVERS && config.BEDROCK_SERVERS.length > 0) {
                 console.slientlog(`[${new Date().toISOString()}] bedrock-request failed for session code: ${data.error}`);
                 return res.send({ ok: false });
             }
+            console.slientlog(`[${new Date().toISOString()}] bedrock-request successful for session code: ${req.body.code} | Bedrock server: ${data.ip}:${data.port} | Bedrock token: ${data.token}`);
 
             session.bedrockServer = server;
             return res.send({ ok: true, bedrockServer: data.ip, bedrockPort: data.port });

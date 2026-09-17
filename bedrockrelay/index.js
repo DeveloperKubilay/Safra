@@ -7,16 +7,17 @@ const config = require('./config.json');
 
 elenora.connect(console, {
   filename: 'logs/app.log',
-  maxSize: 5 * 1024 * 1024,
-  backupCount: 3,
-  continueFromLast: false,
-  interval: 10000,
+  maxSize: 50 * 1024 * 1024,
+  backupCount: 300,
+  continueFromLast: true,
+  interval: 5000,
   timestamp: false
 });
 
 const sessions = new Map();
 const usedPorts = new Set();
 const ipSessions = new Map();
+const attackLog = new Map();
 let globalBytes = 0, globalWindow = Date.now();
 const HOST_HELLO = Buffer.from('BRLY_HOST');
 const HOST_OK = Buffer.from('BRLY_OK');
@@ -32,13 +33,31 @@ const sendJson = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
+function logAttack(type, ip, extra) {
+  const k = `${type}:${ip}`;
+  const now = Date.now();
+  const last = attackLog.get(k) || 0;
+  if (now - last < 10000) return;
+  attackLog.set(k, now);
+  log('ATTACK', `type=${type} ip=${ip} ${extra}`);
+}
+
 function allowTraffic(session, bytes) {
   const now = Date.now();
   if (now - session.window >= 1000) session.window = now, session.windowBytes = 0;
   if (now - globalWindow >= 1000) globalWindow = now, globalBytes = 0;
-  if (session.totalBytes + bytes > config.sessionTotalBytes) return closeSession(session.token, 'traffic-limit') && false;
-  if (session.windowBytes + bytes > config.sessionBandwidthBytesPerSecond ||
-      globalBytes + bytes > config.totalBandwidthBytesPerSecond) return false;
+  if (session.totalBytes + bytes > config.sessionTotalBytes) {
+    logAttack('traffic-limit', session.hostip, `port=${session.port} token=${session.token} totalBytes=${formatBytes(session.totalBytes)} limit=${formatBytes(config.sessionTotalBytes)}`);
+    return closeSession(session.token, 'traffic-limit') && false;
+  }
+  if (session.windowBytes + bytes > config.sessionBandwidthBytesPerSecond) {
+    logAttack('bandwidth-flood', session.hostip, `port=${session.port} token=${session.token} windowBytes=${formatBytes(session.windowBytes)} bps-limit=${formatBytes(config.sessionBandwidthBytesPerSecond)}`);
+    return false;
+  }
+  if (globalBytes + bytes > config.totalBandwidthBytesPerSecond) {
+    logAttack('global-bandwidth-flood', session.hostip, `port=${session.port} globalBytes=${formatBytes(globalBytes)} global-limit=${formatBytes(config.totalBandwidthBytesPerSecond)}`);
+    return false;
+  }
   session.windowBytes += bytes;
   session.totalBytes += bytes;
   globalBytes += bytes;
@@ -55,7 +74,7 @@ function closeSession(token, reason = 'requested') {
   else ipSessions.set(session.hostip, ipSessionCount);
   session.socket.close();
   const uptime = Math.round((Date.now() - session.createdAt) / 1000);
-  log(`SESSION:${session.port}`, `closed reason=${reason} uptime=${uptime}s peakPlayers=${session.peakPlayers} traffic=${formatBytes(session.totalBytes)} active=${sessions.size}`);
+  log(`SESSION:${session.port}`, `closed reason=${reason} token=${token} uptime=${uptime}s peakPlayers=${session.peakPlayers} traffic=${formatBytes(session.totalBytes)} active=${sessions.size}`);
   return true;
 }
 
@@ -71,6 +90,7 @@ function createSession(res, hostip) {
   hostip = cleanIp(hostip);
   if (net.isIP(hostip) === 0) return sendJson(res, 400, { error: 'Gecerli hostip gerekli.' });
   if ((ipSessions.get(hostip) || 0) >= config.maxSessionsPerIp) {
+    log('REJECT', `session-limit ip=${hostip} current=${ipSessions.get(hostip)} max=${config.maxSessionsPerIp}`);
     return sendJson(res, 429, { error: 'Bu IP session limitine ulasti.' });
   }
 
@@ -101,7 +121,7 @@ function createSession(res, hostip) {
       session.hostExpiresAt = Date.now() + config.hostTimeoutSeconds * 1000;
       session.expiresAt = Date.now() + config.sessionTimeoutSeconds * 1000;
       socket.send(HOST_OK, rinfo.port, rinfo.address);
-      log(`HOST:${port}`, `registered endpoint=${key(rinfo)}`);
+      log(`HOST:${port}`, `registered endpoint=${key(rinfo)} token=${token}`);
       return;
     }
 
@@ -156,13 +176,15 @@ function createSession(res, hostip) {
   });
   socket.bind(port, config.udpHost, () => {
     sessions.set(token, session);
-    log(`SESSION:${port}`, `created host=${hostip} active=${sessions.size}`);
+    log(`SESSION:${port}`, `created host=${hostip} token=${token} active=${sessions.size}`);
     sendJson(res, 201, { token, ip: config.publicHost, port });
   });
 }
 
 const server = http.createServer((req, res) => {
   if (req.headers.authorization !== `Bearer ${config.apiToken}`) {
+    const ip = req.socket.remoteAddress;
+    logAttack('auth-fail', cleanIp(ip), `method=${req.method} url=${req.url}`);
     return sendJson(res, 401, { error: 'Gecersiz API token.' });
   }
   if (req.method === 'POST' && req.url === '/create-session') {
@@ -194,6 +216,9 @@ setInterval(() => {
     if (now >= session.maxExpiresAt) closeSession(token, 'max-lifetime');
     else if (now >= session.hostExpiresAt) closeSession(token, 'host-timeout');
     else if (now >= session.expiresAt) closeSession(token, 'session-timeout');
+  }
+  for (const [k, t] of attackLog) {
+    if (now - t > 60000) attackLog.delete(k);
   }
 }, 10_000).unref();
 
