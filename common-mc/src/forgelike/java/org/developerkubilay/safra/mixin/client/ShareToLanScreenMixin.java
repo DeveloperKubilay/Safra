@@ -165,7 +165,9 @@ abstract class ShareToLanScreenMixin extends Screen {
             return;
         }
 
-        LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
+        }
 
         if (!LanSessionState.isP2pEnabled()) {
             P2pManager.getInstance().stopHosting();
