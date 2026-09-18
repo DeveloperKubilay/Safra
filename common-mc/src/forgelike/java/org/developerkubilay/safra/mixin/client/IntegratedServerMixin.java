@@ -56,7 +56,9 @@ abstract class IntegratedServerMixin {
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
-        LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
+        }
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
