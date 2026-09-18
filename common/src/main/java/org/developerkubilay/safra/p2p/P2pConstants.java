@@ -9,7 +9,7 @@ public final class P2pConstants {
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 2;
     static final int HEADER_SIZE = 10;
-    static final int MAX_PAYLOAD_SIZE = 1400;
+    static final int MAX_PAYLOAD_SIZE = 1200;
     static final String KWIK_APPLICATION_PROTOCOL = "safra-p2p";
     static final int KWIK_VIRTUAL_PORT = 4433;
     static final int KWIK_IDLE_TIMEOUT_SECONDS = 30;
