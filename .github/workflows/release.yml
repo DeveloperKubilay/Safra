@@ -29,11 +29,17 @@ on:
           - off
           - directThenTurn
 
+      diagnostics:
+        description: Enable diagnostic logging
+        required: false
+        default: false
+        type: boolean
+
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}-${{ github.event.inputs.diagnostics }}
   cancel-in-progress: false
 
 jobs:
@@ -46,6 +52,7 @@ jobs:
       release_versions_label: ${{ steps.prepare.outputs.release_versions_label }}
       version_number: ${{ steps.prepare.outputs.version_number }}
       build_mode: ${{ steps.prepare.outputs.build_mode }}
+      diagnostics: ${{ steps.prepare.outputs.diagnostics }}
 
     steps:
       - name: Resolve release plan
@@ -55,6 +62,7 @@ jobs:
           selected_version="${{ github.event.inputs.version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
+          diagnostics="${{ github.event.inputs.diagnostics }}"
           supported_versions='["26.2"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
@@ -69,6 +77,10 @@ jobs:
           if [[ "$build_mode" != "off" && "$build_mode" != "directThenTurn" ]]; then
             echo "Invalid build_mode: $build_mode"
             exit 1
+          fi
+
+          if [[ "$diagnostics" != "true" ]]; then
+            diagnostics="false"
           fi
 
           if [[ "$selected_version" == "all" ]]; then
@@ -95,6 +107,7 @@ jobs:
             echo "release_versions_label=$release_versions_label"
             echo "version_number=$version_number"
             echo "build_mode=$build_mode"
+            echo "diagnostics=$diagnostics"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -148,13 +161,23 @@ jobs:
               ;;
           esac
 
+      - name: Resolve diagnostics mode
+        shell: bash
+        run: |
+          if [ "${{ needs.prepare.outputs.diagnostics }}" = "true" ]; then
+            echo "SAFRA_DIAGNOSTICS_ARGS=-Pdiagnostics=true" >> "$GITHUB_ENV"
+          else
+            echo "SAFRA_DIAGNOSTICS_ARGS=" >> "$GITHUB_ENV"
+          fi
+
       - name: Build release artifacts
         shell: bash
         run: |
           ./gradlew clean build --stacktrace \
             -PmcVersion="${{ matrix.mc_version }}" \
             -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
-            $SAFRA_BUILD_MODE_ARGS
+            $SAFRA_BUILD_MODE_ARGS \
+            $SAFRA_DIAGNOSTICS_ARGS
 
       - name: Collect release artifacts
         shell: bash
@@ -180,12 +203,6 @@ jobs:
             fi
             cp "$jar" dist/
           done
-
-          cat > "dist/build-info-${{ matrix.mc_version }}.txt" <<EOF
-          Minecraft version: ${{ matrix.mc_version }}
-          Included loaders: Fabric, Forge, NeoForge
-          Build mode: $SAFRA_BUILD_MODE_LABEL
-          EOF
 
           ls -la dist
 
@@ -259,6 +276,9 @@ jobs:
 
           Build mode:
           - ${{ needs.prepare.outputs.build_mode }}
+
+          Diagnostics:
+          - ${{ needs.prepare.outputs.diagnostics }}
 
           Notes:
           - Each Minecraft version is built separately with its own dependency profile.
