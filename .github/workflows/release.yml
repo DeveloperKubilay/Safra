@@ -183,12 +183,6 @@ jobs:
             cp "$jar" dist/
           done
 
-          cat > "dist/build-info-${{ matrix.mc_version }}.txt" <<EOF
-          Minecraft version: ${{ matrix.mc_version }}
-          Included loaders: Fabric, Forge, NeoForge
-          Build mode: $SAFRA_BUILD_MODE_LABEL
-          EOF
-
           ls -la dist
 
       - name: Verify artifact names
