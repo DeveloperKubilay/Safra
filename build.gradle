@@ -171,6 +171,19 @@ subprojects {
                 includeGroup 'de.maxhenkel.voicechat'
             }
         }
+        ivy {
+            name = 'DeveloperKubilayKwik'
+            url = 'https://github.com/DeveloperKubilay/kwik/releases/download/'
+            patternLayout {
+                artifact '[revision]/[artifact]-[revision].[ext]'
+            }
+            metadataSources {
+                artifact()
+            }
+            content {
+                includeModule('tech.kwik', 'kwik')
+            }
+        }
     }
 }
 

@@ -50,8 +50,8 @@ fabricApi {
 }
 
 dependencies {
-    implementation 'tech.kwik:kwik:0.11'
-    include 'tech.kwik:kwik:0.11'
+    implementation 'tech.kwik:kwik:0.12'
+    include 'tech.kwik:kwik:0.12'
     include 'tech.kwik:agent15:3.3'
     include 'at.favre.lib:hkdf:2.0.0'
     include 'com.io7m.repackage.io.whitfin:io.whitfin.siphash:2.0.1'

@@ -18,7 +18,10 @@ java {
 }
 
 dependencies {
-    implementation 'tech.kwik:kwik:0.11'
+    implementation 'tech.kwik:kwik:0.12'
+    implementation 'tech.kwik:agent15:3.3'
+    implementation 'at.favre.lib:hkdf:2.0.0'
+    implementation 'com.io7m.repackage.io.whitfin:io.whitfin.siphash:2.0.1'
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'

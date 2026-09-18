@@ -100,7 +100,9 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             QuicClientConnectionImpl.ExtendedBuilder builder = new QuicClientConnectionImpl.ExtendedBuilder();
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
             builder.enforceMaxUdpPayloadSize(true);
-            builder.useStrictSmallestAllowedMaximumDatagramSize();
+            builder.maxPathMtu(P2pConstants.MAX_PAYLOAD_SIZE);
+            builder.maxAutoTunedReceiveBufferSize((long) P2pConstants.MAX_STREAM_WINDOW_BYTES);
+            builder.flowControlAutoTuning(true);
             connection = builder
                 .host(P2pConstants.LOCAL_PROXY_HOST)
                 .port(P2pConstants.KWIK_VIRTUAL_PORT)
