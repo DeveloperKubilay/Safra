@@ -12,6 +12,7 @@ import org.developerkubilay.safra.client.p2p.ForgeVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
 import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pConstants;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 @Mixin(JoinMultiplayerScreen.class)
 abstract class JoinMultiplayerScreenMixin extends Screen {
@@ -32,7 +34,7 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             return;
         }
 
-        Minecraft client = safra$getClientInstance();
+        Minecraft client = this.minecraft != null ? this.minecraft : safra$getClientInstance();
         if (client == null) {
             return;
         }
@@ -42,7 +44,10 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
             () -> P2pManager.getInstance().cancelPendingRewrite()
         );
         ForgeVersionCompat.setScreen(client, progressScreen);
-        P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) -> {
+        P2pManager.getInstance()
+            .createRewriteAsync(serverData)
+            .orTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS + 5_000L, TimeUnit.MILLISECONDS)
+            .whenComplete((rewriteResult, throwable) -> {
             ForgeVersionCompat.execute(client, () -> {
                 if (throwable != null) {
                     Throwable cause = throwable instanceof CompletionException completionException
@@ -67,11 +72,12 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
     }
 
     private static Object safra$call(Object target, Class<?>[] parameterTypes, Object[] args, String... names) {
+        Class<?> type = target instanceof Class<?> clazz ? clazz : target.getClass();
         for (String name : names) {
             try {
-                java.lang.reflect.Method method = target.getClass().getMethod(name, parameterTypes);
+                java.lang.reflect.Method method = type.getMethod(name, parameterTypes);
                 method.setAccessible(true);
-                return method.invoke(target, args);
+                return method.invoke(target instanceof Class<?> ? null : target, args);
             } catch (ReflectiveOperationException ignored) {
             }
         }
@@ -80,6 +86,13 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
 
     private static Minecraft safra$getClientInstance() {
         Object value = safra$call(Minecraft.class, new Class<?>[0], new Object[0], "getInstance", "m_91087_");
-        return value instanceof Minecraft client ? client : null;
+        if (value instanceof Minecraft client) {
+            return client;
+        }
+        try {
+            return Minecraft.getInstance();
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 }
