@@ -1,9 +1,11 @@
 package org.developerkubilay.safra.p2p;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 final class P2pPacket {
+    private static final byte[] EMPTY_PAYLOAD = new byte[0];
     private static final ThreadLocal<ByteBuffer> ENCODE_BUFFER = ThreadLocal.withInitial(
         () -> ByteBuffer.allocate(P2pConstants.HEADER_SIZE + P2pConstants.MAX_PAYLOAD_SIZE)
     );
@@ -13,15 +15,6 @@ final class P2pPacket {
     private final int sequence;
     private final int acknowledgement;
     private final byte[] payload;
-
-    P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
-        this.type = type;
-        this.token = token;
-        this.connectionId = connectionId;
-        this.sequence = sequence;
-        this.acknowledgement = acknowledgement;
-        this.payload = payload == null ? new byte[0] : payload;
-    }
 
     enum Type {
         OPEN(1),
@@ -38,97 +31,25 @@ final class P2pPacket {
         }
 
         static Type fromId(int id) {
-            for (Type value : values()) {
-                if (value.id == id) {
-                    return value;
-                }
+            switch (id) {
+                case 1: return OPEN;
+                case 2: return OPEN_ACK;
+                case 3: return DATA;
+                case 4: return ACK;
+                case 5: return CLOSE;
+                case 6: return NACK;
+                default: return null;
             }
-            return null;
         }
     }
 
-    static P2pPacket open(int token, int connectionId) {
-        return new P2pPacket(Type.OPEN, token, connectionId, 0, 0, new byte[0]);
-    }
-
-    static P2pPacket openAck(int token, int connectionId) {
-        return new P2pPacket(Type.OPEN_ACK, token, connectionId, 0, 0, new byte[0]);
-    }
-
-    static P2pPacket data(int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
-        return new P2pPacket(Type.DATA, token, connectionId, sequence, acknowledgement, payload);
-    }
-
-    static P2pPacket ack(int token, int connectionId, int acknowledgement) {
-        return ack(token, connectionId, acknowledgement, 0);
-    }
-
-    static P2pPacket ack(int token, int connectionId, int acknowledgement, int acknowledgementMask) {
-        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, controlPayload(acknowledgementMask));
-    }
-
-    static P2pPacket nack(int token, int connectionId, int missingSequence, int acknowledgement, int acknowledgementMask) {
-        return new P2pPacket(Type.NACK, token, connectionId, missingSequence, acknowledgement, controlPayload(acknowledgementMask));
-    }
-
-    static P2pPacket close(int token, int connectionId) {
-        return new P2pPacket(Type.CLOSE, token, connectionId, 0, 0, new byte[0]);
-    }
-
-    int acknowledgementMask() {
-        if ((type != Type.ACK && type != Type.NACK) || payload.length < Integer.BYTES) {
-            return 0;
-        }
-
-        return ByteBuffer.wrap(payload, 0, Integer.BYTES).getInt();
-    }
-
-    byte[] encode() {
-        ByteBuffer buffer = ENCODE_BUFFER.get();
-        buffer.clear();
-        buffer.put(P2pConstants.PROTOCOL_VERSION);
-        buffer.put((byte) type.id);
-        buffer.putInt(token);
-        buffer.putInt(connectionId);
-        buffer.putInt(sequence);
-        buffer.putInt(acknowledgement);
-        buffer.put(payload);
-        int length = buffer.position();
-        return Arrays.copyOf(buffer.array(), length);
-    }
-
-    static P2pPacket decode(byte[] buffer, int length) {
-        if (length < P2pConstants.HEADER_SIZE) {
-            return null;
-        }
-
-        ByteBuffer byteBuffer = ByteBuffer.wrap(buffer, 0, length);
-        byte version = byteBuffer.get();
-        if (version != P2pConstants.PROTOCOL_VERSION) {
-            return null;
-        }
-
-        Type type = Type.fromId(Byte.toUnsignedInt(byteBuffer.get()));
-        if (type == null) {
-            return null;
-        }
-
-        int token = byteBuffer.getInt();
-        int connectionId = byteBuffer.getInt();
-        int sequence = byteBuffer.getInt();
-        int acknowledgement = byteBuffer.getInt();
-        byte[] payload = Arrays.copyOfRange(buffer, P2pConstants.HEADER_SIZE, length);
-        return new P2pPacket(type, token, connectionId, sequence, acknowledgement, payload);
-    }
-
-    private static byte[] controlPayload(int acknowledgementMask) {
-        if (acknowledgementMask == 0) {
-            return new byte[0];
-        }
-
-        return ByteBuffer.allocate(Integer.BYTES)
-            .putInt(acknowledgementMask)
-            .array();
+    P2pPacket(Type type, int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+        this.type = type;
+        this.token = token;
+        this.connectionId = connectionId;
+        this.sequence = sequence;
+        this.acknowledgement = acknowledgement;
+        this.payload = payload == null ? EMPTY_PAYLOAD : payload;
     }
 
     Type type() {
@@ -153,5 +74,99 @@ final class P2pPacket {
 
     byte[] payload() {
         return payload;
+    }
+
+    static P2pPacket open(int token, int connectionId) {
+        return new P2pPacket(Type.OPEN, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+    }
+
+    static P2pPacket openAck(int token, int connectionId) {
+        return new P2pPacket(Type.OPEN_ACK, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+    }
+
+    static P2pPacket data(int token, int connectionId, int sequence, int acknowledgement, byte[] payload) {
+        return new P2pPacket(Type.DATA, token, connectionId, sequence, acknowledgement, payload);
+    }
+
+    static P2pPacket ack(int token, int connectionId, int acknowledgement) {
+        return ack(token, connectionId, acknowledgement, 0);
+    }
+
+    static P2pPacket ack(int token, int connectionId, int acknowledgement, int acknowledgementMask) {
+        return new P2pPacket(Type.ACK, token, connectionId, 0, acknowledgement, controlPayload(acknowledgementMask));
+    }
+
+    static P2pPacket nack(int token, int connectionId, int missingSequence, int acknowledgement, int acknowledgementMask) {
+        return new P2pPacket(Type.NACK, token, connectionId, missingSequence, acknowledgement, controlPayload(acknowledgementMask));
+    }
+
+    static P2pPacket close(int token, int connectionId) {
+        return new P2pPacket(Type.CLOSE, token, connectionId, 0, 0, EMPTY_PAYLOAD);
+    }
+
+    int acknowledgementMask() {
+        if ((type != Type.ACK && type != Type.NACK) || payload.length < Integer.BYTES) {
+            return 0;
+        }
+
+        return readInt(payload, 0);
+    }
+
+    byte[] encode() {
+        ByteBuffer buffer = ENCODE_BUFFER.get();
+        ((Buffer) buffer).clear();
+        buffer.put(P2pConstants.PROTOCOL_VERSION);
+        buffer.put((byte) type.id);
+        buffer.putInt(token);
+        buffer.putInt(connectionId);
+        buffer.putInt(sequence);
+        buffer.putInt(acknowledgement);
+        buffer.put(payload);
+        int length = buffer.position();
+        return Arrays.copyOf(buffer.array(), length);
+    }
+
+    static P2pPacket decode(byte[] buffer, int length) {
+        if (length < P2pConstants.HEADER_SIZE) {
+            return null;
+        }
+
+        if (buffer[0] != P2pConstants.PROTOCOL_VERSION) {
+            return null;
+        }
+
+        Type type = Type.fromId(buffer[1] & 0xFF);
+        if (type == null) {
+            return null;
+        }
+
+        int token = readInt(buffer, 2);
+        int connectionId = readInt(buffer, 6);
+        int sequence = readInt(buffer, 10);
+        int acknowledgement = readInt(buffer, 14);
+        byte[] payload = length == P2pConstants.HEADER_SIZE
+            ? EMPTY_PAYLOAD
+            : Arrays.copyOfRange(buffer, P2pConstants.HEADER_SIZE, length);
+        return new P2pPacket(type, token, connectionId, sequence, acknowledgement, payload);
+    }
+
+    private static byte[] controlPayload(int acknowledgementMask) {
+        if (acknowledgementMask == 0) {
+            return EMPTY_PAYLOAD;
+        }
+
+        return new byte[]{
+            (byte) (acknowledgementMask >>> 24),
+            (byte) (acknowledgementMask >>> 16),
+            (byte) (acknowledgementMask >>> 8),
+            (byte) acknowledgementMask
+        };
+    }
+
+    private static int readInt(byte[] buffer, int offset) {
+        return ((buffer[offset] & 0xFF) << 24)
+            | ((buffer[offset + 1] & 0xFF) << 16)
+            | ((buffer[offset + 2] & 0xFF) << 8)
+            | (buffer[offset + 3] & 0xFF);
     }
 }

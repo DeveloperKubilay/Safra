@@ -12,18 +12,20 @@ import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
-import org.developerkubilay.safra.util.SafraLogger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
-    private static final Logger LOGGER = SafraLogger.get(RemoteRendezvousConfigUpdater.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
+    private static final String DEFAULT_DISCORD_URL = "https://discord.gg/NHjBvRxDXP";
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -31,6 +33,8 @@ public final class RemoteRendezvousConfigUpdater {
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
     private static volatile List<String> latestModVersions = java.util.Collections.emptyList();
+    private static volatile String discordUrl = DEFAULT_DISCORD_URL;
+    private static volatile String youtubeUrl = "";
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -40,11 +44,13 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        if (config.getRendezvousUrl().trim().isEmpty() && !P2pConstants.hasExplicitRendezvousUrlOverride()) {
+        if (!P2pConstants.hasExplicitRendezvousUrlOverride()
+            && !P2pConstants.DEFAULT_RENDEZVOUS_URL.equals(config.getRendezvousUrl())) {
             config.setRendezvousUrl(P2pConstants.DEFAULT_RENDEZVOUS_URL);
         }
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
         P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
+        P2pConstants.setRuntimeSiteApiVersion(config.getSiteApiVersion());
         P2pConstants.applyDefaultRendezvousUrlIfAbsent();
         if (!STARTED.compareAndSet(false, true)) {
             return;
@@ -81,6 +87,17 @@ public final class RemoteRendezvousConfigUpdater {
             }
 
             JsonObject json = new JsonParser().parse(body).getAsJsonObject();
+            JsonElement discordElement = json.get("discord");
+            if (discordElement != null && discordElement.isJsonPrimitive() && isValidDiscordUrl(discordElement.getAsString())) {
+                discordUrl = discordElement.getAsString().trim();
+            }
+            JsonElement youtubeElement = json.get("youtube");
+            if (youtubeElement != null && youtubeElement.isJsonPrimitive()) {
+                String value = youtubeElement.getAsString().trim();
+                youtubeUrl = isValidYoutubeUrl(value) ? value : "";
+            } else {
+                youtubeUrl = "";
+            }
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
             if (latestVersions.isEmpty()) {
@@ -104,6 +121,37 @@ public final class RemoteRendezvousConfigUpdater {
 
     public static String latestModVersion() {
         return latestModVersion;
+    }
+
+    public static String discordUrl() {
+        return discordUrl;
+    }
+
+    public static String youtubeUrl() {
+        return youtubeUrl;
+    }
+
+    private static boolean isValidDiscordUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isValidYoutubeUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            String host = uri.getHost();
+            return "https".equalsIgnoreCase(uri.getScheme())
+                && host != null
+                && ("youtube.com".equalsIgnoreCase(host)
+                    || host.toLowerCase(Locale.ROOT).endsWith(".youtube.com")
+                    || "youtu.be".equalsIgnoreCase(host));
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     public static boolean hasNewerModVersion() {

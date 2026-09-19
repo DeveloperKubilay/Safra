@@ -3,7 +3,7 @@ package org.developerkubilay.safra.p2p;
 import de.maxhenkel.voicechat.api.ClientVoicechatSocket;
 import de.maxhenkel.voicechat.api.RawUdpPacket;
 import org.slf4j.Logger;
-import org.developerkubilay.safra.util.SafraLogger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -11,12 +11,11 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
-    private static final Logger LOGGER = SafraLogger.get(SafraVoiceClientSocket.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceClientSocket.class);
 
     private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final P2pStunMappings stunMappings = new P2pStunMappings();
@@ -53,12 +52,13 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             return null;
         }
 
-        Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);
+        java.util.Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);
         if (publicEndpoints.isEmpty()) {
-            throw new IOException("Safra voice joiner Could not find a public UDP endpoint");
+            throw new IOException("Could not discover a public UDP endpoint for the voice joiner");
         }
 
-        return joinSession.resolveVoice(publicEndpoints);
+        InetSocketAddress resolvedRemoteAddress = joinSession.resolveVoice(publicEndpoints);
+        return resolvedRemoteAddress;
     }
 
     private void refreshStunMapping() {

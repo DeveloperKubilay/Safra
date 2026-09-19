@@ -3,7 +3,7 @@ package org.developerkubilay.safra.p2p;
 import de.maxhenkel.voicechat.api.RawUdpPacket;
 import de.maxhenkel.voicechat.api.VoicechatSocket;
 import org.slf4j.Logger;
-import org.developerkubilay.safra.util.SafraLogger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -14,14 +14,14 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SafraVoiceServerSocket implements VoicechatSocket {
-    private static final Logger LOGGER = SafraLogger.get(SafraVoiceServerSocket.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceServerSocket.class);
 
     private ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
     private final P2pStunMappings stunMappings = new P2pStunMappings();
@@ -133,7 +133,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         if (closed || socket == null || socket.isClosed() || stunMappings.isEmpty()) {
             return java.util.Collections.emptyList();
         }
-        return new ArrayList<>(stunMappings.publicEndpoints());
+        return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(stunMappings.publicEndpoints()));
     }
 
     synchronized int localPortSnapshot() {
