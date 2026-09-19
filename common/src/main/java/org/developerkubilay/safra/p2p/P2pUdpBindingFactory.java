@@ -10,8 +10,6 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,9 +24,13 @@ final class P2pUdpBindingFactory {
     static P2pTransportBinding createBestHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort, boolean allowRelayFallback) throws IOException {
 
         try {
-            return createDirectHostBinding(stunClient, preferredPort);
+            return createDirectHostBinding(logger, stunClient, preferredPort);
         } catch (IOException exception) {
-            if (!allowRelayFallback || !P2pConstants.turnEnabled()) {
+            if (P2pConstants.useApi30Rendezvous()) {
+                logger.debug("Safra host STUN could not be opened, trying relay-required flow: {}", exception.toString());
+                return createLocalHostBinding(preferredPort);
+            }
+            if (!(allowRelayFallback && !P2pConstants.neverUseRelayServer())) {
                 throw exception;
             }
             logger.debug("Safra host STUN could not be opened, trying TURN relay: {}", exception.toString());
@@ -39,12 +41,13 @@ final class P2pUdpBindingFactory {
     static P2pTransportBinding createBestJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
 
         try {
-            return createDirectJoinBinding(stunClient);
+            return createDirectJoinBinding(logger, stunClient);
         } catch (IOException exception) {
-            if (P2pConstants.neverUseRelayServer()) {
-                throw exception;
+            if (P2pConstants.useApi30Rendezvous()) {
+                logger.debug("Safra join STUN could not be opened, trying relay-required flow: {}", exception.toString());
+                return createLocalJoinBinding();
             }
-            if (!P2pConstants.turnEnabled()) {
+            if (P2pConstants.neverUseRelayServer()) {
                 throw exception;
             }
             logger.debug("Safra join STUN could not be opened, trying TURN relay: {}", exception.toString());
@@ -57,50 +60,56 @@ final class P2pUdpBindingFactory {
             throw new IOException("TURN relay is disabled in config");
         }
         P2pTurnCredentials credentials = P2pTurnCredentialClient.fetch(role, false);
+        return createTurnBinding(logger, role, credentials);
+    }
+
+    static P2pTransportBinding createTurnBinding(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
+        if (P2pConstants.neverUseRelayServer()) {
+            throw new IOException("TURN relay is disabled in config");
+        }
         P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(logger, role, credentials);
         return new P2pTransportBinding(
             transport,
-            Collections.singletonList(transport.relayAddress()),
-            Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
+            java.util.Collections.singletonList(transport.relayAddress()),
+            java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
             true
         );
     }
 
-    private static P2pTransportBinding createDirectHostBinding(P2pStunClient stunClient, int preferredPort) throws IOException {
-        DatagramSocket socket = bindSocket(preferredPort);
+    private static P2pTransportBinding createDirectHostBinding(Logger logger, P2pStunClient stunClient, int preferredPort) throws IOException {
         boolean success = false;
         try {
-            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
-            if (discovered.isEmpty()) {
-                throw new IOException("Could not discover a public UDP endpoint with STUN");
-            }
-            success = true;
-            return new P2pTransportBinding(
-                new P2pDirectDatagramTransport(socket),
-                P2pStunClient.publicEndpoints(discovered),
-                new LinkedHashMap<String, P2pStunClient.DiscoveredEndpoint>(discovered),
-                false
-            );
-        } finally {
-            if (!success) {
-                socket.close();
-            }
+            return createDirectBinding(bindIpv4Socket(preferredPort), stunClient, true, "Could not discover a public IPv4 UDP endpoint with STUN");
+        } catch (IOException exception) {
+            logger.info("Safra could not force IPv4, falling back to general STUN discovery: {}", exception.toString());
         }
+        return createDirectBinding(bindSocket(preferredPort), stunClient, false, "Could not discover a public UDP endpoint with STUN");
     }
 
-    private static P2pTransportBinding createDirectJoinBinding(P2pStunClient stunClient) throws IOException {
-        DatagramSocket socket = P2pSockets.datagramSocket();
+    static P2pTransportBinding createDirectJoinBinding(Logger logger, P2pStunClient stunClient) throws IOException {
+        try {
+            return createDirectBinding(P2pSockets.ipv4DatagramSocket(), stunClient, true, "Could not discover a public IPv4 joiner UDP endpoint with STUN");
+        } catch (IOException exception) {
+            logger.info("Safra could not force IPv4, falling back to general STUN discovery: {}", exception.toString());
+        }
+        return createDirectBinding(P2pSockets.datagramSocket(), stunClient, false, "Could not discover a public joiner UDP endpoint with STUN");
+    }
+
+    private static P2pTransportBinding createDirectBinding(DatagramSocket socket, P2pStunClient stunClient,
+                                                            boolean ipv4Only, String failureMessage) throws IOException {
         boolean success = false;
         try {
-            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = stunClient.discoverCandidates(socket);
+            Map<String, P2pStunClient.DiscoveredEndpoint> discovered = ipv4Only
+                ? stunClient.discoverIpv4Candidates(socket)
+                : stunClient.discoverCandidates(socket);
             if (discovered.isEmpty()) {
-                throw new IOException("Could not discover a public joiner UDP endpoint with STUN");
+                throw new IOException(failureMessage);
             }
             success = true;
             return new P2pTransportBinding(
                 new P2pDirectDatagramTransport(socket),
                 P2pStunClient.publicEndpoints(discovered),
-                new LinkedHashMap<String, P2pStunClient.DiscoveredEndpoint>(discovered),
+                java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<String, P2pStunClient.DiscoveredEndpoint>(discovered)),
                 false
             );
         } finally {
@@ -116,5 +125,33 @@ final class P2pUdpBindingFactory {
         } catch (BindException ignored) {
             return P2pSockets.datagramSocket();
         }
+    }
+
+    private static DatagramSocket bindIpv4Socket(int preferredPort) throws IOException {
+        try {
+            return P2pSockets.ipv4DatagramSocket(preferredPort);
+        } catch (BindException ignored) {
+            return P2pSockets.ipv4DatagramSocket();
+        }
+    }
+
+    private static P2pTransportBinding createLocalHostBinding(int preferredPort) throws IOException {
+        DatagramSocket socket = bindSocket(preferredPort);
+        return new P2pTransportBinding(
+            new P2pDirectDatagramTransport(socket),
+            java.util.Collections.<InetSocketAddress>emptyList(),
+            java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
+            false
+        );
+    }
+
+    private static P2pTransportBinding createLocalJoinBinding() throws IOException {
+        DatagramSocket socket = P2pSockets.ipv4DatagramSocket();
+        return new P2pTransportBinding(
+            new P2pDirectDatagramTransport(socket),
+            java.util.Collections.singletonList(new InetSocketAddress(P2pSockets.ipv4WildcardAddress(), socket.getLocalPort())),
+            java.util.Collections.<String, P2pStunClient.DiscoveredEndpoint>emptyMap(),
+            false
+        );
     }
 }

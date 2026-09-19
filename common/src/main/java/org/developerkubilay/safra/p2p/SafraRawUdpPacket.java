@@ -15,18 +15,6 @@ final class SafraRawUdpPacket implements RawUdpPacket {
         this.timestamp = timestamp;
     }
 
-    byte[] data() {
-        return data;
-    }
-
-    SocketAddress socketAddress() {
-        return socketAddress;
-    }
-
-    long timestamp() {
-        return timestamp;
-    }
-
     @Override
     public byte[] getData() {
         return data;

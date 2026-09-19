@@ -145,8 +145,11 @@ abstract class DirectJoinServerScreenMixin extends Screen {
     private Button safra$findSecondaryButton(Button primaryButton) {
         Button candidate = null;
         for (GuiEventListener element : this.children()) {
-            if (element instanceof Button button && button != primaryButton) {
-                candidate = button;
+            if (element instanceof Button) {
+                Button button = (Button) element;
+                if (button != primaryButton) {
+                    candidate = button;
+                }
             }
         }
         return candidate;

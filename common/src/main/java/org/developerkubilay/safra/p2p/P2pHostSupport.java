@@ -19,16 +19,28 @@ public final class P2pHostSupport {
         return token;
     }
 
-    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
+    public static String resolvePreferredRendezvousCode(String preferredRendezvousCode) {
+        String normalized = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        return normalized != null ? normalized : P2pShareCode.createRendezvousCode();
+    }
+
+    public static int createRendezvousShareToken(String rendezvousCode) {
+        return P2pShareCode.rendezvousTunnelToken(rendezvousCode);
+    }
+
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, org.apache.logging.log4j.Logger logger) throws IOException {
         return startDedicatedHost(tcpPort, serverIp, null, logger);
     }
 
-    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, org.apache.logging.log4j.Logger logger) throws IOException {
+        String resolvedCode = P2pConstants.useApi30Rendezvous()
+            ? resolvePreferredRendezvousCode(preferredRendezvousCode)
+            : P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
         P2pHostService service = new P2pHostService(
             tcpPort,
-            createShareToken(),
-            resolveTargetAddress(serverIp, logger),
-            preferredRendezvousCode,
+            P2pConstants.useApi30Rendezvous() ? createRendezvousShareToken(resolvedCode) : createShareToken(),
+            resolveTargetAddress(serverIp, logger != null ? (msg, a1, a2) -> logger.warn(msg, a1, a2) : null),
+            resolvedCode,
             false
         );
         try {
@@ -39,15 +51,45 @@ public final class P2pHostSupport {
         }
     }
 
-    private static InetAddress resolveTargetAddress(String serverIp, Logger logger) {
-        if (P2pText.isBlank(serverIp) || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
+        return startDedicatedHost(tcpPort, serverIp, null, logger);
+    }
+
+    public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+        String resolvedCode = P2pConstants.useApi30Rendezvous()
+            ? resolvePreferredRendezvousCode(preferredRendezvousCode)
+            : P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        P2pHostService service = new P2pHostService(
+            tcpPort,
+            P2pConstants.useApi30Rendezvous() ? createRendezvousShareToken(resolvedCode) : createShareToken(),
+            resolveTargetAddress(serverIp, logger != null ? (msg, a1, a2) -> logger.warn(msg, a1, a2) : null),
+            resolvedCode,
+            false
+        );
+        try {
+            return new HostStartResult(service, service.start());
+        } catch (IOException exception) {
+            service.close();
+            throw exception;
+        }
+    }
+
+    @FunctionalInterface
+    private interface WarnLogger {
+        void warn(String format, Object arg1, Object arg2);
+    }
+
+    private static InetAddress resolveTargetAddress(String serverIp, WarnLogger logger) {
+        if (serverIp == null || serverIp.trim().isEmpty() || "0.0.0.0".equals(serverIp) || "::".equals(serverIp)) {
             return InetAddress.getLoopbackAddress();
         }
 
         try {
             return InetAddress.getByName(serverIp);
         } catch (UnknownHostException exception) {
-            logger.warn("Safra P2P could not resolve server-ip '{}', falling back to loopback", serverIp, exception);
+            if (logger != null) {
+                logger.warn("Safra P2P could not resolve server-ip '{}', falling back to loopback", serverIp, exception);
+            }
             return InetAddress.getLoopbackAddress();
         }
     }
