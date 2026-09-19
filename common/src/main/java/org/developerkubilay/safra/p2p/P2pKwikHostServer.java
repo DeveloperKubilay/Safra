@@ -59,8 +59,8 @@ final class P2pKwikHostServer implements AutoCloseable {
         ServerConnectionConfig configuration = ServerConnectionConfig.builder()
             .maxOpenPeerInitiatedBidirectionalStreams(1)
             .maxOpenPeerInitiatedUnidirectionalStreams(0)
-            .maxConnectionBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES)
-            .maxBidirectionalStreamBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES)
+            .maxConnectionBufferSize(P2pConstants.MAX_STREAM_WINDOW_BYTES)
+            .maxBidirectionalStreamBufferSize(P2pConstants.MAX_STREAM_WINDOW_BYTES)
             .maxIdleTimeoutInSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS)
             .useStrictSmallestAllowedMaximumDatagramSize(true)
             .build();

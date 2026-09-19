@@ -105,7 +105,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .host(P2pConstants.LOCAL_PROXY_HOST)
                 .port(P2pConstants.KWIK_VIRTUAL_PORT)
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
-                .connectTimeout(Duration.ofNanos(remainingNanos))
+                .connectTimeout(Duration.ofNanos(Math.max(TimeUnit.SECONDS.toNanos(4), remainingNanos)))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
                 .defaultStreamReceiveBufferSize((long) P2pConstants.MAX_STREAM_WINDOW_BYTES)
                 .maxOpenPeerInitiatedBidirectionalStreams(1)
@@ -115,7 +115,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .build();
             connection.connect();
             int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
-            int window = P2pConstants.streamWindowBytes(roundTripMs);
+            int window = Math.max(P2pConstants.MAX_STREAM_WINDOW_BYTES, P2pConstants.streamWindowBytes(roundTripMs));
             connection.setDefaultBidirectionalStreamReceiveBufferSize(window);
             if (SafraBuildInfo.diagnostics()) {
                 logger.info("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
