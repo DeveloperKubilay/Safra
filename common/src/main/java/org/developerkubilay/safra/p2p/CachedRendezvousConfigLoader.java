@@ -23,7 +23,7 @@ public final class CachedRendezvousConfigLoader {
 
         try {
             String body = new String(Files.readAllBytes(configFile), StandardCharsets.UTF_8);
-            if (body == null || body.trim().isEmpty()) {
+            if (body.isBlank()) {
                 return;
             }
 

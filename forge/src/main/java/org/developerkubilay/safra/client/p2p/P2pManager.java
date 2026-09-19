@@ -7,6 +7,7 @@ import net.minecraft.client.server.IntegratedServer;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.P2pErrorKind;
 import org.developerkubilay.safra.p2p.P2pHostService;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pRuntime;
@@ -34,6 +35,7 @@ public final class P2pManager {
     private volatile CompletableFuture<RewriteResult> rewriteFuture;
     private boolean pendingClientFailureContext;
     private boolean pendingDirectShareFailureContext;
+    private P2pErrorKind pendingFailureKind = P2pErrorKind.OTHER;
     private long hostStartGeneration;
     private long rewriteGeneration;
 
@@ -55,11 +57,9 @@ public final class P2pManager {
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
         stopHosting();
 
-        String normalizedFixedCode = org.developerkubilay.safra.p2p.P2pShareCode.normalizeRendezvousCode(fixedCode);
-        int token = normalizedFixedCode != null
-            ? org.developerkubilay.safra.p2p.P2pShareCode.rendezvousTunnelToken(normalizedFixedCode)
-            : P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token, normalizedFixedCode, relayReadyHandler);
+        String rendezvousCode = P2pHostSupport.resolvePreferredRendezvousCode(fixedCode);
+        int token = P2pHostSupport.createRendezvousShareToken(rendezvousCode);
+        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;
 
@@ -164,6 +164,7 @@ public final class P2pManager {
         P2pClientProxy proxy = new P2pClientProxy(shareCode, () -> {
             synchronized (P2pManager.this) {
                 if (activeClientProxy == proxyRef[0]) {
+                    pendingFailureKind = activeClientProxy.failureKind();
                     activeClientProxy = null;
                 }
                 if (startingClientProxy == proxyRef[0]) {
@@ -208,7 +209,6 @@ public final class P2pManager {
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
         rewritten.copyFrom(originalServerInfo);
-        rewritten.ip = localAddress;
         return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
     }
 
@@ -283,9 +283,11 @@ public final class P2pManager {
     public synchronized ClientFailureContext consumeClientFailureContext() {
         boolean p2p = pendingClientFailureContext || activeClientProxy != null;
         boolean direct = pendingDirectShareFailureContext || activeClientUsesDirectShareAddress();
+        P2pErrorKind kind = activeClientProxy == null ? pendingFailureKind : activeClientProxy.failureKind();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
-        return new ClientFailureContext(p2p, direct);
+        pendingFailureKind = P2pErrorKind.OTHER;
+        return new ClientFailureContext(p2p, direct, kind);
     }
 
     private void cancelPendingRewriteInternal() {
@@ -310,6 +312,6 @@ public final class P2pManager {
     public record RewriteResult(ServerAddress serverAddress, ServerData serverInfo) {
     }
 
-    public record ClientFailureContext(boolean p2p, boolean directShareAddress) {
+    public record ClientFailureContext(boolean p2p, boolean directShareAddress, P2pErrorKind kind) {
     }
 }

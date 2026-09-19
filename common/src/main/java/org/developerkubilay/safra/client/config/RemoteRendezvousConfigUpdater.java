@@ -2,12 +2,14 @@ package org.developerkubilay.safra.client.config;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -15,6 +17,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
@@ -30,6 +33,7 @@ public final class RemoteRendezvousConfigUpdater {
     private static volatile String latestModVersion = "";
     private static volatile List<String> latestModVersions = List.of();
     private static volatile String discordUrl = DEFAULT_DISCORD_URL;
+    private static volatile String youtubeUrl = "";
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -39,19 +43,22 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        if (!P2pConstants.hasExplicitRendezvousUrlOverride()
+        boolean testOnly = "test-only".equalsIgnoreCase(config.getSiteApiVersion());
+        if (!P2pConstants.hasExplicitRendezvousUrlOverride() && !testOnly
             && !P2pConstants.DEFAULT_RENDEZVOUS_URL.equals(config.getRendezvousUrl())) {
             config.setRendezvousUrl(P2pConstants.DEFAULT_RENDEZVOUS_URL);
         }
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
         P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
         P2pConstants.setRuntimeSiteApiVersion(config.getSiteApiVersion());
-        P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+        if (!testOnly) {
+            P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+        }
         if (!STARTED.compareAndSet(false, true)) {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(java.net.URI.create(REMOTE_CONFIG_URL))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
             .timeout(REQUEST_TIMEOUT)
             .GET()
             .build();
@@ -71,10 +78,17 @@ public final class RemoteRendezvousConfigUpdater {
                 return;
             }
 
-            JsonObject json = new com.google.gson.JsonParser().parse(body).getAsJsonObject();
+            JsonObject json = new JsonParser().parse(body).getAsJsonObject();
             JsonElement discordElement = json.get("discord");
             if (discordElement != null && discordElement.isJsonPrimitive() && isValidDiscordUrl(discordElement.getAsString())) {
                 discordUrl = discordElement.getAsString().trim();
+            }
+            JsonElement youtubeElement = json.get("youtube");
+            if (youtubeElement != null && youtubeElement.isJsonPrimitive()) {
+                String value = youtubeElement.getAsString().trim();
+                youtubeUrl = isValidYoutubeUrl(value) ? value : "";
+            } else {
+                youtubeUrl = "";
             }
             List<String> latestVersions = parseLatestModVersions(json);
             latestModVersions = latestVersions;
@@ -85,8 +99,10 @@ public final class RemoteRendezvousConfigUpdater {
             }
             String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
-                config.setRendezvousUrl("");
-                P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+                if (!"test-only".equalsIgnoreCase(config.getSiteApiVersion())) {
+                    config.setRendezvousUrl("");
+                    P2pConstants.applyDefaultRendezvousUrlIfAbsent();
+                }
                 return;
             }
 
@@ -105,10 +121,28 @@ public final class RemoteRendezvousConfigUpdater {
         return discordUrl;
     }
 
+    public static String youtubeUrl() {
+        return youtubeUrl;
+    }
+
     private static boolean isValidDiscordUrl(String value) {
         try {
-            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            URI uri = URI.create(value == null ? "" : value.trim());
             return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isValidYoutubeUrl(String value) {
+        try {
+            URI uri = URI.create(value == null ? "" : value.trim());
+            String host = uri.getHost();
+            return "https".equalsIgnoreCase(uri.getScheme())
+                && host != null
+                && ("youtube.com".equalsIgnoreCase(host)
+                    || host.toLowerCase(Locale.ROOT).endsWith(".youtube.com")
+                    || "youtu.be".equalsIgnoreCase(host));
         } catch (IllegalArgumentException ignored) {
             return false;
         }

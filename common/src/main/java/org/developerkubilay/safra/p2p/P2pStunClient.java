@@ -15,9 +15,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import org.developerkubilay.safra.p2p.P2pSockets.AddressFamily;
 
 final class P2pStunClient {
     private static final int BINDING_REQUEST = 0x0001;
@@ -28,32 +31,29 @@ final class P2pStunClient {
 
     private final SecureRandom random = new SecureRandom();
 
-    Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket) {
+    Map<AddressFamily, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket) {
         return discoverCandidates(socket, null);
     }
 
-    Map<String, DiscoveredEndpoint> discoverIpv4Candidates(DatagramSocket socket) {
-        return discoverCandidates(socket, "ipv4");
+    Map<AddressFamily, DiscoveredEndpoint> discoverIpv4Candidates(DatagramSocket socket) {
+        return discoverCandidates(socket, AddressFamily.IPV4);
     }
 
-    private Map<String, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket, String requiredFamily) {
-        Map<String, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
-        for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
-            List<PendingRequest> pendingRequests = requestCandidates(socket, serverGroup, requiredFamily);
-            if (pendingRequests.isEmpty()) {
-                continue;
+    private Map<AddressFamily, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket, AddressFamily requiredFamily) {
+        Map<AddressFamily, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
+        List<PendingRequest> pendingRequests = requestCandidates(socket, requiredFamily);
+        if (pendingRequests.isEmpty()) {
+            return discovered;
+        }
+
+        for (int attempt = 0; attempt < P2pConstants.STUN_DISCOVERY_ATTEMPTS; attempt++) {
+            if (attempt > 0) {
+                resendCandidates(socket, pendingRequests);
             }
 
-            for (int attempt = 0; attempt < P2pConstants.STUN_DISCOVERY_ATTEMPTS; attempt++) {
-                if (attempt > 0) {
-                    resendCandidates(socket, pendingRequests);
-                }
-
-                int responseWaitMs = P2pConstants.STUN_INITIAL_RETRY_MS << attempt;
-                collectResponses(socket, pendingRequests, responseWaitMs, discovered);
-                if (!discovered.isEmpty()) {
-                    return discovered;
-                }
+            collectResponses(socket, pendingRequests, P2pConstants.STUN_INITIAL_RETRY_MS << attempt, discovered);
+            if (requiredFamily != null || discovered.containsKey(AddressFamily.IPV4)) {
+                return discovered;
             }
         }
         return discovered;
@@ -66,11 +66,7 @@ final class P2pStunClient {
     }
 
     List<PendingRequest> requestCandidates(DatagramSocket socket) {
-        List<PendingRequest> pendingRequests = new ArrayList<>();
-        for (String[] serverGroup : P2pConstants.STUN_SERVER_GROUPS) {
-            pendingRequests.addAll(requestCandidates(socket, serverGroup));
-        }
-        return pendingRequests;
+        return requestCandidates(socket, null);
     }
 
     private void resendCandidates(DatagramSocket socket, List<PendingRequest> pendingRequests) {
@@ -82,24 +78,24 @@ final class P2pStunClient {
         }
     }
 
-    List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery) {
-        return requestCandidates(socket, serversToQuery, null);
-    }
-
-    private List<PendingRequest> requestCandidates(DatagramSocket socket, String[] serversToQuery, String requiredFamily) {
-        List<PendingRequest> pendingRequests = new ArrayList<>();
-        for (String serverSpec : serversToQuery) {
+    private List<PendingRequest> requestCandidates(DatagramSocket socket, AddressFamily requiredFamily) {
+        LinkedHashSet<InetSocketAddress> servers = new LinkedHashSet<>();
+        for (String serverSpec : P2pConstants.STUN_SERVERS) {
             for (InetSocketAddress server : parseServerCandidates(serverSpec)) {
-                if (requiredFamily != null && !requiredFamily.equals(P2pSockets.addressFamily(server))) {
-                    continue;
+                if (requiredFamily == null || requiredFamily == P2pSockets.addressFamily(server)) {
+                    servers.add(server);
                 }
-                try {
-                    byte[] transactionId = new byte[12];
-                    random.nextBytes(transactionId);
-                    sendBindingRequest(socket, server, transactionId);
-                    pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
-                } catch (IOException ignored) {
-                }
+            }
+        }
+
+        List<PendingRequest> pendingRequests = new ArrayList<>();
+        for (InetSocketAddress server : servers) {
+            try {
+                byte[] transactionId = new byte[12];
+                random.nextBytes(transactionId);
+                sendBindingRequest(socket, server, transactionId);
+                pendingRequests.add(new PendingRequest(server, Arrays.copyOf(transactionId, transactionId.length)));
+            } catch (IOException ignored) {
             }
         }
         return pendingRequests;
@@ -123,8 +119,11 @@ final class P2pStunClient {
         String host = rawServer.substring(0, separator);
         int port = Integer.parseInt(rawServer.substring(separator + 1));
         List<InetSocketAddress> servers = new ArrayList<>();
-        for (InetAddress address : resolveAddresses(host)) {
-            servers.add(new InetSocketAddress(address, port));
+        try {
+            for (InetAddress address : resolveAddresses(host)) {
+                servers.add(new InetSocketAddress(address, port));
+            }
+        } catch (RuntimeException ignored) {
         }
         return servers;
     }
@@ -139,7 +138,7 @@ final class P2pStunClient {
     }
 
     private void collectResponses(DatagramSocket socket, List<PendingRequest> pendingRequests, int timeoutMs,
-                                  Map<String, DiscoveredEndpoint> discovered) {
+                                  Map<AddressFamily, DiscoveredEndpoint> discovered) {
         byte[] buffer = new byte[512];
         DatagramPacket response = new DatagramPacket(buffer, buffer.length);
         int previousTimeout;
@@ -172,7 +171,7 @@ final class P2pStunClient {
                 }
 
                 consumeResponse(response, pendingRequests, discovered);
-                if (discovered.containsKey("ipv4")) {
+                if (discovered.containsKey(AddressFamily.IPV4)) {
                     return;
                 }
             }
@@ -185,7 +184,7 @@ final class P2pStunClient {
     }
 
     private void consumeResponse(DatagramPacket response, List<PendingRequest> pendingRequests,
-                                 Map<String, DiscoveredEndpoint> discovered) {
+                                 Map<AddressFamily, DiscoveredEndpoint> discovered) {
         Iterator<PendingRequest> iterator = pendingRequests.iterator();
         while (iterator.hasNext()) {
             PendingRequest pendingRequest = iterator.next();
@@ -197,26 +196,6 @@ final class P2pStunClient {
             iterator.remove();
             discovered.putIfAbsent(endpoint.family(), endpoint.withServer(pendingRequest.server()));
             return;
-        }
-    }
-
-    private DiscoveredEndpoint readBindingResponse(DatagramSocket socket, byte[] transactionId, int timeoutMs) throws IOException {
-        byte[] buffer = new byte[512];
-        DatagramPacket response = new DatagramPacket(buffer, buffer.length);
-        int previousTimeout = socket.getSoTimeout();
-        socket.setSoTimeout(timeoutMs);
-        try {
-            while (true) {
-                socket.receive(response);
-                DiscoveredEndpoint parsed = parseResponse(Arrays.copyOf(response.getData(), response.getLength()), transactionId);
-                if (parsed != null) {
-                    return parsed;
-                }
-            }
-        } catch (SocketTimeoutException ignored) {
-            return null;
-        } finally {
-            socket.setSoTimeout(previousTimeout);
         }
     }
 
@@ -262,7 +241,8 @@ final class P2pStunClient {
         while (buffer.remaining() >= 4) {
             int type = Short.toUnsignedInt(buffer.getShort());
             int length = Short.toUnsignedInt(buffer.getShort());
-            if (length > buffer.remaining()) {
+            int paddedLength = (length + 3) & ~3;
+            if (paddedLength > buffer.remaining()) {
                 return null;
             }
 
@@ -274,14 +254,13 @@ final class P2pStunClient {
                 }
             }
 
-            int paddedLength = (length + 3) & ~3;
             buffer.position(attributeStart + paddedLength);
         }
         return null;
     }
 
     private DiscoveredEndpoint parseAddressAttribute(ByteBuffer buffer, boolean xor, byte[] transactionId, int length) {
-        if (length < 8) {
+        if (length < 8 || length > buffer.remaining()) {
             return null;
         }
 
@@ -294,7 +273,7 @@ final class P2pStunClient {
         }
 
         byte[] addressBytes;
-        if (family == 0x01) {
+        if (family == 0x01 && length >= 8) {
             addressBytes = new byte[4];
             buffer.get(addressBytes);
             if (xor) {
@@ -303,7 +282,7 @@ final class P2pStunClient {
                     addressBytes[i] ^= cookie[i];
                 }
             }
-        } else if (family == 0x02) {
+        } else if (family == 0x02 && length >= 20) {
             addressBytes = new byte[16];
             buffer.get(addressBytes);
             if (xor) {
@@ -333,7 +312,7 @@ final class P2pStunClient {
             Arrays.sort(resolved, (left, right) -> {
                 boolean leftIpv6 = !(left instanceof Inet4Address);
                 boolean rightIpv6 = !(right instanceof Inet4Address);
-                return Boolean.compare(rightIpv6, leftIpv6);
+                return Boolean.compare(leftIpv6, rightIpv6);
             });
             if (resolved.length > 0) {
                 return resolved;
@@ -345,17 +324,17 @@ final class P2pStunClient {
         throw new IllegalArgumentException("STUN server " + host + " did not resolve to any address");
     }
 
-    static DiscoveredEndpoint preferredCandidate(Map<String, DiscoveredEndpoint> discovered) {
+    static DiscoveredEndpoint preferredCandidate(Map<AddressFamily, DiscoveredEndpoint> discovered) {
         if (discovered.isEmpty()) {
             return null;
         }
 
-        DiscoveredEndpoint ipv4 = discovered.get("ipv4");
+        DiscoveredEndpoint ipv4 = discovered.get(AddressFamily.IPV4);
         if (ipv4 != null) {
             return ipv4;
         }
 
-        DiscoveredEndpoint ipv6 = discovered.get("ipv6");
+        DiscoveredEndpoint ipv6 = discovered.get(AddressFamily.IPV6);
         if (ipv6 != null) {
             return ipv6;
         }
@@ -363,14 +342,14 @@ final class P2pStunClient {
         return discovered.values().iterator().next();
     }
 
-    static List<InetSocketAddress> publicEndpoints(Map<String, DiscoveredEndpoint> discovered) {
+    static List<InetSocketAddress> publicEndpoints(Map<AddressFamily, DiscoveredEndpoint> discovered) {
         ArrayList<InetSocketAddress> endpoints = new ArrayList<>();
-        DiscoveredEndpoint ipv4 = discovered.get("ipv4");
+        DiscoveredEndpoint ipv4 = discovered.get(AddressFamily.IPV4);
         if (ipv4 != null) {
             endpoints.add(ipv4.publicAddress());
         }
 
-        DiscoveredEndpoint ipv6 = discovered.get("ipv6");
+        DiscoveredEndpoint ipv6 = discovered.get(AddressFamily.IPV6);
         if (ipv6 != null) {
             endpoints.add(ipv6.publicAddress());
         }
@@ -389,7 +368,7 @@ final class P2pStunClient {
             return new DiscoveredEndpoint(publicAddress, server);
         }
 
-        String family() {
+        AddressFamily family() {
             return P2pSockets.addressFamily(publicAddress);
         }
 

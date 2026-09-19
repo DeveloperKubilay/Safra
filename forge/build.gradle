@@ -82,7 +82,16 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    kwikRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
+    implementation 'tech.kwik:kwik:0.11'
+    kwikRuntime 'tech.kwik:kwik:0.11'
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
@@ -156,6 +165,7 @@ processResources {
     inputs.property 'mod_description', project.mod_description
     inputs.property 'mixin_compatibility_level', project.mixin_compatibility_level
     inputs.property 'test_mode', rootProject.ext.buildTestMode
+    inputs.property 'diagnostics', rootProject.ext.buildDiagnostics
     filteringCharset = 'UTF-8'
 
     filesMatching('META-INF/mods.toml') {
@@ -178,7 +188,8 @@ processResources {
             minecraft_version: project.minecraft_version,
             loader_name: 'forge',
             loader_version: project.forge_version,
-            test_mode: rootProject.ext.buildTestMode
+            test_mode: rootProject.ext.buildTestMode,
+            diagnostics: rootProject.ext.buildDiagnostics
         )
     }
 
@@ -196,6 +207,10 @@ processResources {
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.kwikRuntime.collect { zipTree(it) } }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+            'module-info.class', 'META-INF/versions/**/module-info.class'
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
     }

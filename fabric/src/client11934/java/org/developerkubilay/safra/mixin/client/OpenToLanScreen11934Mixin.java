@@ -181,12 +181,24 @@ abstract class OpenToLanScreen11934Mixin extends Screen {
         this.client.inGameHud.getChatHud().addMessage(
             FabricClientCompat.translatable("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
         );
-        this.client.inGameHud.getChatHud().addMessage(safra$discordLink());
+        this.client.inGameHud.getChatHud().addMessage(
+            FabricClientCompat.literal("Discord: ").append(safra$discordLink())
+        );
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isBlank()) {
+            this.client.inGameHud.getChatHud().addMessage(
+                FabricClientCompat.literal("Youtube: ").append(safra$urlLink(youtubeUrl))
+            );
+        }
     }
 
     @Unique
     private static Text safra$discordLink() {
-        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return safra$urlLink(RemoteRendezvousConfigUpdater.discordUrl());
+    }
+
+    @Unique
+    private static Text safra$urlLink(String url) {
         return FabricClientCompat.literal(url).setStyle(Style.EMPTY
             .withColor(Formatting.BLUE)
             .withUnderline(true)
@@ -229,7 +241,9 @@ abstract class OpenToLanScreen11934Mixin extends Screen {
     @Unique
     private void safra$publishShareCode(int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         this.client.keyboard.setClipboard(shareCodeText);
 
         Text shareText = FabricClientCompat.literal(shareCodeText)
@@ -239,7 +253,16 @@ abstract class OpenToLanScreen11934Mixin extends Screen {
                 .withInsertion(shareCodeText)
                 .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, FabricClientCompat.translatable("safra.p2p.copy_hint"))));
-        this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.started", shareText));
+        }
+        if (!shareCode.isRendezvous()) {
+            this.client.inGameHud.getChatHud().addMessage(
+                FabricClientCompat.literal("Safra Error: ")
+                    .append(FabricClientCompat.translatable("safra.p2p.error.direct_fallback"))
+                    .formatted(Formatting.RED)
+            );
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             this.client.inGameHud.getChatHud().addMessage(
                 FabricClientCompat.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).formatted(Formatting.YELLOW)

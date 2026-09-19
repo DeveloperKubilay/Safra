@@ -22,7 +22,8 @@ public final class RemoteRendezvousConfigParser {
             return "";
         }
 
-        JsonElement urlElement = json.get("api-3.0");
+        String apiKey = "api-" + P2pConstants.normalizeSiteApiVersion(siteApiVersion);
+        JsonElement urlElement = json.get(apiKey);
         if (urlElement == null || urlElement.isJsonNull()) {
             return "";
         }

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
@@ -75,11 +76,22 @@ abstract class IntegratedServerMixin {
         client.gui.getChat().addMessage(
             ForgeClientCompat.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
         );
-        client.gui.getChat().addMessage(safra$discordLink());
+        client.gui.getChat().addMessage(
+            ForgeClientCompat.append(ForgeClientCompat.literal("Discord: "), safra$discordLink())
+        );
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isBlank()) {
+            client.gui.getChat().addMessage(
+                ForgeClientCompat.append(ForgeClientCompat.literal("Youtube: "), safra$urlLink(youtubeUrl))
+            );
+        }
     }
 
     private static Component safra$discordLink() {
-        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return safra$urlLink(RemoteRendezvousConfigUpdater.discordUrl());
+    }
+
+    private static Component safra$urlLink(String url) {
         return ForgeClientCompat.literal(url).copy()
             .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
             .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
@@ -87,11 +99,15 @@ abstract class IntegratedServerMixin {
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         client.keyboardHandler.setClipboard(shareCodeText);
 
         Component shareText = ForgeClientCompat.literal(shareCodeText).copy().withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
-        client.gui.getChat().addMessage(ForgeClientCompat.translatable("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            client.gui.getChat().addMessage(ForgeClientCompat.translatable("safra.p2p.host.started", shareText));
+        }
         if (!shareCode.isRendezvous()) {
             client.gui.getChat().addMessage(
                 ForgeClientCompat.append(
