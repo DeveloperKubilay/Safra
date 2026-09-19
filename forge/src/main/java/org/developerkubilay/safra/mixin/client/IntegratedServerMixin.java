@@ -37,6 +37,9 @@ abstract class IntegratedServerMixin {
         if (safra$isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
+        if (server.getServerHostname() == null) {
+            server.setHostname("127.0.0.1");
+        }
         SAFRA_LOGGER.debug(
             "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
             server.isServerInOnlineMode(),
@@ -57,7 +60,9 @@ abstract class IntegratedServerMixin {
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
-        ForgeLanGameRules.applyToServer(server, safra$getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            ForgeLanGameRules.applyToServer(server, safra$getGameRuleSnapshot());
+        }
         int tcpPort = server.getServerPort();
         Minecraft client = Minecraft.getInstance();
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.starting"));

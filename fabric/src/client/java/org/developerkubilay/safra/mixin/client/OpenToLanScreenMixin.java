@@ -107,6 +107,9 @@ abstract class OpenToLanScreenMixin extends Screen {
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
             }
+            if (server.getServerIp() == null) {
+                server.setServerIp("127.0.0.1");
+            }
             SAFRA_LOGGER.debug(
                 "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
                 server.isOnlineMode(),
@@ -127,7 +130,9 @@ abstract class OpenToLanScreenMixin extends Screen {
             return;
         }
 
-        FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
+        }
 
         if (!this.safra$p2pEnabled) {
             P2pManager.getInstance().stopHosting();
