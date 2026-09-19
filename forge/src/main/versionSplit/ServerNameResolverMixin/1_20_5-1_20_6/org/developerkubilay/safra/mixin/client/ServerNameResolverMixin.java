@@ -28,9 +28,12 @@ abstract class ServerNameResolverMixin {
             return;
         }
 
-        cir.setReturnValue(Optional.of(ResolvedServerAddress.from(
+        ResolvedServerAddress resolved = safra$createResolvedAddress(
             new InetSocketAddress(host, safra$getPort(serverAddress))
-        )));
+        );
+        if (resolved != null) {
+            cir.setReturnValue(Optional.of(resolved));
+        }
     }
 
     private static boolean safra$isLocalProxyHost(String host) {
@@ -101,6 +104,85 @@ abstract class ServerNameResolverMixin {
                 }
             }
             type = type.getSuperclass();
+        }
+        return null;
+    }
+
+    private static ResolvedServerAddress safra$createResolvedAddress(InetSocketAddress address) {
+        Object value = safra$callStatic(ResolvedServerAddress.class,
+            new Class<?>[]{InetSocketAddress.class}, new Object[]{address}, "from", "m_171845_");
+        if (value instanceof ResolvedServerAddress resolved) {
+            return resolved;
+        }
+
+        try {
+            return ResolvedServerAddress.from(address);
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            return (ResolvedServerAddress) java.lang.reflect.Proxy.newProxyInstance(
+                ResolvedServerAddress.class.getClassLoader(),
+                new Class<?>[]{ResolvedServerAddress.class},
+                (proxy, method, args) -> {
+                    Class<?> returnType = method.getReturnType();
+                    if (returnType == InetSocketAddress.class) {
+                        return address;
+                    }
+                    if (returnType == int.class || returnType == Integer.class) {
+                        return address.getPort();
+                    }
+                    if (returnType == String.class) {
+                        return address.getAddress() != null ? address.getAddress().getHostAddress() : address.getHostString();
+                    }
+                    if ("equals".equals(method.getName())) {
+                        return proxy == (args != null && args.length > 0 ? args[0] : null);
+                    }
+                    if ("hashCode".equals(method.getName())) {
+                        return address.hashCode();
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return address.toString();
+                    }
+                    return null;
+                }
+            );
+        } catch (Throwable ignored) {
+        }
+
+        return new ResolvedServerAddress() {
+            @Override
+            public String getHostName() {
+                return address.getAddress() != null ? address.getAddress().getHostAddress() : address.getHostString();
+            }
+
+            @Override
+            public String getHostIp() {
+                return address.getAddress() != null ? address.getAddress().getHostAddress() : address.getHostString();
+            }
+
+            @Override
+            public int getPort() {
+                return address.getPort();
+            }
+
+            @Override
+            public InetSocketAddress asInetSocketAddress() {
+                return address;
+            }
+        };
+    }
+
+    private static Object safra$callStatic(Class<?> targetClass, Class<?>[] parameterTypes, Object[] args, String... names) {
+        for (String name : names) {
+            try {
+                Method method = targetClass.getDeclaredMethod(name, parameterTypes);
+                if (Modifier.isStatic(method.getModifiers())) {
+                    method.setAccessible(true);
+                    return method.invoke(null, args);
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
         }
         return null;
     }
