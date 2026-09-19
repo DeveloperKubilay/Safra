@@ -7,49 +7,55 @@ public final class P2pConstants {
     static final int HEADER_SIZE = 18;
     static final int MAX_PAYLOAD_SIZE = 1200;
     static final int MAX_DATAGRAM_SIZE = HEADER_SIZE + MAX_PAYLOAD_SIZE;
-    static final int SEND_WINDOW_SIZE = 32;
+    static final int MIN_SEND_WINDOW_SIZE = 8;
     static final int INITIAL_SEND_WINDOW_SIZE = 32;
-    static final int MAX_SEND_WINDOW_SIZE = 128;
+    static final int MAX_SEND_WINDOW_SIZE = 256;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
+    public static final int DIRECT_TRANSPORT_SO_TIMEOUT_MS = 50;
     static final long MAINTENANCE_TICK_MS = 25L;
     static final long OPEN_RESEND_MS = 500L;
+    static final long DIRECT_OPEN_FALLBACK_MS = 8_000L;
     static final long OPEN_TIMEOUT_MS = 20_000L;
-    static final long INITIAL_RESEND_MS = 150L;
-    static final long MIN_RESEND_MS = 90L;
-    static final long MAX_RESEND_MS = 450L;
+    static final int STUN_DISCOVERY_ATTEMPTS = 3;
+    static final int STUN_INITIAL_RETRY_MS = 500;
+    static final long INITIAL_RESEND_MS = 500L;
+    static final long MIN_RESEND_MS = 200L;
+    static final long MAX_RESEND_MS = 1_500L;
     static final long KEEP_ALIVE_MS = 10_000L;
     static final long CONNECTION_TIMEOUT_MS = 30_000L;
     static final int SELECTIVE_ACK_BITS = 32;
-    static final int MICRO_BATCH_WARMUP_SAMPLES = 24;
+    static final int MICRO_BATCH_WARMUP_SAMPLES = 0;
     static final int MICRO_BATCH_MIN_THRESHOLD_BYTES = 0;
     static final int MICRO_BATCH_THRESHOLD_BYTES = 0;
     static final int MICRO_BATCH_MAX_THRESHOLD_BYTES = 0;
     static final int CLIENT_MICRO_BATCH_THRESHOLD_BYTES = 0;
     static final int FAST_RETRANSMIT_DUP_ACKS = 3;
-    static final long FAST_RETRANSMIT_GUARD_MS = 60L;
+    static final long DEFAULT_FAST_RETRANSMIT_GUARD_MS = 60L;
+    static final long MIN_FAST_RETRANSMIT_GUARD_MS = 30L;
+    static final long MAX_FAST_RETRANSMIT_GUARD_MS = 250L;
     static final long NEGATIVE_ACK_REPEAT_MS = 30L;
     static final long ACK_REINFORCE_DELAY_MS = 8L;
     static final long DELAYED_ACK_MS = 2L;
     static final int DELAYED_ACK_PACKET_THRESHOLD = 2;
-    static final long MICRO_BATCH_MIN_WAIT_NANOS = 350_000L;
-    static final long MICRO_BATCH_WAIT_NANOS = 900_000L;
-    static final long MICRO_BATCH_MAX_WAIT_NANOS = 1_500_000L;
-    static final long MICRO_BATCH_POLL_NANOS = 100_000L;
-
     static final long DIAGNOSTIC_SUMMARY_MS = 5_000L;
     static final long HEAD_OF_LINE_WARN_MS = 150L;
     static final long WINDOW_STALL_WARN_MS = 150L;
     static final long IDLE_RESTART_MIN_MS = 500L;
     static final int PACING_BURST_PACKETS = 16;
     static final long MIN_PACING_INTERVAL_NANOS = 50_000L;
-    static final long MAX_PACING_INTERVAL_NANOS = 1_000_000L;
-    static final long STUN_REFRESH_MS = 20_000L;
-    static final long VOICE_HOST_WAIT_MS = 5_000L;
+    static final long MAX_PACING_INTERVAL_NANOS = 50_000_000L;
+    static final long STUN_REFRESH_MS = 10_000L;
     public static final long RENDEZVOUS_TIMEOUT_MS = 15_000L;
-    static final long RENDEZVOUS_RECONNECT_WINDOW_MS = 120_000L;
-    static final long RENDEZVOUS_RECONNECT_DELAY_MS = 5_000L;
-    public static final int TURN_REQUEST_TIMEOUT_MS = 6_000;
+    static final long RENDEZVOUS_RECONNECT_FIRST_DELAY_MS = 5_000L;
+    static final long RENDEZVOUS_RECONNECT_DELAY_MS = 10_000L;
+    static final long RENDEZVOUS_RECONNECT_SLOW_AFTER_MS = 60_000L;
+    static final long RENDEZVOUS_RECONNECT_SLOW_DELAY_MS = 30_000L;
+    static final long VOICE_HOST_WAIT_MS = 5_000L;
+    public static final int TURN_REQUEST_TIMEOUT_MS = 8_000;
+    public static final int TURN_UDP_REQUEST_TIMEOUT_MS = 5_000;
+    public static final int TURN_UDP_ATTEMPTS = 2;
+    public static final int TURN_RETRANSMIT_FIRST_MS = 500;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_PERMISSION_LIFETIME_SECONDS = 4 * 60;
@@ -57,13 +63,14 @@ public final class P2pConstants {
     public static final int TURN_PERMISSION_REFRESH_MARGIN_SECONDS = 45;
     static final int RELIABLE_TUNNEL_FLUSH_THRESHOLD_BYTES = 32 * 1024;
     static final String ADDRESS_SCHEME = "p2p://";
-    private static final String DIAGNOSTICS_PROPERTY = "safra.p2p.diagnostics";
     private static final String DIAGNOSTICS_INTERVAL_PROPERTY = "safra.p2p.diagnosticsIntervalMs";
     private static final String DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY = "safra.p2p.diagnosticsTickDriftWarnMs";
-    private static final String FORCE_DIRECT_THEN_TURN_PROPERTY = "safra.p2p.forceDirectThenTurn";
     private static final String NEVER_USE_RELAY_SERVER_PROPERTY = "safra.p2p.neverUseRelayServer";
+    private static final String SITE_API_VERSION_PROPERTY = "safra.siteApiVersion";
+    private static final String RENDEZVOUS_URL_PROPERTY = "safra.rendezvousUrl";
+    private static final String RENDEZVOUS_TOKEN_PROPERTY = "safra.rendezvousToken";
     private static final String TEST_MODE_DIRECT_THEN_TURN = "directthenturn";
-    private static final String TURN_ENABLED_PROPERTY = "safra.p2p.turnEnabled";
+    private static final String TEST_MODE_HOST_FAIL_SAFE = "hostfailsafe";
     static final String[][] STUN_SERVER_GROUPS = {
         {
             "stun.l.google.com:19302",
@@ -78,6 +85,7 @@ public final class P2pConstants {
 
     private static volatile String runtimeRendezvousUrl;
     private static volatile boolean runtimeNeverUseRelayServer;
+    private static volatile String runtimeSiteApiVersion;
 
     private P2pConstants() {
     }
@@ -86,33 +94,26 @@ public final class P2pConstants {
         runtimeRendezvousUrl = isValidRendezvousUrl(url) ? url.trim() : null;
     }
 
-    public static boolean hasExplicitRendezvousUrlOverride() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.trim().isEmpty()) {
-            return true;
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return true;
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        return legacyEnvironment != null && !legacyEnvironment.trim().isEmpty();
-    }
-
     public static void applyDefaultRendezvousUrlIfAbsent() {
         if (!hasExplicitRendezvousUrlOverride() && (runtimeRendezvousUrl == null || runtimeRendezvousUrl.trim().isEmpty())) {
             runtimeRendezvousUrl = DEFAULT_RENDEZVOUS_URL;
         }
     }
 
+    public static boolean hasRendezvousUrl() {
+        return !rendezvousUrl().trim().isEmpty();
+    }
+
+    public static boolean hasExplicitRendezvousUrlOverride() {
+        return override(RENDEZVOUS_URL_PROPERTY) != null;
+    }
+
     public static void setRuntimeNeverUseRelayServer(boolean neverUseRelayServer) {
         runtimeNeverUseRelayServer = neverUseRelayServer;
     }
 
-    public static boolean hasRendezvousUrl() {
-        return !rendezvousUrl().trim().isEmpty();
+    public static void setRuntimeSiteApiVersion(String siteApiVersion) {
+        runtimeSiteApiVersion = normalizeSiteApiVersion(siteApiVersion);
     }
 
     public static boolean isValidRendezvousUrl(String url) {
@@ -132,55 +133,40 @@ public final class P2pConstants {
     }
 
     public static String rendezvousUrl() {
-        String property = System.getProperty("safra.rendezvousUrl");
-        if (property != null && !property.trim().isEmpty()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_URL");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return environment.trim();
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_URL");
-        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
-            return legacyEnvironment.trim();
+        String override = override(RENDEZVOUS_URL_PROPERTY);
+        if (override != null) {
+            return override;
         }
 
         String runtime = runtimeRendezvousUrl;
-        if (runtime != null && !runtime.trim().isEmpty()) {
-            return runtime.trim();
-        }
-
-        return "";
+        return runtime == null || runtime.trim().isEmpty() ? "" : runtime.trim();
     }
 
     public static String rendezvousToken() {
-        String property = System.getProperty("safra.rendezvousToken");
-        if (property != null && !property.trim().isEmpty()) {
-            return property.trim();
-        }
-
-        String environment = System.getenv("SAFRA_RENDEZVOUS_TOKEN");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return environment.trim();
-        }
-
-        String legacyEnvironment = System.getenv("SAFRA_SIGNALING_TOKEN");
-        if (legacyEnvironment != null && !legacyEnvironment.trim().isEmpty()) {
-            return legacyEnvironment.trim();
-        }
-
-        return "";
+        String override = override(RENDEZVOUS_TOKEN_PROPERTY);
+        return override == null ? "" : override;
     }
 
-    static boolean diagnosticsEnabled() {
-        String property = System.getProperty(DIAGNOSTICS_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
+    public static String siteApiVersion() {
+        String override = override(SITE_API_VERSION_PROPERTY);
+        if (override != null) {
+            return normalizeSiteApiVersion(override);
         }
 
-        return false;
+        String runtime = runtimeSiteApiVersion;
+        return runtime == null || runtime.trim().isEmpty() ? "3.0" : normalizeSiteApiVersion(runtime);
+    }
+
+    public static boolean useApi30Rendezvous() {
+        return "3.0".equals(siteApiVersion());
+    }
+
+    /**
+     * A build constant rather than a property, so the JIT drops every reporting block a release
+     * contains instead of asking about it, and so a release cannot be made to measure itself.
+     */
+    static boolean diagnosticsEnabled() {
+        return SafraBuildInfo.diagnostics();
     }
 
     static long diagnosticsSummaryMs() {
@@ -191,46 +177,36 @@ public final class P2pConstants {
         return longProperty(DIAGNOSTICS_TICK_DRIFT_WARN_PROPERTY, Math.max(150L, MAINTENANCE_TICK_MS * 6L));
     }
 
+    public static boolean traceLoggingEnabled() {
+        return booleanProperty("safra.p2p.trace", false);
+    }
+
+    /**
+     * Both of these force a session onto the relay, and relay traffic is metered to whoever runs the
+     * TURN servers. A property or an environment variable would let anyone talk a player into paying
+     * that bill on their behalf, so the answer is baked in at build time and a release simply cannot
+     * be told to do it: -Pbuild_mode=directThenTurn produces the build that can.
+     */
     static boolean forceDirectThenTurnRelay() {
-        String property = System.getProperty(FORCE_DIRECT_THEN_TURN_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_FORCE_DIRECT_THEN_TURN");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
         return TEST_MODE_DIRECT_THEN_TURN.equals(buildTestMode());
     }
 
-    static boolean neverUseRelayServer() {
-        String property = System.getProperty(NEVER_USE_RELAY_SERVER_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
-
-        String environment = System.getenv("SAFRA_NEVER_USE_RELAY_SERVER");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return runtimeNeverUseRelayServer;
+    static boolean forceHostFailSafeRelay() {
+        return TEST_MODE_HOST_FAIL_SAFE.equals(buildTestMode());
     }
 
-    static boolean turnEnabled() {
-        String property = System.getProperty(TURN_ENABLED_PROPERTY);
-        if (property != null && !property.trim().isEmpty()) {
-            return Boolean.parseBoolean(property.trim());
-        }
+    static boolean neverUseRelayServer() {
+        String override = override(NEVER_USE_RELAY_SERVER_PROPERTY);
+        return override != null ? Boolean.parseBoolean(override) : runtimeNeverUseRelayServer;
+    }
 
-        String environment = System.getenv("SAFRA_TURN_ENABLED");
-        if (environment != null && !environment.trim().isEmpty()) {
-            return Boolean.parseBoolean(environment.trim());
-        }
-
-        return true;
+    /**
+     * A system property alone. An environment variable is inherited by everything a machine launches
+     * and outlives the session that set it, which is more reach than a developer switch needs.
+     */
+    private static String override(String propertyKey) {
+        String property = System.getProperty(propertyKey);
+        return property == null || property.trim().isEmpty() ? null : property.trim();
     }
 
     private static String buildTestMode() {
@@ -257,7 +233,7 @@ public final class P2pConstants {
 
         try {
             return Integer.parseInt(property.trim());
-        } catch (NumberFormatException exception) {
+        } catch (RuntimeException exception) {
             return fallback;
         }
     }
@@ -275,4 +251,18 @@ public final class P2pConstants {
         }
     }
 
+    private static boolean booleanProperty(String key, boolean fallback) {
+        String property = System.getProperty(key);
+        if (property == null || property.trim().isEmpty()) {
+            return fallback;
+        }
+        return Boolean.parseBoolean(property.trim());
+    }
+
+    private static String normalizeSiteApiVersion(String siteApiVersion) {
+        if (siteApiVersion == null || siteApiVersion.trim().isEmpty()) {
+            return "3.0";
+        }
+        return "3.0";
+    }
 }
