@@ -312,7 +312,7 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void receiveLoop() {
-        byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
+        byte[] buffer = new byte[65535];
         while (!closed) {
             P2pDatagramTransport activeTransport = transport;
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -324,7 +324,7 @@ public final class P2pClientProxy implements AutoCloseable {
             } catch (IOException exception) {
                 if (!closed) {
                     LOGGER.debug("Client UDP receive failed: {}", exception.toString());
-                    if (activeTransport != transport) {
+                    if (activeTransport != transport || (activeTransport != null && !activeTransport.isClosed())) {
                         continue;
                     }
                 }
