@@ -252,7 +252,7 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void receiveLoop(P2pDatagramTransport activeTransport, boolean relayTransportActive) {
-        byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
+        byte[] buffer = new byte[65535];
         while (!closed) {
             DatagramPacket datagramPacket = new DatagramPacket(buffer, buffer.length);
             try {
@@ -261,6 +261,10 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             } catch (IOException exception) {
                 if (!closed) {
+                    LOGGER.debug("Safra P2P host UDP receive error: {}", exception.toString());
+                    if (activeTransport != null && !activeTransport.isClosed()) {
+                        continue;
+                    }
                     LOGGER.warn("Safra P2P host stopped listening on UDP: {}", exception.toString());
                 }
                 return;
