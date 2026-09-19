@@ -32,9 +32,8 @@ public final class NeoForgeLanSessionState {
         if (defaultGameRuleSnapshot.isEmpty()) {
             defaultGameRuleSnapshot = new LinkedHashMap<>(NeoForgeLanGameRules.createDefaultSnapshot(client));
         }
-        if (gameRuleSnapshot.isEmpty()) {
-            gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
-        }
+        gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
+        gameRuleSnapshot.putAll(SafraClientConfig.get().getOpenToLanGameRules());
     }
 
     public static boolean isP2pEnabled() {
@@ -94,13 +93,20 @@ public final class NeoForgeLanSessionState {
 
     public static void setGameRuleSnapshot(Map<String, String> snapshot) {
         gameRuleSnapshot = new LinkedHashMap<>(snapshot);
-        SafraClientConfig.get().setOpenToLanGameRules(gameRuleSnapshot);
+        if (defaultGameRuleSnapshot.isEmpty()) return;
+        Map<String, String> delta = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : snapshot.entrySet()) {
+            if (!entry.getValue().equals(defaultGameRuleSnapshot.get(entry.getKey()))) {
+                delta.put(entry.getKey(), entry.getValue());
+            }
+        }
+        SafraClientConfig.get().setOpenToLanGameRules(delta);
     }
 
     public static void resetGameRules() {
         gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
             ? Map.of()
             : new LinkedHashMap<>(defaultGameRuleSnapshot);
-        SafraClientConfig.get().setOpenToLanGameRules(gameRuleSnapshot);
+        SafraClientConfig.get().setOpenToLanGameRules(Map.of());
     }
 }

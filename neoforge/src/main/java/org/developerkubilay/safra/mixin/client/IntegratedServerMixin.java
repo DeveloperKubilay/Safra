@@ -47,7 +47,9 @@ abstract class IntegratedServerMixin {
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
-        NeoForgeLanGameRules.applyToServer(server, NeoForgeLanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            NeoForgeLanGameRules.applyToServer(server, NeoForgeLanSessionState.getGameRuleSnapshot());
+        }
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));
