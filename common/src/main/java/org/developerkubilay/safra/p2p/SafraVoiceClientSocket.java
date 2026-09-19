@@ -126,7 +126,9 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
     }
 
     private void logTraffic() {
-        LOGGER.info("Safra voice: {} packets sent to {}, {} received", sent.get(), safraRemoteAddress, received.get());
+        if (SafraBuildInfo.diagnostics()) {
+            LOGGER.info("Safra voice: {} packets sent to {}, {} received", sent.get(), safraRemoteAddress, received.get());
+        }
     }
 
     @Override
