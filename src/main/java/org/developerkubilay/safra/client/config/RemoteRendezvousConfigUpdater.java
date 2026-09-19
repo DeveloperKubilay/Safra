@@ -3,27 +3,38 @@ package org.developerkubilay.safra.client.config;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.RemoteRendezvousConfigParser;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
     private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(CONNECT_TIMEOUT)
+    private static final String DEFAULT_DISCORD_URL = "https://discord.gg/NHjBvRxDXP";
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
+    private static volatile List<String> latestModVersions = java.util.Collections.emptyList();
+    private static volatile String discordUrl = DEFAULT_DISCORD_URL;
+    private static volatile String youtubeUrl = "";
 
     private RemoteRendezvousConfigUpdater() {
     }
@@ -33,45 +44,68 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        if (config.getRendezvousUrl().isBlank() && !P2pConstants.hasExplicitRendezvousUrlOverride()) {
+        if (!P2pConstants.hasExplicitRendezvousUrlOverride()
+            && !P2pConstants.DEFAULT_RENDEZVOUS_URL.equals(config.getRendezvousUrl())) {
             config.setRendezvousUrl(P2pConstants.DEFAULT_RENDEZVOUS_URL);
         }
         P2pConstants.setRuntimeRendezvousUrl(config.getRendezvousUrl());
         P2pConstants.setRuntimeNeverUseRelayServer(config.isNeverUseRelayServer());
+        P2pConstants.setRuntimeSiteApiVersion(config.getSiteApiVersion());
         P2pConstants.applyDefaultRendezvousUrlIfAbsent();
         if (!STARTED.compareAndSet(false, true)) {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(java.net.URI.create(REMOTE_CONFIG_URL))
-            .timeout(REQUEST_TIMEOUT)
-            .GET()
+        Request request = new Request.Builder()
+            .url(REMOTE_CONFIG_URL)
+            .get()
             .build();
 
-        HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-            .thenApply(response -> response.statusCode() >= 200 && response.statusCode() < 300 ? response.body() : "")
-            .thenAccept(body -> applyRemoteConfig(config, body))
-            .exceptionally(throwable -> {
-                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", throwable.toString());
-                return null;
-            });
+        HTTP_CLIENT.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException exception) {
+                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", exception.toString());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        applyRemoteConfig(config, response.body().string());
+                    }
+                } finally {
+                    response.close();
+                }
+            }
+        });
     }
 
     private static void applyRemoteConfig(BaseSafraClientConfig config, String body) {
         try {
-            if (body == null || body.isBlank()) {
+            if (body == null || body.trim().isEmpty()) {
                 return;
             }
 
             JsonObject json = new JsonParser().parse(body).getAsJsonObject();
-            latestModVersion = parseLatestModVersion(json);
-            String key = "api-" + config.getSiteApiVersion();
-            JsonElement urlElement = json.get(key);
-            if (urlElement == null || urlElement.isJsonNull()) {
-                return;
+            JsonElement discordElement = json.get("discord");
+            if (discordElement != null && discordElement.isJsonPrimitive() && isValidDiscordUrl(discordElement.getAsString())) {
+                discordUrl = discordElement.getAsString().trim();
             }
-
-            String remoteUrl = urlElement.getAsString();
+            JsonElement youtubeElement = json.get("youtube");
+            if (youtubeElement != null && youtubeElement.isJsonPrimitive()) {
+                String value = youtubeElement.getAsString().trim();
+                youtubeUrl = isValidYoutubeUrl(value) ? value : "";
+            } else {
+                youtubeUrl = "";
+            }
+            List<String> latestVersions = parseLatestModVersions(json);
+            latestModVersions = latestVersions;
+            if (latestVersions.isEmpty()) {
+                latestModVersion = "";
+            } else {
+                latestModVersion = latestVersions.get(latestVersions.size() - 1);
+            }
+            String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(json, config.getSiteApiVersion(), "client");
             if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
                 config.setRendezvousUrl("");
                 P2pConstants.applyDefaultRendezvousUrlIfAbsent();
@@ -89,45 +123,102 @@ public final class RemoteRendezvousConfigUpdater {
         return latestModVersion;
     }
 
+    public static String discordUrl() {
+        return discordUrl;
+    }
+
+    public static String youtubeUrl() {
+        return youtubeUrl;
+    }
+
+    private static boolean isValidDiscordUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isValidYoutubeUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value == null ? "" : value.trim());
+            String host = uri.getHost();
+            return "https".equalsIgnoreCase(uri.getScheme())
+                && host != null
+                && ("youtube.com".equalsIgnoreCase(host)
+                    || host.toLowerCase(Locale.ROOT).endsWith(".youtube.com")
+                    || "youtu.be".equalsIgnoreCase(host));
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
     public static boolean hasNewerModVersion() {
-        String latest = latestModVersion;
-        if (latest == null || latest.isBlank()) {
+        List<String> latest = latestModVersions;
+        if (latest == null || latest.isEmpty()) {
             return false;
         }
 
         String current = SafraBuildInfo.modVersion();
-        if (current == null || current.isBlank() || "unknown".equalsIgnoreCase(current)) {
+        if (current == null || current.trim().isEmpty() || "unknown".equalsIgnoreCase(current)) {
             return false;
         }
 
-        return !latest.trim().equals(current.trim());
+        String normalizedCurrent = current.trim();
+        for (String version : latest) {
+            if (normalizedCurrent.equals(version)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    private static String parseLatestModVersion(JsonObject json) {
+    private static List<String> parseLatestModVersions(JsonObject json) {
         if (json == null) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         JsonElement latestElement = json.get("latest");
         if (latestElement == null || latestElement.isJsonNull() || !latestElement.isJsonObject()) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
         String minecraftVersion = SafraBuildInfo.minecraftVersion();
-        if (minecraftVersion == null || minecraftVersion.isBlank() || "unknown".equalsIgnoreCase(minecraftVersion)) {
-            return "";
+        if (minecraftVersion == null || minecraftVersion.trim().isEmpty() || "unknown".equalsIgnoreCase(minecraftVersion)) {
+            return java.util.Collections.emptyList();
         }
 
         JsonElement versionElement = latestElement.getAsJsonObject().get(minecraftVersion.trim());
         if (versionElement == null || versionElement.isJsonNull()) {
-            return "";
+            return java.util.Collections.emptyList();
         }
 
-        if (versionElement.isJsonArray()) {
-            return versionElement.getAsJsonArray().get(versionElement.getAsJsonArray().size() - 1).getAsString();
+        LinkedHashSet<String> versions = new LinkedHashSet<>();
+        if (versionElement.isJsonPrimitive()) {
+            addVersion(versions, versionElement);
+        } else if (versionElement.isJsonArray()) {
+            for (JsonElement element : versionElement.getAsJsonArray()) {
+                addVersion(versions, element);
+            }
+        }
+
+        return versions.isEmpty() ? java.util.Collections.<String>emptyList() : new ArrayList<>(versions);
+    }
+
+    private static void addVersion(LinkedHashSet<String> versions, JsonElement versionElement) {
+        if (versionElement == null || versionElement.isJsonNull() || !versionElement.isJsonPrimitive()) {
+            return;
         }
 
         String remoteVersion = versionElement.getAsString();
-        return remoteVersion == null ? "" : remoteVersion.trim();
+        if (remoteVersion == null) {
+            return;
+        }
+
+        String normalized = remoteVersion.trim();
+        if (!normalized.trim().isEmpty()) {
+            versions.add(normalized);
+        }
     }
 }
