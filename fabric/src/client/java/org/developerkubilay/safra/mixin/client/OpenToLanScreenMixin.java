@@ -157,7 +157,9 @@ abstract class OpenToLanScreenMixin extends Screen {
             return;
         }
 
-        FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
+        }
 
         if (!this.safra$p2pEnabled) {
             P2pManager.getInstance().stopHosting();
