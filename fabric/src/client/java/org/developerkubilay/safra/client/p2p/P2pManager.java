@@ -207,14 +207,11 @@ public final class P2pManager {
             pendingDirectShareFailureContext = !shareCode.isRendezvous();
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
+        ServerAddress socketAddress = ServerAddress.parse(localAddress);
         ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
         FabricClientCompat.copyServerInfo(rewritten, originalServerInfo);
-        rewritten.address = localAddress;
-        IntegratedServer integratedServer = MinecraftClient.getInstance().getServer();
-        if (integratedServer != null) {
-            rewritten.name = integratedServer.getSaveProperties().getLevelName();
-        }
-        return new RewriteResult(ServerAddress.parse(rewritten.address), rewritten);
+        rewritten.address = shareCode.toDisplayCode();
+        return new RewriteResult(socketAddress, rewritten);
     }
 
     public synchronized void shutdown() {
