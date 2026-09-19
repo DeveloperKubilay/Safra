@@ -6,20 +6,20 @@ plugins {
 }
 
 def versionConfig = [
-    '26.2': [
-        base_minecraft_version       : '26.2',
-        fabric_minecraft_version     : '26.2',
-        fabric_mod_minecraft_version : '26.2',
-        fabric_version               : '0.152.0+26.2',
-        minecraft_version            : '26.2',
-        minecraft_version_range      : '[26.2,26.3)',
-        neo_version                  : '26.2.0.7-beta',
-        neo_version_range            : '[26.2.0.7-beta,)',
+    '26.3': [
+        base_minecraft_version       : '26.3',
+        fabric_minecraft_version     : '26.3',
+        fabric_mod_minecraft_version : '26.3',
+        fabric_version               : '0.161.0+26.3',
+        minecraft_version            : '26.3',
+        minecraft_version_range      : '[26.3,26.4)',
+        neo_version                  : '26.3.0.6-beta',
+        neo_version_range            : '[26.3.0.6-beta,)',
         loader_version_range         : '[1,)',
-        forge_version                : '65.0.0',
+        forge_version                : '65.1.3',
         forge_version_range          : '[65,)',
         forge_loader_version_range   : '[65,)',
-        forge_minecraft_version_range: '[26.2,26.3)'
+        forge_minecraft_version_range: '[26.3,26.4)'
     ]
 ]
 
@@ -28,7 +28,7 @@ def requestedMcVersion = (
         ?: findProperty('mcVersion')
         ?: gradle.startParameter.projectProperties['minecraft_version']
         ?: findProperty('default_minecraft_version')
-        ?: '26.2'
+        ?: '26.3'
 ).toString()
 def activeVersion = versionConfig[requestedMcVersion]
 if (activeVersion == null) {

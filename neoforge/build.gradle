@@ -48,11 +48,16 @@ def targetJavaVersion = 25
 def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
 def mixinMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
 def neoForgeMixinMappingsFile = layout.buildDirectory.file('mappings/identityMixinMappings.tsrg')
-def forgeMixinMappingsFile = project(':forge').layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
 def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
 mixinCompilerArgs.inMappings.set(neoForgeMixinMappingsFile)
 mixinCompilerArgs.outMappings.set(mixinMappingsFile)
 mixinCompilerArgs.refmap.set(mixinRefmapFile)
+
+def mixinSources = project.files(
+    project.fileTree('src/main/java') { include '**/*Mixin.java' },
+    project.fileTree(rootProject.file('common-mc/src/client/java')) { include '**/*Mixin.java' },
+    project.fileTree(rootProject.file('common-mc/src/forgelike/java')) { include '**/*Mixin.java' }
+)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -60,34 +65,93 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.register('generateNeoForgeMixinMappings') {
-    dependsOn project(':forge').tasks.named('formatMixinMappings')
-    inputs.file(forgeMixinMappingsFile)
+    dependsOn tasks.named('createMinecraftArtifacts')
+    inputs.files(mixinSources)
+    inputs.property('minecraft_version', project.minecraft_version)
     outputs.file(neoForgeMixinMappingsFile)
 
     doLast {
-        def sourceFile = forgeMixinMappingsFile.get().asFile
-        def outputFile = neoForgeMixinMappingsFile.get().asFile
-        outputFile.parentFile.mkdirs()
+        def output = neoForgeMixinMappingsFile.get().asFile
+        def artifactsDir = new File(gradle.gradleUserHomeDir, 'caches/neoformruntime/artifacts')
+        def clientJar = new File(artifactsDir, "minecraft_${project.minecraft_version}_client.jar")
+        if (!clientJar.isFile()) {
+            throw new GradleException("Could not locate vanilla client jar for ${project.minecraft_version} at ${clientJar}")
+        }
 
-        outputFile.setText(sourceFile.readLines('UTF-8').collect { line ->
-            if (line.isBlank()) {
-                return line
+        def targetClasses = new LinkedHashSet<String>()
+        mixinSources.files.each { sourceFile ->
+            def imports = [:]
+            sourceFile.eachLine('UTF-8') { line ->
+                def trimmed = line.trim()
+                def importMatcher = trimmed =~ /^import\s+([A-Za-z0-9_$.]+);$/
+                if (importMatcher.matches()) {
+                    def fqcn = importMatcher[0][1]
+                    imports[fqcn.tokenize('.').last()] = fqcn
+                }
+
+                def mixinMatcher = trimmed =~ /^@Mixin\((?:value\s*=\s*)?([A-Za-z0-9_$.]+)\.class\)$/
+                if (mixinMatcher.matches()) {
+                    def reference = mixinMatcher[0][1]
+                    def segments = reference.tokenize('.')
+                    def resolved = imports[segments[0]]
+                    targetClasses << (resolved ? ([resolved] + segments.tail()).join('.') : reference)
+                }
+            }
+        }
+        if (targetClasses.isEmpty()) {
+            throw new GradleException("Could not resolve any mixin target classes from ${project.file('src/main/java')}")
+        }
+
+        def formattedLines = []
+        targetClasses.each { targetClass ->
+            def process = new ProcessBuilder('javap', '-classpath', clientJar.absolutePath, '-p', '-s', targetClass)
+            process.redirectErrorStream(true)
+            def javapProcess = process.start()
+            def javapOutput = javapProcess.inputStream.getText('UTF-8')
+            if (javapProcess.waitFor() != 0) {
+                throw new GradleException("javap failed for ${targetClass}:${System.lineSeparator()}${javapOutput}")
             }
 
-            if (!line.startsWith('\t')) {
-                def parts = line.split(' ')
-                return parts.length == 2 ? "${parts[0]} ${parts[0]}" : line
-            }
+            def targetSimpleName = targetClass.tokenize('.').last()
+            def targetInternalName = targetClass.replace('.', '/')
+            formattedLines << "${targetInternalName} ${targetInternalName}"
 
-            def parts = line.trim().split(' ')
-            if (parts.length == 2) {
-                return "\t${parts[0]} ${parts[0]}"
+            def javapLines = javapOutput.readLines()
+            for (int index = 0; index < javapLines.size() - 1; index++) {
+                def memberLine = javapLines[index].trim()
+                if (!memberLine ||
+                    memberLine == '}' ||
+                    memberLine.startsWith('Compiled from') ||
+                    memberLine.contains(' class ') ||
+                    memberLine.contains(' interface ') ||
+                    memberLine.contains(' enum ') ||
+                    memberLine.contains(' record ') ||
+                    memberLine.startsWith('static {') ||
+                    memberLine.startsWith('descriptor:')) {
+                    continue
+                }
+
+                def descriptorLine = javapLines[index + 1].trim()
+                if (!descriptorLine.startsWith('descriptor: ')) {
+                    continue
+                }
+
+                def descriptor = descriptorLine.substring('descriptor: '.length())
+                if (memberLine.contains('(')) {
+                    def memberName = memberLine.substring(0, memberLine.indexOf('(')).tokenize(' ').last()
+                    if (memberName == targetSimpleName || memberName == '<init>' || memberName == '<clinit>') {
+                        continue
+                    }
+                    formattedLines << "\t${memberName} ${descriptor} ${memberName}"
+                } else if (memberLine.endsWith(';')) {
+                    def fieldName = memberLine.substring(0, memberLine.length() - 1).tokenize(' ').last()
+                    formattedLines << "\t${fieldName} ${fieldName}"
+                }
             }
-            if (parts.length == 3) {
-                return "\t${parts[0]} ${parts[1]} ${parts[0]}"
-            }
-            return line
-        }.join(System.lineSeparator()), 'UTF-8')
+        }
+
+        output.parentFile.mkdirs()
+        output.text = formattedLines.join(System.lineSeparator()) + System.lineSeparator()
     }
 }
 
