@@ -38,7 +38,7 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         super(title);
     }
 
-    @Inject(method = "m_7856_", at = @At("TAIL"), remap = false)
+    @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
         EditBox ipEdit = this.safra$ipEdit();
         Button selectButton = this.safra$selectButton();
@@ -96,17 +96,17 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         this.safra$updateValidation();
     }
 
-    @Inject(method = "m_95986_", at = @At("TAIL"), remap = false)
+    @Inject(method = "updateSelectButtonStatus", at = @At("TAIL"))
     private void safra$overrideValidation(CallbackInfo ci) {
         this.safra$updateValidation();
     }
 
-    @Inject(method = "m_95987_", at = @At("HEAD"), remap = false)
+    @Inject(method = "onSelect", at = @At("HEAD"))
     private void safra$storeP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
 
-    @Inject(method = "m_7379_", at = @At("HEAD"), remap = false)
+    @Inject(method = "removed", at = @At("HEAD"))
     private void safra$storeLastP2pAddress(CallbackInfo ci) {
         this.safra$persistStoredAddress();
     }
@@ -130,6 +130,12 @@ abstract class DirectJoinServerScreenMixin extends Screen {
             address = P2pManager.toStoredAddress(address);
         }
 
+        this.safra$syncingAddress = true;
+        try {
+            safra$setEditValue(ipEdit, address);
+        } finally {
+            this.safra$syncingAddress = false;
+        }
         safra$setServerAddress(serverData, address);
     }
 
