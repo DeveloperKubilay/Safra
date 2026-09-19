@@ -210,7 +210,8 @@ public final class P2pManager {
         ServerAddress socketAddress = ServerAddress.parseString(localAddress);
         ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
         rewritten.copyFrom(originalServerInfo);
-        rewritten.ip = shareCode.toDisplayCode();
+        rewritten.ip = localAddress;
+        rewritten.name = shareCode.toDisplayCode();
         return new RewriteResult(socketAddress, rewritten);
     }
 

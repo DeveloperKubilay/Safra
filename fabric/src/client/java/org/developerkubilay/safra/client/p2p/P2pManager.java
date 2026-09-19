@@ -210,7 +210,8 @@ public final class P2pManager {
         ServerAddress socketAddress = ServerAddress.parse(localAddress);
         ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
         FabricClientCompat.copyServerInfo(rewritten, originalServerInfo);
-        rewritten.address = shareCode.toDisplayCode();
+        rewritten.address = localAddress;
+        rewritten.name = shareCode.toDisplayCode();
         return new RewriteResult(socketAddress, rewritten);
     }
 
