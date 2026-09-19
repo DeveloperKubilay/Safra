@@ -1,6 +1,6 @@
 dependencies {
-    shadowImplementation("org.java-websocket:Java-WebSocket:1.3.8") {
-        transitive = false
+    shadowImplementation("com.squareup.okhttp3:okhttp:3.12.13") {
+        transitive = true
     }
     shadowImplementation("org.slf4j:slf4j-api:1.7.25") {
         transitive = false

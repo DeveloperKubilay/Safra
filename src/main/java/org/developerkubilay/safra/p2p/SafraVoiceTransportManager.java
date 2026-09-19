@@ -43,4 +43,8 @@ public final class SafraVoiceTransportManager {
 
     public void punchHostVoiceEndpoint(java.net.InetSocketAddress remoteAddress) {
     }
+
+    public java.util.Collection<java.net.InetSocketAddress> awaitHostVoiceEndpoints(int preferredPort, long timeoutMs) {
+        return java.util.Collections.emptyList();
+    }
 }
