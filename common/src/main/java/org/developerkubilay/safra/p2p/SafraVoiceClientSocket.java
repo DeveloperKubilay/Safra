@@ -11,7 +11,6 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -53,12 +52,13 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
             return null;
         }
 
-        Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);
+        java.util.Collection<InetSocketAddress> publicEndpoints = stunMappings.discoverPublicEndpoints(discoverySocket);
         if (publicEndpoints.isEmpty()) {
-            throw new IOException("Safra voice joiner Could not find a public UDP endpoint");
+            throw new IOException("Could not discover a public UDP endpoint for the voice joiner");
         }
 
-        return joinSession.resolveVoice(publicEndpoints);
+        InetSocketAddress resolvedRemoteAddress = joinSession.resolveVoice(publicEndpoints);
+        return resolvedRemoteAddress;
     }
 
     private void refreshStunMapping() {

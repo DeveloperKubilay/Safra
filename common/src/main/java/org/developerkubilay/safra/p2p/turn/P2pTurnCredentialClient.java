@@ -58,62 +58,71 @@ public final class P2pTurnCredentialClient {
             } catch (RuntimeException exception) {
                 throw new IOException("TURN credential response is invalid JSON", exception);
             }
-
-            JsonArray iceServers = json.getAsJsonArray("iceServers");
-            if (iceServers == null || iceServers.size() == 0) {
-                throw new IOException("TURN credential response did not include iceServers");
-            }
-
-            Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
-            String username = "";
-            String credential = "";
-            for (JsonElement serverElement : iceServers) {
-                if (!serverElement.isJsonObject()) {
-                    continue;
-                }
-
-                JsonObject server = serverElement.getAsJsonObject();
-                String candidateUsername = string(server, "username");
-                String candidateCredential = string(server, "credential");
-                if (candidateUsername != null && !candidateUsername.trim().isEmpty()
-                    && candidateCredential != null && !candidateCredential.trim().isEmpty()) {
-                    username = candidateUsername;
-                    credential = candidateCredential;
-                }
-
-                JsonElement urlsElement = server.get("urls");
-                if (urlsElement == null || urlsElement.isJsonNull()) {
-                    continue;
-                }
-                if (urlsElement.isJsonPrimitive()) {
-                    addUdpServer(urlsElement.getAsString(), udpServers);
-                    continue;
-                }
-                if (urlsElement.isJsonArray()) {
-                    for (JsonElement urlElement : urlsElement.getAsJsonArray()) {
-                        if (urlElement != null && urlElement.isJsonPrimitive()) {
-                            addUdpServer(urlElement.getAsString(), udpServers);
-                        }
-                    }
-                }
-            }
-
-            if (username.trim().isEmpty() || credential.trim().isEmpty()) {
-                throw new IOException("TURN credential response did not include username or credential");
-            }
-            if (udpServers.isEmpty()) {
-                throw new IOException("TURN credential response did not include a UDP TURN server");
-            }
-
-            return new P2pTurnCredentials(
-                new ArrayList<>(udpServers),
-                username,
-                credential,
-                integer(json.get("ttl"), P2pConstants.TURN_DEFAULT_CREDENTIAL_TTL_SECONDS)
-            );
+            return parse(json);
         } finally {
             response.close();
         }
+    }
+
+    public static P2pTurnCredentials parse(JsonObject json) throws IOException {
+        JsonArray iceServers = json.getAsJsonArray("iceServers");
+        if (iceServers == null || iceServers.size() == 0) {
+            throw new IOException("TURN credential response did not include iceServers");
+        }
+
+        Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
+        Set<P2pTurnCredentials.TurnServer> tcpServers = new LinkedHashSet<>();
+        Set<P2pTurnCredentials.TurnServer> tlsServers = new LinkedHashSet<>();
+        String username = "";
+        String credential = "";
+        for (JsonElement serverElement : iceServers) {
+            if (!serverElement.isJsonObject()) {
+                continue;
+            }
+
+            JsonObject server = serverElement.getAsJsonObject();
+            String candidateUsername = string(server, "username");
+            String candidateCredential = string(server, "credential");
+            if (candidateUsername != null && !candidateUsername.trim().isEmpty()
+                && candidateCredential != null && !candidateCredential.trim().isEmpty()) {
+                username = candidateUsername;
+                credential = candidateCredential;
+            }
+
+            JsonElement urlsElement = server.get("urls");
+            if (urlsElement == null || urlsElement.isJsonNull()) {
+                continue;
+            }
+            if (urlsElement.isJsonPrimitive()) {
+                addServer(urlsElement.getAsString(), udpServers, tcpServers, tlsServers);
+                continue;
+            }
+            if (urlsElement.isJsonArray()) {
+                for (JsonElement urlElement : urlsElement.getAsJsonArray()) {
+                    if (urlElement != null && urlElement.isJsonPrimitive()) {
+                        addServer(urlElement.getAsString(), udpServers, tcpServers, tlsServers);
+                    }
+                }
+            }
+        }
+
+        if (username.trim().isEmpty() || credential.trim().isEmpty()) {
+            throw new IOException("TURN credential response did not include username or credential");
+        }
+        if (udpServers.isEmpty()) {
+            throw new IOException("TURN credential response did not include a UDP TURN server");
+        }
+
+        addCloudflareStreamFallbacks(udpServers, tcpServers, tlsServers);
+
+        return new P2pTurnCredentials(
+            new ArrayList<P2pTurnCredentials.TurnServer>(udpServers),
+            new ArrayList<P2pTurnCredentials.TurnServer>(tcpServers),
+            new ArrayList<P2pTurnCredentials.TurnServer>(tlsServers),
+            username,
+            credential,
+            integer(json.get("ttl"), P2pConstants.TURN_DEFAULT_CREDENTIAL_TTL_SECONDS)
+        );
     }
 
     private static URI turnCredentialsUri(String role, boolean turnOnly) {
@@ -140,10 +149,12 @@ public final class P2pTurnCredentialClient {
         String query = "mode=" + encode(turnOnly ? "turn-only" : "auto")
             + "&ttl=" + P2pConstants.turnCredentialTtlSeconds()
             + "&customIdentifier=" + encode(identifier);
-        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v2/turn/credentials?" + query);
+        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v3/turn/credentials?" + query);
     }
 
-    private static void addUdpServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers) {
+    private static void addServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers,
+                                  Set<P2pTurnCredentials.TurnServer> tcpServers,
+                                  Set<P2pTurnCredentials.TurnServer> tlsServers) {
         if (rawUrl == null || rawUrl.trim().isEmpty()) {
             return;
         }
@@ -156,17 +167,12 @@ public final class P2pTurnCredentialClient {
         }
 
         String scheme = uri.getScheme();
-        if (!"turn".equalsIgnoreCase(scheme)) {
+        if (!"turn".equalsIgnoreCase(scheme) && !"turns".equalsIgnoreCase(scheme)) {
             return;
         }
 
         String query = uri.getQuery();
-        if (query != null && !query.trim().isEmpty()) {
-            String transport = queryParameter(query, "transport");
-            if (transport != null && !"udp".equalsIgnoreCase(transport)) {
-                return;
-            }
-        }
+        String transport = query == null || query.trim().isEmpty() ? null : queryParameter(query, "transport");
 
         String host = uri.getHost();
         int port = uri.getPort();
@@ -174,7 +180,33 @@ public final class P2pTurnCredentialClient {
             return;
         }
 
-        udpServers.add(new P2pTurnCredentials.TurnServer(host, port));
+        P2pTurnCredentials.TurnServer turnServer = new P2pTurnCredentials.TurnServer(host, port);
+        if ("turns".equalsIgnoreCase(scheme)) {
+            tlsServers.add(turnServer);
+        } else if ("tcp".equalsIgnoreCase(transport)) {
+            tcpServers.add(turnServer);
+        } else if (transport == null || "udp".equalsIgnoreCase(transport)) {
+            udpServers.add(turnServer);
+        }
+    }
+
+    private static void addCloudflareStreamFallbacks(Set<P2pTurnCredentials.TurnServer> udpServers,
+                                                       Set<P2pTurnCredentials.TurnServer> tcpServers,
+                                                       Set<P2pTurnCredentials.TurnServer> tlsServers) {
+        boolean cloudflare = false;
+        for (P2pTurnCredentials.TurnServer server : udpServers) {
+            if ("turn.cloudflare.com".equalsIgnoreCase(server.host())) {
+                cloudflare = true;
+                break;
+            }
+        }
+        if (!cloudflare) {
+            return;
+        }
+        tlsServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 443));
+        tlsServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 5349));
+        tcpServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 80));
+        tcpServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 3478));
     }
 
     private static String queryParameter(String query, String key) {
@@ -212,4 +244,3 @@ public final class P2pTurnCredentialClient {
         }
     }
 }
-
