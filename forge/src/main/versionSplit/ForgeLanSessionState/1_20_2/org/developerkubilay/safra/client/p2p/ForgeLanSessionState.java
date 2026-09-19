@@ -12,6 +12,7 @@ public final class ForgeLanSessionState {
     private static volatile boolean allowCommandsEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
+    private static volatile int publishedLanPort = -1;
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
     private static volatile Map<String, String> defaultGameRuleSnapshot = Map.of();
 
@@ -89,6 +90,18 @@ public final class ForgeLanSessionState {
         );
         SafraClientConfig.get().setOpenToLanFixedCode(fixedCode);
         return fixedCode;
+    }
+
+    public static int getPublishedLanPort() {
+        return publishedLanPort;
+    }
+
+    public static void setPublishedLanPort(int port) {
+        publishedLanPort = port;
+    }
+
+    public static void clearPublishedLanPort() {
+        publishedLanPort = -1;
     }
 
     public static Map<String, String> getGameRuleSnapshot() {
