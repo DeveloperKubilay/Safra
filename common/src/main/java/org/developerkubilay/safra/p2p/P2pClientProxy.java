@@ -261,7 +261,11 @@ public final class P2pClientProxy implements AutoCloseable {
             if (previousTransport != null && !previousTransport.isClosed()) {
                 previousTransport.close();
             }
-            LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
+            } else {
+                LOGGER.info("Safra starting the second direct Kwik attempt");
+            }
             startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS,
                 () -> P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket)));
         } catch (IOException | RuntimeException exception) {
@@ -290,7 +294,11 @@ public final class P2pClientProxy implements AutoCloseable {
             if (previousTransport != null && !previousTransport.isClosed()) {
                 previousTransport.close();
             }
-            LOGGER.info("Safra starting a Kwik attempt over TURN against {}", remoteAddress);
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra starting a Kwik attempt over TURN against {}", remoteAddress);
+            } else {
+                LOGGER.info("Safra starting a Kwik attempt over TURN");
+            }
             startKwikAttempt(localSocket, P2pConstants.KWIK_RELAY_TIMEOUT_MS, () -> finishKwik(localSocket));
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn("Safra could not set up the TURN Kwik fallback", exception);
