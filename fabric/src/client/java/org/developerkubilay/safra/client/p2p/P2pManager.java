@@ -210,7 +210,8 @@ public final class P2pManager {
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerAddress socketAddress = ServerAddress.parse(localAddress);
         ServerInfo rewritten = FabricVersionCompat.copyServerInfo(originalServerInfo, localAddress);
-        rewritten.address = shareCode.toDisplayCode();
+        rewritten.address = localAddress;
+        rewritten.name = shareCode.toDisplayCode();
         return new RewriteResult(socketAddress, rewritten);
     }
 

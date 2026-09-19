@@ -209,7 +209,8 @@ public final class P2pManager {
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerAddress socketAddress = ForgeVersionCompat.parseServerAddress(localAddress);
-        ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, shareCode.toDisplayCode());
+        ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, localAddress);
+        rewritten.name = shareCode.toDisplayCode();
         return new RewriteResult(socketAddress, rewritten);
     }
 
