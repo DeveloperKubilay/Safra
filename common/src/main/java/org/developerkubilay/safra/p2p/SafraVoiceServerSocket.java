@@ -14,9 +14,9 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -133,7 +133,7 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         if (closed || socket == null || socket.isClosed() || stunMappings.isEmpty()) {
             return java.util.Collections.emptyList();
         }
-        return new ArrayList<>(stunMappings.publicEndpoints());
+        return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(stunMappings.publicEndpoints()));
     }
 
     synchronized int localPortSnapshot() {

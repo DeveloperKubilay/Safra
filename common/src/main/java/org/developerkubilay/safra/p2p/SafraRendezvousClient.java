@@ -10,15 +10,21 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.developerkubilay.safra.p2p.turn.P2pTurnCredentialClient;
+import org.developerkubilay.safra.p2p.turn.P2pTurnCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -108,6 +114,8 @@ final class SafraRendezvousClient {
 
         void publishRelayFailure(String mode, String message);
 
+        P2pTurnCredentials consumePendingRelayCredentials();
+
         @Override
         void close();
     }
@@ -120,6 +128,8 @@ final class SafraRendezvousClient {
         int hostTcpPort();
 
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException;
+
+        InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException;
 
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException;
 
@@ -140,6 +150,7 @@ final class SafraRendezvousClient {
         private volatile JsonObject hostRequest;
         private volatile String code;
         private volatile InetSocketAddress lastJoinerAddress;
+        private volatile P2pTurnCredentials pendingRelayCredentials;
         private volatile boolean relayAssigned;
         private volatile boolean relayRequestQueued;
 
@@ -154,7 +165,9 @@ final class SafraRendezvousClient {
         private String open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint,
                             InetSocketAddress voiceEndpoint) throws IOException {
             JsonObject request = new JsonObject();
-            request.add("network", toNetwork(endpoint));
+            if (!P2pConstants.forceHostFailSafeRelay()) {
+                request.add("network", toNetwork(endpoint));
+            }
             if (voiceEndpoint != null) {
                 request.add("voicechat", toNetwork(voiceEndpoint));
             }
@@ -209,6 +222,13 @@ final class SafraRendezvousClient {
         }
 
         @Override
+        public P2pTurnCredentials consumePendingRelayCredentials() {
+            P2pTurnCredentials credentials = pendingRelayCredentials;
+            pendingRelayCredentials = null;
+            return credentials;
+        }
+
+        @Override
         public void close() {
             closed = true;
             closeQuietly(streamResponse);
@@ -256,14 +276,20 @@ final class SafraRendezvousClient {
         }
 
         private boolean reconnectEventStream() {
-            long deadline = System.currentTimeMillis() + P2pConstants.RENDEZVOUS_RECONNECT_WINDOW_MS;
+            long reconnectStartedAt = System.currentTimeMillis();
             int attempt = 0;
-            while (!closed && System.currentTimeMillis() < deadline) {
+            while (!closed) {
+                long elapsedMs = System.currentTimeMillis() - reconnectStartedAt;
+                long delayMs = attempt == 0
+                    ? P2pConstants.RENDEZVOUS_RECONNECT_FIRST_DELAY_MS
+                    : elapsedMs >= P2pConstants.RENDEZVOUS_RECONNECT_SLOW_AFTER_MS
+                        ? P2pConstants.RENDEZVOUS_RECONNECT_SLOW_DELAY_MS
+                        : P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS;
                 attempt++;
-                sleepQuietly(P2pConstants.RENDEZVOUS_RECONNECT_DELAY_MS);
+                sleepQuietly(delayMs);
                 try {
                     openEventStream(reconnectRequest());
-                    LOGGER.debug("Safra host event stream reconnected attempt={}", attempt);
+                    LOGGER.info("Safra host event stream reconnected attempt={}", attempt);
                     return true;
                 } catch (IOException exception) {
                     if (!closed) {
@@ -274,11 +300,6 @@ final class SafraRendezvousClient {
                 }
             }
 
-            if (!closed) {
-                IOException exception = new IOException("Safra host event stream could not reconnect");
-                codeFuture.completeExceptionally(exception);
-                LOGGER.warn("Safra host event stream could not reconnect within 120 seconds");
-            }
             return false;
         }
 
@@ -288,8 +309,7 @@ final class SafraRendezvousClient {
                 throw new IOException("Safra host event stream yok");
             }
 
-            try (Reader readerStream = response.body().charStream();
-                 BufferedReader reader = new BufferedReader(readerStream)) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                 String event = "";
                 StringBuilder data = new StringBuilder();
                 String line;
@@ -362,10 +382,9 @@ final class SafraRendezvousClient {
                 return;
             }
             if ("relay-assigned".equals(event)) {
+                pendingRelayCredentials = P2pTurnCredentialClient.parse(wrapIceServers(data));
                 relayAssigned = true;
-                if (lastJoinerAddress != null) {
-                    relayRequestHandler.accept(lastJoinerAddress);
-                }
+                relayRequestHandler.accept(lastJoinerAddress);
             }
         }
 
@@ -393,8 +412,7 @@ final class SafraRendezvousClient {
                 if (response.body() == null) {
                     return;
                 }
-                try (Reader readerStream = response.body().charStream();
-                     BufferedReader reader = new BufferedReader(readerStream)) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                     while (!closed && reader.readLine() != null) {
                     }
                 }
@@ -406,6 +424,7 @@ final class SafraRendezvousClient {
                 closeQuietly(response);
             }
         }
+
     }
 
     private static final class Api3JoinSessionBackend implements JoinSessionBackend {
@@ -414,6 +433,7 @@ final class SafraRendezvousClient {
         private InetSocketAddress hostAddress;
         private InetSocketAddress voiceAddress;
         private InetSocketAddress relayAddress;
+        private P2pTurnCredentials relayCredentials;
 
         private Api3JoinSessionBackend(String code) {
             this.code = code;
@@ -437,7 +457,9 @@ final class SafraRendezvousClient {
                 JsonObject json = parseApi3Object(body, "Safra join response is invalid");
                 hostAddress = fromNetwork(array(json, "host"));
                 voiceAddress = fromNetwork(array(json, "voiceHost"));
-                relayAddress = relayNetwork(object(json, "relay"));
+                JsonObject relay = object(json, "relay");
+                relayAddress = relayNetwork(relay);
+                relayCredentials = relayCredentials(relay);
                 if (hostAddress == null && relayAddress == null) {
                     throw new IOException("Safra join response did not include a host address");
                 }
@@ -494,7 +516,7 @@ final class SafraRendezvousClient {
                 if (localRelayEndpoint != null) {
                     refreshHostState(localRelayEndpoint);
                 }
-                return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code));
+                return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code), relayCredentials);
             }
 
             JsonObject request = new JsonObject();
@@ -512,8 +534,7 @@ final class SafraRendezvousClient {
                     throw new IOException("Safra relay event stream closed");
                 }
 
-                try (Reader readerStream = response.body().charStream();
-                     BufferedReader reader = new BufferedReader(readerStream)) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                     String event = "";
                     StringBuilder data = new StringBuilder();
                     String line;
@@ -524,10 +545,11 @@ final class SafraRendezvousClient {
                                 if ("relay-accepted".equals(event)) {
                                     JsonObject relay = object(json, "relay");
                                     relayAddress = relay != null ? relayNetwork(relay) : fromNetwork(array(json, "network"));
+                                    relayCredentials = relay != null ? relayCredentials(relay) : relayCredentials;
                                     if (relayAddress == null) {
                                         throw new IOException("Safra relay response did not include a network endpoint");
                                     }
-                                    return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code));
+                                    return new ResolvedRelay(relayAddress, P2pShareCode.rendezvousTunnelToken(code), relayCredentials);
                                 }
                                 if ("relay-timeout".equals(event)) {
                                     throw new IOException(string(json, "message"));
@@ -556,6 +578,17 @@ final class SafraRendezvousClient {
 
         @Override
         public void close() {
+        }
+
+        @Override
+        public InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            InetSocketAddress endpoint = preferredEndpoint(publicEndpoints);
+            if (endpoint == null) {
+                throw new IOException("Safra direct retry requires a STUN endpoint");
+            }
+            joinAddress = endpoint;
+            refreshHostState(endpoint);
+            return hostAddress;
         }
 
         private void refreshHostState(InetSocketAddress endpoint) throws IOException {
@@ -588,6 +621,10 @@ final class SafraRendezvousClient {
                 InetSocketAddress refreshedRelay = relayNetwork(object(json, "relay"));
                 if (refreshedRelay != null) {
                     relayAddress = refreshedRelay;
+                    P2pTurnCredentials refreshedCredentials = relayCredentials(object(json, "relay"));
+                    if (refreshedCredentials != null) {
+                        relayCredentials = refreshedCredentials;
+                    }
                 }
             } finally {
                 response.close();
@@ -610,6 +647,7 @@ final class SafraRendezvousClient {
                 response.close();
             }
         }
+
     }
 
     static final class HostSession implements AutoCloseable {
@@ -635,6 +673,10 @@ final class SafraRendezvousClient {
 
         void publishRelayFailure(String mode, String message) {
             backend.publishRelayFailure(mode, message);
+        }
+
+        P2pTurnCredentials consumePendingRelayCredentials() {
+            return backend.consumePendingRelayCredentials();
         }
 
         @Override
@@ -670,6 +712,10 @@ final class SafraRendezvousClient {
 
         InetSocketAddress resolveVoice(Collection<InetSocketAddress> publicEndpoints) throws IOException {
             return backend.resolveVoice(publicEndpoints);
+        }
+
+        InetSocketAddress refreshDirect(Collection<InetSocketAddress> publicEndpoints) throws IOException {
+            return backend.refreshDirect(publicEndpoints);
         }
 
         ResolvedRelay requestRelayFallback(Collection<InetSocketAddress> relayEndpoints) throws IOException {
@@ -709,10 +755,12 @@ final class SafraRendezvousClient {
     static final class ResolvedRelay {
         private final InetSocketAddress address;
         private final int tunnelToken;
+        private final P2pTurnCredentials credentials;
 
-        ResolvedRelay(InetSocketAddress address, int tunnelToken) {
+        ResolvedRelay(InetSocketAddress address, int tunnelToken, P2pTurnCredentials credentials) {
             this.address = address;
             this.tunnelToken = tunnelToken;
+            this.credentials = credentials;
         }
 
         InetSocketAddress address() {
@@ -721,6 +769,10 @@ final class SafraRendezvousClient {
 
         int tunnelToken() {
             return tunnelToken;
+        }
+
+        P2pTurnCredentials credentials() {
+            return credentials;
         }
     }
 
@@ -734,7 +786,51 @@ final class SafraRendezvousClient {
     }
 
     private static Response send(Request request) throws IOException {
-        return HTTP_CLIENT.newCall(request).execute();
+        IOException lastFailure = null;
+        int[] retryDelays = {0, 1_000, 10_000};
+        for (int attempt = 0; attempt < retryDelays.length; attempt++) {
+            int delayMs = retryDelays[attempt];
+            if (delayMs > 0) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Safra API request was interrupted", exception);
+                }
+            }
+            try {
+                return HTTP_CLIENT.newCall(request).execute();
+            } catch (IOException exception) {
+                lastFailure = exception;
+                if (!isRetryableConnectFailure(exception) || attempt + 1 >= retryDelays.length) {
+                    throw exception;
+                }
+                LOGGER.warn("Safra API connection retry {}/{} for {} after {}", attempt + 1,
+                    retryDelays.length - 1, request.url().host(), exception.toString());
+            }
+        }
+        throw lastFailure == null ? new IOException("Safra API connection failed") : lastFailure;
+    }
+
+    private static boolean isRetryableConnectFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ConnectException || current instanceof UnknownHostException
+                || current instanceof SocketTimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static JsonObject wrapIceServers(JsonObject turnCredentials) {
+        JsonObject wrapped = new JsonObject();
+        JsonArray servers = new JsonArray();
+        servers.add(turnCredentials);
+        wrapped.add("iceServers", servers);
+        wrapped.addProperty("ttl", P2pConstants.turnCredentialTtlSeconds());
+        return wrapped;
     }
 
     private static JsonObject parseApi3Object(String body, String message) throws IOException {
@@ -780,6 +876,13 @@ final class SafraRendezvousClient {
         }
         JsonArray network = array(relay, "network");
         return network == null ? null : fromNetwork(network);
+    }
+
+    private static P2pTurnCredentials relayCredentials(JsonObject relay) throws IOException {
+        if (relay == null || !relay.has("urls") || !relay.has("username") || !relay.has("credential")) {
+            return null;
+        }
+        return P2pTurnCredentialClient.parse(wrapIceServers(relay));
     }
 
     private static InetSocketAddress fromNetwork(JsonArray network) {
@@ -902,4 +1005,3 @@ final class SafraRendezvousClient {
         }
     }
 }
-

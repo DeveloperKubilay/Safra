@@ -19,16 +19,28 @@ public final class P2pHostSupport {
         return token;
     }
 
+    public static String resolvePreferredRendezvousCode(String preferredRendezvousCode) {
+        String normalized = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        return normalized != null ? normalized : P2pShareCode.createRendezvousCode();
+    }
+
+    public static int createRendezvousShareToken(String rendezvousCode) {
+        return P2pShareCode.rendezvousTunnelToken(rendezvousCode);
+    }
+
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, Logger logger) throws IOException {
         return startDedicatedHost(tcpPort, serverIp, null, logger);
     }
 
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
+        String resolvedCode = P2pConstants.useApi30Rendezvous()
+            ? resolvePreferredRendezvousCode(preferredRendezvousCode)
+            : P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
         P2pHostService service = new P2pHostService(
             tcpPort,
-            createShareToken(),
+            P2pConstants.useApi30Rendezvous() ? createRendezvousShareToken(resolvedCode) : createShareToken(),
             resolveTargetAddress(serverIp, logger),
-            preferredRendezvousCode,
+            resolvedCode,
             false
         );
         try {
@@ -52,7 +64,7 @@ public final class P2pHostSupport {
         }
     }
 
-    public static class HostStartResult {
+    public static final class HostStartResult {
         private final P2pHostService service;
         private final P2pShareCode shareCode;
 
