@@ -125,9 +125,10 @@ public final class SafraVoiceClientSocket implements ClientVoicechatSocket {
         sent.incrementAndGet();
     }
 
-    /** Voice carries no error of its own when it goes nowhere, so it says how much went each way. */
     private void logTraffic() {
-        LOGGER.info("Safra voice: {} packets sent to {}, {} received", sent.get(), safraRemoteAddress, received.get());
+        if (SafraBuildInfo.diagnostics()) {
+            LOGGER.info("Safra voice: {} packets sent to {}, {} received", sent.get(), safraRemoteAddress, received.get());
+        }
     }
 
     @Override
