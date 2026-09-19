@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pErrorKind;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -36,18 +37,24 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             Minecraft.getInstance().execute(() -> {
                 if (throwable != null) {
-                    Throwable cause = throwable instanceof CompletionException completionException
-                        && completionException.getCause() != null
-                        ? completionException.getCause()
-                        : throwable;
+                    Throwable cause = throwable;
+                    if (throwable instanceof CompletionException) {
+                        CompletionException completionException = (CompletionException) throwable;
+                        if (completionException.getCause() != null) {
+                            cause = completionException.getCause();
+                        }
+                    }
                     if (cause instanceof CancellationException) {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
+                    P2pErrorKind errorKind = P2pErrorKind.classify(cause);
                     Minecraft.getInstance().setScreen(new DisconnectedScreen(
                         (Screen) (Object) this,
                         Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        errorKind == P2pErrorKind.OTHER
+                            ? Component.translatable("safra.p2p.prepare_failed", message)
+                            : Component.translatable(errorKind.translationKey())
                     ));
                     return;
                 }

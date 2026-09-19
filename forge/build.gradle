@@ -18,7 +18,7 @@ base {
 
 def devUsername = rootProject.ext.devRunUsername(project)
 
-def targetJavaVersion = 17
+def targetJavaVersion = 8
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
@@ -27,6 +27,7 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release.set(targetJavaVersion)
 }
 
 renamer.enableMixinRefmaps {

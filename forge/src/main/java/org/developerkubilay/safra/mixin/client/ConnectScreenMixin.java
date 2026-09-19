@@ -9,15 +9,14 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pErrorKind;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
 
 @Mixin(ConnectScreen.class)
 abstract class ConnectScreenMixin {
@@ -35,26 +34,30 @@ abstract class ConnectScreenMixin {
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
-                    Throwable cause = throwable instanceof CompletionException completionException
-                        && completionException.getCause() != null
-                        ? completionException.getCause()
-                        : throwable;
+                    Throwable cause = throwable;
+                    if (throwable instanceof CompletionException) {
+                        CompletionException completionException = (CompletionException) throwable;
+                        if (completionException.getCause() != null) {
+                            cause = completionException.getCause();
+                        }
+                    }
                     if (cause instanceof CancellationException) {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
+                    P2pErrorKind errorKind = P2pErrorKind.classify(cause);
                     client.setScreen(new DisconnectedScreen(
                         parent,
                         Component.translatable("connect.failed"),
-                        Component.translatable("safra.p2p.prepare_failed", message)
+                        errorKind == P2pErrorKind.OTHER
+                            ? Component.translatable("safra.p2p.prepare_failed", message)
+                            : Component.translatable(errorKind.translationKey())
                     ));
                     return;
                 }
 
-                CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
-                    client.execute(() ->
-                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay)
-                    )
+                client.execute(() ->
+                    ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay)
                 );
             })
         );

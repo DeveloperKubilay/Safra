@@ -1,10 +1,9 @@
 package org.developerkubilay.safra.p2p.turn;
 
-import org.developerkubilay.safra.util.Java8Compat;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -23,37 +22,47 @@ final class P2pTurnMessage {
         this.attributes = attributes;
     }
 
+    int type() {
+        return type;
+    }
+
+    byte[] transactionId() {
+        return transactionId;
+    }
+
+    Map<Integer, byte[]> attributes() {
+        return attributes;
+    }
+
     static P2pTurnMessage parse(byte[] payload, int length) {
         if (length < P2pTurnProtocol.STUN_HEADER_SIZE) {
             return null;
         }
 
         ByteBuffer buffer = ByteBuffer.wrap(payload, 0, length).order(ByteOrder.BIG_ENDIAN);
-        int type = Java8Compat.unsignedShortToInt(buffer.getShort());
-        int messageLength = Java8Compat.unsignedShortToInt(buffer.getShort());
+        int type = Short.toUnsignedInt(buffer.getShort());
+        int messageLength = Short.toUnsignedInt(buffer.getShort());
         if (buffer.getInt() != P2pTurnProtocol.MAGIC_COOKIE || messageLength > buffer.remaining()) {
             return null;
         }
 
         byte[] transactionId = new byte[12];
         buffer.get(transactionId);
-        Map<Integer, byte[]> attributes = new HashMap<Integer, byte[]>();
+        Map<Integer, byte[]> attributes = new HashMap<>();
         while (buffer.remaining() >= 4) {
-            int attributeType = Java8Compat.unsignedShortToInt(buffer.getShort());
-            int attributeLength = Java8Compat.unsignedShortToInt(buffer.getShort());
+            int attributeType = Short.toUnsignedInt(buffer.getShort());
+            int attributeLength = Short.toUnsignedInt(buffer.getShort());
             if (attributeLength > buffer.remaining()) {
                 return null;
             }
             byte[] value = new byte[attributeLength];
             buffer.get(value);
-            if (!attributes.containsKey(attributeType)) {
-                attributes.put(attributeType, value);
-            }
+            attributes.putIfAbsent(attributeType, value);
             int padding = (4 - (attributeLength & 3)) & 3;
             if (padding > buffer.remaining()) {
                 break;
             }
-            buffer.position(buffer.position() + padding);
+            ((Buffer) buffer).position(buffer.position() + padding);
         }
         return new P2pTurnMessage(type, transactionId, attributes);
     }
@@ -90,7 +99,7 @@ final class P2pTurnMessage {
         }
 
         int family = value[1] & 0xFF;
-        int port = Java8Compat.unsignedShortToInt(ByteBuffer.wrap(value, 2, 2).getShort()) ^ (P2pTurnProtocol.MAGIC_COOKIE >>> 16);
+        int port = Short.toUnsignedInt(ByteBuffer.wrap(value, 2, 2).getShort()) ^ (P2pTurnProtocol.MAGIC_COOKIE >>> 16);
         byte[] addressBytes;
         if (family == 0x01) {
             addressBytes = Arrays.copyOfRange(value, 4, 8);
@@ -113,13 +122,5 @@ final class P2pTurnMessage {
         } catch (IOException exception) {
             return null;
         }
-    }
-
-    int type() {
-        return type;
-    }
-
-    byte[] transactionId() {
-        return transactionId;
     }
 }

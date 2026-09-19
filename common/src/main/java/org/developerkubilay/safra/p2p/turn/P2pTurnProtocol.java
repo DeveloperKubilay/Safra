@@ -12,7 +12,6 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Objects;
-import org.developerkubilay.safra.util.Java8Compat;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -144,7 +143,7 @@ final class P2pTurnProtocol {
         }
         int errorCode = response.errorCode();
         String reason = response.errorReason();
-        return new IOException("TURN " + type + " failed: " + errorCode + (Java8Compat.isBlank(reason) ? "" : " " + reason));
+        return new IOException("TURN " + type + " failed: " + errorCode + (reason.trim().isEmpty() ? "" : " " + reason));
     }
 
     static String transactionKey(byte[] transactionId) {

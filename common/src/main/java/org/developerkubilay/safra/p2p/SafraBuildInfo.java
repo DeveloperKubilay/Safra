@@ -1,17 +1,18 @@
 package org.developerkubilay.safra.p2p;
 
-import org.developerkubilay.safra.util.Java8Compat;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
 public final class SafraBuildInfo {
     private static final String DEFAULT_VERSION = "unknown";
+    private static final String DEFAULT_TEST_MODE = "off";
     private static final String modVersion;
     private static final String minecraftVersion;
     private static final String loaderName;
     private static final String loaderVersion;
+    private static final String testMode;
+    private static final boolean diagnostics;
 
     static {
         Properties properties = new Properties();
@@ -26,6 +27,8 @@ public final class SafraBuildInfo {
         minecraftVersion = value(properties, "minecraftVersion");
         loaderName = value(properties, "loaderName");
         loaderVersion = value(properties, "loaderVersion");
+        testMode = value(properties, "testMode", DEFAULT_TEST_MODE);
+        diagnostics = Boolean.parseBoolean(value(properties, "diagnostics", "false"));
     }
 
     private SafraBuildInfo() {
@@ -48,13 +51,22 @@ public final class SafraBuildInfo {
     }
 
     public static String testMode() {
-        return value(new Properties(), "testMode");
+        return testMode;
+    }
+
+    /** Whether this build measures and reports what its links are doing. Off in a release. */
+    public static boolean diagnostics() {
+        return diagnostics;
     }
 
     private static String value(Properties properties, String key) {
+        return value(properties, key, DEFAULT_VERSION);
+    }
+
+    private static String value(Properties properties, String key, String defaultValue) {
         String value = properties.getProperty(key);
-        if (Java8Compat.isBlank(value)) {
-            return DEFAULT_VERSION;
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
         }
 
         return value.trim();

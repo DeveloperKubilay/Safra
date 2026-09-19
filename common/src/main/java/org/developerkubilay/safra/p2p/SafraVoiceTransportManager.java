@@ -1,8 +1,8 @@
 package org.developerkubilay.safra.p2p;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -111,7 +111,7 @@ public final class SafraVoiceTransportManager {
                 }
                 Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
                 if (!endpoints.isEmpty()) {
-                    return new ArrayList<>(endpoints);
+                    return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(endpoints));
                 }
             }
             return java.util.Collections.emptyList();
@@ -119,7 +119,7 @@ public final class SafraVoiceTransportManager {
         for (SafraVoiceServerSocket socket : serverSockets) {
             Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
             if (!endpoints.isEmpty()) {
-                return new ArrayList<>(endpoints);
+                return java.util.Collections.unmodifiableList(new java.util.ArrayList<InetSocketAddress>(endpoints));
             }
         }
         return java.util.Collections.emptyList();

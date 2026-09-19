@@ -12,19 +12,16 @@ final class P2pTransportBinding implements AutoCloseable {
     private final Map<String, P2pStunClient.DiscoveredEndpoint> stunEndpoints;
     private final boolean relay;
 
-    P2pTransportBinding(P2pDatagramTransport transport,
-                        Collection<InetSocketAddress> publicEndpoints,
-                        Map<String, P2pStunClient.DiscoveredEndpoint> stunEndpoints,
-                        boolean relay) {
+    P2pTransportBinding(
+        P2pDatagramTransport transport,
+        Collection<InetSocketAddress> publicEndpoints,
+        Map<String, P2pStunClient.DiscoveredEndpoint> stunEndpoints,
+        boolean relay
+    ) {
         this.transport = transport;
         this.publicEndpoints = publicEndpoints;
         this.stunEndpoints = stunEndpoints;
         this.relay = relay;
-    }
-
-    @Override
-    public void close() {
-        transport.close();
     }
 
     P2pDatagramTransport transport() {
@@ -41,5 +38,10 @@ final class P2pTransportBinding implements AutoCloseable {
 
     boolean relay() {
         return relay;
+    }
+
+    @Override
+    public void close() {
+        transport.close();
     }
 }
