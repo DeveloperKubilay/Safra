@@ -28,7 +28,9 @@ final class P2pKwikStreams {
             try {
                 stream.getInputStream().transferTo(minecraftSocket.getOutputStream());
             } catch (IOException exception) {
-                if (SafraBuildInfo.diagnostics()) {
+                if (!finished.get()) {
+                    logger.warn("Safra Kwik {} QUIC -> Minecraft stream closed unexpectedly: {}", side, exception.toString());
+                } else if (SafraBuildInfo.diagnostics()) {
                     logger.info("Safra Kwik {} QUIC -> Minecraft stream closed: {}", side, exception.toString());
                 } else {
                     logger.debug("Safra Kwik {} QUIC -> Minecraft stream closed: {}", side, exception.toString());
@@ -42,7 +44,9 @@ final class P2pKwikStreams {
                 minecraftSocket.getInputStream().transferTo(stream.getOutputStream());
                 stream.getOutputStream().close();
             } catch (IOException exception) {
-                if (SafraBuildInfo.diagnostics()) {
+                if (!finished.get()) {
+                    logger.warn("Safra Kwik {} Minecraft -> QUIC stream closed unexpectedly: {}", side, exception.toString());
+                } else if (SafraBuildInfo.diagnostics()) {
                     logger.info("Safra Kwik {} Minecraft -> QUIC stream closed: {}", side, exception.toString());
                 } else {
                     logger.debug("Safra Kwik {} Minecraft -> QUIC stream closed: {}", side, exception.toString());
