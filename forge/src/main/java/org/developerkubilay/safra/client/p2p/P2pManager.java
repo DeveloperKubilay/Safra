@@ -209,6 +209,11 @@ public final class P2pManager {
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
         rewritten.copyFrom(originalServerInfo);
+        rewritten.ip = localAddress;
+        IntegratedServer integratedServer = Minecraft.getInstance().getSingleplayerServer();
+        if (integratedServer != null) {
+            rewritten.name = integratedServer.getWorldData().getLevelName();
+        }
         return new RewriteResult(ServerAddress.parseString(rewritten.ip), rewritten);
     }
 
