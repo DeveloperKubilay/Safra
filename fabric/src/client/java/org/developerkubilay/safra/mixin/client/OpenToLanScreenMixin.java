@@ -137,6 +137,9 @@ abstract class OpenToLanScreenMixin extends Screen {
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
             }
+            if (server.getServerIp() == null) {
+                server.setServerIp("127.0.0.1");
+            }
             SAFRA_LOGGER.debug(
                 "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
                 server.isOnlineMode(),

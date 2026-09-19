@@ -34,6 +34,9 @@ abstract class IntegratedServerMixin {
         if (ForgeLanSessionState.isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
+        if (server.getLocalIp() == null) {
+            server.setLocalIp("127.0.0.1");
+        }
         SAFRA_LOGGER.debug(
             "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
             server.usesAuthentication(),

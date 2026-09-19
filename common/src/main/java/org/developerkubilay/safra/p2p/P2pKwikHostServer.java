@@ -17,6 +17,7 @@ import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.cert.CertificateException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,6 +40,8 @@ final class P2pKwikHostServer implements AutoCloseable {
     private final Sender sender;
     private final Map<Integer, Peer> peersByConnection = new ConcurrentHashMap<>();
     private final Map<Integer, Peer> peersByPort = new ConcurrentHashMap<>();
+    private final Set<Socket> openMinecraftSockets = ConcurrentHashMap.newKeySet();
+    private final Set<QuicConnection> activeConnections = ConcurrentHashMap.newKeySet();
     private final AtomicInteger nextPeerPort = new AtomicInteger(P2pConstants.KWIK_VIRTUAL_PORT);
     private final P2pKwikDatagramSocket socket;
     private final ServerConnector connector;
@@ -112,6 +115,20 @@ final class P2pKwikHostServer implements AutoCloseable {
         closed = true;
         peersByConnection.clear();
         peersByPort.clear();
+        for (QuicConnection connection : activeConnections) {
+            try {
+                connection.close();
+            } catch (Exception ignored) {
+            }
+        }
+        activeConnections.clear();
+        for (Socket localSocket : openMinecraftSockets) {
+            try {
+                localSocket.close();
+            } catch (IOException ignored) {
+            }
+        }
+        openMinecraftSockets.clear();
         connector.close();
         socket.close();
     }
@@ -186,14 +203,25 @@ final class P2pKwikHostServer implements AutoCloseable {
     }
 
     private void openMinecraftStream(QuicConnection quicConnection, QuicStream stream) {
+        if (closed) {
+            activeConnections.remove(quicConnection);
+            quicConnection.close();
+            return;
+        }
         try {
             Socket minecraftSocket = new Socket(minecraftAddress, minecraftPort);
             P2pSockets.tune(minecraftSocket);
-            P2pKwikStreams.pipe(logger, "host", stream, minecraftSocket, quicConnection::close);
+            openMinecraftSockets.add(minecraftSocket);
+            P2pKwikStreams.pipe(logger, "host", stream, minecraftSocket, () -> {
+                openMinecraftSockets.remove(minecraftSocket);
+                activeConnections.remove(quicConnection);
+                quicConnection.close();
+            });
             logger.debug("Safra Kwik host tunnel connected to local Minecraft {}:{}",
                 minecraftAddress.getHostAddress(), minecraftPort);
         } catch (IOException exception) {
             logger.warn("Safra Kwik host could not reach local Minecraft: {}", exception.toString());
+            activeConnections.remove(quicConnection);
             quicConnection.close();
         }
     }
@@ -221,12 +249,14 @@ final class P2pKwikHostServer implements AutoCloseable {
     private final class MinecraftProtocol implements ApplicationProtocolConnectionFactory {
         @Override
         public ApplicationProtocolConnection createConnection(String protocol, QuicConnection quicConnection) {
+            activeConnections.add(quicConnection);
             AtomicBoolean streamClaimed = new AtomicBoolean();
             return new ApplicationProtocolConnection() {
                 @Override
                 public void acceptPeerInitiatedStream(QuicStream stream) {
                     if (!streamClaimed.compareAndSet(false, true)) {
                         logger.warn("Safra Kwik host refused a second Minecraft stream on one QUIC connection");
+                        activeConnections.remove(quicConnection);
                         quicConnection.close();
                         return;
                     }
