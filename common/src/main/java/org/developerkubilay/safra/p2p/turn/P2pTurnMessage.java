@@ -3,6 +3,7 @@ package org.developerkubilay.safra.p2p.turn;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ final class P2pTurnMessage {
     Map<Integer, byte[]> attributes() {
         return attributes;
     }
+
     static P2pTurnMessage parse(byte[] payload, int length) {
         if (length < P2pTurnProtocol.STUN_HEADER_SIZE) {
             return null;
@@ -60,7 +62,7 @@ final class P2pTurnMessage {
             if (padding > buffer.remaining()) {
                 break;
             }
-            buffer.position(buffer.position() + padding);
+            ((Buffer) buffer).position(buffer.position() + padding);
         }
         return new P2pTurnMessage(type, transactionId, attributes);
     }

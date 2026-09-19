@@ -11,6 +11,7 @@ import java.net.SocketException;
 
 public final class P2pSockets {
     private static final InetAddress IPV4_LOOPBACK = createIpv4Loopback();
+    private static final InetAddress IPV4_ANY = createIpv4Any();
 
     private P2pSockets() {
     }
@@ -29,6 +30,17 @@ public final class P2pSockets {
         return socket;
     }
 
+    static DatagramSocket ipv4DatagramSocket() throws SocketException {
+        return ipv4DatagramSocket(0);
+    }
+
+    static DatagramSocket ipv4DatagramSocket(int port) throws SocketException {
+        DatagramSocket socket = new DatagramSocket((SocketAddress) null);
+        socket.bind(new InetSocketAddress(IPV4_ANY, port));
+        tune(socket);
+        return socket;
+    }
+
     static void tune(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
@@ -38,6 +50,10 @@ public final class P2pSockets {
 
     static InetAddress loopbackAddress() {
         return IPV4_LOOPBACK;
+    }
+
+    static InetAddress ipv4WildcardAddress() {
+        return IPV4_ANY;
     }
 
     static String addressFamily(InetSocketAddress address) {
@@ -59,6 +75,14 @@ public final class P2pSockets {
             return InetAddress.getByName(P2pConstants.LOCAL_PROXY_HOST);
         } catch (UnknownHostException exception) {
             throw new IllegalStateException("IPv4 loopback address could not be resolved", exception);
+        }
+    }
+
+    private static InetAddress createIpv4Any() {
+        try {
+            return InetAddress.getByName("0.0.0.0");
+        } catch (UnknownHostException exception) {
+            throw new IllegalStateException("IPv4 wildcard address could not be resolved", exception);
         }
     }
 

@@ -18,17 +18,6 @@ public final class SafraForgeClientEvents {
         RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
     }
 
-    private static final java.lang.reflect.Field MULTIPLAYER_PARENT_FIELD;
-
-    static {
-        try {
-            MULTIPLAYER_PARENT_FIELD = GuiMultiplayer.class.getDeclaredField("parentScreen");
-            MULTIPLAYER_PARENT_FIELD.setAccessible(true);
-        } catch (Exception exception) {
-            throw new RuntimeException(exception);
-        }
-    }
-
     @SubscribeEvent
     public void onGuiOpen(GuiOpenEvent event) {
         if (event.getGui() instanceof GuiMainMenu) {
@@ -36,8 +25,7 @@ public final class SafraForgeClientEvents {
             return;
         }
         if (event.getGui() instanceof GuiMultiplayer && !(event.getGui() instanceof SafraGuiMultiplayer)) {
-            GuiMultiplayer gui = (GuiMultiplayer) event.getGui();
-            event.setGui(new SafraGuiMultiplayer(resolveParent(gui)));
+            event.setGui(new SafraGuiMultiplayer(Minecraft.getMinecraft().currentScreen));
             return;
         }
         if (event.getGui() instanceof GuiShareToLan && !(event.getGui() instanceof SafraGuiShareToLan)) {
@@ -53,11 +41,4 @@ public final class SafraForgeClientEvents {
         P2pManager.getInstance().tick(Minecraft.getMinecraft());
     }
 
-    private net.minecraft.client.gui.GuiScreen resolveParent(GuiMultiplayer gui) {
-        try {
-            return (net.minecraft.client.gui.GuiScreen) MULTIPLAYER_PARENT_FIELD.get(gui);
-        } catch (IllegalAccessException exception) {
-            return Minecraft.getMinecraft().currentScreen;
-        }
-    }
 }

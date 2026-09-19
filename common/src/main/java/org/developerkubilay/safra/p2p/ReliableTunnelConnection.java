@@ -1,6 +1,6 @@
 package org.developerkubilay.safra.p2p;
 
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -33,16 +33,21 @@ final class ReliableTunnelConnection implements AutoCloseable {
         void remove(int connectionId);
     }
 
+    interface OpenFallbackHandler {
+        void fallback(ReliableTunnelConnection connection);
+    }
+
     private final Logger logger;
     private final String side;
     private final int token;
     private final int connectionId;
-    private final InetSocketAddress remoteAddress;
+    private volatile InetSocketAddress remoteAddress;
     private final Socket tcpSocket;
-    private final PacketSender packetSender;
+    private volatile PacketSender packetSender;
     private final RemovalCallback removalCallback;
     private final ScheduledExecutorService scheduler;
     private final boolean initiator;
+    private final OpenFallbackHandler openFallbackHandler;
     private final boolean diagnosticsLoggingEnabled;
     private final long diagnosticsSummaryMs;
     private final long diagnosticsTickDriftWarnMs;
@@ -103,6 +108,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
     private volatile long lastOpenPacketAt = 0L;
     private volatile long openStartedAt = System.currentTimeMillis();
     private volatile int openPacketsSent;
+    private volatile boolean openFallbackStarted;
+    private volatile boolean openFallbackPending;
     private volatile long lastPayloadSentAt = System.currentTimeMillis();
     private volatile long lastAcknowledgementProgressAt = System.currentTimeMillis();
     private volatile long retransmitTimeoutMs = P2pConstants.INITIAL_RESEND_MS;
@@ -180,6 +187,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
     ReliableTunnelConnection(Logger logger, String side, int token, int connectionId, InetSocketAddress remoteAddress,
                              Socket tcpSocket, PacketSender packetSender, RemovalCallback removalCallback,
                              ScheduledExecutorService scheduler, boolean initiator) {
+        this(logger, side, token, connectionId, remoteAddress, tcpSocket, packetSender, removalCallback, scheduler, initiator, null);
+    }
+
+    ReliableTunnelConnection(Logger logger, String side, int token, int connectionId, InetSocketAddress remoteAddress,
+                             Socket tcpSocket, PacketSender packetSender, RemovalCallback removalCallback,
+                             ScheduledExecutorService scheduler, boolean initiator, OpenFallbackHandler openFallbackHandler) {
         this.logger = logger;
         this.side = side;
         this.token = token;
@@ -190,6 +203,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         this.removalCallback = removalCallback;
         this.scheduler = scheduler;
         this.initiator = initiator;
+        this.openFallbackHandler = openFallbackHandler;
         this.diagnosticsLoggingEnabled = P2pConstants.diagnosticsEnabled();
         this.diagnosticsSummaryMs = diagnosticsLoggingEnabled ? P2pConstants.diagnosticsSummaryMs() : 0L;
         this.diagnosticsTickDriftWarnMs = diagnosticsLoggingEnabled ? P2pConstants.diagnosticsTickDriftWarnMs() : 0L;
@@ -200,7 +214,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         Thread readerThread = P2pRuntime.start(side + "-udp-reader-" + connectionId, this::tcpReaderLoop);
         Thread writerThread = P2pRuntime.start(side + "-udp-writer-" + connectionId, this::tcpWriterLoop);
-        maintenanceTask = scheduler.scheduleAtFixedRate(this::maintenanceTick, P2pConstants.MAINTENANCE_TICK_MS,
+        maintenanceTask = scheduler.scheduleAtFixedRate(this::runMaintenanceTick, P2pConstants.MAINTENANCE_TICK_MS,
             P2pConstants.MAINTENANCE_TICK_MS, TimeUnit.MILLISECONDS);
 
         long now = System.currentTimeMillis();
@@ -214,6 +228,48 @@ final class ReliableTunnelConnection implements AutoCloseable {
         writerThread.setUncaughtExceptionHandler((thread, throwable) -> closeFromError("writer", throwable));
     }
 
+    boolean isOpened() {
+        return opened;
+    }
+
+    boolean updateRoute(InetSocketAddress newRemoteAddress, PacketSender newPacketSender) {
+        if (closed.get() || newRemoteAddress == null || newRemoteAddress.isUnresolved() || newPacketSender == null) {
+            return false;
+        }
+        boolean changed = !newRemoteAddress.equals(remoteAddress) || packetSender != newPacketSender;
+        remoteAddress = newRemoteAddress;
+        packetSender = newPacketSender;
+        return changed;
+    }
+
+    void retryOpen(InetSocketAddress fallbackRemoteAddress) {
+        retryOpen(fallbackRemoteAddress, false);
+    }
+
+    void retryDirectOpen(InetSocketAddress fallbackRemoteAddress) {
+        retryOpen(fallbackRemoteAddress, true);
+    }
+
+    private void retryOpen(InetSocketAddress fallbackRemoteAddress, boolean allowAnotherFallback) {
+        if (closed.get() || fallbackRemoteAddress == null || fallbackRemoteAddress.isUnresolved()) {
+            failOpenFallback();
+            return;
+        }
+        long now = System.currentTimeMillis();
+        remoteAddress = fallbackRemoteAddress;
+        openFallbackStarted = !allowAnotherFallback;
+        openFallbackPending = false;
+        openStartedAt = now;
+        lastOpenPacketAt = 0L;
+        openPacketsSent = 0;
+        sendOpen(now);
+    }
+
+    void failOpenFallback() {
+        openFallbackPending = false;
+        closeLocally("open fallback failed");
+    }
+
     void handlePacket(P2pPacket packet) {
         if (closed.get()) {
             return;
@@ -221,6 +277,9 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         long now = System.currentTimeMillis();
         lastPacketReceivedAt = now;
+        if (packet.type() == P2pPacket.Type.OPEN || packet.type() == P2pPacket.Type.OPEN_ACK || packet.type() == P2pPacket.Type.CLOSE) {
+            trace("recv " + packet.type() + " conn=" + connectionId + " from=" + remoteAddress + " token=" + packet.token());
+        }
         switch (packet.type()) {
             case OPEN_ACK:
                 markOpened(now);
@@ -246,10 +305,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     void sendOpenAck() {
+        trace("send OPEN_ACK conn=" + connectionId + " to=" + remoteAddress + " token=" + token);
         sendPacket(P2pPacket.openAck(token, connectionId));
     }
 
     void sendOpenAck(long now) {
+        trace("send OPEN_ACK conn=" + connectionId + " to=" + remoteAddress + " token=" + token);
         sendPacket(P2pPacket.openAck(token, connectionId), now);
     }
 
@@ -472,6 +533,16 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long now = System.currentTimeMillis();
         observeMaintenanceTickGap(now);
         if (initiator && !opened) {
+            if (!openFallbackStarted && openFallbackHandler != null
+                && now - openStartedAt >= P2pConstants.DIRECT_OPEN_FALLBACK_MS) {
+                openFallbackStarted = true;
+                openFallbackPending = true;
+                P2pRuntime.start(side + "-turn-fallback-" + connectionId, () -> openFallbackHandler.fallback(this));
+                return;
+            }
+            if (openFallbackPending) {
+                return;
+            }
             if (now - openStartedAt > P2pConstants.OPEN_TIMEOUT_MS) {
                 logger.debug("{} connection {} could not open UDP tunnel to {} within {} ms", side, connectionId, remoteAddress, P2pConstants.OPEN_TIMEOUT_MS);
                 closeLocally("open timeout");
@@ -514,12 +585,21 @@ final class ReliableTunnelConnection implements AutoCloseable {
         maybeLogDiagnostics("tick", now, false);
     }
 
+    private void runMaintenanceTick() {
+        try {
+            maintenanceTick();
+        } catch (Throwable throwable) {
+            closeFromError("maintenance", throwable);
+        }
+    }
+
     private void sendOpen(long now) {
         if (openPacketsSent == 0) {
             openStartedAt = now;
         }
         openPacketsSent++;
         lastOpenPacketAt = now;
+        trace("send OPEN conn=" + connectionId + " to=" + remoteAddress + " token=" + token + " attempt=" + openPacketsSent);
         sendPacket(P2pPacket.open(token, connectionId), now);
     }
 
@@ -565,6 +645,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
             return;
         }
         opened = true;
+        openFallbackPending = false;
+        trace("tunnel opened conn=" + connectionId + " remote=" + remoteAddress + " initiator=" + initiator);
         lastAcknowledgementProgressAt = now;
         if (initiator && openPacketsSent == 1) {
             updateRetransmitTimeout(now - openStartedAt);
@@ -585,6 +667,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        trace("tunnel local close conn=" + connectionId + " reason=" + reason + " remote=" + remoteAddress);
 
         for (int i = 0; i < 3; i++) {
             sendPacket(P2pPacket.close(token, connectionId));
@@ -597,12 +680,14 @@ final class ReliableTunnelConnection implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        trace("tunnel remote close conn=" + connectionId + " reason=" + reason + " remote=" + remoteAddress);
 
         cleanup(reason);
     }
 
     private void closeFromError(String context, Throwable throwable) {
         logger.debug("{} connection {} {} failed: {}", side, connectionId, context, throwable.toString());
+        trace("tunnel error conn=" + connectionId + " context=" + context + " remote=" + remoteAddress + " error=" + throwable.getMessage());
         closeLocally(context);
     }
 
@@ -715,7 +800,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void fastRetransmit(PendingSegment segment, long now, boolean negativeAcknowledgement) {
-        if (now - segment.lastFastRetransmitAt < P2pConstants.FAST_RETRANSMIT_GUARD_MS) {
+        long guardMs = smoothedRoundTripTimeMs > 0.0D
+            ? Math.round(smoothedRoundTripTimeMs + (2.0D * Math.max(0.0D, roundTripVariationMs)))
+            : P2pConstants.DEFAULT_FAST_RETRANSMIT_GUARD_MS;
+        guardMs = Math.max(P2pConstants.MIN_FAST_RETRANSMIT_GUARD_MS,
+            Math.min(P2pConstants.MAX_FAST_RETRANSMIT_GUARD_MS, guardMs));
+        if (now - segment.lastFastRetransmitAt < guardMs) {
             return;
         }
 
@@ -735,7 +825,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
         maybeGrowSendWindow();
         updateRetransmitTimeout(now - segment.firstSentAt);
-        updateBandwidthEstimate(segment.sequence, segment.payload.length, System.nanoTime());
     }
 
     private void updateRetransmitTimeout(long sampleMs) {
@@ -1062,28 +1151,6 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void maybeGrowSendWindow() {
-        if (maxBandwidthBytesPerSecond > 0L && smoothedRoundTripTimeMs > 0.0D) {
-            int targetCwnd;
-            if (bbrState == BbrState.PROBE_RTT) {
-                targetCwnd = 8;
-            } else {
-                double cwndGain = 2.0D;
-                long bdpBytes = Math.round((maxBandwidthBytesPerSecond * smoothedRoundTripTimeMs) / 1000.0D);
-                targetCwnd = (int) Math.round((bdpBytes * cwndGain) / P2pConstants.MAX_PAYLOAD_SIZE);
-            }
-
-            targetCwnd = Math.max(P2pConstants.INITIAL_SEND_WINDOW_SIZE,
-                Math.min(P2pConstants.MAX_SEND_WINDOW_SIZE, targetCwnd));
-
-            if (targetCwnd > sendWindowSize) {
-                sendWindowSize = Math.min(sendWindowSize + 1, targetCwnd);
-                incrementDiagnosticCounter(sendWindowGrowthEvents);
-            } else if (targetCwnd < sendWindowSize) {
-                sendWindowSize = Math.max(sendWindowSize - 1, targetCwnd);
-            }
-            return;
-        }
-
         if (sendWindowSize >= P2pConstants.MAX_SEND_WINDOW_SIZE) {
             acknowledgementsSinceWindowIncrease = 0;
             return;
@@ -1112,8 +1179,8 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         lastCongestionEventAt = now;
-        slowStartThreshold = Math.max(P2pConstants.SEND_WINDOW_SIZE, sendWindowSize / 2);
-        sendWindowSize = Math.max(P2pConstants.SEND_WINDOW_SIZE, slowStartThreshold);
+        slowStartThreshold = Math.max(P2pConstants.MIN_SEND_WINDOW_SIZE, sendWindowSize / 2);
+        sendWindowSize = Math.max(P2pConstants.MIN_SEND_WINDOW_SIZE, slowStartThreshold);
         acknowledgementsSinceWindowIncrease = 0;
         resetPacingBudget();
         incrementDiagnosticCounter(sendWindowLossEvents);
@@ -1125,7 +1192,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
             return;
         }
 
-        int restartWindow = Math.max(P2pConstants.SEND_WINDOW_SIZE,
+        int restartWindow = Math.max(P2pConstants.MIN_SEND_WINDOW_SIZE,
             Math.min(P2pConstants.INITIAL_SEND_WINDOW_SIZE, sendWindowSize));
         if (restartWindow == sendWindowSize) {
             return;
@@ -1146,7 +1213,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long now = System.nanoTime();
         if (nextPayloadSendAtNanos == 0L || now > nextPayloadSendAtNanos + (intervalNanos * 16L)) {
             nextPayloadSendAtNanos = now;
-            pacingBurstBudget = P2pConstants.PACING_BURST_PACKETS;
+            pacingBurstBudget = Math.min(P2pConstants.PACING_BURST_PACKETS, Math.max(1, sendWindowSize / 2));
         }
 
         if (pacingBurstBudget > 0) {
@@ -1165,29 +1232,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
         }
 
         nextPayloadSendAtNanos = Math.max(nextPayloadSendAtNanos, now) + intervalNanos;
+        pacingBurstBudget = Math.min(P2pConstants.PACING_BURST_PACKETS, Math.max(1, sendWindowSize / 2));
     }
 
     private long pacingIntervalNanos() {
         if (!shouldPacePayloads()) {
             return 0L;
-        }
-
-        if (maxBandwidthBytesPerSecond > 0L) {
-            double pacingGain;
-            switch (bbrState) {
-                case STARTUP: pacingGain = 1.5D; break;
-                case DRAIN: pacingGain = 0.75D; break;
-                case PROBE_BW: pacingGain = PACING_GAIN_CYCLE[pacingGainCycleIndex]; break;
-                case PROBE_RTT: pacingGain = 1.0D; break;
-                default: pacingGain = 1.25D;
-            }
-
-            long pacingRateBytesPerSecond = Math.round(maxBandwidthBytesPerSecond * pacingGain);
-            if (pacingRateBytesPerSecond > 0L) {
-                long intervalNanos = (P2pConstants.MAX_PAYLOAD_SIZE * 1_000_000_000L) / pacingRateBytesPerSecond;
-                return Math.max(P2pConstants.MIN_PACING_INTERVAL_NANOS,
-                    Math.min(P2pConstants.MAX_PACING_INTERVAL_NANOS, intervalNanos));
-            }
         }
 
         double baseRttMs = smoothedRoundTripTimeMs > 0.0D
@@ -1200,12 +1250,16 @@ final class ReliableTunnelConnection implements AutoCloseable {
 
     private void resetPacingBudget() {
         nextPayloadSendAtNanos = 0L;
-        pacingBurstBudget = P2pConstants.PACING_BURST_PACKETS;
+        pacingBurstBudget = Math.min(P2pConstants.PACING_BURST_PACKETS, Math.max(1, sendWindowSize / 2));
     }
 
     private boolean shouldPacePayloads() {
         if (!opened) {
             return false;
+        }
+
+        if (sendWindowSize >= P2pConstants.INITIAL_SEND_WINDOW_SIZE) {
+            return true;
         }
 
         int pending = pendingSegments.size();
@@ -1235,22 +1289,7 @@ final class ReliableTunnelConnection implements AutoCloseable {
     }
 
     private void waitForReceivePacingSlot() {
-        if (receiveIntervalNanos <= 0L) {
-            return;
-        }
-
-        long nowNanos = System.nanoTime();
-        if (nextReceiveWriteAtNanos == 0L) {
-            nextReceiveWriteAtNanos = nowNanos;
-            return;
-        }
-
-        long waitNanos = nextReceiveWriteAtNanos - nowNanos;
-        if (waitNanos > 0L && waitNanos < 5_000_000L) {
-            LockSupport.parkNanos(waitNanos);
-        }
-
-        nextReceiveWriteAtNanos = Math.max(nextReceiveWriteAtNanos, System.nanoTime()) + receiveIntervalNanos;
+        return;
     }
 
     private int coalesceTcpPayload(InputStream inputStream, byte[] buffer, int read) throws IOException {
@@ -1414,6 +1453,12 @@ final class ReliableTunnelConnection implements AutoCloseable {
         long current = peak.get();
         while (value > current && !peak.compareAndSet(current, value)) {
             current = peak.get();
+        }
+    }
+
+    private void trace(String message) {
+        if (P2pConstants.traceLoggingEnabled()) {
+            System.out.println("[Safra P2P] " + side + " " + message);
         }
     }
 
