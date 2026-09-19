@@ -8,6 +8,7 @@ version="${mod_version}"
 displayName="${mod_name}"
 logoFile="assets/safra/icon.png"
 displayURL="https://github.com/DeveloperKubilay/Safra"
+issueTrackerURL="https://github.com/DeveloperKubilay/Safra/issues"
 description='''${mod_description}'''
 
 [[dependencies.${mod_id}]]
