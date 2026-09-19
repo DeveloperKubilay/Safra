@@ -4,15 +4,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.developerkubilay.safra.p2p.P2pConstants;
 import org.developerkubilay.safra.p2p.SafraBuildInfo;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -21,9 +20,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class P2pTurnCredentialClient {
-    private static final int TIMEOUT_MS = (int) P2pConstants.RENDEZVOUS_TIMEOUT_MS;
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+        .connectTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .readTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .build();
 
     private P2pTurnCredentialClient() {
     }
@@ -34,41 +37,42 @@ public final class P2pTurnCredentialClient {
         }
 
         URI uri = turnCredentialsUri(role, turnOnly);
-        HttpURLConnection connection = (HttpURLConnection) new URL(uri.toString()).openConnection();
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(TIMEOUT_MS);
-        connection.setReadTimeout(TIMEOUT_MS);
+        Request.Builder builder = new Request.Builder()
+            .url(uri.toString())
+            .get();
         String token = P2pConstants.rendezvousToken();
-        if (!token.trim().isEmpty()) {
-            connection.setRequestProperty("Authorization", "Bearer " + token);
+        if (token != null && !token.trim().isEmpty()) {
+            builder.header("Authorization", "Bearer " + token);
         }
 
-        int statusCode = connection.getResponseCode();
-        if (statusCode < 200 || statusCode >= 300) {
-            throw new IOException("TURN credential request returned HTTP " + statusCode);
-        }
-
-        StringBuilder bodyBuilder = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                bodyBuilder.append(line);
-            }
-        }
-
-        JsonObject json;
+        Response response = HTTP_CLIENT.newCall(builder.build()).execute();
         try {
-            json = new JsonParser().parse(bodyBuilder.toString()).getAsJsonObject();
-        } catch (RuntimeException exception) {
-            throw new IOException("TURN credential response is invalid JSON", exception);
-        }
+            if (response.code() < 200 || response.code() >= 300) {
+                throw new IOException("TURN credential request returned HTTP " + response.code());
+            }
 
+            String body = response.body() != null ? response.body().string() : "";
+            JsonObject json;
+            try {
+                json = new JsonParser().parse(body).getAsJsonObject();
+            } catch (RuntimeException exception) {
+                throw new IOException("TURN credential response is invalid JSON", exception);
+            }
+            return parse(json);
+        } finally {
+            response.close();
+        }
+    }
+
+    public static P2pTurnCredentials parse(JsonObject json) throws IOException {
         JsonArray iceServers = json.getAsJsonArray("iceServers");
         if (iceServers == null || iceServers.size() == 0) {
             throw new IOException("TURN credential response did not include iceServers");
         }
 
         Set<P2pTurnCredentials.TurnServer> udpServers = new LinkedHashSet<>();
+        Set<P2pTurnCredentials.TurnServer> tcpServers = new LinkedHashSet<>();
+        Set<P2pTurnCredentials.TurnServer> tlsServers = new LinkedHashSet<>();
         String username = "";
         String credential = "";
         for (JsonElement serverElement : iceServers) {
@@ -79,7 +83,8 @@ public final class P2pTurnCredentialClient {
             JsonObject server = serverElement.getAsJsonObject();
             String candidateUsername = string(server, "username");
             String candidateCredential = string(server, "credential");
-            if (!candidateUsername.trim().isEmpty() && !candidateCredential.trim().isEmpty()) {
+            if (candidateUsername != null && !candidateUsername.trim().isEmpty()
+                && candidateCredential != null && !candidateCredential.trim().isEmpty()) {
                 username = candidateUsername;
                 credential = candidateCredential;
             }
@@ -89,13 +94,13 @@ public final class P2pTurnCredentialClient {
                 continue;
             }
             if (urlsElement.isJsonPrimitive()) {
-                addUdpServer(urlsElement.getAsString(), udpServers);
+                addServer(urlsElement.getAsString(), udpServers, tcpServers, tlsServers);
                 continue;
             }
             if (urlsElement.isJsonArray()) {
                 for (JsonElement urlElement : urlsElement.getAsJsonArray()) {
                     if (urlElement != null && urlElement.isJsonPrimitive()) {
-                        addUdpServer(urlElement.getAsString(), udpServers);
+                        addServer(urlElement.getAsString(), udpServers, tcpServers, tlsServers);
                     }
                 }
             }
@@ -108,8 +113,12 @@ public final class P2pTurnCredentialClient {
             throw new IOException("TURN credential response did not include a UDP TURN server");
         }
 
+        addCloudflareStreamFallbacks(udpServers, tcpServers, tlsServers);
+
         return new P2pTurnCredentials(
             new ArrayList<P2pTurnCredentials.TurnServer>(udpServers),
+            new ArrayList<P2pTurnCredentials.TurnServer>(tcpServers),
+            new ArrayList<P2pTurnCredentials.TurnServer>(tlsServers),
             username,
             credential,
             integer(json.get("ttl"), P2pConstants.TURN_DEFAULT_CREDENTIAL_TTL_SECONDS)
@@ -119,26 +128,33 @@ public final class P2pTurnCredentialClient {
     private static URI turnCredentialsUri(String role, boolean turnOnly) {
         String base = P2pConstants.rendezvousUrl().replaceAll("/+$", "");
         URI baseUri = URI.create(base);
-        String schemeRaw = baseUri.getScheme().toLowerCase(Locale.ROOT);
         String scheme;
-        if ("http".equals(schemeRaw) || "https".equals(schemeRaw)) {
-            scheme = schemeRaw;
-        } else if ("ws".equals(schemeRaw)) {
-            scheme = "http";
-        } else if ("wss".equals(schemeRaw)) {
-            scheme = "https";
-        } else {
-            throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
+        String lowerScheme = baseUri.getScheme().toLowerCase(Locale.ROOT);
+        switch (lowerScheme) {
+            case "http":
+            case "https":
+                scheme = lowerScheme;
+                break;
+            case "ws":
+                scheme = "http";
+                break;
+            case "wss":
+                scheme = "https";
+                break;
+            default:
+                throw new IllegalArgumentException("unsupported rendezvous URL scheme: " + baseUri.getScheme());
         }
         String identifier = "safra-" + role + "-" + SafraBuildInfo.minecraftVersion() + "-"
             + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String query = "mode=" + encode(turnOnly ? "turn-only" : "auto")
             + "&ttl=" + P2pConstants.turnCredentialTtlSeconds()
             + "&customIdentifier=" + encode(identifier);
-        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v2/turn/credentials?" + query);
+        return URI.create(scheme + "://" + baseUri.getAuthority() + "/v3/turn/credentials?" + query);
     }
 
-    private static void addUdpServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers) {
+    private static void addServer(String rawUrl, Set<P2pTurnCredentials.TurnServer> udpServers,
+                                  Set<P2pTurnCredentials.TurnServer> tcpServers,
+                                  Set<P2pTurnCredentials.TurnServer> tlsServers) {
         if (rawUrl == null || rawUrl.trim().isEmpty()) {
             return;
         }
@@ -151,17 +167,12 @@ public final class P2pTurnCredentialClient {
         }
 
         String scheme = uri.getScheme();
-        if (!"turn".equalsIgnoreCase(scheme)) {
+        if (!"turn".equalsIgnoreCase(scheme) && !"turns".equalsIgnoreCase(scheme)) {
             return;
         }
 
         String query = uri.getQuery();
-        if (query != null && !query.trim().isEmpty()) {
-            String transport = queryParameter(query, "transport");
-            if (transport != null && !"udp".equalsIgnoreCase(transport)) {
-                return;
-            }
-        }
+        String transport = query == null || query.trim().isEmpty() ? null : queryParameter(query, "transport");
 
         String host = uri.getHost();
         int port = uri.getPort();
@@ -169,7 +180,33 @@ public final class P2pTurnCredentialClient {
             return;
         }
 
-        udpServers.add(new P2pTurnCredentials.TurnServer(host, port));
+        P2pTurnCredentials.TurnServer turnServer = new P2pTurnCredentials.TurnServer(host, port);
+        if ("turns".equalsIgnoreCase(scheme)) {
+            tlsServers.add(turnServer);
+        } else if ("tcp".equalsIgnoreCase(transport)) {
+            tcpServers.add(turnServer);
+        } else if (transport == null || "udp".equalsIgnoreCase(transport)) {
+            udpServers.add(turnServer);
+        }
+    }
+
+    private static void addCloudflareStreamFallbacks(Set<P2pTurnCredentials.TurnServer> udpServers,
+                                                       Set<P2pTurnCredentials.TurnServer> tcpServers,
+                                                       Set<P2pTurnCredentials.TurnServer> tlsServers) {
+        boolean cloudflare = false;
+        for (P2pTurnCredentials.TurnServer server : udpServers) {
+            if ("turn.cloudflare.com".equalsIgnoreCase(server.host())) {
+                cloudflare = true;
+                break;
+            }
+        }
+        if (!cloudflare) {
+            return;
+        }
+        tlsServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 443));
+        tlsServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 5349));
+        tcpServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 80));
+        tcpServers.add(new P2pTurnCredentials.TurnServer("turn.cloudflare.com", 3478));
     }
 
     private static String queryParameter(String query, String key) {
@@ -185,8 +222,8 @@ public final class P2pTurnCredentialClient {
     private static String encode(String value) {
         try {
             return URLEncoder.encode(value, "UTF-8");
-        } catch (java.io.UnsupportedEncodingException exception) {
-            throw new RuntimeException("UTF-8 not supported", exception);
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
         }
     }
 
