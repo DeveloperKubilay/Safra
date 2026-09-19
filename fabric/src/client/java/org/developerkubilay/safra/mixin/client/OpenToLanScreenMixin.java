@@ -9,8 +9,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.screens.MultiplayerOptionsScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.WorldOptionsScreen;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -34,7 +34,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(MultiplayerOptionsScreen.class)
+@Mixin(WorldOptionsScreen.class)
 abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
@@ -48,7 +48,7 @@ abstract class OpenToLanScreenMixin extends Screen {
     private EditBox portEdit;
 
     @Shadow
-    private boolean commands;
+    private Boolean wantedAllowCommands;
 
     @Shadow
     private MinecraftServer.MultiplayerScope wantedMultiplayerScope;
@@ -58,9 +58,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Shadow
     private Button applyChanges;
-
-    @Shadow
-    private StringWidget portLabel;
 
     @Unique
     private Button safra$p2pButton;
@@ -99,7 +96,7 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         FabricLanSessionState.loadFromConfig();
-        this.commands = FabricLanSessionState.isAllowCommandsEnabled();
+        this.wantedAllowCommands = FabricLanSessionState.isAllowCommandsEnabled();
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -151,7 +148,7 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "publish", at = @At("HEAD"))
     private void safra$applyOnlineMode(IntegratedServer server, MinecraftServer.MultiplayerScope scope, CallbackInfo ci) {
         if (server != null && scope == MinecraftServer.MultiplayerScope.LAN) {
-            this.commands = FabricLanSessionState.isAllowCommandsEnabled();
+            this.wantedAllowCommands = FabricLanSessionState.isAllowCommandsEnabled();
             server.setUsesAuthentication(this.safra$onlineModeEnabled);
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
@@ -335,7 +332,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Unique
     private void safra$hideLanScopeWidgets() {
-        this.safra$hideWidget(this.portLabel);
         String lanLabel = Component.translatable("menu.multiplayerOptions.lan").getString();
         String otherPlayersLabel = Component.translatable("menu.multiplayerOptions.otherPlayers.header").getString();
         for (GuiEventListener element : this.children()) {
