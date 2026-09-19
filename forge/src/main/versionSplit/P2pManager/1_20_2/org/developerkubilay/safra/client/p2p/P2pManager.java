@@ -208,12 +208,9 @@ public final class P2pManager {
             pendingDirectShareFailureContext = !shareCode.isRendezvous();
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
-        ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, localAddress);
-        IntegratedServer integratedServer = Minecraft.getInstance().getSingleplayerServer();
-        if (integratedServer != null) {
-            rewritten.name = integratedServer.getWorldData().getLevelName();
-        }
-        return new RewriteResult(ForgeVersionCompat.parseServerAddress(ForgeVersionCompat.getServerAddress(rewritten)), rewritten);
+        ServerAddress socketAddress = ForgeVersionCompat.parseServerAddress(localAddress);
+        ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, shareCode.toDisplayCode());
+        return new RewriteResult(socketAddress, rewritten);
     }
 
     public synchronized void shutdown() {
