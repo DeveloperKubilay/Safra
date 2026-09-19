@@ -10,6 +10,7 @@ import org.developerkubilay.safra.client.p2p.FabricVersionCompat;
 import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
 import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pConstants;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 @Pseudo
 @Mixin(targets = {
@@ -37,7 +39,10 @@ abstract class ConnectScreenMixin {
             () -> P2pManager.getInstance().cancelPendingRewrite()
         );
         client.setScreen(progressScreen);
-        P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
+        P2pManager.getInstance()
+            .createRewriteAsync(serverInfo)
+            .orTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS + 5_000L, TimeUnit.MILLISECONDS)
+            .whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
                 if (throwable != null) {
                     Throwable cause = throwable instanceof CompletionException completionException
