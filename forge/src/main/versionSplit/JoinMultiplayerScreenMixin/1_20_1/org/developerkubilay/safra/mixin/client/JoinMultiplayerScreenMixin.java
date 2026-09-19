@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
@@ -65,7 +66,11 @@ abstract class JoinMultiplayerScreenMixin extends Screen {
                     return;
                 }
 
-                ForgeVersionCompat.startConnect((Screen) (Object) this, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), false);
+                CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
+                    ForgeVersionCompat.execute(client, () ->
+                        ForgeVersionCompat.startConnect((Screen) (Object) this, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), false)
+                    )
+                );
             })
         );
         ci.cancel();
