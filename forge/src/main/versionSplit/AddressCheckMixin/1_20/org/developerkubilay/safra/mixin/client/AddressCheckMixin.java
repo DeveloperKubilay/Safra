@@ -16,17 +16,41 @@ import java.lang.reflect.Modifier;
 abstract class AddressCheckMixin {
     @Inject(method = "isAllowed(Lnet/minecraft/client/multiplayer/resolver/ServerAddress;)Z", at = @At("HEAD"), cancellable = true)
     private void safra$allowLocalProxyServerAddress(ServerAddress serverAddress, CallbackInfoReturnable<Boolean> cir) {
-        if (serverAddress != null && safra$isLocalProxyHost(safra$getStringValue(serverAddress, "getHost", "m_171889_"))) {
+        if (serverAddress == null) {
+            return;
+        }
+        String host = null;
+        try {
+            host = serverAddress.getHost();
+        } catch (Throwable ignored) {
+        }
+        if (host == null || host.isEmpty()) {
+            host = safra$getStringValue(serverAddress, "getHost", "m_171863_", "m_171889_");
+        }
+        if (safra$isLocalProxyHost(host)) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "isAllowed(Lnet/minecraft/client/multiplayer/resolver/ResolvedServerAddress;)Z", at = @At("HEAD"), cancellable = true)
     private void safra$allowLocalProxyResolvedAddress(ResolvedServerAddress resolvedServerAddress, CallbackInfoReturnable<Boolean> cir) {
-        if (resolvedServerAddress != null && (
-            safra$isLocalProxyHost(safra$getStringValue(resolvedServerAddress, "getHostName", "m_171889_")) ||
-            safra$isLocalProxyHost(safra$getStringValue(resolvedServerAddress, "getHostIp", "m_171888_"))
-        )) {
+        if (resolvedServerAddress == null) {
+            return;
+        }
+        String hostName = null;
+        String hostIp = null;
+        try {
+            hostName = resolvedServerAddress.getHostName();
+            hostIp = resolvedServerAddress.getHostIp();
+        } catch (Throwable ignored) {
+        }
+        if (hostName == null || hostName.isEmpty()) {
+            hostName = safra$getStringValue(resolvedServerAddress, "getHostName", "m_142727_", "m_171889_");
+        }
+        if (hostIp == null || hostIp.isEmpty()) {
+            hostIp = safra$getStringValue(resolvedServerAddress, "getHostIp", "m_142728_", "m_171888_");
+        }
+        if (safra$isLocalProxyHost(hostName) || safra$isLocalProxyHost(hostIp)) {
             cir.setReturnValue(true);
         }
     }

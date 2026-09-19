@@ -38,7 +38,12 @@ abstract class ServerNameResolverMixin {
     }
 
     private static String safra$getHost(ServerAddress serverAddress) {
-        Object value = safra$invokeNoArg(serverAddress, String.class, "getHost", "m_171889_");
+        try {
+            return serverAddress.getHost();
+        } catch (Throwable ignored) {
+        }
+
+        Object value = safra$invokeNoArg(serverAddress, String.class, "getHost", "m_171863_", "m_171889_");
         if (value instanceof String host) {
             return host;
         }
@@ -64,7 +69,12 @@ abstract class ServerNameResolverMixin {
     }
 
     private static int safra$getPort(ServerAddress serverAddress) {
-        Object value = safra$invokeNoArg(serverAddress, int.class, "getPort", "m_171890_");
+        try {
+            return serverAddress.getPort();
+        } catch (Throwable ignored) {
+        }
+
+        Object value = safra$invokeNoArg(serverAddress, int.class, "getPort", "m_171866_", "m_171890_");
         if (value instanceof Integer port) {
             return port;
         }
