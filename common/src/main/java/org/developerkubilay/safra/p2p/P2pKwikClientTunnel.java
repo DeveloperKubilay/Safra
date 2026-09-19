@@ -154,6 +154,9 @@ final class P2pKwikClientTunnel implements AutoCloseable {
     }
 
     void logLinkQuality() {
+        if (!SafraBuildInfo.diagnostics()) {
+            return;
+        }
         QuicClientConnection active = connection;
         if (active == null || closed.get()) {
             return;

@@ -367,8 +367,11 @@ public final class P2pHostService implements AutoCloseable {
             relayFallbackTransport = relayBinding.transport();
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());
-            notifyRelayReady();
-            LOGGER.info("Safra host TURN fallback ready: {}", P2pSockets.preferredEndpoint(relayBinding.publicEndpoints()));
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra host TURN fallback ready: {}", P2pSockets.preferredEndpoint(relayBinding.publicEndpoints()));
+            } else {
+                LOGGER.info("Safra host TURN fallback ready");
+            }
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress, tunnelToken);
             }
