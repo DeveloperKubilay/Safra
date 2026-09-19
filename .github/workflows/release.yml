@@ -39,12 +39,17 @@ on:
         options:
           - off
           - directThenTurn
+      diagnostics:
+        description: Enable diagnostic logging
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}-${{ github.event.inputs.diagnostics }}
   cancel-in-progress: false
 
 jobs:
@@ -57,6 +62,7 @@ jobs:
       release_versions_label: ${{ steps.prepare.outputs.release_versions_label }}
       version_number: ${{ steps.prepare.outputs.version_number }}
       build_mode: ${{ steps.prepare.outputs.build_mode }}
+      diagnostics: ${{ steps.prepare.outputs.diagnostics }}
 
     steps:
       - name: Resolve release plan
@@ -66,6 +72,7 @@ jobs:
           selected_version="${{ github.event.inputs.version }}"
           version_number="${{ github.event.inputs.version_number }}"
           build_mode="${{ github.event.inputs.build_mode }}"
+          diagnostics="${{ github.event.inputs.diagnostics }}"
           supported_versions='["1.21","1.21.1","1.21.2","1.21.3","1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11"]'
 
           if [[ ! "$version_number" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
@@ -80,6 +87,10 @@ jobs:
           if [[ "$build_mode" != "off" && "$build_mode" != "directThenTurn" ]]; then
             echo "Invalid build_mode: $build_mode"
             exit 1
+          fi
+
+          if [[ "$diagnostics" != "true" ]]; then
+            diagnostics="false"
           fi
 
           if [[ "$selected_version" == "all" ]]; then
@@ -106,6 +117,7 @@ jobs:
             echo "release_versions_label=$release_versions_label"
             echo "version_number=$version_number"
             echo "build_mode=$build_mode"
+            echo "diagnostics=$diagnostics"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -171,6 +183,15 @@ jobs:
               ;;
           esac
 
+      - name: Resolve diagnostics mode
+        shell: bash
+        run: |
+          if [ "${{ needs.prepare.outputs.diagnostics }}" = "true" ]; then
+            echo "SAFRA_DIAGNOSTICS_ARGS=-Pdiagnostics=true" >> "$GITHUB_ENV"
+          else
+            echo "SAFRA_DIAGNOSTICS_ARGS=" >> "$GITHUB_ENV"
+          fi
+
       - name: Build release artifacts
         shell: bash
         run: |
@@ -185,6 +206,10 @@ jobs:
 
           if [[ -n "$SAFRA_BUILD_MODE_ARGS" ]]; then
             build_args+=("$SAFRA_BUILD_MODE_ARGS")
+          fi
+
+          if [[ -n "$SAFRA_DIAGNOSTICS_ARGS" ]]; then
+            build_args+=("$SAFRA_DIAGNOSTICS_ARGS")
           fi
 
           for attempt in 1 2 3; do
@@ -226,13 +251,6 @@ jobs:
             fi
             cp "$jar" dist/
           done
-
-          cat > "dist/build-info-${{ matrix.mc_version }}.txt" <<EOF
-          Minecraft version: ${{ matrix.mc_version }}
-          Included loaders: ${{ env.SAFRA_LOADERS }}
-          Build mode: $SAFRA_BUILD_MODE_LABEL
-          ${{ env.SAFRA_RELEASE_NOTE }}
-          EOF
 
           ls -la dist
 
@@ -306,6 +324,9 @@ jobs:
 
           Build mode:
           - ${{ needs.prepare.outputs.build_mode }}
+
+          Diagnostics:
+          - ${{ needs.prepare.outputs.diagnostics }}
 
           Notes:
           - 1.21.2 ships without Forge because the upstream Forge artifact is unavailable.
