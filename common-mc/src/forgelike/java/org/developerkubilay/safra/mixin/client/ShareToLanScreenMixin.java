@@ -1,21 +1,25 @@
 package org.developerkubilay.safra.mixin.client;
 
+import java.net.URI;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.WorldOptionsScreen;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.LanGameRules;
@@ -44,10 +48,16 @@ abstract class ShareToLanScreenMixin extends Screen {
     private int port;
 
     @Shadow
+    private boolean portValid;
+
+    @Shadow
     private EditBox portEdit;
 
     @Shadow
     private Boolean wantedAllowCommands;
+
+    @Shadow
+    private GameType wantedDefaultGameMode;
 
     @Shadow
     private MinecraftServer.MultiplayerScope wantedMultiplayerScope;
@@ -58,6 +68,9 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Shadow
     private Button applyChanges;
 
+    @Shadow
+    abstract void applyChanges(IntegratedServer server);
+
     @Unique
     private Button safra$p2pButton;
 
@@ -66,10 +79,22 @@ abstract class ShareToLanScreenMixin extends Screen {
 
     @Unique
     private Button safra$serverSettingsButton;
+
+    @Unique
+    private CycleButton<GameType> safra$gameModeButton;
+
+    @Unique
+    private CycleButton<Boolean> safra$allowCommandsButton;
+
+    @Unique
+    private Button safra$cancelButton;
+
     @Unique
     private StringWidget safra$lanWorldLabel;
+
     @Unique
     private StringWidget safra$otherPlayersLabel;
+
     @Unique
     private StringWidget safra$customPortLabel;
 
@@ -83,9 +108,6 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Invoker("updatePortControlsState")
     abstract void safra$invokeUpdatePortControlsState();
 
-    @Invoker("updateApplyChangesActiveState")
-    abstract void safra$invokeUpdateApplyChangesActiveState();
-
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         LanSessionState.loadFromConfig();
@@ -94,6 +116,7 @@ abstract class ShareToLanScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
+        this.clearWidgets();
         if (!this.safra$p2pInitialized) {
             LanSessionState.loadFromConfig();
         }
@@ -103,9 +126,35 @@ abstract class ShareToLanScreenMixin extends Screen {
 
         this.wantedMultiplayerScope = MinecraftServer.MultiplayerScope.LAN;
         this.safra$invokeUpdatePortControlsState();
+
         this.safra$lanWorldLabel = this.safra$createLegacyLabel(Component.literal("LAN World"), 62 + SAFRA_LAYOUT_Y_OFFSET);
         this.safra$otherPlayersLabel = this.safra$createLegacyLabel(Component.literal("Settings for Other Players"), 93 + SAFRA_LAYOUT_Y_OFFSET);
         this.safra$customPortLabel = this.safra$createLegacyLabel(Component.literal("Port Number"), 143 + SAFRA_LAYOUT_Y_OFFSET);
+
+        this.safra$gameModeButton = this.addRenderableWidget(
+            CycleButton.builder(GameType::getShortDisplayName, this.wantedDefaultGameMode != null ? this.wantedDefaultGameMode : GameType.SURVIVAL)
+                .withValues(GameType.values())
+                .create(this.width / 2 - 151, 108 + SAFRA_LAYOUT_Y_OFFSET, 148, 20, Component.translatable("selectWorld.gameMode"), (button, value) -> {
+                    this.wantedDefaultGameMode = value;
+                    this.safra$updateApplyState();
+                })
+        );
+
+        this.safra$allowCommandsButton = this.addRenderableWidget(
+            CycleButton.onOffBuilder(Boolean.TRUE.equals(this.wantedAllowCommands))
+                .create(this.width / 2 + 3, 108 + SAFRA_LAYOUT_Y_OFFSET, 148, 20, Component.translatable("selectWorld.allowCommands"), (button, value) -> {
+                    this.wantedAllowCommands = value;
+                    LanSessionState.setAllowCommandsEnabled(value);
+                    this.safra$updateApplyState();
+                })
+        );
+
+        if (this.portEdit != null) {
+            this.addRenderableWidget(this.portEdit);
+            this.portEdit.setPosition(this.width / 2 - 80, 156 + SAFRA_LAYOUT_Y_OFFSET);
+            this.portEdit.setWidth(70);
+            this.portEdit.setHint(Component.translatable("lanServer.port"));
+        }
 
         this.safra$p2pButton = this.addRenderableWidget(
             Button.builder(this.safra$getToggleText(), button -> {
@@ -124,19 +173,75 @@ abstract class ShareToLanScreenMixin extends Screen {
                 .build()
         );
         this.safra$serverSettingsButton = this.addRenderableWidget(
-            Button.builder(Component.translatable("safra.p2p.server_settings.short"), button ->
-                    this.minecraft.gui.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this)))
-                .bounds(this.width / 2 + 2, 180 + SAFRA_LAYOUT_Y_OFFSET, 98, 20)
+            Button.builder(Component.translatable("safra.p2p.server_settings.short"), button -> {
+                if (this.minecraft != null) {
+                    this.minecraft.gui.setScreen(new SafraLanServerSettingsScreen((Screen) (Object) this));
+                }
+            }).bounds(this.width / 2 + 2, 180 + SAFRA_LAYOUT_Y_OFFSET, 98, 20).build()
+        );
+
+        this.applyChanges = this.addRenderableWidget(
+            Button.builder(
+                this.initialMultiplayerScope == MinecraftServer.MultiplayerScope.LAN
+                    ? Component.translatable("menu.multiplayerOptions.applyChanges")
+                    : Component.translatable("lanServer.start"),
+                button -> {
+                    IntegratedServer server = this.minecraft != null ? this.minecraft.getSingleplayerServer() : null;
+                    if (server != null) {
+                        server.setUsesAuthentication(LanSessionState.isOnlineModeEnabled());
+                        if (LanSessionState.isP2pEnabled()) {
+                            server.setPreventProxyConnections(false);
+                        }
+                    }
+                    this.applyChanges(server);
+                    if (this.minecraft != null) {
+                        this.minecraft.gui.setScreen(null);
+                        this.minecraft.mouseHandler.grabMouse();
+                    }
+                }
+            ).bounds(this.width / 2 - 155, this.height - 28, 150, 20).build()
+        );
+
+        this.safra$cancelButton = this.addRenderableWidget(
+            Button.builder(CommonComponents.GUI_CANCEL, button -> this.onClose())
+                .bounds(this.width / 2 + 5, this.height - 28, 150, 20)
                 .build()
         );
+
         this.safra$applyCustomLayout();
         this.safra$p2pInitialized = true;
-        this.safra$invokeUpdateApplyChangesActiveState();
+        this.safra$updateApplyState();
     }
 
-    @Inject(method = "repositionElements", at = @At("TAIL"))
-    private void safra$repositionCustomLayout(CallbackInfo ci) {
+    @Inject(method = "repositionElements", at = @At("HEAD"), cancellable = true)
+    private void safra$repositionElements(CallbackInfo ci) {
         this.safra$applyCustomLayout();
+        ci.cancel();
+    }
+
+    @Inject(method = "extractMenuBackground", at = @At("HEAD"), cancellable = true)
+    private void safra$cancelListBackground(GuiGraphicsExtractor graphics, CallbackInfo ci) {
+        super.extractMenuBackground(graphics);
+        ci.cancel();
+    }
+
+    @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
+    private void safra$customRenderState(GuiGraphicsExtractor graphics, int xm, int ym, float a, CallbackInfo ci) {
+        super.extractRenderState(graphics, xm, ym, a);
+        ci.cancel();
+    }
+
+    @Unique
+    private void safra$updateApplyState() {
+        if (this.applyChanges != null) {
+            this.applyChanges.active = this.portValid;
+        }
+    }
+
+    @Inject(method = "updateApplyChangesActiveState", at = @At("HEAD"), cancellable = true)
+    private void safra$updateApplyChangesState(CallbackInfo ci) {
+        this.safra$updateApplyState();
+        ci.cancel();
     }
 
     @Inject(method = "publish", at = @At("HEAD"))
@@ -162,8 +267,13 @@ abstract class ShareToLanScreenMixin extends Screen {
             return;
         }
 
-        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+        if (this.minecraft != null && !SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
             LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
+        }
+
+        if (this.minecraft != null) {
+            this.minecraft.gui.setScreen(null);
+            this.minecraft.mouseHandler.grabMouse();
         }
 
         if (!LanSessionState.isP2pEnabled()) {
@@ -173,35 +283,56 @@ abstract class ShareToLanScreenMixin extends Screen {
 
         int tcpPort = this.port;
         String fixedCode = LanSessionState.isFixedCodeEnabled() ? LanSessionState.getFixedCode() : null;
-        safra$addSystemMessage(Component.translatable("safra.p2p.host.starting"));
+        this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.starting"));
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() -> {
-            safra$addChatLines(Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
-            safra$addSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
+            this.safra$addChatLines(Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
+            this.safra$addClientSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
-                safra$addSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+                this.safra$addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
             }
         })).whenComplete((shareCode, throwable) -> {
             if (this.minecraft == null) {
                 return;
             }
+
             this.minecraft.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(tcpPort, throwable);
                     return;
                 }
+
                 safra$publishShareCode(tcpPort, shareCode);
             });
         });
     }
 
     @Unique
-    private Component safra$getToggleText() {
+    private void safra$addChatLines(Component message, ChatFormatting colour) {
+        for (String line : message.getString().split("\n")) {
+            this.safra$addClientSystemMessage(Component.literal(line).withStyle(colour));
+        }
+    }
+
+    private static Component safra$discordLink() {
+        String url = RemoteRendezvousConfigUpdater.discordUrl();
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
+    }
+
+    private static Component safra$youtubeLink(String url) {
+        return Component.literal(url)
+            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
+    }
+
+    private MutableComponent safra$getToggleText() {
         return Component.translatable(LanSessionState.isP2pEnabled() ? "safra.p2p.button.on" : "safra.p2p.button.off");
     }
 
     @Unique
-    private Component safra$getOnlineModeText() {
+    private MutableComponent safra$getOnlineModeText() {
         return Component.translatable(LanSessionState.isOnlineModeEnabled()
             ? "safra.p2p.online_mode.short.on"
             : "safra.p2p.online_mode.short.off");
@@ -223,15 +354,15 @@ abstract class ShareToLanScreenMixin extends Screen {
                 .withClickEvent(new ClickEvent.CopyToClipboard(shareCodeText))
                 .withHoverEvent(new HoverEvent.ShowText(Component.translatable("safra.p2p.copy_hint"))));
         if (!hidden) {
-            safra$addSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
+            this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.started", shareText));
         }
         if (!shareCode.isRendezvous()) {
-            safra$addChatLines(
+            this.safra$addChatLines(
                 Component.literal("Safra Error: ").append(Component.translatable("safra.p2p.error.direct_fallback")),
                 ChatFormatting.RED);
         }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
-            safra$addSystemMessage(
+            this.safra$addClientSystemMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
                     .copy()
                     .withStyle(ChatFormatting.YELLOW)
@@ -239,45 +370,31 @@ abstract class ShareToLanScreenMixin extends Screen {
         }
 
         if (!hidden) {
-            safra$addSystemMessage(Component.translatable("safra.p2p.host.copied"));
+            this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
             this.minecraft.getNarrator().saySystemQueued(Component.translatable("safra.p2p.host.narration", shareText));
         }
-        safra$addSystemMessage(Component.translatable("safra.p2p.host.instructions"));
-        safra$startBedrockRelay();
+        this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
+        this.safra$startBedrockRelay();
     }
 
     @Unique
     private void safra$startBedrockRelay() {
         P2pManager.getInstance().startBedrockRelay(
             address -> this.minecraft.execute(() -> {
-                safra$addSystemMessage(
+                this.safra$addClientSystemMessage(
                     Component.translatable("safra.bedrock.host.started", address).copy().withStyle(ChatFormatting.AQUA)
                 );
                 IntegratedServer server = this.minecraft.getSingleplayerServer();
                 if (server != null && !server.getPlayerList().isUsingWhitelist()) {
-                    safra$addSystemMessage(
+                    this.safra$addClientSystemMessage(
                         Component.translatable("safra.bedrock.whitelist_warning").copy().withStyle(ChatFormatting.RED)
                     );
                 }
             }),
-            () -> this.minecraft.execute(() -> safra$addSystemMessage(
+            () -> this.minecraft.execute(() -> this.safra$addClientSystemMessage(
                 Component.translatable("safra.bedrock.host.unavailable").copy().withStyle(ChatFormatting.YELLOW)
             ))
         );
-    }
-
-    @Unique
-    private void safra$addChatLines(Component message, ChatFormatting colour) {
-        for (String line : message.getString().split("\n")) {
-            safra$addSystemMessage(Component.literal(line).withStyle(colour));
-        }
-    }
-
-    @Unique
-    private static Component safra$youtubeLink(String url) {
-        return Component.literal(url)
-            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
     }
 
     @Unique
@@ -288,50 +405,12 @@ abstract class ShareToLanScreenMixin extends Screen {
         if (cause instanceof CancellationException) {
             return;
         }
+
         String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
         SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
-        safra$addSystemMessage(Component.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED));
-    }
-
-    @Unique
-    private void safra$layoutVanillaOptionsWidgets() {
-        String gameModeLabel = Component.translatable("selectWorld.gameMode").getString();
-        String allowCommandsLabel = Component.translatable("selectWorld.allowCommands").getString();
-        for (GuiEventListener element : this.children()) {
-            if (!(element instanceof AbstractWidget widget)) {
-                continue;
-            }
-            String message = widget.getMessage().getString();
-            if (message.contains(gameModeLabel)) {
-                widget.active = true;
-                widget.visible = true;
-                widget.setPosition(this.width / 2 - 151, 108 + SAFRA_LAYOUT_Y_OFFSET);
-                widget.setWidth(148);
-            } else if (message.contains(allowCommandsLabel)) {
-                widget.active = true;
-                widget.visible = true;
-                widget.setPosition(this.width / 2 + 3, 108 + SAFRA_LAYOUT_Y_OFFSET);
-                widget.setWidth(148);
-            }
-        }
-    }
-
-    @Unique
-    private void safra$hideLanScopeWidgets() {
-        String lanLabel = Component.translatable("menu.multiplayerOptions.lan").getString();
-        String otherPlayersLabel = Component.translatable("menu.multiplayerOptions.otherPlayers.header").getString();
-        for (GuiEventListener element : this.children()) {
-            if (!(element instanceof AbstractWidget widget)) {
-                continue;
-            }
-            if (widget == this.safra$lanWorldLabel || widget == this.safra$otherPlayersLabel || widget == this.safra$customPortLabel) {
-                continue;
-            }
-            String message = widget.getMessage().getString();
-            if (message.contains(lanLabel) || message.contains(otherPlayersLabel)) {
-                safra$hideWidget(widget);
-            }
-        }
+        this.safra$addClientSystemMessage(
+            Component.translatable("safra.p2p.host.failed", message).copy().withStyle(ChatFormatting.RED)
+        );
     }
 
     @Unique
@@ -341,8 +420,12 @@ abstract class ShareToLanScreenMixin extends Screen {
             this.portEdit.setWidth(70);
             this.portEdit.setHint(Component.translatable("lanServer.port"));
         }
-        this.safra$layoutVanillaOptionsWidgets();
-        this.safra$hideLanScopeWidgets();
+        if (this.safra$gameModeButton != null) {
+            this.safra$gameModeButton.setPosition(this.width / 2 - 151, 108 + SAFRA_LAYOUT_Y_OFFSET);
+        }
+        if (this.safra$allowCommandsButton != null) {
+            this.safra$allowCommandsButton.setPosition(this.width / 2 + 3, 108 + SAFRA_LAYOUT_Y_OFFSET);
+        }
         if (this.safra$p2pButton != null) {
             this.safra$p2pButton.setPosition(this.width / 2 - 5, 156 + SAFRA_LAYOUT_Y_OFFSET);
         }
@@ -351,6 +434,12 @@ abstract class ShareToLanScreenMixin extends Screen {
         }
         if (this.safra$serverSettingsButton != null) {
             this.safra$serverSettingsButton.setPosition(this.width / 2 + 2, 180 + SAFRA_LAYOUT_Y_OFFSET);
+        }
+        if (this.applyChanges != null) {
+            this.applyChanges.setPosition(this.width / 2 - 155, this.height - 28);
+        }
+        if (this.safra$cancelButton != null) {
+            this.safra$cancelButton.setPosition(this.width / 2 + 5, this.height - 28);
         }
         this.safra$positionLegacyLabel(this.safra$lanWorldLabel, 62 + SAFRA_LAYOUT_Y_OFFSET);
         this.safra$positionLegacyLabel(this.safra$otherPlayersLabel, 93 + SAFRA_LAYOUT_Y_OFFSET);
@@ -372,25 +461,7 @@ abstract class ShareToLanScreenMixin extends Screen {
     }
 
     @Unique
-    private void safra$hideWidget(AbstractWidget widget) {
-        if (widget == null) {
-            return;
-        }
-        widget.active = false;
-        widget.visible = false;
-        widget.setPosition(-1000, -1000);
-    }
-
-    @Unique
-    private static Component safra$discordLink() {
-        String url = RemoteRendezvousConfigUpdater.discordUrl();
-        return Component.literal(url)
-            .withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE)
-            .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url))));
-    }
-
-    @Unique
-    private void safra$addSystemMessage(Component message) {
+    private void safra$addClientSystemMessage(Component message) {
         this.minecraft.gui.hud.getChat().addClientSystemMessage(message);
     }
 }
