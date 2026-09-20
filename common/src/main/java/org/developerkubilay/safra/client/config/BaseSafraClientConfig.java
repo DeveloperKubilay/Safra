@@ -10,8 +10,11 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -26,6 +29,7 @@ public abstract class BaseSafraClientConfig {
     protected String openToLanFixedCode = "";
     protected Map<String, String> openToLanGameRules = new LinkedHashMap<>();
     protected boolean directConnectP2pEnabled = true;
+    protected boolean dontSayCode = false;
     protected boolean neverUseRelayServer = false;
     protected String rendezvousUrl = "";
     protected String siteApiVersion = "3.0";
@@ -61,6 +65,17 @@ public abstract class BaseSafraClientConfig {
     public synchronized void setDirectConnectP2pEnabled(boolean directConnectP2pEnabled) {
         if (this.directConnectP2pEnabled != directConnectP2pEnabled) {
             this.directConnectP2pEnabled = directConnectP2pEnabled;
+            save();
+        }
+    }
+
+    public synchronized boolean isDontSayCode() {
+        return dontSayCode;
+    }
+
+    public synchronized void setDontSayCode(boolean dontSayCode) {
+        if (this.dontSayCode != dontSayCode) {
+            this.dontSayCode = dontSayCode;
             save();
         }
     }
@@ -172,13 +187,27 @@ public abstract class BaseSafraClientConfig {
 
     protected synchronized void save() {
         Path path = configPath();
+        Path temporaryPath = path.resolveSibling(path.getFileName() + ".tmp");
         try {
             Files.createDirectories(path.getParent());
-            try (Writer writer = Files.newBufferedWriter(path)) {
+            try (Writer writer = Files.newBufferedWriter(temporaryPath, StandardCharsets.UTF_8)) {
                 GSON.toJson(this, writer);
+            }
+            try {
+                Files.move(temporaryPath, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporaryPath, path, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException exception) {
             LOGGER.warn("Safra client config could not be saved", exception);
+            deleteQuietly(temporaryPath);
+        }
+    }
+
+    private static void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
         }
     }
 
@@ -189,7 +218,7 @@ public abstract class BaseSafraClientConfig {
             return fallback;
         }
 
-        try (Reader reader = Files.newBufferedReader(path)) {
+        try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             @SuppressWarnings("unchecked")
             T config = (T) GSON.fromJson(reader, fallback.getClass());
             T resolvedConfig = config == null ? fallback : config;
