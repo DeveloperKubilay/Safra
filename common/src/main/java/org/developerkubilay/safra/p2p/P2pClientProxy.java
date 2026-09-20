@@ -221,7 +221,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
         int connectionId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-        LOGGER.debug("Safra Kwik client accepted local Minecraft connection {}; dialing {} (timeout={}ms)",
+        LOGGER.info("Safra Kwik client accepted local Minecraft connection {}; dialing {} (timeout={}ms)",
             connectionId, remoteAddress, timeoutMs);
         P2pKwikClientTunnel connection = new P2pKwikClientTunnel(
             LOGGER,

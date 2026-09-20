@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SafraVoiceTransportManager {
     private static final SafraVoiceTransportManager INSTANCE = new SafraVoiceTransportManager();
 
-    private final Set<SafraVoiceServerSocket> serverSockets = ConcurrentHashMap.newKeySet();
+    private final Set<SafraVoiceHostSocket> serverSockets = ConcurrentHashMap.newKeySet();
 
     private volatile SafraRendezvousClient.JoinSession joinSession;
 
@@ -38,11 +38,11 @@ public final class SafraVoiceTransportManager {
         return joinSession != null;
     }
 
-    void registerServerSocket(SafraVoiceServerSocket socket) {
+    void registerServerSocket(SafraVoiceHostSocket socket) {
         serverSockets.add(socket);
     }
 
-    void unregisterServerSocket(SafraVoiceServerSocket socket) {
+    void unregisterServerSocket(SafraVoiceHostSocket socket) {
         serverSockets.remove(socket);
     }
 
@@ -50,7 +50,7 @@ public final class SafraVoiceTransportManager {
         if (remoteAddress == null) {
             return;
         }
-        for (SafraVoiceServerSocket socket : serverSockets) {
+        for (SafraVoiceHostSocket socket : serverSockets) {
             P2pRuntime.start("safra-voice-punch", () -> socket.punchRemoteEndpoint(remoteAddress));
         }
     }
@@ -72,7 +72,7 @@ public final class SafraVoiceTransportManager {
 
     public Collection<InetSocketAddress> hostVoiceEndpointsSnapshot(int preferredPort) {
         if (preferredPort > 0) {
-            for (SafraVoiceServerSocket socket : serverSockets) {
+            for (SafraVoiceHostSocket socket : serverSockets) {
                 if (socket.localPortSnapshot() != preferredPort) {
                     continue;
                 }
@@ -83,7 +83,7 @@ public final class SafraVoiceTransportManager {
             }
             return List.of();
         }
-        for (SafraVoiceServerSocket socket : serverSockets) {
+        for (SafraVoiceHostSocket socket : serverSockets) {
             Collection<InetSocketAddress> endpoints = socket.publicEndpointsSnapshot();
             if (!endpoints.isEmpty()) {
                 return List.copyOf(endpoints);

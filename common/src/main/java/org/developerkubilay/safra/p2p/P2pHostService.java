@@ -349,6 +349,10 @@ public final class P2pHostService implements AutoCloseable {
             return;
         }
 
+        if (tunnelToken != 0) {
+            acceptedTunnelTokens.add(tunnelToken);
+        }
+
         if (relayFallbackTransport != null && !relayFallbackTransport.isClosed()) {
             publishRelayReady();
             notifyRelayReady();

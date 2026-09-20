@@ -127,7 +127,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             if (established != null) {
                 established.run();
             }
-            logger.debug("Safra Kwik client tunnel {} connected", connectionId);
+            logger.info("Safra Kwik client tunnel {} connected", connectionId);
         } catch (IOException | GeneralSecurityException | InterruptedException | RuntimeException exception) {
             if (exception instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
