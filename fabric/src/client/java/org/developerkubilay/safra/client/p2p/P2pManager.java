@@ -183,6 +183,7 @@ public final class P2pManager {
             }
             pendingClientFailureContext = false;
             pendingDirectShareFailureContext = false;
+            pendingFailureKind = P2pErrorKind.OTHER;
             startingClientProxy = proxy;
         }
         int localPort;
@@ -223,6 +224,7 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
+        pendingFailureKind = P2pErrorKind.OTHER;
     }
 
     public void tick(MinecraftClient client) {

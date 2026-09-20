@@ -41,6 +41,9 @@ abstract class MultiplayerScreenMixin {
         MinecraftClient.getInstance().openScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
             MinecraftClient.getInstance().execute(() -> {
+                if (MinecraftClient.getInstance().currentScreen != progressScreen) {
+                    return;
+                }
                 if (throwable != null) {
                     Throwable cause = throwable;
                     if (throwable instanceof CompletionException && ((CompletionException) throwable).getCause() != null) {

@@ -30,9 +30,13 @@ abstract class JoinMultiplayerScreenMixin {
 
         Minecraft client = Minecraft.getInstance();
         Screen currentScreen = (Screen) (Object) this;
-        client.displayGuiScreen(new P2pConnectingScreen(currentScreen, () -> P2pManager.getInstance().cancelPendingRewrite()));
+        P2pConnectingScreen progressScreen = new P2pConnectingScreen(currentScreen, () -> P2pManager.getInstance().cancelPendingRewrite());
+        client.displayGuiScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverData).whenComplete((rewriteResult, throwable) ->
             client.execute(() -> {
+                if (client.currentScreen != progressScreen) {
+                    return;
+                }
                 if (throwable != null) {
                     Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
                         ? throwable.getCause()
