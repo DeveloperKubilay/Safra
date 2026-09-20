@@ -18,14 +18,19 @@ on:
         default: off
         type: choice
         options:
-          - off
+          - off
           - directThenTurn
+      diagnostics:
+        description: Enable diagnostic logging
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}
+  group: release-${{ github.workflow }}-${{ github.event.inputs.version_number }}-${{ github.event.inputs.build_mode }}-${{ github.event.inputs.diagnostics }}
   cancel-in-progress: false
 
 jobs:
@@ -39,13 +44,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Java 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
-      - name: Set up Gradle 9.4.0
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make Gradle wrapper executable
@@ -100,12 +105,22 @@ jobs:
           echo "SAFRA_BUILD_MODE=$build_mode" >> "$GITHUB_ENV"
           echo "SAFRA_BUILD_MODE_ARGS=$build_mode_args" >> "$GITHUB_ENV"
 
+      - name: Resolve diagnostics mode
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.diagnostics }}" = "true" ]; then
+            echo "SAFRA_DIAGNOSTICS_ARGS=-Pdiagnostics=true" >> "$GITHUB_ENV"
+          else
+            echo "SAFRA_DIAGNOSTICS_ARGS=" >> "$GITHUB_ENV"
+          fi
+
       - name: Build release artifacts
         shell: bash
         run: |
           ./gradlew build --stacktrace \
             -Pmod_version=${{ env.SAFRA_VERSION }} \
-            $SAFRA_BUILD_MODE_ARGS
+            $SAFRA_BUILD_MODE_ARGS \
+            $SAFRA_DIAGNOSTICS_ARGS
 
       - name: Prepare release notes
         shell: bash
@@ -119,6 +134,9 @@ jobs:
           
           Build mode:
           - ${{ env.SAFRA_BUILD_MODE }}
+
+          Diagnostics:
+          - ${{ github.event.inputs.diagnostics }}
 
           Files are attached from the workflow build output.
           EOF

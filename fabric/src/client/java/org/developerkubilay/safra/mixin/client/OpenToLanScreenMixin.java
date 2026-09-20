@@ -5,7 +5,9 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.NarratorManager;
 import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.LiteralText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
@@ -122,6 +124,9 @@ abstract class OpenToLanScreenMixin extends Screen {
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
             }
+            if (server.getServerIp() == null) {
+                server.setServerIp("127.0.0.1");
+            }
             SAFRA_LOGGER.debug(
                 "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
                 server.isOnlineMode(),
@@ -133,38 +138,63 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "method_19851", at = @At("TAIL"))
     private void safra$startP2pHost(ButtonWidget button, CallbackInfo ci) {
         IntegratedServer server = this.minecraft == null ? null : this.minecraft.getServer();
-        if (server == null || server.getServerPort() <= 0) {
+        if (server == null) {
             return;
         }
 
-        FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
+        int tcpPort = server.getServerPort();
+        if (tcpPort <= 0) {
+            return;
+        }
+
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
+        }
 
         if (!this.safra$p2pEnabled) {
             P2pManager.getInstance().stopHosting();
             return;
         }
 
-        int tcpPort = server.getServerPort();
         this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() ->
-            this.minecraft.inGameHud.getChatHud().addMessage(
-                new TranslatableText("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
-            if (this.minecraft == null) {
-                return;
-            }
-
-            this.minecraft.execute(() -> {
-                if (throwable != null) {
-                    safra$publishStartFailure(tcpPort, throwable);
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(this::safra$publishRelayWarning))
+            .whenComplete((shareCode, throwable) -> {
+                if (this.minecraft == null) {
                     return;
                 }
 
-                safra$publishShareCode(tcpPort, shareCode);
+                this.minecraft.execute(() -> {
+                    if (throwable != null) {
+                        safra$publishStartFailure(tcpPort, throwable);
+                        return;
+                    }
+
+                    safra$publishShareCode(tcpPort, shareCode);
+                });
             });
-        });
+    }
+
+    @Unique
+    private void safra$publishRelayWarning() {
+        this.minecraft.inGameHud.getChatHud().addMessage(
+            new TranslatableText("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
+        );
+        String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
+        this.minecraft.inGameHud.getChatHud().addMessage(safra$clickableLink(discordUrl));
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isEmpty()) {
+            this.minecraft.inGameHud.getChatHud().addMessage(safra$clickableLink(youtubeUrl));
+        }
+    }
+
+    @Unique
+    private static Text safra$clickableLink(String url) {
+        return new LiteralText(url).setStyle(new Style()
+            .setColor(Formatting.BLUE)
+            .setUnderline(true)
+            .setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
+        );
     }
 
     @Unique
@@ -180,19 +210,29 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Unique
     private void safra$publishShareCode(int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         this.minecraft.keyboard.setClipboard(shareCodeText);
 
-        Text shareText = new LiteralText(shareCodeText).formatted(Formatting.AQUA);
-        this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));
+        Text shareText = new LiteralText(shareCodeText)
+            .setStyle(new Style()
+                .setColor(Formatting.AQUA)
+                .setUnderline(true)
+            );
+        if (!hidden) {
+            this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             this.minecraft.inGameHud.getChatHud().addMessage(
                 new TranslatableText("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).formatted(Formatting.YELLOW)
             );
         }
-        this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.copied"));
+
+        if (!hidden) {
+            this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.copied"));
+        }
         this.minecraft.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.instructions"));
-        NarratorManager.INSTANCE.narrate(new TranslatableText("safra.p2p.host.narration", shareCodeText).getString());
     }
 
     @Unique

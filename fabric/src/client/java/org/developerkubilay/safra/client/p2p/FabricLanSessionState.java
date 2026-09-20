@@ -5,7 +5,6 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import net.minecraft.client.MinecraftClient;
 
 import java.util.LinkedHashMap;
-import java.util.Collections;
 import java.util.Map;
 
 public final class FabricLanSessionState {
@@ -14,8 +13,8 @@ public final class FabricLanSessionState {
     private static volatile boolean allowCommandsEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
-    private static volatile Map<String, String> gameRuleSnapshot = Collections.emptyMap();
-    private static volatile Map<String, String> defaultGameRuleSnapshot = Collections.emptyMap();
+    private static volatile Map<String, String> gameRuleSnapshot = java.util.Collections.emptyMap();
+    private static volatile Map<String, String> defaultGameRuleSnapshot = java.util.Collections.emptyMap();
 
     private FabricLanSessionState() {
     }
@@ -34,9 +33,8 @@ public final class FabricLanSessionState {
         if (defaultGameRuleSnapshot.isEmpty()) {
             defaultGameRuleSnapshot = new LinkedHashMap<>(FabricLanGameRules.createDefaultSnapshot(client));
         }
-        if (gameRuleSnapshot.isEmpty()) {
-            gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
-        }
+        gameRuleSnapshot = new LinkedHashMap<>(defaultGameRuleSnapshot);
+        gameRuleSnapshot.putAll(SafraClientConfig.get().getOpenToLanGameRules());
     }
 
     public static boolean isP2pEnabled() {
@@ -96,16 +94,28 @@ public final class FabricLanSessionState {
 
     public static void setGameRuleSnapshot(Map<String, String> snapshot) {
         gameRuleSnapshot = new LinkedHashMap<>(snapshot);
-        SafraClientConfig.get().setOpenToLanGameRules(gameRuleSnapshot);
+        if (defaultGameRuleSnapshot.isEmpty()) {
+            return;
+        }
+        Map<String, String> delta = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : snapshot.entrySet()) {
+            if (!entry.getValue().equals(defaultGameRuleSnapshot.get(entry.getKey()))) {
+                delta.put(entry.getKey(), entry.getValue());
+            }
+        }
+        SafraClientConfig.get().setOpenToLanGameRules(delta);
     }
 
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
+        resetGameRules();
+        SafraClientConfig.get().setOpenToLanAllowCommandsEnabled(false);
+    }
+
+    public static void resetGameRules() {
         gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
-            ? Collections.emptyMap()
+            ? java.util.Collections.<String, String>emptyMap()
             : new LinkedHashMap<>(defaultGameRuleSnapshot);
-        SafraClientConfig config = SafraClientConfig.get();
-        config.setOpenToLanAllowCommandsEnabled(false);
-        config.setOpenToLanGameRules(gameRuleSnapshot);
+        SafraClientConfig.get().setOpenToLanGameRules(java.util.Collections.<String, String>emptyMap());
     }
 }
