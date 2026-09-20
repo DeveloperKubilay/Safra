@@ -55,9 +55,12 @@ abstract class ConnectScreenMixin {
                 }
 
                 CompletableFuture.delayedExecutor(75L, TimeUnit.MILLISECONDS).execute(() ->
-                    client.execute(() ->
-                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState)
-                    )
+                    client.execute(() -> {
+                        if (client.screen != progressScreen) {
+                            return;
+                        }
+                        ConnectScreen.startConnecting(parent, client, rewriteResult.serverAddress(), rewriteResult.serverInfo(), quickPlay, transferState);
+                    })
                 );
             })
         );

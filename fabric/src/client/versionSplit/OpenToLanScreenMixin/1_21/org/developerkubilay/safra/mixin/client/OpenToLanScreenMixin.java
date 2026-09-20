@@ -221,9 +221,11 @@ abstract class OpenToLanScreenMixin extends Screen {
             );
         }
 
-        this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+        if (!hidden) {
+            this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.copied"));
+            this.minecraft.getNarrator().sayNow(Component.translatable("safra.p2p.host.narration", shareText));
+        }
         this.safra$addClientSystemMessage(Component.translatable("safra.p2p.host.instructions"));
-        this.minecraft.getNarrator().sayNow(Component.translatable("safra.p2p.host.narration", shareText));
         this.safra$startBedrockRelay();
     }
 

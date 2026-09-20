@@ -137,7 +137,9 @@ abstract class IntegratedServerMixin {
             );
         }
 
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
+        if (!hidden) {
+            client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
+        }
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.instructions"));
         safra$startBedrockRelay(client);
     }
