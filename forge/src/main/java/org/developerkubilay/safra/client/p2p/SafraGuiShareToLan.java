@@ -5,18 +5,24 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiShareToLan;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.event.ClickEvent;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.world.WorldSettings;
+import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pShareCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
 public final class SafraGuiShareToLan extends GuiScreen {
+    private static final Logger SAFRA_LOGGER = LoggerFactory.getLogger("Safra P2P");
     private final GuiScreen parent;
     private String gameMode = "survival";
     private boolean allowCommands;
@@ -97,6 +103,26 @@ public final class SafraGuiShareToLan extends GuiScreen {
             return;
         }
 
+        try {
+            for (String getter : new String[]{"getServerHostname", "func_71211_k", "getHostname"}) {
+                try {
+                    java.lang.reflect.Method getMethod = server.getClass().getMethod(getter);
+                    Object current = getMethod.invoke(server);
+                    if (current == null) {
+                        for (String setter : new String[]{"setServerHostname", "func_71189_e", "setHostname"}) {
+                            try {
+                                java.lang.reflect.Method setMethod = server.getClass().getMethod(setter, String.class);
+                                setMethod.invoke(server, "127.0.0.1");
+                                break;
+                            } catch (NoSuchMethodException ignored) {}
+                        }
+                    }
+                    break;
+                } catch (NoSuchMethodException ignored) {}
+            }
+        } catch (Throwable ignored) {
+        }
+
         server.setOnlineMode(ForgeLanSessionState.isOnlineModeEnabled());
         String port = server.shareToLAN(resolveGameType(), this.allowCommands);
         if (port == null) {
@@ -105,7 +131,9 @@ public final class SafraGuiShareToLan extends GuiScreen {
             return;
         }
 
-        ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+        }
         this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("commands.publish.started", port));
         this.mc.displayGuiScreen(null);
 
@@ -120,10 +148,7 @@ public final class SafraGuiShareToLan extends GuiScreen {
         P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> mc.addScheduledTask(new Runnable() {
             @Override
             public void run() {
-                mc.ingameGUI.getChatGUI().printChatMessage(
-                    new ChatComponentTranslation("safra.p2p.host.relay_warning")
-                        .setChatStyle(new ChatStyle().setColor(EnumChatFormatting.YELLOW))
-                );
+                publishRelayWarning();
             }
         })).whenComplete((shareCode, throwable) -> mc.addScheduledTask(new Runnable() {
             @Override
@@ -134,21 +159,56 @@ public final class SafraGuiShareToLan extends GuiScreen {
                         return;
                     }
                     String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
+                    SAFRA_LOGGER.warn("Safra P2P could not start on local TCP port {}", tcpPort, cause);
                     mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.failed", message).setChatStyle(new ChatStyle().setColor(EnumChatFormatting.RED)));
                     return;
                 }
-                publishShareCode(shareCode);
+                publishShareCode(tcpPort, shareCode);
             }
         }));
     }
 
-    private void publishShareCode(P2pShareCode shareCode) {
+    private void publishRelayWarning() {
+        this.mc.ingameGUI.getChatGUI().printChatMessage(
+            new ChatComponentTranslation("safra.p2p.host.relay_warning")
+                .setChatStyle(new ChatStyle().setColor(EnumChatFormatting.YELLOW))
+        );
+        String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
+        this.mc.ingameGUI.getChatGUI().printChatMessage(clickableLink(discordUrl));
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isEmpty()) {
+            this.mc.ingameGUI.getChatGUI().printChatMessage(clickableLink(youtubeUrl));
+        }
+    }
+
+    private static ChatComponentText clickableLink(String url) {
+        ChatComponentText link = new ChatComponentText(url);
+        ChatStyle style = new ChatStyle().setColor(EnumChatFormatting.BLUE).setUnderlined(true);
+        style.setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
+        link.setChatStyle(style);
+        return link;
+    }
+
+    private void publishShareCode(int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         GuiScreen.setClipboardString(shareCodeText);
         ChatComponentText display = new ChatComponentText(shareCodeText);
         display.setChatStyle(new ChatStyle().setColor(EnumChatFormatting.AQUA).setUnderlined(true));
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.started", display));
-        this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.copied"));
+        if (!hidden) {
+            this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.started", display));
+        }
+        if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
+            this.mc.ingameGUI.getChatGUI().printChatMessage(
+                new ChatComponentTranslation("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion())
+                    .setChatStyle(new ChatStyle().setColor(EnumChatFormatting.YELLOW))
+            );
+        }
+        if (!hidden) {
+            this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.copied"));
+        }
         this.mc.ingameGUI.getChatGUI().printChatMessage(new ChatComponentTranslation("safra.p2p.host.instructions"));
     }
 

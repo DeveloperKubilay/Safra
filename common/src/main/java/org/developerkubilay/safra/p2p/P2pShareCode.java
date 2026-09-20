@@ -68,6 +68,39 @@ public final class P2pShareCode {
         return address != null && address.toLowerCase(Locale.ROOT).startsWith(P2pConstants.ADDRESS_SCHEME);
     }
 
+    public static String toDisplayAddress(String address) {
+        if (address == null) {
+            return "";
+        }
+        String normalized = address.trim();
+        if (isStoredAddress(normalized)) {
+            normalized = normalized.substring(P2pConstants.ADDRESS_SCHEME.length());
+        }
+        if (!normalized.contains("#") && normalized.endsWith(":25565")) {
+            normalized = normalized.substring(0, normalized.length() - 6);
+        }
+        return normalized;
+    }
+
+    public static boolean isLegacyDisplayAddress(String address) {
+        if (address == null || address.trim().isEmpty()) {
+            return false;
+        }
+        String normalizedCode = normalizeRendezvousCode(address);
+        if (normalizedCode != null && (normalizedCode.length() == DEFAULT_RENDEZVOUS_CODE_LENGTH
+            || normalizedCode.length() == FIXED_RENDEZVOUS_CODE_LENGTH)) {
+            return true;
+        }
+        if (!address.contains("#")) {
+            return false;
+        }
+        try {
+            return !parse(address).isRendezvous();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
     public static P2pShareCode parse(String rawAddress) {
         if (rawAddress == null) {
             throw new IllegalArgumentException("address is null");

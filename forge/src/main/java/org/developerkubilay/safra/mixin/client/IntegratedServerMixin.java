@@ -6,6 +6,7 @@ import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
+import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.ForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.ForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
@@ -31,6 +32,23 @@ abstract class IntegratedServerMixin {
         if (ForgeLanSessionState.isP2pEnabled()) {
             server.setPreventProxyConnections(false);
         }
+        try {
+            for (String getter : new String[]{"getServerHostname", "getServerIp", "func_71221_J"}) {
+                try {
+                    Object host = server.getClass().getMethod(getter).invoke(server);
+                    if (host == null) {
+                        for (String setter : new String[]{"setHostname", "setServerIp", "func_71256_d"}) {
+                            try {
+                                server.getClass().getMethod(setter, String.class).invoke(server, "127.0.0.1");
+                                break;
+                            } catch (NoSuchMethodException ignored) {}
+                        }
+                    }
+                    break;
+                } catch (NoSuchMethodException ignored) {}
+            }
+        } catch (Throwable ignored) {
+        }
         SAFRA_LOGGER.debug(
             "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}",
             server.usesAuthentication(),
@@ -51,39 +69,88 @@ abstract class IntegratedServerMixin {
         }
 
         IntegratedServer server = (IntegratedServer) (Object) this;
-        ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+        if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
+            ForgeLanGameRules.applyToServer(server, ForgeLanSessionState.getGameRuleSnapshot());
+        }
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));
-        P2pManager.getInstance().startHostingAsync(tcpPort, null, () -> client.execute(() ->
-            client.gui.getChat().addMessage(
-                Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
-            )
-        )).whenComplete((shareCode, throwable) -> {
-            client.execute(() -> {
-                if (throwable != null) {
-                    safra$publishStartFailure(client, tcpPort, throwable);
-                    return;
-                }
+        String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> safra$publishRelayWarning(client)))
+            .whenComplete((shareCode, throwable) -> {
+                client.execute(() -> {
+                    if (throwable != null) {
+                        safra$publishStartFailure(client, tcpPort, throwable);
+                        return;
+                    }
 
-                safra$publishShareCode(client, tcpPort, shareCode);
+                    safra$publishShareCode(client, tcpPort, shareCode);
+                });
             });
-        });
+    }
+
+    private static void safra$publishRelayWarning(Minecraft client) {
+        client.gui.getChat().addMessage(
+            Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
+        );
+        String discordUrl = RemoteRendezvousConfigUpdater.discordUrl();
+        client.gui.getChat().addMessage(safra$clickableLink(discordUrl));
+        String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+        if (!youtubeUrl.isEmpty()) {
+            client.gui.getChat().addMessage(safra$clickableLink(youtubeUrl));
+        }
+    }
+
+    private static Component safra$clickableLink(String url) {
+        Component link = Component.literal(url).withStyle(ChatFormatting.BLUE, ChatFormatting.UNDERLINE);
+        try {
+            Class<?> clickEventClass = Class.forName("net.minecraft.network.chat.ClickEvent");
+            Class<?> actionClass = Class.forName("net.minecraft.network.chat.ClickEvent$Action");
+            Object action = Enum.valueOf((Class<Enum>) actionClass, "OPEN_URL");
+            Object clickEvent = clickEventClass.getConstructor(actionClass, String.class).newInstance(action, url);
+            Object style = null;
+            try {
+                style = Class.forName("net.minecraft.network.chat.Style").getField("EMPTY").get(null);
+            } catch (Throwable ignored) {
+                style = Class.forName("net.minecraft.network.chat.Style").newInstance();
+            }
+            for (String name : new String[]{"withClickEvent", "setClickEvent"}) {
+                try {
+                    style = style.getClass().getMethod(name, clickEventClass).invoke(style, clickEvent);
+                    break;
+                } catch (Throwable ignored) {}
+            }
+            for (String name : new String[]{"withStyle", "setStyle"}) {
+                try {
+                    link = (Component) link.getClass().getMethod(name, style.getClass()).invoke(link, style);
+                    break;
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {
+        }
+        return link;
     }
 
     private static void safra$publishShareCode(Minecraft client, int tcpPort, P2pShareCode shareCode) {
         String shareCodeText = shareCode.toDisplayCode();
-        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}", tcpPort, shareCodeText);
+        boolean hidden = SafraClientConfig.get().isDontSayCode();
+        SAFRA_LOGGER.info("Safra P2P server opened on local TCP port {}. Share code: {}",
+            tcpPort, hidden ? "hidden" : shareCodeText);
         client.keyboardHandler.setClipboard(shareCodeText);
 
         Component shareText = Component.literal(shareCodeText).withStyle(ChatFormatting.AQUA, ChatFormatting.UNDERLINE);
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.started", shareText));
+        if (!hidden) {
+            client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.started", shareText));
+        }
         if (RemoteRendezvousConfigUpdater.hasNewerModVersion()) {
             client.gui.getChat().addMessage(
                 Component.translatable("safra.p2p.host.update_available", RemoteRendezvousConfigUpdater.latestModVersion()).copy().withStyle(ChatFormatting.YELLOW)
             );
         }
-        client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
+
+        if (!hidden) {
+            client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.copied"));
+        }
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.instructions"));
     }
 
