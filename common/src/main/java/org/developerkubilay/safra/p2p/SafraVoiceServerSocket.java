@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public final class SafraVoiceServerSocket implements VoicechatSocket {
+public final class SafraVoiceServerSocket implements VoicechatSocket, SafraVoiceHostSocket {
     private static final Logger LOGGER = LoggerFactory.getLogger(SafraVoiceServerSocket.class);
 
     private ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
@@ -62,7 +62,8 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         stunMappings.sendKeepAlives(currentSocket, LOGGER, "Safra voice STUN keepalive failed");
     }
 
-    void punchRemoteEndpoint(InetSocketAddress remoteAddress) {
+    @Override
+    public void punchRemoteEndpoint(InetSocketAddress remoteAddress) {
         DatagramSocket currentSocket = socket;
         if (closed || currentSocket == null || currentSocket.isClosed() || remoteAddress == null || remoteAddress.isUnresolved()) {
             return;
@@ -89,14 +90,16 @@ public final class SafraVoiceServerSocket implements VoicechatSocket {
         }
     }
 
-    synchronized Collection<InetSocketAddress> publicEndpointsSnapshot() {
+    @Override
+    public synchronized Collection<InetSocketAddress> publicEndpointsSnapshot() {
         if (closed || socket == null || socket.isClosed() || stunMappings.isEmpty()) {
             return List.of();
         }
         return List.copyOf(stunMappings.publicEndpoints());
     }
 
-    synchronized int localPortSnapshot() {
+    @Override
+    public synchronized int localPortSnapshot() {
         if (closed || socket == null || socket.isClosed()) {
             return -1;
         }

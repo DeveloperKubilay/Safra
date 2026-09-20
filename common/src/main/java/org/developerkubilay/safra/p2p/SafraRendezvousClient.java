@@ -235,10 +235,27 @@ final class SafraRendezvousClient {
         }
 
         private void readCurrentEventStream() throws IOException {
-            readEventStream(stream, (event, data) -> {
-                handleEvent(event, data);
-                return null;
-            });
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                String event = "";
+                StringBuilder data = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty()) {
+                        if (!event.isBlank()) {
+                            handleEvent(event, parseJsonObject(data.toString(), "Safra event payload is invalid"));
+                        }
+                        event = "";
+                        data.setLength(0);
+                    } else if (line.startsWith("event:")) {
+                        event = line.substring(6).trim();
+                    } else if (line.startsWith("data:")) {
+                        if (data.length() > 0) {
+                            data.append('\n');
+                        }
+                        data.append(line.substring(5).trim());
+                    }
+                }
+            }
         }
 
         private JsonObject reconnectRequest() {
@@ -467,22 +484,39 @@ final class SafraRendezvousClient {
         }
 
         private ResolvedRelay readRelayEvents() throws IOException {
-            try {
-                return readEventStream(relayStream, (event, json) -> {
-                    if ("relay-timeout".equals(event)) {
-                        throw new IOException(string(json, "message"));
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(relayStream, StandardCharsets.UTF_8))) {
+                String event = "";
+                StringBuilder data = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty()) {
+                        if (!event.isBlank()) {
+                            JsonObject json = parseJsonObject(data.toString(), "Safra event payload is invalid");
+                            if ("relay-timeout".equals(event)) {
+                                throw new IOException(string(json, "message"));
+                            }
+                            if ("relay-accepted".equals(event)) {
+                                JsonObject relay = object(json, "relay");
+                                relayAddress = relay != null ? relayNetwork(relay) : fromNetwork(array(json, "network"));
+                                relayCredentials = relay != null ? relayCredentials(relay) : relayCredentials;
+                                if (relayAddress == null) {
+                                    throw new IOException("Safra relay response did not include a network endpoint");
+                                }
+                                return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
+                            }
+                        }
+                        event = "";
+                        data.setLength(0);
+                    } else if (line.startsWith("event:")) {
+                        event = line.substring(6).trim();
+                    } else if (line.startsWith("data:")) {
+                        if (data.length() > 0) {
+                            data.append('\n');
+                        }
+                        data.append(line.substring(5).trim());
                     }
-                    if (!"relay-accepted".equals(event)) {
-                        return null;
-                    }
-                    JsonObject relay = object(json, "relay");
-                    relayAddress = relay != null ? relayNetwork(relay) : fromNetwork(array(json, "network"));
-                    relayCredentials = relay != null ? relayCredentials(relay) : relayCredentials;
-                    if (relayAddress == null) {
-                        throw new IOException("Safra relay response did not include a network endpoint");
-                    }
-                    return new ResolvedRelay(relayAddress, tunnelToken, relayCredentials);
-                });
+                }
+                return null;
             } finally {
                 relayThread = null;
                 closeQuietly(relayStream);
@@ -734,40 +768,6 @@ final class SafraRendezvousClient {
             inputStream.close();
         } catch (IOException ignored) {
         }
-    }
-
-    /** Reads SSE events until the handler returns a value or the stream ends. */
-    private static <T> T readEventStream(InputStream stream, SseEventHandler<T> handler) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-            String event = "";
-            StringBuilder data = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.isEmpty()) {
-                    if (!event.isBlank()) {
-                        T result = handler.handle(event, parseJsonObject(data.toString(), "Safra event payload is invalid"));
-                        if (result != null) {
-                            return result;
-                        }
-                    }
-                    event = "";
-                    data.setLength(0);
-                } else if (line.startsWith("event:")) {
-                    event = line.substring(6).trim();
-                } else if (line.startsWith("data:")) {
-                    if (data.length() > 0) {
-                        data.append('\n');
-                    }
-                    data.append(line.substring(5).trim());
-                }
-            }
-        }
-        return null;
-    }
-
-    @FunctionalInterface
-    private interface SseEventHandler<T> {
-        T handle(String event, JsonObject data) throws IOException;
     }
 
     private static int randomTunnelToken() {

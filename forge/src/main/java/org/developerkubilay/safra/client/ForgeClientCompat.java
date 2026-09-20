@@ -48,22 +48,10 @@ public final class ForgeClientCompat {
     }
 
     public static Component append(Component first, Component second) {
-        try {
-            for (Method method : first.getClass().getMethods()) {
-                if (!method.getName().equals("append") || method.getParameterCount() != 1) {
-                    continue;
-                }
-                if (!method.getParameterTypes()[0].isAssignableFrom(second.getClass())) {
-                    continue;
-                }
-                Object result = method.invoke(first, second);
-                if (result instanceof Component component) {
-                    return component;
-                }
-            }
-        } catch (ReflectiveOperationException ignored) {
+        if (first instanceof net.minecraft.network.chat.MutableComponent mutable) {
+            return mutable.append(second);
         }
-        return literal(first.getString() + second.getString());
+        return first.copy().append(second);
     }
 
     private static Method findStaticFactoryMethod(Class<?>... parameterTypes) {
