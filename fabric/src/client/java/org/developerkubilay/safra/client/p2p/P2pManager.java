@@ -231,6 +231,14 @@ public final class P2pManager {
 
     public void tick(MinecraftClient client) {
         P2pHostService service = hostService;
+        if (service == null && startingHostService == null) {
+            return;
+        }
+
+        if (client.world == null) {
+            stopHosting();
+            return;
+        }
         if (service == null) {
             return;
         }

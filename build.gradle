@@ -123,7 +123,7 @@ ext.mcProfiles = [
         forge_version                : '50.2.8',
         forge_version_range          : '[50,)',
         forge_loader_version_range   : '[50,)',
-        forge_minecraft_version_range: '[1.20.5,1.20.7)',
+        forge_minecraft_version_range: '[1.20.6,1.20.7)',
         java_target_version          : 21,
     ]
 ]
@@ -298,7 +298,8 @@ forgeProject?.tasks?.matching { it.name == 'runClient' }?.configureEach {
 tasks.register('collectBuildLibs', Copy) {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     into(layout.buildDirectory.dir('libs'))
-    include("*-${project.version}.jar", "*-${project.version}-sources.jar")
+    include('*.jar')
+    exclude('*-dev.jar', '*-srg.jar')
 
     if (fabricProject != null) {
         dependsOn(':fabric:build')
