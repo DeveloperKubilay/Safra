@@ -138,7 +138,19 @@ abstract class DirectJoinServerScreenMixin extends Screen {
         String address = this.ipEdit.getValue();
         this.selectButton.active = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
-            : ServerAddress.isValidAddress(address);
+            : safra$isValidAddressSafe(address);
+    }
+
+    @Unique
+    private static boolean safra$isValidAddressSafe(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+        try {
+            return ServerAddress.isValidAddress(address);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     @Unique

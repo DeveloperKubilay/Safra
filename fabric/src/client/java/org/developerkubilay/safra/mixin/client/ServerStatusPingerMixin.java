@@ -15,15 +15,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class ServerStatusPingerMixin {
     @Inject(method = "add", at = @At("HEAD"), cancellable = true)
     private void safra$skipP2pServerListPing(ServerInfo serverInfo, Runnable runnable, CallbackInfo ci) throws UnknownHostException {
-        if (!P2pManager.isLikelyP2pAddress(serverInfo.address)) {
+        if (serverInfo == null || !P2pManager.isLikelyP2pAddress(serverInfo.address)) {
             return;
         }
 
         serverInfo.ping = 0L;
-        serverInfo.playerListSummary = List.of();
+        serverInfo.playerListSummary = java.util.Collections.emptyList();
         serverInfo.label = FabricClientCompat.translatable("safra.p2p.server_list_motd");
         serverInfo.playerCountLabel = FabricClientCompat.translatable("safra.p2p.server_list_status");
-        runnable.run();
+        if (runnable != null) {
+            runnable.run();
+        }
         ci.cancel();
     }
 }

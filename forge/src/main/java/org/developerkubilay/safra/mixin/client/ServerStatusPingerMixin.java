@@ -14,15 +14,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class ServerStatusPingerMixin {
     @Inject(method = "pingServer", at = @At("HEAD"), cancellable = true)
     private void safra$skipP2pServerListPing(ServerData data, Runnable onPersistentDataChange, CallbackInfo ci) {
-        if (!P2pManager.isLikelyP2pAddress(data.ip)) {
+        if (data == null || !P2pManager.isLikelyP2pAddress(data.ip)) {
             return;
         }
 
         data.ping = 0L;
-        data.playerList = List.of();
+        data.playerList = java.util.Collections.emptyList();
         data.motd = ForgeClientCompat.translatable("safra.p2p.server_list_motd");
         data.status = ForgeClientCompat.translatable("safra.p2p.server_list_status");
-        onPersistentDataChange.run();
+        if (onPersistentDataChange != null) {
+            onPersistentDataChange.run();
+        }
         ci.cancel();
     }
 }

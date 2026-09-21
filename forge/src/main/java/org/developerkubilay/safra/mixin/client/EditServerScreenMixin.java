@@ -34,6 +34,10 @@ abstract class EditServerScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void safra$initP2pUi(CallbackInfo ci) {
+        if (this.ipEdit == null) {
+            return;
+        }
+
         this.ipEdit.setMaxLength(200);
         String currentAddress = this.ipEdit.getValue();
         boolean storedAddress = P2pManager.isP2pStoredAddress(currentAddress);
@@ -52,6 +56,15 @@ abstract class EditServerScreenMixin extends Screen {
             org.developerkubilay.safra.client.ForgeClientCompat.createButton(this.width / 2 + 30, 106, 70, 20, this.safra$getToggleText(), button -> {
                 this.safra$p2pEnabled = !this.safra$p2pEnabled;
                 SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
+
+                if (this.safra$p2pEnabled && this.ipEdit != null) {
+                    String typedAddress = this.ipEdit.getValue();
+                    if (typedAddress != null && !typedAddress.isEmpty()
+                        && !P2pManager.isValidP2pAddress(typedAddress)) {
+                        this.ipEdit.setValue("");
+                    }
+                }
+
                 button.setMessage(this.safra$getToggleText());
                 this.safra$refreshAddressField();
                 this.safra$updateValidation();
@@ -71,12 +84,16 @@ abstract class EditServerScreenMixin extends Screen {
     @Inject(method = "onAdd", at = @At("HEAD"))
     private void safra$storeP2pAddress(CallbackInfo ci) {
         SafraClientConfig.get().setDirectConnectP2pEnabled(this.safra$p2pEnabled);
-        String address = this.ipEdit.getValue();
-        if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
-            address = P2pManager.toStoredAddress(address);
+        if (this.ipEdit != null) {
+            String address = this.ipEdit.getValue();
+            if (this.safra$p2pEnabled && P2pManager.isValidP2pAddress(address)) {
+                address = P2pManager.toStoredAddress(address);
+            }
+            this.ipEdit.setValue(address);
+            if (this.serverData != null) {
+                this.serverData.ip = address;
+            }
         }
-        this.ipEdit.setValue(address);
-        this.serverData.ip = address;
     }
 
     @Unique
@@ -86,15 +103,35 @@ abstract class EditServerScreenMixin extends Screen {
 
     @Unique
     private void safra$refreshAddressField() {
-        this.ipEdit.setSuggestion(null);
+        if (this.ipEdit != null) {
+            this.ipEdit.setSuggestion(null);
+        }
     }
 
     @Unique
     private void safra$updateValidation() {
+        if (this.addButton == null || this.ipEdit == null || this.nameEdit == null) {
+            return;
+        }
+
         String address = this.ipEdit.getValue();
-        this.addButton.active = this.safra$p2pEnabled
+        String name = this.nameEdit.getValue();
+        boolean valid = this.safra$p2pEnabled
             ? P2pManager.isValidP2pAddress(address)
-            : ServerAddress.isValidAddress(address) && !this.nameEdit.getValue().isEmpty();
+            : safra$isValidAddressSafe(address) && (name != null && !name.isEmpty());
+        this.addButton.active = valid;
+    }
+
+    @Unique
+    private static boolean safra$isValidAddressSafe(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+        try {
+            return ServerAddress.isValidAddress(address);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
 }
