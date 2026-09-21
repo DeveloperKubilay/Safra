@@ -24,7 +24,7 @@ abstract class ServerStatusPingerMixin {
     }
 
     private void safra$skipP2pServerListPingInternal(ServerData data, Runnable onPongResponse, CallbackInfo ci) {
-        if (!P2pManager.isLikelyP2pAddress(data.ip)) {
+        if (!P2pManager.isLikelyP2pAddress(ForgeVersionCompat.getServerAddress(data))) {
             return;
         }
 

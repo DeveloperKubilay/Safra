@@ -20,13 +20,13 @@ public final class P2pConstants {
     static final int MIN_STREAM_WINDOW_BYTES = 256 * 1024;
     static final int MAX_STREAM_WINDOW_BYTES = 512 * 1024;
     private static final int STREAM_WINDOW_TARGET_BYTES_PER_SECOND = 1_500_000;
-    static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 5_000L;
+    static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 7_500L;
     /**
      * When the host punches, spread over the attempt it is punching for. The last packet lands a
      * second before the joiner gives up: a schedule that outlives the attempt is a packet the peer
      * was never awake to answer, which is what the second attempt used to do at five seconds.
      */
-    static final long[] PUNCH_DELAYS_MS = {0L, 100L, 250L, 500L, 1_000L, 1_500L, 2_500L, 4_000L};
+    static final long[] PUNCH_DELAYS_MS = {0L, 100L, 250L, 500L, 1_000L, 1_500L, 2_500L, 4_000L, 5_500L, 6_500L};
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
