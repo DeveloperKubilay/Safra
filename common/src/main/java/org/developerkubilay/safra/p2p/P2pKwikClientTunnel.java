@@ -90,6 +90,10 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             }
 
             long remainingNanos = certificateDeadline - System.nanoTime();
+            if (remainingNanos <= 0L) {
+                throw new IOException("The Kwik attempt timed out");
+            }
+
             quicSocket = new P2pKwikDatagramSocket(
                 (datagram, destination) -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
 

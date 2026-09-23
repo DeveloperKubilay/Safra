@@ -216,7 +216,7 @@ public final class P2pClientProxy implements AutoCloseable {
             return;
         }
         startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS,
-            () -> P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket)));
+            () -> P2pRuntime.start("safra-kwik-direct-retry", () -> retryDirectKwik(localSocket)));
     }
 
     private void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
@@ -236,6 +236,46 @@ public final class P2pClientProxy implements AutoCloseable {
         );
         connections.put(connectionId, connection);
         connection.start();
+    }
+
+    private void retryDirectKwik(Socket localSocket) {
+        if (closed || rendezvousSession == null || relayTransportActive) {
+            openRelayKwik(localSocket);
+            return;
+        }
+
+        P2pTransportBinding freshBinding = null;
+        try {
+            freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(stunClient);
+            InetSocketAddress refreshedHostAddress = rendezvousSession.refreshDirect(freshBinding.publicEndpoints());
+            if (refreshedHostAddress == null
+                || !freshBinding.stunEndpoints().containsKey(P2pSockets.addressFamily(refreshedHostAddress))) {
+                throw new IOException("Fresh direct endpoint and host use different IP families");
+            }
+
+            P2pDatagramTransport previousTransport = transport;
+            transport = freshBinding.transport();
+            remoteAddress = refreshedHostAddress;
+            relayTransportActive = false;
+            freshBinding = null;
+            if (previousTransport != null && !previousTransport.isClosed()) {
+                previousTransport.close();
+            }
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
+            } else {
+                LOGGER.info("Safra starting the second direct Kwik attempt");
+            }
+            startKwikAttempt(localSocket, P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS,
+                () -> P2pRuntime.start("safra-kwik-relay-fallback", () -> openRelayKwik(localSocket)));
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.info("Safra could not prepare the second direct Kwik attempt, falling back to TURN: {}", exception.toString());
+            openRelayKwik(localSocket);
+        } finally {
+            if (freshBinding != null) {
+                freshBinding.close();
+            }
+        }
     }
 
     private void openRelayKwik(Socket localSocket) {
