@@ -48,14 +48,21 @@ function codeCheck(code) {
     return null
 }
 
+const turnKeys = (process.env.TURN_KEY_ID || "").split(",");
+const turnTokens = (process.env.TURN_KEY_API_TOKEN || "").split(",");
+let turnLatestAccount = 0;
+
 async function getTurnCredentials(customIdentifier) {
+    if (!turnKeys.length) return null;
+    const i = turnLatestAccount;
+    turnLatestAccount = (turnLatestAccount + 1) % turnKeys.length;
     try {
         const response = await fetch(
-            `https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.TURN_KEY_ID}/credentials/generate-ice-servers`,
+            `https://rtc.live.cloudflare.com/v1/turn/keys/${turnKeys[i].trim()}/credentials/generate-ice-servers`,
             {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${process.env.TURN_KEY_API_TOKEN}`,
+                    "Authorization": `Bearer ${turnTokens[i]?.trim()}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ ttl: config.TURN_TTL, customIdentifier: customIdentifier || null })
@@ -63,8 +70,7 @@ async function getTurnCredentials(customIdentifier) {
         );
 
         if (!response.ok) return null;
-        const data = (await response.json()).iceServers[1];
-        return data;
+        return (await response.json()).iceServers[1];
     } catch {
         return null;
     }
