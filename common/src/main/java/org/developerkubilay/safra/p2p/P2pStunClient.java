@@ -40,8 +40,12 @@ final class P2pStunClient {
     }
 
     private Map<AddressFamily, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket, AddressFamily requiredFamily) {
+        return discoverCandidates(socket, requiredFamily, requestCandidates(socket, requiredFamily));
+    }
+
+    Map<AddressFamily, DiscoveredEndpoint> discoverCandidates(DatagramSocket socket, AddressFamily requiredFamily,
+                                                            List<PendingRequest> pendingRequests) {
         Map<AddressFamily, DiscoveredEndpoint> discovered = new LinkedHashMap<>();
-        List<PendingRequest> pendingRequests = requestCandidates(socket, requiredFamily);
         if (pendingRequests.isEmpty()) {
             return discovered;
         }
@@ -52,7 +56,8 @@ final class P2pStunClient {
             }
 
             collectResponses(socket, pendingRequests, P2pConstants.STUN_INITIAL_RETRY_MS << attempt, discovered);
-            if (requiredFamily != null || discovered.containsKey(AddressFamily.IPV4)) {
+            if ((requiredFamily != null && discovered.containsKey(requiredFamily))
+                || discovered.containsKey(AddressFamily.IPV4)) {
                 return discovered;
             }
         }
