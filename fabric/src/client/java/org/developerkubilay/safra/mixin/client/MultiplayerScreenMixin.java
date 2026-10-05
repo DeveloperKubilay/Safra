@@ -34,8 +34,9 @@ abstract class MultiplayerScreenMixin {
             return;
         }
 
+        Screen currentScreen = (Screen) (Object) this;
         P2pConnectingScreen progressScreen = new P2pConnectingScreen(
-            this.parent,
+            currentScreen,
             () -> P2pManager.getInstance().cancelPendingRewrite()
         );
         MinecraftClient.getInstance().openScreen(progressScreen);
@@ -53,32 +54,32 @@ abstract class MultiplayerScreenMixin {
                         return;
                     }
                     MinecraftClient.getInstance().openScreen(
-                        this.safra$createDisconnectedScreen(P2pErrorComponents.preparationFailure(cause))
+                        safra$createDisconnectedScreen(currentScreen, P2pErrorComponents.preparationFailure(cause))
                     );
                     return;
                 }
 
-                MinecraftClient.getInstance().openScreen(new ConnectScreen(this.parent, MinecraftClient.getInstance(), rewriteResult.serverInfo()));
+                MinecraftClient.getInstance().openScreen(new ConnectScreen(currentScreen, MinecraftClient.getInstance(), rewriteResult.serverInfo()));
             })
         );
         ci.cancel();
     }
 
-    private Screen safra$createDisconnectedScreen(Text reason) {
+    private static Screen safra$createDisconnectedScreen(Screen parent, Text reason) {
         try {
             return DisconnectedScreen.class
                 .getConstructor(Screen.class, String.class, Text.class)
-                .newInstance(this.parent, "connect.failed", reason);
+                .newInstance(parent, "connect.failed", reason);
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
             return DisconnectedScreen.class
                 .getConstructor(Screen.class, Text.class, Text.class)
-                .newInstance(this.parent, new TranslatableText("connect.failed"), reason);
+                .newInstance(parent, new TranslatableText("connect.failed"), reason);
         } catch (ReflectiveOperationException ignored) {
         }
 
-        return this.parent == null ? new net.minecraft.client.gui.screen.TitleScreen() : this.parent;
+        return parent == null ? new net.minecraft.client.gui.screen.TitleScreen() : parent;
     }
 }
