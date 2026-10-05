@@ -43,7 +43,7 @@ tasks.processResources.configure {
     inputs.property("version", projVersion)
     inputs.property("mod_name", "Safra")
     inputs.property("mod_id", "safra")
-    inputs.property("mod_description", "Play Minecraft with your friend for free and without limits, no server or unnecessary setup required.")
+    inputs.property("mod_description", "Play Minecraft with your friend for free and without limits.")
     inputs.property("minecraft_version", "1.7.10")
 
     from(generatedLegacyLangDir)
@@ -58,7 +58,7 @@ tasks.processResources.configure {
             mod_name: "Safra",
             mod_version: projVersion,
             minecraft_version: "1.7.10",
-            mod_description: "Play Minecraft with your friend for free and without limits, no server or unnecessary setup required."
+            mod_description: "Play Minecraft with your friend for free and without limits."
         ])
     }
 

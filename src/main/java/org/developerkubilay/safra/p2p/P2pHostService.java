@@ -38,6 +38,7 @@ public final class P2pHostService implements AutoCloseable {
     private volatile boolean primaryTransportRelay;
     private boolean relayReadyNotified;
     private volatile boolean closed;
+    private final java.util.Set<Integer> unknownTokensSeen = java.util.Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
     public P2pHostService(int tcpPort, int token) {
         this(tcpPort, token, P2pSockets.loopbackAddress(), null, true);
@@ -222,7 +223,7 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void receiveLoop(P2pDatagramTransport activeTransport, boolean relayTransportActive) {
-        byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
+        byte[] buffer = new byte[65535];
         while (!closed) {
             DatagramPacket datagramPacket = new DatagramPacket(buffer, buffer.length);
             try {
@@ -231,7 +232,11 @@ public final class P2pHostService implements AutoCloseable {
                 continue;
             } catch (IOException exception) {
                 if (!closed) {
-                    LOGGER.debug("Host UDP receive failed: {}", exception.toString());
+                    LOGGER.debug("Safra P2P host UDP receive error: {}", exception.toString());
+                    if (activeTransport != null && !activeTransport.isClosed()) {
+                        continue;
+                    }
+                    LOGGER.warn("Safra P2P host stopped listening on UDP: {}", exception.toString());
                 }
                 return;
             }
@@ -240,7 +245,13 @@ public final class P2pHostService implements AutoCloseable {
             if (!relayTransportActive && stunEndpoint != null) {
                 P2pStunClient.DiscoveredEndpoint refreshed = stunClient.tryParseResponse(datagramPacket);
                 if (refreshed != null) {
-                    discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
+                    P2pStunClient.DiscoveredEndpoint previous =
+                        discoveredEndpoints.put(refreshed.family(), refreshed.withServer(stunEndpoint.stunServer()));
+                    if (SafraBuildInfo.diagnostics() && previous != null
+                        && !previous.publicAddress().equals(refreshed.publicAddress())) {
+                        LOGGER.info("Safra P2P host public endpoint moved from {} to {}",
+                            previous.publicAddress(), refreshed.publicAddress());
+                    }
                 }
                 continue;
             }
@@ -251,8 +262,9 @@ public final class P2pHostService implements AutoCloseable {
             }
 
             if (packet.token() != token) {
-                if (packet.type() == P2pPacket.Type.OPEN) {
-                    LOGGER.debug("Safra P2P host ignored tunnel open from {} because the share-code token is old or wrong", datagramPacket.getSocketAddress());
+                if (SafraBuildInfo.diagnostics() && unknownTokensSeen.add(packet.token())) {
+                    LOGGER.info("Safra P2P host dropped a packet from {} with unknown tunnel tag {}",
+                        datagramPacket.getSocketAddress(), packet.token());
                 }
                 continue;
             }
@@ -366,7 +378,11 @@ public final class P2pHostService implements AutoCloseable {
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
             publishRelayReady(relayBinding.publicEndpoints());
             notifyRelayReady();
-            LOGGER.info("Safra host TURN fallback ready: {}", preferredEndpoint(relayBinding.publicEndpoints()));
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra host TURN fallback ready: {}", preferredEndpoint(relayBinding.publicEndpoints()));
+            } else {
+                LOGGER.info("Safra host TURN fallback ready");
+            }
             if (joinerRelayAddress != null) {
                 punchRemoteEndpoint(relayFallbackTransport, joinerRelayAddress);
             }

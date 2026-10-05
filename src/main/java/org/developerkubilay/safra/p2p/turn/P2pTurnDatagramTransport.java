@@ -92,7 +92,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 try {
                     return openDatagram(logger, role, credentials, server);
                 } catch (IOException exception) {
-                    failures.add("udp://" + describeServer(server) + " -> " + exception.getMessage());
+                    failures.add(refused(logger, role, "udp", server, exception));
                     trace("turn " + role + " failed server=" + describeServer(server) + " error=" + exception.toString());
                 }
             }
@@ -100,21 +100,32 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
         for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tcpServers(), 80)) {
             try {
-                return openStream(logger, role, credentials, server, false);
+                P2pTurnDatagramTransport transport = openStream(logger, role, credentials, server, false);
+                logger.info("Safra TURN {} transport active via TCP: {}", role, server.host() + ":" + server.port());
+                return transport;
             } catch (IOException exception) {
-                failures.add("tcp://" + describeServer(server) + " -> " + exception.getMessage());
+                failures.add(refused(logger, role, "tcp", server, exception));
             }
         }
 
         for (P2pTurnCredentials.TurnServer server : preferPort(credentials.tlsServers(), 443)) {
             try {
-                return openStream(logger, role, credentials, server, true);
+                P2pTurnDatagramTransport transport = openStream(logger, role, credentials, server, true);
+                logger.info("Safra TURN {} transport active via TLS: {}", role, server.host() + ":" + server.port());
+                return transport;
             } catch (IOException exception) {
-                failures.add("tls://" + describeServer(server) + " -> " + exception.getMessage());
+                failures.add(refused(logger, role, "tls", server, exception));
             }
         }
 
         throw new IOException("TURN relay could not be opened: " + String.join(" | ", failures));
+    }
+
+    private static String refused(Logger logger, String role, String scheme,
+                                  P2pTurnCredentials.TurnServer server, IOException exception) {
+        String endpoint = scheme + "://" + server.host() + ":" + server.port();
+        logger.warn("Safra TURN {} could not use {}: {}", role, endpoint, exception.toString());
+        return endpoint + " -> " + exception.getMessage();
     }
 
     private static P2pTurnDatagramTransport openDatagram(Logger logger, String role, P2pTurnCredentials credentials,

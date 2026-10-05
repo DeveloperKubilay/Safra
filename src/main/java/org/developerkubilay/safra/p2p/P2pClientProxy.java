@@ -35,6 +35,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private volatile boolean relayTransportActive;
     private volatile boolean directRetryAttempted;
     private volatile boolean closed;
+    private volatile P2pErrorKind failureKind = P2pErrorKind.OTHER;
 
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
         this.shareCode = shareCode;
@@ -42,27 +43,36 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     public int start() throws IOException {
-        if (shareCode.isRendezvous()) {
-            resolveRendezvousShareCode();
-            if (P2pOptionalIntegrations.isVoiceChatAvailable()) {
-                SafraVoiceTransportManager.getInstance().setJoinSession(rendezvousSession);
+        try {
+            if (shareCode.isRendezvous()) {
+                resolveRendezvousShareCode();
+                if (P2pOptionalIntegrations.isVoiceChatAvailable()) {
+                    SafraVoiceTransportManager.getInstance().setJoinSession(rendezvousSession);
+                } else {
+                    LOGGER.debug("Safra voicechat is not available; keeping join rendezvous session for direct-to-TURN fallback");
+                }
             } else {
-                LOGGER.debug("Safra voicechat is not available; keeping join rendezvous session for direct-to-TURN fallback");
+                transport = new P2pDirectDatagramTransport(P2pSockets.datagramSocket());
+                InetAddress remoteInetAddress = InetAddress.getByName(shareCode.host());
+                remoteAddress = new InetSocketAddress(remoteInetAddress, shareCode.port());
+                tunnelToken = shareCode.token();
             }
-        } else {
-            transport = new P2pDirectDatagramTransport(P2pSockets.datagramSocket());
-            InetAddress remoteInetAddress = InetAddress.getByName(shareCode.host());
-            remoteAddress = new InetSocketAddress(remoteInetAddress, shareCode.port());
-            tunnelToken = shareCode.token();
+
+            proxyServer = new ServerSocket(0, 16, P2pSockets.loopbackAddress());
+            LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
+                proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
+
+            P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
+            P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
+            return proxyServer.getLocalPort();
+        } catch (IOException | RuntimeException exception) {
+            failureKind = P2pErrorKind.classify(exception);
+            throw exception;
         }
+    }
 
-        proxyServer = new ServerSocket(0, 16, P2pSockets.loopbackAddress());
-        LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
-            proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
-
-        P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
-        P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
-        return proxyServer.getLocalPort();
+    public P2pErrorKind failureKind() {
+        return failureKind;
     }
 
     public boolean usesRendezvousShareCode() {
@@ -229,9 +239,9 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void receiveLoop() {
-        P2pDatagramTransport activeTransport = transport;
-        byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
+        byte[] buffer = new byte[65535];
         while (!closed) {
+            P2pDatagramTransport activeTransport = transport;
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 if (activeTransport == null) {
@@ -243,6 +253,9 @@ public final class P2pClientProxy implements AutoCloseable {
             } catch (IOException exception) {
                 if (!closed) {
                     LOGGER.debug("Client UDP receive failed: {}", exception.toString());
+                    if (activeTransport != transport || (activeTransport != null && !activeTransport.isClosed())) {
+                        continue;
+                    }
                 }
                 return;
             }
@@ -276,7 +289,6 @@ public final class P2pClientProxy implements AutoCloseable {
         connections.remove(connectionId);
         scheduler.schedule(this::closeIfIdle, 1L, TimeUnit.SECONDS);
     }
-
     private void closeIfIdle() {
         if (!closed && connections.isEmpty()) {
             close();
@@ -314,13 +326,19 @@ public final class P2pClientProxy implements AutoCloseable {
             remoteAddress = relayRoute.address;
             tunnelToken = relayRoute.tunnelToken;
             P2pRuntime.start("safra-p2p-client-relay-recv", this::receiveLoop);
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra starting an attempt over TURN against {}", remoteAddress);
+            } else {
+                LOGGER.info("Safra starting an attempt over TURN");
+            }
             connection.updateRoute(remoteAddress, this::sendPacket);
             connection.retryOpen(remoteAddress);
             if (previousTransport != null && previousTransport != transport && !previousTransport.isClosed()) {
                 previousTransport.close();
             }
         } catch (IOException exception) {
-            LOGGER.warn("Safra TURN fallback kurulamadı", exception);
+            LOGGER.warn("Safra could not set up the TURN fallback", exception);
+            failureKind = P2pErrorKind.classify(exception);
             connection.failOpenFallback();
         }
     }
@@ -344,6 +362,11 @@ public final class P2pClientProxy implements AutoCloseable {
             relayTransportActive = false;
             remoteAddress = refreshedHostAddress;
             P2pRuntime.start("safra-p2p-client-direct-retry-recv", this::receiveLoop);
+            if (SafraBuildInfo.diagnostics()) {
+                LOGGER.info("Safra starting the second direct attempt against {}", remoteAddress);
+            } else {
+                LOGGER.info("Safra starting the second direct attempt");
+            }
             connection.updateRoute(remoteAddress, this::sendPacket);
             connection.retryDirectOpen(remoteAddress);
             switched = true;
