@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Locale;
 
 public final class P2pHostSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostSupport.class);
@@ -39,6 +40,21 @@ public final class P2pHostSupport {
 
     public static int createRendezvousShareToken(String rendezvousCode) {
         return P2pShareCode.rendezvousTunnelToken(rendezvousCode);
+    }
+
+    public static String formatWorldCode(String rawName, long seed) {
+        if (rawName == null) {
+            rawName = "World";
+        }
+        String cleanName = rawName.replaceAll("[\\\\/:*?\"<>|]", "").trim();
+        if (cleanName.length() > 30) {
+            cleanName = cleanName.substring(0, 30).trim();
+        }
+        if (cleanName.isEmpty()) {
+            cleanName = "World";
+        }
+        String id = String.format(Locale.ROOT, "%06x", Long.hashCode(seed) & 0xFFFFFF);
+        return cleanName + " [" + id + "]";
     }
 
     public static HostStartResult startDedicatedHost(int tcpPort, String serverIp, String preferredRendezvousCode, Logger logger) throws IOException {
