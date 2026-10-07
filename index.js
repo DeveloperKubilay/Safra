@@ -104,6 +104,11 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         if (networkValidation) return res.code(400).send(networkValidation);
     }
 
+    if (
+        req.body.worldcode != null &&
+        (typeof req.body.worldcode !== "string" || req.body.worldcode.length < 9 || req.body.worldcode.length > 40)
+    ) return res.code(400).send("worldcode must be a string between 9 and 40 characters");
+
     const oldSession = sessions.get(req.body.code);
     if (oldSession) {
         if (oldSession.ip === req.ip) oldSession.end(true);
@@ -141,6 +146,7 @@ app.post("/session-create", async (req, res) => {//Voicechat ve stunipsi ile ber
         relay: null,
         relayWaiters: [],
         write: res.raw.write.bind(res.raw),
+        worldcode: req.body.worldcode || null,
         end: endSession
     };
     sessions.set(sessionCode, session);
@@ -239,7 +245,8 @@ app.post("/session-join", async (req, res) => {
     res.send({//Joinere hostun datası iletilir
         host: session.host,
         relay: session.relay,
-        voiceHost: session.voiceHost
+        voiceHost: session.voiceHost,
+        worldcode: session.worldcode || null
     });
 });
 
