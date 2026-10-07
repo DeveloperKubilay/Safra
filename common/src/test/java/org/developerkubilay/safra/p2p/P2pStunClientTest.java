@@ -53,7 +53,6 @@ class P2pStunClientTest {
             thread.setDaemon(true);
             thread.start();
 
-            // requestCandidates normally sends this before entering discovery.
             sendInitialRequest(client, serverAddress);
             var discovered = new P2pStunClient().discoverCandidates(client, IPV4, pending);
 

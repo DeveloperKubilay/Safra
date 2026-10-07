@@ -53,7 +53,6 @@ class P2pTurnMessageTest {
     @ParameterizedTest
     @ValueSource(ints = {4, 8, 12})
     void rejectsBodyTruncatedInsideTransactionIdAllowance(int declaredLength) {
-        // The old check counted the 12 transaction-ID bytes as available body bytes.
         assertNull(parse(message(declaredLength, new byte[0])));
     }
 
