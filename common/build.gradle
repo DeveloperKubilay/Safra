@@ -23,6 +23,12 @@ dependencies {
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 processResources {
     inputs.property 'mod_version', project.mod_version
