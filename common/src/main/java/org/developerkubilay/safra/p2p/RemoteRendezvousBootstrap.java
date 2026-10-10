@@ -1,4 +1,5 @@
 package org.developerkubilay.safra.p2p;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,11 +11,11 @@ import java.time.Duration;
 
 public final class RemoteRendezvousBootstrap {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousBootstrap.class);
-    private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(6);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(6);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT)
+        .followRedirects(HttpClient.Redirect.NORMAL)
         .build();
 
     private RemoteRendezvousBootstrap() {
@@ -27,28 +28,37 @@ public final class RemoteRendezvousBootstrap {
 
         P2pConstants.applyDefaultRendezvousUrlIfAbsent();
 
-        try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
-                .timeout(REQUEST_TIMEOUT)
-                .GET()
-                .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                LOGGER.debug("Safra remote rendezvous config request returned HTTP {}", response.statusCode());
-                return;
-            }
+        for (String url : P2pConstants.REMOTE_CONFIG_URLS) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .header("User-Agent", SafraBuildInfo.userAgent())
+                    .timeout(REQUEST_TIMEOUT)
+                    .GET()
+                    .build();
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    LOGGER.debug("Safra remote rendezvous config request to {} returned HTTP {}", url, response.statusCode());
+                    continue;
+                }
 
-            String apiVersion = siteApiVersion();
-            String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(response.body(), apiVersion, "dedicated");
-            if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
-                LOGGER.debug("Safra remote rendezvous config did not contain a valid URL for api-{}", apiVersion);
-                return;
-            }
+                String body = response.body();
+                if (body == null || body.isBlank()) {
+                    continue;
+                }
 
-            P2pConstants.setRuntimeSiteApiVersion(apiVersion);
-            P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
-        } catch (Exception exception) {
-            LOGGER.debug("Safra remote rendezvous bootstrap skipped: {}", exception.toString());
+                String apiVersion = siteApiVersion();
+                String remoteUrl = RemoteRendezvousConfigParser.parseRemoteUrl(body, apiVersion, "dedicated");
+                if (!P2pConstants.isValidRendezvousUrl(remoteUrl)) {
+                    LOGGER.debug("Safra remote rendezvous config from {} did not contain a valid URL for api-{}", url, apiVersion);
+                    continue;
+                }
+
+                P2pConstants.setRuntimeSiteApiVersion(apiVersion);
+                P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
+                return;
+            } catch (Exception exception) {
+                LOGGER.debug("Safra remote rendezvous bootstrap from {} skipped: {}", url, exception.toString());
+            }
         }
     }
 

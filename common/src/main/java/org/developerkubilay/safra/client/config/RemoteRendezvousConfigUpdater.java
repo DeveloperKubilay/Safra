@@ -22,12 +22,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RemoteRendezvousConfigUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoteRendezvousConfigUpdater.class);
-    private static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json";
     private static final String DEFAULT_DISCORD_URL = "https://discord.gg/NHjBvRxDXP";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(6);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(6);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT)
+        .followRedirects(HttpClient.Redirect.NORMAL)
         .build();
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
     private static volatile String latestModVersion = "";
@@ -58,24 +58,47 @@ public final class RemoteRendezvousConfigUpdater {
             return;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(URI.create(REMOTE_CONFIG_URL))
-            .timeout(REQUEST_TIMEOUT)
-            .GET()
-            .build();
+        fetchRemoteConfig(config, 0);
+    }
+
+    private static void fetchRemoteConfig(BaseSafraClientConfig config, int index) {
+        if (index >= P2pConstants.REMOTE_CONFIG_URLS.size()) {
+            return;
+        }
+
+        String url = P2pConstants.REMOTE_CONFIG_URLS.get(index);
+        HttpRequest request;
+        try {
+            request = HttpRequest.newBuilder(URI.create(url))
+                .header("User-Agent", SafraBuildInfo.userAgent())
+                .timeout(REQUEST_TIMEOUT)
+                .GET()
+                .build();
+        } catch (RuntimeException exception) {
+            fetchRemoteConfig(config, index + 1);
+            return;
+        }
 
         HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-            .thenApply(response -> response.statusCode() >= 200 && response.statusCode() < 300 ? response.body() : "")
-            .thenAccept(body -> applyRemoteConfig(config, body))
+            .thenAccept(response -> {
+                if (response.statusCode() >= 200 && response.statusCode() < 300 && response.body() != null && !response.body().isBlank()) {
+                    if (applyRemoteConfig(config, response.body())) {
+                        return;
+                    }
+                }
+                fetchRemoteConfig(config, index + 1);
+            })
             .exceptionally(throwable -> {
-                LOGGER.debug("Safra remote rendezvous config refresh skipped: {}", throwable.toString());
+                LOGGER.debug("Safra remote rendezvous config refresh failed for {}: {}", url, throwable.toString());
+                fetchRemoteConfig(config, index + 1);
                 return null;
             });
     }
 
-    private static void applyRemoteConfig(BaseSafraClientConfig config, String body) {
+    private static boolean applyRemoteConfig(BaseSafraClientConfig config, String body) {
         try {
             if (body == null || body.isBlank()) {
-                return;
+                return false;
             }
 
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
@@ -103,13 +126,15 @@ public final class RemoteRendezvousConfigUpdater {
                     config.setRendezvousUrl("");
                     P2pConstants.applyDefaultRendezvousUrlIfAbsent();
                 }
-                return;
+                return false;
             }
 
             config.setRendezvousUrl(remoteUrl);
             P2pConstants.setRuntimeRendezvousUrl(remoteUrl);
+            return true;
         } catch (RuntimeException exception) {
             LOGGER.debug("Safra remote rendezvous config could not be applied: {}", exception.toString());
+            return false;
         }
     }
 

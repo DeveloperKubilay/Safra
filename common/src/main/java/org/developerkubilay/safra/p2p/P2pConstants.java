@@ -1,11 +1,16 @@
 package org.developerkubilay.safra.p2p;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
 public final class P2pConstants {
     public static final String DEFAULT_RENDEZVOUS_URL = "https://safra.randdcodes.com";
+    public static final List<String> REMOTE_CONFIG_URLS = List.of(
+        "https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/config.json",
+        "https://cdn.jsdelivr.net/gh/DeveloperKubilay/Safra@assets/config.json"
+    );
     public static final String LOCAL_PROXY_HOST = "127.0.0.1";
     static final byte PROTOCOL_VERSION = 2;
     static final int HEADER_SIZE = 10;
