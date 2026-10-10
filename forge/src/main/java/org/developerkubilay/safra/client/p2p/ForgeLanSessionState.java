@@ -22,6 +22,9 @@ public final class ForgeLanSessionState {
     public static void loadFromConfig() {
         SafraClientConfig config = SafraClientConfig.get();
         p2pEnabled = config.isOpenToLanP2pEnabled();
+        if (p2pEnabled) {
+            P2pManager.getInstance().warmUpHost();
+        }
         onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         allowCommandsEnabled = config.isOpenToLanAllowCommandsEnabled();
         fixedCodeEnabled = config.isOpenToLanFixedCodeEnabled();
@@ -48,6 +51,9 @@ public final class ForgeLanSessionState {
     public static void setP2pEnabled(boolean enabled) {
         p2pEnabled = enabled;
         SafraClientConfig.get().setOpenToLanP2pEnabled(enabled);
+        if (enabled) {
+            P2pManager.getInstance().warmUpHost();
+        }
     }
 
     public static boolean isOnlineModeEnabled() {

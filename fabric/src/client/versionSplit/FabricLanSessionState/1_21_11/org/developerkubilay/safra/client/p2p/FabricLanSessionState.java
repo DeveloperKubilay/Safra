@@ -23,6 +23,9 @@ public final class FabricLanSessionState {
     public static void loadFromConfig() {
         SafraClientConfig config = SafraClientConfig.get();
         p2pEnabled = config.isOpenToLanP2pEnabled();
+        if (p2pEnabled) {
+            P2pManager.getInstance().warmUpHost();
+        }
         onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         allowCommandsEnabled = config.isOpenToLanAllowCommandsEnabled();
         fixedCodeEnabled = config.isOpenToLanFixedCodeEnabled();

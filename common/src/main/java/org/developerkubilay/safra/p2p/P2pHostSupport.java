@@ -4,28 +4,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class P2pHostSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pHostSupport.class);
+    private static final AtomicBoolean WARMED_UP = new AtomicBoolean(false);
 
     private P2pHostSupport() {
     }
 
-    /**
-     * A loader's transforming class loader reaches these for the first time when a world is opened to
-     * LAN, and it took two and a half seconds to do it on a discovery that runs in twelve milliseconds
-     * once the classes are in memory. That is the one moment a player is sitting there waiting for a
-     * share code, so the loading happens here instead, where the game is starting and nobody is.
-     */
     public static void warmUp() {
+        if (!WARMED_UP.compareAndSet(false, true)) {
+            return;
+        }
+
         P2pRuntime.start("safra-warmup", () -> {
-            try (DatagramSocket socket = P2pSockets.datagramSocket()) {
+            try {
                 new P2pStunClient();
                 P2pKwikCertificate.create();
-                LOGGER.debug("Safra P2P classes ready on local port {}", socket.getLocalPort());
+                LOGGER.debug("Safra P2P classes ready");
             } catch (Exception exception) {
                 LOGGER.debug("Safra P2P warm-up did not finish: {}", exception.toString());
             }
