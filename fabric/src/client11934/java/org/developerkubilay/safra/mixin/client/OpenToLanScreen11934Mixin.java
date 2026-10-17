@@ -18,6 +18,7 @@ import org.developerkubilay.safra.client.p2p.FabricClientCompat;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,7 +165,10 @@ abstract class OpenToLanScreen11934Mixin extends Screen {
         int tcpPort = server.getServerPort();
         this.client.inGameHud.getChatHud().addMessage(FabricClientCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.client.execute(this::safra$publishRelayWarning))
+        String rawWorldName = server.getSaveProperties() != null ? server.getSaveProperties().getLevelName() : "World";
+        long seed = server.getOverworld() != null ? server.getOverworld().getSeed() : 0L;
+        String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.client.execute(this::safra$publishRelayWarning))
             .whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
                 return;
