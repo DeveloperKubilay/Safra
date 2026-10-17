@@ -51,7 +51,8 @@ final class P2pStunClient {
                     resendCandidates(socket, pendingRequests);
                 }
                 collectResponses(socket, pendingRequests, P2pConstants.STUN_INITIAL_RETRY_MS << attempt, discovered);
-                if (!discovered.isEmpty()) {
+                if ((requiredFamily != null && discovered.containsKey(requiredFamily))
+                    || discovered.containsKey("ipv4")) {
                     return discovered;
                 }
             }
