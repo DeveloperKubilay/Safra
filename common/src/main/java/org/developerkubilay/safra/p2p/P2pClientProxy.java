@@ -40,6 +40,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private volatile boolean relayTransportActive;
     private volatile boolean closed;
     private volatile long lastPacketReceivedNanos;
+    private volatile String worldCode;
     private volatile P2pErrorKind failureKind = P2pErrorKind.OTHER;
 
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
@@ -85,6 +86,10 @@ public final class P2pClientProxy implements AutoCloseable {
     /** Why the last join attempt gave up, when the reason was clear enough to tell the player. */
     public P2pErrorKind failureKind() {
         return failureKind;
+    }
+
+    public String worldCode() {
+        return worldCode;
     }
 
     @Override
@@ -144,6 +149,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
+        worldCode = rendezvousSession.worldCode();
         remoteAddress = rendezvousSession.hostAddress(binding.relay());
         tunnelToken = rendezvousSession.tunnelToken();
         if (remoteAddress == null) {

@@ -48,7 +48,7 @@ final class SafraRendezvousClient {
     private SafraRendezvousClient() {
     }
 
-    static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode,
+    static HostSession startHost(int tcpPort, int tunnelToken, String preferredCode, String worldCode,
                                  Collection<InetSocketAddress> publicEndpoints,
                                  Collection<InetSocketAddress> voicePublicEndpoints,
                                  BiConsumer<InetSocketAddress, Integer> punchHandler,
@@ -60,6 +60,7 @@ final class SafraRendezvousClient {
                 tcpPort,
                 tunnelToken,
                 preferredCode,
+                worldCode,
                 P2pSockets.preferredEndpoint(publicEndpoints),
                 P2pSockets.preferredEndpoint(voicePublicEndpoints)
             );
@@ -135,7 +136,7 @@ final class SafraRendezvousClient {
             return code;
         }
 
-        private void open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint,
+        private void open(int tcpPort, int tunnelToken, String preferredCode, String worldCode, InetSocketAddress endpoint,
                           InetSocketAddress voiceEndpoint) throws IOException {
             JsonObject request = new JsonObject();
             if (endpoint != null && !P2pConstants.forceHostFailSafeRelay()) {
@@ -148,6 +149,9 @@ final class SafraRendezvousClient {
             request.addProperty("minecraftTcpPort", tcpPort);
             if (preferredCode != null && !preferredCode.isBlank()) {
                 request.addProperty("code", preferredCode);
+            }
+            if (worldCode != null && !worldCode.isBlank()) {
+                request.addProperty("worldcode", worldCode);
             }
 
             hostRequest = request;
@@ -388,6 +392,7 @@ final class SafraRendezvousClient {
         private InetSocketAddress voiceAddress;
         private InetSocketAddress relayAddress;
         private P2pTurnCredentials relayCredentials;
+        private volatile String worldCode;
         private volatile boolean closed;
         private volatile InputStream relayStream;
         private volatile Thread relayThread;
@@ -398,6 +403,10 @@ final class SafraRendezvousClient {
 
         int tunnelToken() {
             return tunnelToken;
+        }
+
+        String worldCode() {
+            return worldCode;
         }
 
         private void open(InetSocketAddress endpoint) throws IOException {
@@ -417,14 +426,19 @@ final class SafraRendezvousClient {
             }
 
             JsonObject json = parseJsonObject(response.body(), "Safra join response is invalid");
+            readJoinResponse(json);
+            if (hostAddress == null && relayAddress == null) {
+                throw new IOException("Safra join response did not include a host address");
+            }
+        }
+
+        private void readJoinResponse(JsonObject json) throws IOException {
+            worldCode = string(json, "worldcode");
             hostAddress = fromNetwork(array(json, "host"));
             voiceAddress = fromNetwork(array(json, "voiceHost"));
             JsonObject relay = object(json, "relay");
             relayAddress = relayNetwork(relay);
             relayCredentials = relayCredentials(relay);
-            if (hostAddress == null && relayAddress == null) {
-                throw new IOException("Safra join response did not include a host address");
-            }
         }
 
         InetSocketAddress hostAddress(boolean relayPreferred) {
@@ -460,6 +474,17 @@ final class SafraRendezvousClient {
             InetSocketAddress endpoint = P2pSockets.preferredEndpoint(publicEndpoints);
             if (endpoint != null) {
                 joinAddress = endpoint;
+            }
+            if (joinAddress == null) {
+                throw new IOException("Safra direct retry requires a STUN endpoint");
+            }
+            refreshHostState(joinAddress);
+            return hostAddress;
+        }
+
+        InetSocketAddress refreshDirect(InetSocketAddress clientAddress) throws IOException {
+            if (clientAddress != null) {
+                joinAddress = clientAddress;
             }
             if (joinAddress == null) {
                 throw new IOException("Safra direct retry requires a STUN endpoint");
@@ -578,6 +603,10 @@ final class SafraRendezvousClient {
             }
 
             JsonObject json = parseJsonObject(response.body(), "Safra join refresh response is invalid");
+            String refreshedWorld = string(json, "worldcode");
+            if (refreshedWorld != null) {
+                worldCode = refreshedWorld;
+            }
             InetSocketAddress refreshedHost = fromNetwork(array(json, "host"));
             if (refreshedHost != null) {
                 hostAddress = refreshedHost;

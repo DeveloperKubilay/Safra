@@ -58,13 +58,17 @@ public final class P2pManager {
         return startHostingAsync(tcpPort, fixedCode, null);
     }
 
-    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
+    public CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
+        return startHostingAsync(tcpPort, fixedCode, null, relayReadyHandler);
+    }
+
+    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, String worldCode, Runnable relayReadyHandler) {
         stopHosting();
         P2pHostSupport.warmUp();
 
         String rendezvousCode = P2pHostSupport.resolvePreferredRendezvousCode(fixedCode);
         int token = P2pHostSupport.createRendezvousShareToken(rendezvousCode);
-        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
+        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, worldCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;
 
@@ -215,7 +219,8 @@ public final class P2pManager {
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerAddress socketAddress = ServerAddress.parseString(localAddress);
         ServerData rewritten = ForgeVersionCompat.copyServerData(originalServerInfo, localAddress);
-        rewritten.name = shareCode.toDisplayCode();
+        String worldCode = proxy.worldCode();
+        rewritten.name = (worldCode != null && !worldCode.isBlank()) ? worldCode : shareCode.toDisplayCode();
         return new RewriteResult(socketAddress, rewritten);
     }
 

@@ -10,6 +10,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.NeoForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.NeoForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +55,10 @@ abstract class IntegratedServerMixin {
         Minecraft client = Minecraft.getInstance();
         client.gui.getChat().addMessage(Component.translatable("safra.p2p.host.starting"));
         String fixedCode = NeoForgeLanSessionState.isFixedCodeEnabled() ? NeoForgeLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> {
+        String rawWorldName = server.getWorldData() != null ? server.getWorldData().getLevelName() : "World";
+        long seed = server.overworld() != null ? server.overworld().getSeed() : 0L;
+        String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> client.execute(() -> {
             client.gui.getChat().addMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
