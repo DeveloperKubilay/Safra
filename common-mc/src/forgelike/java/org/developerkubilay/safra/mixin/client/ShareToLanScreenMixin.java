@@ -22,6 +22,7 @@ import org.developerkubilay.safra.client.p2p.LanGameRules;
 import org.developerkubilay.safra.client.p2p.LanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,7 +178,10 @@ abstract class ShareToLanScreenMixin extends Screen {
         int tcpPort = this.port;
         String fixedCode = LanSessionState.isFixedCodeEnabled() ? LanSessionState.getFixedCode() : null;
         safra$addSystemMessage(Component.translatable("safra.p2p.host.starting"));
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.minecraft.execute(() -> {
+        String rawWorldName = server.getWorldData() != null ? server.getWorldData().getLevelName() : "World";
+        long seed = server.overworld() != null ? server.overworld().getSeed() : 0L;
+        String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.minecraft.execute(() -> {
             safra$addChatLines(Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
             safra$addSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
