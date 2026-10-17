@@ -12,33 +12,34 @@ import java.util.Map;
 
 record P2pTurnMessage(int type, byte[] transactionId, Map<Integer, byte[]> attributes) {
     static P2pTurnMessage parse(byte[] payload, int length) {
-        if (length < P2pTurnProtocol.STUN_HEADER_SIZE) {
+        if (payload == null || length < P2pTurnProtocol.STUN_HEADER_SIZE || length > payload.length) {
             return null;
         }
 
         ByteBuffer buffer = ByteBuffer.wrap(payload, 0, length).order(ByteOrder.BIG_ENDIAN);
         int type = Short.toUnsignedInt(buffer.getShort());
         int messageLength = Short.toUnsignedInt(buffer.getShort());
-        if (buffer.getInt() != P2pTurnProtocol.MAGIC_COOKIE || messageLength > buffer.remaining()) {
+        if ((type & 0xC000) != 0 || (messageLength & 3) != 0
+            || buffer.getInt() != P2pTurnProtocol.MAGIC_COOKIE
+            || messageLength > length - P2pTurnProtocol.STUN_HEADER_SIZE) {
             return null;
         }
 
         byte[] transactionId = new byte[12];
         buffer.get(transactionId);
+        buffer.limit(P2pTurnProtocol.STUN_HEADER_SIZE + messageLength);
         Map<Integer, byte[]> attributes = new HashMap<>();
         while (buffer.remaining() >= 4) {
             int attributeType = Short.toUnsignedInt(buffer.getShort());
             int attributeLength = Short.toUnsignedInt(buffer.getShort());
-            if (attributeLength > buffer.remaining()) {
+            int paddedLength = (attributeLength + 3) & ~3;
+            if (paddedLength > buffer.remaining()) {
                 return null;
             }
             byte[] value = new byte[attributeLength];
             buffer.get(value);
             attributes.putIfAbsent(attributeType, value);
-            int padding = (4 - (attributeLength & 3)) & 3;
-            if (padding > buffer.remaining()) {
-                break;
-            }
+            int padding = paddedLength - attributeLength;
             buffer.position(buffer.position() + padding);
         }
         return new P2pTurnMessage(type, transactionId, attributes);
