@@ -49,24 +49,30 @@ public final class P2pHostService implements AutoCloseable {
     private volatile boolean primaryTransportRelay;
     private boolean relayReadyNotified;
     private volatile boolean closed;
+    private final String worldCode;
     private P2pKwikCertificate kwikCertificate;
     private volatile P2pKwikHostServer kwikServer;
 
+    public P2pHostService(int tcpPort, int token, String preferredRendezvousCode, String worldCode, Runnable relayReadyHandler) {
+        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, worldCode, true, relayReadyHandler);
+    }
+
     public P2pHostService(int tcpPort, int token, String preferredRendezvousCode, Runnable relayReadyHandler) {
-        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, true, relayReadyHandler);
+        this(tcpPort, token, P2pSockets.loopbackAddress(), preferredRendezvousCode, null, true, relayReadyHandler);
     }
 
     public P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback) {
-        this(tcpPort, token, targetAddress, preferredRendezvousCode, allowRelayFallback, () -> {
+        this(tcpPort, token, targetAddress, preferredRendezvousCode, null, allowRelayFallback, () -> {
         });
     }
 
-    private P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, boolean allowRelayFallback,
+    private P2pHostService(int tcpPort, int token, InetAddress targetAddress, String preferredRendezvousCode, String worldCode, boolean allowRelayFallback,
                            Runnable relayReadyHandler) {
         this.tcpPort = tcpPort;
         this.token = token;
         this.targetAddress = targetAddress;
         this.preferredRendezvousCode = P2pShareCode.normalizeRendezvousCode(preferredRendezvousCode);
+        this.worldCode = worldCode;
         this.allowRelayFallback = allowRelayFallback;
         this.relayReadyHandler = relayReadyHandler == null ? () -> {
         } : relayReadyHandler;
@@ -130,6 +136,7 @@ public final class P2pHostService implements AutoCloseable {
                 tcpPort,
                 token,
                 preferredRendezvousCode,
+                worldCode,
                 binding.publicEndpoints(),
                 voicePublicEndpoints,
                 this::announceJoiner,
