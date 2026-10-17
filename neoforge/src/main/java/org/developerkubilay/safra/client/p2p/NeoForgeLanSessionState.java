@@ -2,6 +2,7 @@ package org.developerkubilay.safra.client.p2p;
 
 import net.minecraft.client.Minecraft;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,6 +22,9 @@ public final class NeoForgeLanSessionState {
     public static void loadFromConfig() {
         SafraClientConfig config = SafraClientConfig.get();
         p2pEnabled = config.isOpenToLanP2pEnabled();
+        if (p2pEnabled) {
+            P2pHostSupport.warmUp();
+        }
         onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         allowCommandsEnabled = config.isOpenToLanAllowCommandsEnabled();
         fixedCodeEnabled = config.isOpenToLanFixedCodeEnabled();
@@ -43,6 +47,9 @@ public final class NeoForgeLanSessionState {
     public static void setP2pEnabled(boolean enabled) {
         p2pEnabled = enabled;
         SafraClientConfig.get().setOpenToLanP2pEnabled(enabled);
+        if (enabled) {
+            P2pHostSupport.warmUp();
+        }
     }
 
     public static boolean isOnlineModeEnabled() {

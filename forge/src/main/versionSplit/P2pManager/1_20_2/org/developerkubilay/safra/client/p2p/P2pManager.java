@@ -46,6 +46,10 @@ public final class P2pManager {
         return INSTANCE;
     }
 
+    public void warmUpHost() {
+        P2pHostSupport.warmUp();
+    }
+
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort) {
         return startHostingAsync(tcpPort, null, null);
     }
@@ -56,6 +60,7 @@ public final class P2pManager {
 
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
         stopHosting();
+        P2pHostSupport.warmUp();
 
         String rendezvousCode = P2pHostSupport.resolvePreferredRendezvousCode(fixedCode);
         int token = P2pHostSupport.createRendezvousShareToken(rendezvousCode);

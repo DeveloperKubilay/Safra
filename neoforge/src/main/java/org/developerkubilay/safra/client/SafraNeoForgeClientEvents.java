@@ -7,7 +7,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.P2pManager;
-import org.developerkubilay.safra.p2p.P2pHostSupport;
 
 import java.lang.reflect.Method;
 
@@ -19,7 +18,6 @@ public final class SafraNeoForgeClientEvents {
 
     static {
         RemoteRendezvousConfigUpdater.initialize(SafraClientConfig.get());
-        P2pHostSupport.warmUp();
     }
 
     private SafraNeoForgeClientEvents() {
