@@ -18,15 +18,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class P2pClientProxy implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pClientProxy.class);
+    private static final long SILENCE_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(4L);
 
     private final P2pShareCode shareCode;
     private final P2pStunClient stunClient = new P2pStunClient();
     private final Map<Integer, P2pKwikClientTunnel> connections = new ConcurrentHashMap<>();
     private final Set<Socket> pendingRetrySockets = ConcurrentHashMap.newKeySet();
     private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
+    private final AtomicBoolean migratingEndpoint = new AtomicBoolean();
     private final Runnable onClose;
 
     private volatile P2pDatagramTransport transport;
@@ -36,6 +39,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private volatile int tunnelToken;
     private volatile boolean relayTransportActive;
     private volatile boolean closed;
+    private volatile long lastPacketReceivedNanos;
     private volatile P2pErrorKind failureKind = P2pErrorKind.OTHER;
 
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
@@ -62,10 +66,14 @@ public final class P2pClientProxy implements AutoCloseable {
         LOGGER.debug("Safra P2P client proxy listening on {}:{} and dialing {}",
             proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
 
+        lastPacketReceivedNanos = System.nanoTime();
         P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
         P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
         if (SafraBuildInfo.diagnostics()) {
             scheduler.scheduleAtFixedRate(this::logLinkQuality, 30L, 30L, TimeUnit.SECONDS);
+        }
+        if (shareCode.isRendezvous()) {
+            scheduler.scheduleWithFixedDelay(this::checkConnectionLiveness, 2000L, 1000L, TimeUnit.MILLISECONDS);
         }
         return proxyServer.getLocalPort();
     }
@@ -319,6 +327,70 @@ public final class P2pClientProxy implements AutoCloseable {
         }
     }
 
+    private void checkConnectionLiveness() {
+        if (closed || rendezvousSession == null || relayTransportActive || connections.isEmpty() || !pendingRetrySockets.isEmpty()) {
+            return;
+        }
+        if (System.nanoTime() - lastPacketReceivedNanos < SILENCE_TIMEOUT_NANOS) {
+            return;
+        }
+        if (!migratingEndpoint.compareAndSet(false, true)) {
+            return;
+        }
+        P2pRuntime.start("safra-p2p-client-migrate", this::migrateEndpoint);
+    }
+
+    private void migrateEndpoint() {
+        try {
+            if (closed || rendezvousSession == null || relayTransportActive || connections.isEmpty()) {
+                return;
+            }
+            P2pTransportBinding freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(stunClient);
+            try {
+                if (closed || rendezvousSession == null || relayTransportActive || connections.isEmpty()) {
+                    freshBinding.close();
+                    return;
+                }
+                if (System.nanoTime() - lastPacketReceivedNanos < SILENCE_TIMEOUT_NANOS) {
+                    freshBinding.close();
+                    return;
+                }
+                InetSocketAddress refreshedHostAddress = rendezvousSession.refreshDirect(freshBinding.publicEndpoints());
+                if (refreshedHostAddress == null
+                    || !freshBinding.stunEndpoints().containsKey(P2pSockets.addressFamily(refreshedHostAddress))) {
+                    freshBinding.close();
+                    return;
+                }
+
+                P2pDatagramTransport previousTransport = transport;
+                transport = freshBinding.transport();
+                remoteAddress = refreshedHostAddress;
+                relayTransportActive = false;
+                if (previousTransport != null && !previousTransport.isClosed()) {
+                    previousTransport.close();
+                }
+                lastPacketReceivedNanos = System.nanoTime();
+                for (long delay : P2pConstants.PUNCH_DELAYS_MS) {
+                    scheduler.schedule(() -> sendPacket(P2pPacket.punch(tunnelToken), remoteAddress), delay, TimeUnit.MILLISECONDS);
+                }
+                for (int connectionId : connections.keySet()) {
+                    sendPacket(P2pPacket.quicOpen(tunnelToken, connectionId), remoteAddress);
+                    scheduler.schedule(() -> sendPacket(P2pPacket.quicOpen(tunnelToken, connectionId), remoteAddress), 250L, TimeUnit.MILLISECONDS);
+                }
+                if (SafraBuildInfo.diagnostics()) {
+                    LOGGER.info("Safra client migrated direct UDP transport to {}", P2pSockets.preferredEndpoint(freshBinding.publicEndpoints()));
+                }
+            } catch (IOException exception) {
+                freshBinding.close();
+                LOGGER.debug("Safra client endpoint migration failed: {}", exception.toString());
+            }
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.debug("Safra could not discover fresh STUN endpoint during migration: {}", exception.toString());
+        } finally {
+            migratingEndpoint.set(false);
+        }
+    }
+
     private void receiveLoop() {
         byte[] buffer = new byte[65535];
         while (!closed) {
@@ -343,6 +415,8 @@ public final class P2pClientProxy implements AutoCloseable {
             if (decoded == null || decoded.token() != tunnelToken) {
                 continue;
             }
+
+            lastPacketReceivedNanos = System.nanoTime();
 
             if (decoded.type() == P2pPacket.Type.PUNCH) {
                 InetSocketAddress senderAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
