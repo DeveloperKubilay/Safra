@@ -36,6 +36,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private ServerSocket proxyServer;
     private volatile InetSocketAddress remoteAddress;
     private volatile SafraRendezvousClient.JoinSession rendezvousSession;
+    private volatile String worldCode;
     private volatile int tunnelToken;
     private volatile boolean relayTransportActive;
     private volatile boolean closed;
@@ -80,6 +81,10 @@ public final class P2pClientProxy implements AutoCloseable {
 
     public boolean usesRendezvousShareCode() {
         return shareCode.isRendezvous();
+    }
+
+    public String worldCode() {
+        return worldCode;
     }
 
     /** Why the last join attempt gave up, when the reason was clear enough to tell the player. */
@@ -144,6 +149,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void resolveRendezvousShareCode(P2pTransportBinding binding) throws IOException {
         rendezvousSession = SafraRendezvousClient.join(shareCode.rendezvousCode(), binding.publicEndpoints());
+        worldCode = rendezvousSession.worldCode();
         remoteAddress = rendezvousSession.hostAddress(binding.relay());
         tunnelToken = rendezvousSession.tunnelToken();
         if (remoteAddress == null) {
