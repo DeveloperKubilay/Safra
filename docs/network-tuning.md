@@ -78,9 +78,11 @@ Güncel ana kod (`101c733d`) üzerinden birbirinden bağımsız üç PR hazırla
 
 - [#99: Çok hızlı ACK gelmeden önce gönderilen paketi kaydetme](https://github.com/ptrd/kwik/pull/99): regresyon eski kodda başarısız, düzeltmeyle 11 gönderici testi başarılı.
 - [#100: Kaybolan MAX_DATA bildirimini güncel bağlantı sınırıyla yeniden gönderme](https://github.com/ptrd/kwik/pull/100): regresyon eski kodda başarısız, düzeltmeyle 51 akış yöneticisi testi başarılı.
-- [#101: İsteğe bağlı, sınırlandırılmış canlı alım penceresi](https://github.com/ptrd/kwik/pull/101): API ve hesaplama yaklaşımı için taslak PR; ilgili 27 test başarılı.
+- [#101: İsteğe bağlı, sınırlandırılmış canlı alım penceresi](https://github.com/ptrd/kwik/pull/101): API ve hesaplama yaklaşımı için incelemeye açık PR; ilgili 27 test başarılı.
 
 Pencere PR'ının tam çekirdek taramasında 1178 testten 1174'ü başarılı, 3'ü başarısız, önceden kapalı 1 test atlandı. Aynı iki IPv6/DNS testi ve zamanlamaya duyarlı NewReno testi değiştirilmemiş ana kodda da başarısız oldu: 1168 test, 1164 başarılı, aynı 3 hata, 1 atlanan test. NewReno testi tek başına başarılı olabiliyor. İki DNS testini yerel taramadan çıkarınca pencere dalında 1174 başarılı, aynı NewReno hatası ve 1 atlanan test kaldı. Bu durumlar PR açıklamalarında belirtildi; üretim tıkanıklık kodu değiştirilmedi.
+
+Üç katkı dalında da upstream iş akışıyla Linux/JDK 17 üzerinde, test dışlamadan tam `./gradlew build` başarılı oldu. [#99 CI](https://github.com/DeveloperKubilay/kwik/actions/runs/39651941641), [#100 CI](https://github.com/DeveloperKubilay/kwik/actions/runs/39651941690), [#101 CI](https://github.com/DeveloperKubilay/kwik/actions/runs/39651942299). Üç PR da incelemeye açıktır. Dal adı ve sabit etiketle hazırlık değişikliğinin ardından [Safra ağ CI kontrolü](https://github.com/DeveloperKubilay/Safra/actions/runs/39651253079) de başarılı oldu.
 
 Ana depoda zaten bulunan gönderim kuyruğu yarışı ve minimum kayıp süresi düzeltmeleri yeniden gönderilmedi. PR'lar paket pacing, BBR veya PMTU özelliği içermez; kabul edilmeleri ve resmî sürüm numarası ana proje bakımcısının kararıdır.
 
