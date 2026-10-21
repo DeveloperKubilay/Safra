@@ -1,5 +1,5 @@
 diff --git a/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle b/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle
-index cccf7afa..49ef0103 100644
+index c270f7df..f35d3862 100644
 --- a/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle
 +++ b/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle
 @@ -11,29 +11,7 @@ plugins {
@@ -29,11 +29,11 @@ index cccf7afa..49ef0103 100644
 -    }
 -    return versionTag
 -}()
-+version = '0.11.0-safra.2'
++version = '0.12.1-maintenance.1'
  
  java {
      sourceCompatibility = JavaVersion.VERSION_11
-@@ -101,7 +79,7 @@ mavenPublishing {
+@@ -108,7 +86,7 @@ mavenPublishing {
      pom {
          name = 'Kwik'
          description = 'A QUIC implementation in Java'
@@ -42,7 +42,7 @@ index cccf7afa..49ef0103 100644
  
          licenses {
              license {
-@@ -119,9 +97,9 @@ mavenPublishing {
+@@ -126,9 +104,9 @@ mavenPublishing {
          }
  
          scm {
@@ -55,6 +55,18 @@ index cccf7afa..49ef0103 100644
          }
      }
  }
+diff --git a/core/build.gradle b/core/build.gradle
+index fcfdcd70..3d533b19 100644
+--- a/core/build.gradle
++++ b/core/build.gradle
+@@ -29,6 +29,7 @@ def projectVersion = project.version.toString()
+ def generatedResourcesDir = layout.buildDirectory.dir("generated")
+ 
+ def includeVersion = tasks.register('includeVersion') {
++    inputs.property 'version', projectVersion
+     outputs.dir(generatedResourcesDir)
+     doLast {
+         def versionDir = new File(generatedResourcesDir.get().asFile, "tech/kwik/core")
 diff --git a/core/src/main/java/tech/kwik/core/QuicStream.java b/core/src/main/java/tech/kwik/core/QuicStream.java
 index d14f719c..a921e75e 100644
 --- a/core/src/main/java/tech/kwik/core/QuicStream.java
@@ -74,33 +86,21 @@ index d14f719c..a921e75e 100644
      /**
       * Returns the input stream for reading data sent by the peer.
       *
-diff --git a/core/src/main/java/tech/kwik/core/recovery/LossDetector.java b/core/src/main/java/tech/kwik/core/recovery/LossDetector.java
-index 72eac93f..720a3634 100644
---- a/core/src/main/java/tech/kwik/core/recovery/LossDetector.java
-+++ b/core/src/main/java/tech/kwik/core/recovery/LossDetector.java
-@@ -173,8 +173,7 @@ public class LossDetector {
-             return;
-         }
- 
--        int lossDelay = (int) (kTimeThreshold * Integer.max(rttEstimater.getSmoothedRtt(), rttEstimater.getLatestRtt()));
--        assert(lossDelay > 0);  // Minimum time of kGranularity before packets are deemed lost
-+        int lossDelay = Math.max(1, (int) (kTimeThreshold * Integer.max(rttEstimater.getSmoothedRtt(), rttEstimater.getLatestRtt())));
-         Instant lostSendTime = Instant.now(clock).minusMillis(lossDelay);
- 
-         // https://www.rfc-editor.org/rfc/rfc9002.html#section-6.1
 diff --git a/core/src/main/java/tech/kwik/core/send/SenderImpl.java b/core/src/main/java/tech/kwik/core/send/SenderImpl.java
-index 2b2b262e..90a429ac 100644
+index cde29f18..25be018a 100644
 --- a/core/src/main/java/tech/kwik/core/send/SenderImpl.java
 +++ b/core/src/main/java/tech/kwik/core/send/SenderImpl.java
-@@ -449,17 +449,15 @@ public class SenderImpl implements Sender, CongestionControlEventListener {
-         DatagramPacket datagram = new DatagramPacket(datagramData, buffer.position(), peerAddress.getAddress(), peerAddress.getPort());
+@@ -442,17 +442,16 @@ public class SenderImpl implements Sender, CongestionControlEventListener {
  
-         Instant timeSent = clock.instant();
+         buffer.limit(buffer.position());
+ 
+-        Instant timeSent = socketManager.send(buffer, itemsToSend.stream().findAny().get().getClientAddress());
++        Instant timeSent = clock.instant();
 +        itemsToSend.forEach(item -> {
 +            recoveryManager.packetSent(item.getPacket(), timeSent, item.getPacketLostCallback());
 +            idleTimer.packetSent(item.getPacket(), timeSent);
 +        });
-         socket.send(datagram);
++        socketManager.send(buffer, itemsToSend.stream().findAny().get().getClientAddress());
          datagramsSent++;
          packetsSent += itemsToSend.size();
          bytesSent += buffer.position();
@@ -399,23 +399,6 @@ index a01324df..42fa778d 100644
      public void setDefaultUnidirectionalStreamReceiveBufferSize(long newSize) {
          config = ConnectionConfigImpl.cloneWithMaxUnidirectionalStreamReceiveBufferSize(config, newSize);
      }
-diff --git a/core/src/main/java/tech/kwik/core/stream/StreamOutputStreamImpl.java b/core/src/main/java/tech/kwik/core/stream/StreamOutputStreamImpl.java
-index 808b2eaf..a36008f5 100644
---- a/core/src/main/java/tech/kwik/core/stream/StreamOutputStreamImpl.java
-+++ b/core/src/main/java/tech/kwik/core/stream/StreamOutputStreamImpl.java
-@@ -126,11 +126,8 @@ class StreamOutputStreamImpl extends StreamOutputStream implements FlowControlUp
-     }
- 
-     private void scheduleSendStreamFrameRequest(boolean flush) {
--        int queued = sendRequestsQueued.get();
--        if (queued == 0) {
--            // This is a race condition, but not a problem when one superfluous send request is queued.
-+        if (sendRequestsQueued.compareAndSet(0, 1)) {
-             quicStream.connection.send(this::sendStreamFrame, MIN_FRAME_SIZE, getEncryptionLevel(), this::retransmitStreamFrame, flush);
--            sendRequestsQueued.incrementAndGet();
-         }
-     }
- 
 diff --git a/core/src/test/java/tech/kwik/core/cc/NewRenoCongestionControllerTest.java b/core/src/test/java/tech/kwik/core/cc/NewRenoCongestionControllerTest.java
 index c8ee3498..3fd5c9a8 100644
 --- a/core/src/test/java/tech/kwik/core/cc/NewRenoCongestionControllerTest.java
@@ -429,36 +412,11 @@ index c8ee3498..3fd5c9a8 100644
          // cwnd was 6000; congestion avoidance adds 1200 * 6000 / 6000 = 1200
          assertThat(congestionController.getWindowSize()).isEqualTo(7200);
      }
-diff --git a/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java b/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java
-index be8164c4..6793315e 100644
---- a/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java
-+++ b/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java
-@@ -72,6 +72,20 @@ class LossDetectorTest extends RecoveryTests {
-     }
- 
-     //region congestion controller
-+    @Test
-+    void zeroMillisecondRttStillUsesMinimumLossDelay() {
-+        when(rttEstimator.getSmoothedRtt()).thenReturn(0);
-+        when(rttEstimator.getLatestRtt()).thenReturn(0);
-+        lossDetector.packetSent(createPacket(1), clock.instant(), lostPacketHandler::process);
-+        lossDetector.packetSent(createPacket(2), clock.instant(), lostPacketHandler::process);
-+        lossDetector.onAckReceived(new AckFrame(2), clock.instant());
-+        verify(lostPacketHandler, never()).process(any(QuicPacket.class));
-+        assertThat(lossDetector.getLossTime()).isEqualTo(clock.instant().plusMillis(1));
-+        clock.fastForward(2);
-+        lossDetector.detectLostPackets();
-+        verify(lostPacketHandler).process(argThat(new PacketMatcherByPacketNumber(1)));
-+    }
-+
-     @Test
-     void congestionControllerIsOnlyCalledOncePerAck() {
-         List<QuicPacket> packets = createPackets(1, 2, 3);
 diff --git a/core/src/test/java/tech/kwik/core/send/SenderImplTest.java b/core/src/test/java/tech/kwik/core/send/SenderImplTest.java
-index 542714f8..2eda6562 100644
+index 8a4389fa..aa6da810 100644
 --- a/core/src/test/java/tech/kwik/core/send/SenderImplTest.java
 +++ b/core/src/test/java/tech/kwik/core/send/SenderImplTest.java
-@@ -92,6 +92,19 @@ class SenderImplTest extends AbstractSenderTest {
+@@ -101,6 +101,19 @@ class SenderImplTest extends AbstractSenderTest {
          assertThat(delay).isBetween(49L, 51L);
      }
  
@@ -467,11 +425,11 @@ index 542714f8..2eda6562 100644
 +        var recovery = (tech.kwik.core.recovery.RecoveryManager) new FieldReader(sender, "recoveryManager").read();
 +        ShortHeaderPacket packet = new ShortHeaderPacket(Version.getDefault(), new byte[4], new StreamFrame(0, new byte[1100], false));
 +        packet.setPacketNumber(0);
-+        doAnswer(invocation -> {
++        when(socketManager.send(any(ByteBuffer.class), any(InetSocketAddress.class))).thenAnswer(invocation -> {
 +            recovery.received(new AckFrame(0), PnSpace.App, clock.instant().plusMillis(1));
-+            return null;
-+        }).when(socket).send(any(DatagramPacket.class));
-+        sender.send(new AssembledDatagram(new SendItem(packet)));
++            return clock.instant();
++        });
++        sender.send(new AssembledDatagram(new SendItem(packet, clientAddress)));
 +        assertThat(sender.getCongestionController().getBytesInFlight()).isZero();
 +    }
 +
@@ -480,10 +438,10 @@ index 542714f8..2eda6562 100644
          ShortHeaderPacket packet1 = new ShortHeaderPacket(Version.getDefault(), new byte[4], new StreamFrame(0, new byte[1100], false));
 diff --git a/core/src/test/java/tech/kwik/core/stream/AdaptiveStreamInputTest.java b/core/src/test/java/tech/kwik/core/stream/AdaptiveStreamInputTest.java
 new file mode 100644
-index 00000000..ef4c7c17
+index 00000000..e9f086c9
 --- /dev/null
 +++ b/core/src/test/java/tech/kwik/core/stream/AdaptiveStreamInputTest.java
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,93 @@
 +package tech.kwik.core.stream;
 +
 +import org.junit.jupiter.api.BeforeEach;
@@ -491,11 +449,6 @@ index 00000000..ef4c7c17
 +import org.junit.jupiter.api.Timeout;
 +import tech.kwik.core.Statistics;
 +import tech.kwik.core.frame.MaxStreamDataFrame;
-+import tech.kwik.core.frame.MaxDataFrame;
-+import tech.kwik.core.frame.QuicFrame;
-+import tech.kwik.core.server.ServerConnectionConfig;
-+import org.mockito.ArgumentCaptor;
-+import java.util.concurrent.ExecutorService;
 +import tech.kwik.core.frame.StreamFrame;
 +import tech.kwik.core.impl.QuicConnectionImpl;
 +import tech.kwik.core.impl.Role;
@@ -581,20 +534,6 @@ index 00000000..ef4c7c17
 +        assertThatThrownBy(() -> input.enableReceiveWindowAutoTuning(1_024, 8_192)).isInstanceOf(IllegalStateException.class);
 +    }
 +
-+    @Test
-+    void lostConnectionCreditIsRetransmittedWithTheLatestLimit() {
-+        var config = ServerConnectionConfig.builder().maxConnectionBufferSize(8_192)
-+            .maxBidirectionalStreamBufferSize(8_192).build();
-+        var actualManager = new StreamManager(connection, Role.Client, new NullLogger(), config, mock(ExecutorService.class));
-+        ArgumentCaptor<Consumer<QuicFrame>> callbacks = ArgumentCaptor.forClass(Consumer.class);
-+        ArgumentCaptor<MaxDataFrame> frames = ArgumentCaptor.forClass(MaxDataFrame.class);
-+        actualManager.updateConnectionFlowControl(4_096);
-+        actualManager.updateConnectionFlowControl(4_096);
-+        verify(connection, times(2)).send(frames.capture(), callbacks.capture(), eq(true));
-+        callbacks.getAllValues().get(0).accept(frames.getAllValues().get(0));
-+        verify(connection, times(3)).send(frames.capture(), any(Consumer.class), eq(true));
-+        assertThat(frames.getValue().getMaxData()).isEqualTo(16_384);
-+    }
 +}
 diff --git a/core/src/test/java/tech/kwik/core/stream/ReceiveWindowAutoTunerTest.java b/core/src/test/java/tech/kwik/core/stream/ReceiveWindowAutoTunerTest.java
 new file mode 100644
@@ -666,48 +605,29 @@ index 00000000..a9b9697f
 +        }
 +    }
 +}
-diff --git a/core/src/test/java/tech/kwik/core/stream/StreamSendSchedulingTest.java b/core/src/test/java/tech/kwik/core/stream/StreamSendSchedulingTest.java
-new file mode 100644
-index 00000000..cf49907d
---- /dev/null
-+++ b/core/src/test/java/tech/kwik/core/stream/StreamSendSchedulingTest.java
-@@ -0,0 +1,36 @@
-+package tech.kwik.core.stream;
-+
-+import org.junit.jupiter.api.Test;
-+import tech.kwik.core.common.EncryptionLevel;
-+import tech.kwik.core.frame.QuicFrame;
-+import tech.kwik.core.frame.StreamFrame;
-+import tech.kwik.core.impl.QuicConnectionImpl;
-+import tech.kwik.core.impl.Role;
-+import java.util.ArrayList;
-+import java.util.List;
-+import java.util.function.Consumer;
-+import java.util.function.Function;
-+import static org.assertj.core.api.Assertions.*;
-+import static org.mockito.Mockito.*;
-+
-+class StreamSendSchedulingTest {
+diff --git a/core/src/test/java/tech/kwik/core/stream/StreamManagerTest.java b/core/src/test/java/tech/kwik/core/stream/StreamManagerTest.java
+index 016fc013..c93e8352 100644
+--- a/core/src/test/java/tech/kwik/core/stream/StreamManagerTest.java
++++ b/core/src/test/java/tech/kwik/core/stream/StreamManagerTest.java
+@@ -83,6 +83,18 @@ class StreamManagerTest {
+     }
+     //endregion
+ 
 +    @Test
-+    void aSenderThatRunsBeforeSubmissionReturnsDoesNotStrandBufferedBytes() throws Exception {
-+        QuicConnectionImpl connection = mock(QuicConnectionImpl.class);
-+        StreamManager manager = mock(StreamManager.class);
-+        when(manager.getMaxBidirectionalStreamBufferSize()).thenReturn(65_536L);
-+        QuicStreamImpl stream = new QuicStreamImpl(0, Role.Client, connection, manager,
-+            new FlowControl(Role.Client, 65_536, 65_536, 65_536, 65_536));
-+        List<StreamFrame> sent = new ArrayList<>();
-+        doAnswer(call -> {
-+            Function<Integer, QuicFrame> supplier = call.getArgument(0);
-+            QuicFrame frame = supplier.apply(1_200);
-+            if (frame instanceof StreamFrame) sent.add((StreamFrame) frame);
-+            return null;
-+        }).when(connection).send(any(Function.class), anyInt(), any(EncryptionLevel.class), any(Consumer.class), anyBoolean());
-+        stream.getOutputStream().write(new byte[4_096]);
-+        assertThat(sent.stream().mapToInt(StreamFrame::getLength).sum()).isEqualTo(4_096);
-+        stream.getOutputStream().write(new byte[4_096]);
-+        assertThat(sent.stream().mapToInt(StreamFrame::getLength).sum()).isEqualTo(8_192);
++    void lostConnectionCreditIsRetransmittedWithTheLatestLimit() {
++        ArgumentCaptor<Consumer<QuicFrame>> callbacks = ArgumentCaptor.forClass(Consumer.class);
++        ArgumentCaptor<MaxDataFrame> frames = ArgumentCaptor.forClass(MaxDataFrame.class);
++        streamManager.updateConnectionFlowControl(4_096);
++        streamManager.updateConnectionFlowControl(4_096);
++        verify(quicConnection, times(2)).send(frames.capture(), callbacks.capture(), eq(true));
++        callbacks.getAllValues().get(0).accept(frames.getAllValues().get(0));
++        verify(quicConnection, times(3)).send(frames.capture(), any(Consumer.class), eq(true));
++        assertThat(frames.getValue().getMaxData()).isEqualTo(18_192);
 +    }
-+}
++
+     //region stream creation
+     @Test
+     void serverInitiatedStreamShouldHaveOddId() {
 diff --git a/core/src/test/java/tech/kwik/core/util/InetToolsTest.java b/core/src/test/java/tech/kwik/core/util/InetToolsTest.java
 index 37e12746..678bde39 100644
 --- a/core/src/test/java/tech/kwik/core/util/InetToolsTest.java

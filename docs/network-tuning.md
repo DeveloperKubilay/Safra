@@ -1,6 +1,10 @@
 # Canlı alım penceresi ve ağ doğrulaması
 
-## Değişiklik
+## Geçerli taban
+
+Bu dal artık resmî Kwik 0.12.1 üzerine kurulan `0.12.1-maintenance.1` bakım sürümünü kullanır. Geçiş kapsamı ve yeni test sonuçları [0.12.1 geçiş raporunda](kwik-0.12.1-migration.md) bulunur. Aşağıdaki 0.11 açıklamaları önceki geliştirme ve ölçüm geçmişidir.
+
+## Önceki 0.11 tabanlı geliştirme
 
 Kwik 0.11 korunuyor. Upstream temeli `ptrd/kwik` deposundaki `4d5d40f540d70a1b50ea59651f9d36740e77f165`; Safra sürümü `0.11.0-safra.2`. Bakım kaynağı artık [DeveloperKubilay/kwik](https://github.com/DeveloperKubilay/kwik), sabit kaynak commit'i `23bb551b2d5e89a1ab313fb830e981d65eb51f2a`. Eski taşıma motoruna dönüş veya eski 0.12 fork'unun geri yüklenmesi yapılmadı. Motorun kaynak ve test değişiklikleri `gradle/kwik-adaptive.patch` içinde de saklanıyor; yayın betikleri bakım fork'undadır. Kwik'in LGPL lisansı ve mevcut telif bildirimleri korunuyor.
 

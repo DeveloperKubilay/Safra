@@ -51,9 +51,9 @@ fabricApi {
 
 dependencies {
     implementation "tech.kwik:kwik:${project.kwik_version}"
-    compileOnly 'tech.kwik:agent15:3.3'
+    compileOnly "tech.kwik:agent15:${project.agent15_version}"
     include "tech.kwik:kwik:${project.kwik_version}"
-    include 'tech.kwik:agent15:3.3'
+    include "tech.kwik:agent15:${project.agent15_version}"
     include 'at.favre.lib:hkdf:2.0.0'
     include 'com.io7m.repackage.io.whitfin:io.whitfin.siphash:2.0.1'
     minecraft "com.mojang:minecraft:${project.fabric_minecraft_version}"

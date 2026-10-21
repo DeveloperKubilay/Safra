@@ -3,7 +3,7 @@ package org.developerkubilay.safra.p2p;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
 import tech.kwik.core.QuicClientConnection;
 import tech.kwik.core.impl.QuicClientConnectionImpl;
@@ -14,6 +14,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -24,8 +26,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Timeout(15)
 class P2pKwikClientTunnelTest {
+    static Stream<Boolean> transferCases() {
+        return IntStream.range(0, Math.clamp(Integer.getInteger("safra.tunnelTestRepetitions", 1), 1, 1000))
+            .boxed().flatMap(ignored -> Stream.of(false, true));
+    }
+
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
+    @MethodSource("transferCases")
     void negotiatesTheInitialWindowBeforeReceivingABurst(boolean loseDatagram) throws Exception {
         var logger = LoggerFactory.getLogger(getClass());
         byte[] payload = new byte[300_000];
