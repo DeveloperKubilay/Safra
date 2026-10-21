@@ -64,7 +64,7 @@ Sertifika testi, bildirilen kimlikle QUIC sunucusunun gerçek sertifikası farkl
 
 ## 21 Ekim 2026 ölçümü
 
-[Ham sonuçlar](network-results-2026-10-21.csv): 24 ağ aktarımının tamamında içerik ve sıra doğrulandı, en büyük QUIC datagramı 1200 bayt kaldı. Safra'nın 50 normal testi ve 24 ağ testi başarılı. TCP–QUIC tünel test grubu sekiz kez ayrıca çalıştırıldı; 24 kontrol başarılı. Minecraft 26.1 için Fabric, Forge ve NeoForge derlemesi ile mevcut mixin paket kontrolü geçti; üç tanılama paketinde `0.11.0-safra.2` bulundu.
+[Ham sonuçlar](network-results-2026-10-21.csv): 24 ağ aktarımının tamamında içerik ve sıra doğrulandı, en büyük QUIC datagramı 1200 bayt kaldı. Safra'nın 50 normal testi ve 24 ağ testi başarılı. TCP–QUIC tünel test grubu sekiz kez ayrıca çalıştırıldı; 24 kontrol başarılı. Minecraft 26.1 için Fabric, Forge ve NeoForge derlemesi ile mevcut mixin paket kontrolü geçti; üç tanılama paketinde `0.11.0-safra.1` bulundu.
 
 İyi bağlantıdaki indirme 16.08 → 16.36 Mbit/s; yüksek gecikmeli indirme 6.30 → 5.25 Mbit/s oldu. Bunlar tek koşunun sabit → otomatik karşılaştırmasıdır. Otomatik pencerenin her koşulda hız kazandırdığı sonucu çıkmaz. Yüksek gecikmede pencere 256 KiB'ye büyüdü; kısa aktarımda büyüme süresi sabit büyük pencereye göre dezavantaj oluşturabilir. Yavaş okuyucuda otomatik pencere indirmede 187.7 → 83.3 KiB, yüklemede 206.1 → 87.0 KiB küçüldü. Ani hız değişiminde veri kesilmeden tamamlandı. Ağır sıra bozulması/kayıp profilinde aktarım yaklaşık 30–32 saniye sürdü; burada dar boğaz pencere boyundan çok kayıp kurtarma ve tıkanıklık kontrolüdür.
 

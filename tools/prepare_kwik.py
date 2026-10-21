@@ -13,7 +13,7 @@ def git(*args, check=True):
 
 
 if not target.exists():
-    subprocess.run(["git", "clone", "--filter=blob:none", "--no-checkout", "--single-branch", "--branch", "codex/adaptive-receive-window", repository, str(target)], check=True)
+    subprocess.run(["git", "clone", "--filter=blob:none", "--no-checkout", "--single-branch", "--branch", "v0.11.0-safra.2", repository, str(target)], check=True)
     git("checkout", "--detach", revision)
 if git("rev-parse", "--show-toplevel").stdout.strip().replace("\\", "/").lower() != target.as_posix().lower():
     raise SystemExit("Destination is not the expected Git checkout")
