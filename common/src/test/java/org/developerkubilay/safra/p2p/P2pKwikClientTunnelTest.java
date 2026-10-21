@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.p2p;
 
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class P2pKwikClientTunnelTest {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
-    void negotiatesTheMeasuredWindowBeforeReceivingABurst(boolean loseDatagram) throws Exception {
+    void negotiatesTheInitialWindowBeforeReceivingABurst(boolean loseDatagram) throws Exception {
         var logger = LoggerFactory.getLogger(getClass());
         byte[] payload = new byte[300_000];
         Arrays.fill(payload, (byte) 37);
@@ -69,6 +70,7 @@ class P2pKwikClientTunnelTest {
                 var managerField = QuicClientConnectionImpl.class.getDeclaredField("streamManager");
                 managerField.setAccessible(true);
                 StreamManager manager = (StreamManager) managerField.get(connection);
+                assertEquals(P2pConstants.MIN_STREAM_WINDOW_BYTES, parameters.getInitialMaxStreamDataBidiLocal());
                 assertEquals(manager.getMaxBidirectionalStreamBufferSize(), parameters.getInitialMaxStreamDataBidiLocal());
                 game.getOutputStream().write(1);
                 Thread.sleep(250);
@@ -81,6 +83,30 @@ class P2pKwikClientTunnelTest {
             } finally {
                 release.countDown();
             }
+        }
+    }
+
+    @Test
+    void rejectsAHostWhoseCertificateDiffersFromThePinnedIdentity() throws Exception {
+        var logger = LoggerFactory.getLogger(getClass());
+        byte[] wrongIdentity = P2pKwikCertificate.create().encoded();
+        CountDownLatch failed = new CountDownLatch(1);
+        AtomicInteger established = new AtomicInteger();
+        AtomicReference<P2pKwikClientTunnel> tunnelRef = new AtomicReference<>();
+        try (ServerSocket target = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             ServerSocket proxy = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             Socket game = new Socket(P2pSockets.loopbackAddress(), proxy.getLocalPort());
+             var host = new P2pKwikHostServer(logger, target.getLocalPort(), P2pSockets.loopbackAddress(),
+                 P2pKwikCertificate.create(), (transport, packet, address) -> tunnelRef.get().handlePacket(
+                     packet.type() == P2pPacket.Type.QUIC_CERTIFICATE
+                         ? P2pPacket.quicCertificate(packet.token(), packet.connectionId(), wrongIdentity) : packet));
+             var tunnel = new P2pKwikClientTunnel(logger, 7, 9, proxy.accept(), 2_000,
+                 packet -> host.handlePacket(packet, new InetSocketAddress(P2pSockets.loopbackAddress(), 4444), null),
+                 () -> { }, failed::countDown, established::incrementAndGet)) {
+            tunnelRef.set(tunnel);
+            tunnel.start();
+            assertTrue(failed.await(5, TimeUnit.SECONDS));
+            assertEquals(0, established.get());
         }
     }
 }

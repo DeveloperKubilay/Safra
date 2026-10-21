@@ -1,0 +1,10 @@
+Kwik by Peter Doornbosch
+Upstream: https://github.com/ptrd/kwik
+Base revision: 4d5d40f540d70a1b50ea59651f9d36740e77f165 (v0.11)
+Included version: 0.11.0-safra.1
+License: GNU Lesser General Public License, version 3 or later
+
+This distribution includes modifications for receive window tuning and stream recovery.
+The upstream source and the complete patch reproduce the modified library.
+Changes: https://github.com/DeveloperKubilay/Safra/blob/codex/adaptive-receive-window/gradle/kwik-adaptive.patch
+Build instructions: https://github.com/DeveloperKubilay/Safra/blob/codex/adaptive-receive-window/docs/network-tuning.md

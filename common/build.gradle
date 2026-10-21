@@ -18,7 +18,7 @@ java {
 }
 
 dependencies {
-    implementation 'tech.kwik:kwik:0.11'
+    implementation "tech.kwik:kwik:${project.kwik_version}"
     compileOnly 'tech.kwik:agent15:3.3'
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
@@ -31,7 +31,11 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        if (!providers.gradleProperty('networkTests').map { it.toBoolean() }.getOrElse(false)) excludeTags 'network'
+    }
+    systemProperty 'safra.networkReport', layout.buildDirectory.file('reports/network-quality.csv').get().asFile.absolutePath
+    systemProperty 'safra.networkProfile', providers.gradleProperty('networkProfile').getOrElse('all')
 }
 processResources {
     inputs.property 'mod_version', project.mod_version

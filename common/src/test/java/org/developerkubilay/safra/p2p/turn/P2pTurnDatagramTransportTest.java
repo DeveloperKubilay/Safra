@@ -62,16 +62,16 @@ class P2pTurnDatagramTransportTest {
     void recreatesExpiredPermissionsEvenWhenTheyRemainInTheCache() throws Exception {
         try (Fixture fixture = new Fixture()) {
             InetSocketAddress peer = new InetSocketAddress("192.0.2.1", 25565);
-            var constructor = Class.forName(P2pTurnDatagramTransport.class.getName() + "$PeerPermission")
-                .getDeclaredConstructor(InetSocketAddress.class, long.class);
+            var constructor = Class.forName(P2pTurnDatagramTransport.class.getName() + "$PeerChannel")
+                .getDeclaredConstructor(int.class, InetSocketAddress.class);
             constructor.setAccessible(true);
             Map<String, Object> permissions = permissions(fixture.transport);
-            permissions.put(P2pTurnProtocol.permissionKey(peer), constructor.newInstance(peer, System.nanoTime() - 1));
-            FutureTask<Integer> reply = fixture.reply(P2pTurnProtocol.TURN_CREATE_PERMISSION_RESPONSE, null);
-            var method = P2pTurnDatagramTransport.class.getDeclaredMethod("ensurePermission", InetSocketAddress.class);
+            permissions.put(P2pTurnProtocol.permissionKey(peer), constructor.newInstance(0x4000, peer));
+            FutureTask<Integer> reply = fixture.reply(P2pTurnProtocol.TURN_CHANNEL_BIND_RESPONSE, null);
+            var method = P2pTurnDatagramTransport.class.getDeclaredMethod("ensureChannel", InetSocketAddress.class);
             method.setAccessible(true);
             method.invoke(fixture.transport, peer);
-            assertEquals(P2pTurnProtocol.TURN_CREATE_PERMISSION_REQUEST, reply.get(2, TimeUnit.SECONDS));
+            assertEquals(P2pTurnProtocol.TURN_CHANNEL_BIND_REQUEST, reply.get(2, TimeUnit.SECONDS));
         }
     }
 
@@ -79,25 +79,29 @@ class P2pTurnDatagramTransportTest {
     void retriesPermissionRenewalAfterATransientFailure() throws Exception {
         try (Fixture fixture = new Fixture()) {
             InetSocketAddress peer = new InetSocketAddress("192.0.2.1", 25565);
-            var constructor = Class.forName(P2pTurnDatagramTransport.class.getName() + "$PeerPermission")
-                .getDeclaredConstructor(InetSocketAddress.class, long.class);
+            var constructor = Class.forName(P2pTurnDatagramTransport.class.getName() + "$PeerChannel")
+                .getDeclaredConstructor(int.class, InetSocketAddress.class);
             constructor.setAccessible(true);
-            Object permission = constructor.newInstance(peer, System.nanoTime() + TimeUnit.SECONDS.toNanos(10));
+            Object permission = constructor.newInstance(0x4000, peer);
+            long oldExpiry = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            set(permission, "expiresAtNanos", System.nanoTime() + TimeUnit.MINUTES.toNanos(5));
+            set(permission, "permissionExpiresAtNanos", oldExpiry);
             Map<String, Object> permissions = permissions(fixture.transport);
             permissions.put(P2pTurnProtocol.permissionKey(peer), permission);
-            invoke(fixture.transport, "renewPermissions");
+            invoke(fixture.transport, "renewChannels");
             assertSame(permission, permissions.get(P2pTurnProtocol.permissionKey(peer)));
+            assertEquals(oldExpiry, get(permission, "permissionExpiresAtNanos"));
             fixture.discardRequest();
-            FutureTask<Integer> reply = fixture.reply(P2pTurnProtocol.TURN_CREATE_PERMISSION_RESPONSE, null);
-            invoke(fixture.transport, "renewPermissions");
-            assertEquals(P2pTurnProtocol.TURN_CREATE_PERMISSION_REQUEST, reply.get(2, TimeUnit.SECONDS));
-            assertNotSame(permission, permissions.get(P2pTurnProtocol.permissionKey(peer)));
+            FutureTask<Integer> reply = fixture.reply(P2pTurnProtocol.TURN_CHANNEL_BIND_RESPONSE, null);
+            invoke(fixture.transport, "renewChannels");
+            assertEquals(P2pTurnProtocol.TURN_CHANNEL_BIND_REQUEST, reply.get(2, TimeUnit.SECONDS));
+            assertTrue((long) get(permission, "permissionExpiresAtNanos") > oldExpiry);
         }
     }
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> permissions(P2pTurnDatagramTransport transport) throws Exception {
-        return (Map<String, Object>) get(transport, "permittedPeers");
+        return (Map<String, Object>) get(transport, "channelsByPeer");
     }
 
     private static Object get(Object target, String name) throws Exception {

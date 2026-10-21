@@ -12,6 +12,7 @@ final class P2pKwikStreams {
     }
 
     static void pipe(Logger logger, String side, QuicStream stream, Socket minecraftSocket, Runnable onClosed) {
+        stream.enableReceiveWindowAutoTuning(P2pConstants.MIN_STREAM_WINDOW_BYTES, P2pConstants.MAX_STREAM_WINDOW_BYTES);
         AtomicBoolean finished = new AtomicBoolean();
         Runnable closeBoth = () -> {
             if (!finished.compareAndSet(false, true)) {

@@ -26,3 +26,13 @@ include 'common'
 include 'fabric'
 include 'neoforge'
 include 'forge'
+
+def kwikSourceDir = file(providers.gradleProperty('kwikSourceDir').getOrElse('../kwik'))
+if (!new File(kwikSourceDir, 'settings.gradle').isFile()) {
+    throw new GradleException('Kwik sources are missing. Run: python tools/prepare_kwik.py')
+}
+includeBuild(kwikSourceDir) {
+    dependencySubstitution {
+        substitute module('tech.kwik:kwik') using project(':kwik')
+    }
+}

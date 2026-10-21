@@ -32,6 +32,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
 
     private volatile byte[] certificate;
     private volatile QuicClientConnection connection;
+    private volatile QuicStream stream;
     private volatile P2pKwikDatagramSocket quicSocket;
 
     P2pKwikClientTunnel(Logger logger, int token, int connectionId, Socket minecraftSocket,
@@ -71,22 +72,14 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         try {
             P2pSockets.tune(minecraftSocket);
             long certificateDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(attemptTimeoutMs);
-            long pathRoundTripNanos = 0L;
             while (certificate == null && System.nanoTime() < certificateDeadline) {
-                pathRoundTripNanos = requestCertificate(500L);
+                requestCertificate(500L);
             }
             if (certificate == null) {
                 throw new IOException("The Kwik host certificate did not arrive in time");
             }
             if (certificate.length == 0) {
                 throw new IOException("The Kwik host certificate arrived empty");
-            }
-
-            for (int probe = 0; probe < 2 && System.nanoTime() < certificateDeadline; probe++) {
-                long warm = requestCertificate(250L);
-                if (warm > 0L && warm < pathRoundTripNanos) {
-                    pathRoundTripNanos = warm;
-                }
             }
 
             long remainingNanos = certificateDeadline - System.nanoTime();
@@ -97,8 +90,6 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             quicSocket = new P2pKwikDatagramSocket(
                 (datagram, destination) -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
 
-            int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
-            int window = P2pConstants.streamWindowBytes(roundTripMs);
             QuicClientConnectionImpl.ExtendedBuilder builder = new QuicClientConnectionImpl.ExtendedBuilder();
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
             builder.enforceMaxUdpPayloadSize(true);
@@ -109,18 +100,14 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
                 .connectTimeout(Duration.ofNanos(remainingNanos))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
-                .defaultStreamReceiveBufferSize((long) window)
+                .defaultStreamReceiveBufferSize((long) P2pConstants.MIN_STREAM_WINDOW_BYTES)
                 .maxOpenPeerInitiatedBidirectionalStreams(1)
                 .noServerCertificateCheck()
                 .customTrustStore(P2pKwikCertificate.trustStore(certificate))
                 .socketFactory(destination -> quicSocket)
                 .build();
             connection.connect();
-            if (SafraBuildInfo.diagnostics()) {
-                logger.info("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
-                    connectionId, window, roundTripMs);
-            }
-            QuicStream stream = connection.createStream(true);
+            stream = connection.createStream(true);
             P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             if (established != null) {
                 established.run();
@@ -159,16 +146,13 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         }
     }
 
-    /** Asks the host to send its certificate, and reports how long the answer took, or 0 if none came. */
-    private long requestCertificate(long waitMs) throws InterruptedException {
-        long requestedAt = System.nanoTime();
+    private void requestCertificate(long waitMs) throws InterruptedException {
         sender.accept(P2pPacket.quicOpen(token, connectionId));
         byte[] answer = certificates.poll(waitMs, TimeUnit.MILLISECONDS);
         if (answer == null) {
-            return 0L;
+            return;
         }
         certificate = answer;
-        return System.nanoTime() - requestedAt;
     }
 
     void logLinkQuality() {
@@ -180,8 +164,10 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             return;
         }
         Statistics stats = active.getStats();
-        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms)",
-            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
+        QuicStream activeStream = stream;
+        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms), receive window {} bytes",
+            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar(),
+            activeStream == null ? 0 : activeStream.getReceiveWindowSize());
     }
 
     private void closeForRetry() {
