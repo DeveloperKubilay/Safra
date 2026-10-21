@@ -35,6 +35,8 @@ Yüksek gecikmede otomatik hedef her iki yönde 64 KiB'den 256 KiB'ye çıktı. 
 
 Minecraft 26.1 için Fabric, Forge ve NeoForge derlemeleri ve `verifyMixinArtifacts` geçti. Üç pakette bakım motoru, kaynak/lisans bilgileri ve tanılama ayarları doğrulandı. Fabric içinde yalnızca `kwik-0.12.1-maintenance.1` ve `agent15-4.0` bulunur. Test modu `off`, tanılama `true` değerindedir.
 
+Java 25 üzerinde 100 kayıpsız ve 100 tek datagram kayıplı tünel aktarımı tekrarlandı; her aktarımda 300000 bayt doğrulandı. Yanlış sertifikayı reddetme kontrolüyle toplam 201 test başarılıdır. Tekrar sayısı `-PtunnelTestRepetitions=100` ile seçilebilir; normal taramada varsayılan değer 1'dir. Java 25 test JVM'i Gradle init betiğinde `javaLauncher` seçilerek doğrulandı.
+
 ## Yorumlama sınırı
 
 Yeni taban ile katkılarımız birlikte daha fazla düzeltme ve özellik içerir. Bu, bütün ağlarda daha düşük ping veya daha yüksek hız kanıtı değildir. Pencere tahmini fiziksel hat kapasitesini ölçmez; tüketilen veri ve RTT'den sınırlı bir hedef öğrenir. QUIC önceden verilen krediyi geri alamadığı için hedef küçülse de eski izin anında iptal edilmez. Önceki canlı oyun deneyimi 0.11 tabanında yapılmıştır; 0.12.1 tabanı için yeni canlı oyuncu testi gerekir.
