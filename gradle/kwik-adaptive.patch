@@ -1,5 +1,5 @@
 diff --git a/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle b/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle
-index cccf7afa..1863c2b4 100644
+index cccf7afa..49ef0103 100644
 --- a/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle
 +++ b/buildSrc/src/main/groovy/buildlogic.java-common-conventions.gradle
 @@ -11,29 +11,7 @@ plugins {
@@ -29,10 +29,32 @@ index cccf7afa..1863c2b4 100644
 -    }
 -    return versionTag
 -}()
-+version = '0.11.0-safra.1'
++version = '0.11.0-safra.2'
  
  java {
      sourceCompatibility = JavaVersion.VERSION_11
+@@ -101,7 +79,7 @@ mavenPublishing {
+     pom {
+         name = 'Kwik'
+         description = 'A QUIC implementation in Java'
+-        url = 'https://github.com/ptrd/kwik'
++        url = 'https://github.com/DeveloperKubilay/kwik'
+ 
+         licenses {
+             license {
+@@ -119,9 +97,9 @@ mavenPublishing {
+         }
+ 
+         scm {
+-            connection = 'scm:git:git@github.com:ptrd/kwik.git'
+-            developerConnection = 'scm:git:git@github.com:ptrd/kwik.git'
+-            url = 'https://github.com/ptrd/kwik'
++            connection = 'scm:git:https://github.com/DeveloperKubilay/kwik.git'
++            developerConnection = 'scm:git:git@github.com:DeveloperKubilay/kwik.git'
++            url = 'https://github.com/DeveloperKubilay/kwik'
+         }
+     }
+ }
 diff --git a/core/src/main/java/tech/kwik/core/QuicStream.java b/core/src/main/java/tech/kwik/core/QuicStream.java
 index d14f719c..a921e75e 100644
 --- a/core/src/main/java/tech/kwik/core/QuicStream.java
@@ -52,6 +74,46 @@ index d14f719c..a921e75e 100644
      /**
       * Returns the input stream for reading data sent by the peer.
       *
+diff --git a/core/src/main/java/tech/kwik/core/recovery/LossDetector.java b/core/src/main/java/tech/kwik/core/recovery/LossDetector.java
+index 72eac93f..720a3634 100644
+--- a/core/src/main/java/tech/kwik/core/recovery/LossDetector.java
++++ b/core/src/main/java/tech/kwik/core/recovery/LossDetector.java
+@@ -173,8 +173,7 @@ public class LossDetector {
+             return;
+         }
+ 
+-        int lossDelay = (int) (kTimeThreshold * Integer.max(rttEstimater.getSmoothedRtt(), rttEstimater.getLatestRtt()));
+-        assert(lossDelay > 0);  // Minimum time of kGranularity before packets are deemed lost
++        int lossDelay = Math.max(1, (int) (kTimeThreshold * Integer.max(rttEstimater.getSmoothedRtt(), rttEstimater.getLatestRtt())));
+         Instant lostSendTime = Instant.now(clock).minusMillis(lossDelay);
+ 
+         // https://www.rfc-editor.org/rfc/rfc9002.html#section-6.1
+diff --git a/core/src/main/java/tech/kwik/core/send/SenderImpl.java b/core/src/main/java/tech/kwik/core/send/SenderImpl.java
+index 2b2b262e..90a429ac 100644
+--- a/core/src/main/java/tech/kwik/core/send/SenderImpl.java
++++ b/core/src/main/java/tech/kwik/core/send/SenderImpl.java
+@@ -449,17 +449,15 @@ public class SenderImpl implements Sender, CongestionControlEventListener {
+         DatagramPacket datagram = new DatagramPacket(datagramData, buffer.position(), peerAddress.getAddress(), peerAddress.getPort());
+ 
+         Instant timeSent = clock.instant();
++        itemsToSend.forEach(item -> {
++            recoveryManager.packetSent(item.getPacket(), timeSent, item.getPacketLostCallback());
++            idleTimer.packetSent(item.getPacket(), timeSent);
++        });
+         socket.send(datagram);
+         datagramsSent++;
+         packetsSent += itemsToSend.size();
+         bytesSent += buffer.position();
+ 
+-        itemsToSend.stream()
+-                .forEach(item -> {
+-                    recoveryManager.packetSent(item.getPacket(), timeSent, item.getPacketLostCallback());
+-                    idleTimer.packetSent(item.getPacket(), timeSent);
+-                });
+-
+         List<QuicPacket> packetsSent = itemsToSend.stream().map(item -> item.getPacket()).collect(Collectors.toList());
+         if (packetsSent.stream().anyMatch(p -> p.isAckEliciting())) {
+             lastestAckElicitingTime = timeSent;
 diff --git a/core/src/main/java/tech/kwik/core/stream/QuicStreamImpl.java b/core/src/main/java/tech/kwik/core/stream/QuicStreamImpl.java
 index f831513e..16c8c330 100644
 --- a/core/src/main/java/tech/kwik/core/stream/QuicStreamImpl.java
@@ -367,6 +429,55 @@ index c8ee3498..3fd5c9a8 100644
          // cwnd was 6000; congestion avoidance adds 1200 * 6000 / 6000 = 1200
          assertThat(congestionController.getWindowSize()).isEqualTo(7200);
      }
+diff --git a/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java b/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java
+index be8164c4..6793315e 100644
+--- a/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java
++++ b/core/src/test/java/tech/kwik/core/recovery/LossDetectorTest.java
+@@ -72,6 +72,20 @@ class LossDetectorTest extends RecoveryTests {
+     }
+ 
+     //region congestion controller
++    @Test
++    void zeroMillisecondRttStillUsesMinimumLossDelay() {
++        when(rttEstimator.getSmoothedRtt()).thenReturn(0);
++        when(rttEstimator.getLatestRtt()).thenReturn(0);
++        lossDetector.packetSent(createPacket(1), clock.instant(), lostPacketHandler::process);
++        lossDetector.packetSent(createPacket(2), clock.instant(), lostPacketHandler::process);
++        lossDetector.onAckReceived(new AckFrame(2), clock.instant());
++        verify(lostPacketHandler, never()).process(any(QuicPacket.class));
++        assertThat(lossDetector.getLossTime()).isEqualTo(clock.instant().plusMillis(1));
++        clock.fastForward(2);
++        lossDetector.detectLostPackets();
++        verify(lostPacketHandler).process(argThat(new PacketMatcherByPacketNumber(1)));
++    }
++
+     @Test
+     void congestionControllerIsOnlyCalledOncePerAck() {
+         List<QuicPacket> packets = createPackets(1, 2, 3);
+diff --git a/core/src/test/java/tech/kwik/core/send/SenderImplTest.java b/core/src/test/java/tech/kwik/core/send/SenderImplTest.java
+index 542714f8..2eda6562 100644
+--- a/core/src/test/java/tech/kwik/core/send/SenderImplTest.java
++++ b/core/src/test/java/tech/kwik/core/send/SenderImplTest.java
+@@ -92,6 +92,19 @@ class SenderImplTest extends AbstractSenderTest {
+         assertThat(delay).isBetween(49L, 51L);
+     }
+ 
++    @Test
++    void acknowledgementBeforeSocketSendReturnsDoesNotLeaveBytesInFlight() throws Exception {
++        var recovery = (tech.kwik.core.recovery.RecoveryManager) new FieldReader(sender, "recoveryManager").read();
++        ShortHeaderPacket packet = new ShortHeaderPacket(Version.getDefault(), new byte[4], new StreamFrame(0, new byte[1100], false));
++        packet.setPacketNumber(0);
++        doAnswer(invocation -> {
++            recovery.received(new AckFrame(0), PnSpace.App, clock.instant().plusMillis(1));
++            return null;
++        }).when(socket).send(any(DatagramPacket.class));
++        sender.send(new AssembledDatagram(new SendItem(packet)));
++        assertThat(sender.getCongestionController().getBytesInFlight()).isZero();
++    }
++
+     @Test
+     void senderStatisticsShouldWork() throws Exception {
+         ShortHeaderPacket packet1 = new ShortHeaderPacket(Version.getDefault(), new byte[4], new StreamFrame(0, new byte[1100], false));
 diff --git a/core/src/test/java/tech/kwik/core/stream/AdaptiveStreamInputTest.java b/core/src/test/java/tech/kwik/core/stream/AdaptiveStreamInputTest.java
 new file mode 100644
 index 00000000..ef4c7c17

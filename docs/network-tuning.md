@@ -2,7 +2,7 @@
 
 ## Değişiklik
 
-Kwik 0.11 korunuyor. Kaynak temeli `ptrd/kwik` deposundaki `4d5d40f540d70a1b50ea59651f9d36740e77f165`; Safra sürümü `0.11.0-safra.1`. Eski taşıma motoruna dönüş veya eski 0.12 fork'unun geri yüklenmesi yapılmadı. Tam değişiklik `gradle/kwik-adaptive.patch` içinde sürümleniyor. Kwik'in LGPL lisansı ve mevcut telif bildirimleri korunuyor.
+Kwik 0.11 korunuyor. Upstream temeli `ptrd/kwik` deposundaki `4d5d40f540d70a1b50ea59651f9d36740e77f165`; Safra sürümü `0.11.0-safra.2`. Bakım kaynağı artık [DeveloperKubilay/kwik](https://github.com/DeveloperKubilay/kwik), sabit kaynak commit'i `23bb551b2d5e89a1ab313fb830e981d65eb51f2a`. Eski taşıma motoruna dönüş veya eski 0.12 fork'unun geri yüklenmesi yapılmadı. Motorun kaynak ve test değişiklikleri `gradle/kwik-adaptive.patch` içinde de saklanıyor; yayın betikleri bakım fork'undadır. Kwik'in LGPL lisansı ve mevcut telif bildirimleri korunuyor.
 
 İki taraf da el sıkışmadan önce 64 KiB alım hakkı bildiriyor. Minecraft akışı açılınca otomatik ayar etkinleşiyor. İlk hesap bir internet hız testi değil: 64 KiB ile başlayıp gerçekten tüketilen veri ve QUIC'in ölçtüğü RTT üzerinden öğreniyor. Önceki sertifika pinglerinden sabit 1.5 MB/s varsayımıyla pencere hesaplama kaldırıldı.
 
@@ -33,7 +33,9 @@ python tools/prepare_kwik.py
 ./gradlew build -Pdiagnostics=true
 ```
 
-Hazırlık betiği varsayılan olarak kardeş `../kwik` klasörünü kullanır; başka hedef ilk argümanla verilebilir. Safra için `-PkwikSourceDir=...` aynı hedefi seçer. Betik sabit kaynak commit'ini doğrular, yamanın önceden uygulanmış olmasını kabul eder; farklı çalışma dosyalarını ezmez. Kaynak zaten hazırsa tekrar uygulamaz. CI build adımlarında aynı betik çalışır; Maven Central'a özel bir sürüm yayımlamak gerekmez.
+Hazırlık betiği varsayılan olarak kardeş `../kwik` klasörünü kullanır; başka hedef ilk argümanla verilebilir. Safra için `-PkwikSourceDir=...` aynı hedefi seçer. Yeni hedef bakım fork'undan alınır ve sabit kaynak commit'ine geçirilir. Mevcut hedefin commit'i veya çalışma dosyaları farklıysa betik durur; dosyaları ezmez. İlk yamayla hazırlanmış eski çalışma klasörlerini otomatik sıfırlamaz; bunlar korunup yeni hedef seçilebilir. CI build adımlarında aynı betik çalışır. Safra bu sabit kaynaktan composite build alır; `latest` sürümünü otomatik indirmez.
+
+Kwik deposunun Actions akışı Linux ve Windows üzerinde çekirdek testlerini çalıştırır. Sürüm etiketinde iki taraf da başarılı olursa kütüphane, kaynak JAR'ı, tam kaynak arşivi, POM, lisanslar, kaynak commit bilgisi ve SHA-256 özetleri release'e eklenir. İlk yayın ön sürümdür. Bu yayın düzenlemesi yeni bir ağ algoritması eklemez; oyun testinde kullanılan motor sınıfları korunur.
 
 Normal testler ağ matrisini hariç tutar. Matrisin tek profili `-PnetworkProfile=good` gibi seçilebilir. Sonuçlar `build/26.1/common/reports/network-quality.csv` dosyasına eklenir; yeni karşılaştırma için önce bu dosya taşınmalıdır. Minecraft sürümü seçilirse build yolundaki sürüm de değişir. Süreler aynı makinedeki zamanlayıcı ve işlem yükünden etkilenir; tek koşu hız garantisi değildir.
 
@@ -62,8 +64,20 @@ Sertifika testi, bildirilen kimlikle QUIC sunucusunun gerçek sertifikası farkl
 
 ## 21 Ekim 2026 ölçümü
 
-[Ham sonuçlar](network-results-2026-10-21.csv): 24 ağ aktarımının tamamında içerik ve sıra doğrulandı, en büyük QUIC datagramı 1200 bayt kaldı. Safra'nın 50 normal testi ve 24 ağ testi başarılı. TCP–QUIC tünel test grubu sekiz kez ayrıca çalıştırıldı; 24 kontrol başarılı. Minecraft 26.1 için Fabric, Forge ve NeoForge derlemesi ile mevcut mixin paket kontrolü geçti; üç tanılama paketinde `0.11.0-safra.1` bulundu.
+[Ham sonuçlar](network-results-2026-10-21.csv): 24 ağ aktarımının tamamında içerik ve sıra doğrulandı, en büyük QUIC datagramı 1200 bayt kaldı. Safra'nın 50 normal testi ve 24 ağ testi başarılı. TCP–QUIC tünel test grubu sekiz kez ayrıca çalıştırıldı; 24 kontrol başarılı. Minecraft 26.1 için Fabric, Forge ve NeoForge derlemesi ile mevcut mixin paket kontrolü geçti; üç tanılama paketinde `0.11.0-safra.2` bulundu.
 
 İyi bağlantıdaki indirme 16.08 → 16.36 Mbit/s; yüksek gecikmeli indirme 6.30 → 5.25 Mbit/s oldu. Bunlar tek koşunun sabit → otomatik karşılaştırmasıdır. Otomatik pencerenin her koşulda hız kazandırdığı sonucu çıkmaz. Yüksek gecikmede pencere 256 KiB'ye büyüdü; kısa aktarımda büyüme süresi sabit büyük pencereye göre dezavantaj oluşturabilir. Yavaş okuyucuda otomatik pencere indirmede 187.7 → 83.3 KiB, yüklemede 206.1 → 87.0 KiB küçüldü. Ani hız değişiminde veri kesilmeden tamamlandı. Ağır sıra bozulması/kayıp profilinde aktarım yaklaşık 30–32 saniye sürdü; burada dar boğaz pencere boyundan çok kayıp kurtarma ve tıkanıklık kontrolüdür.
 
 Bu sonuçlar bir güvenlik denetiminin tamamlandığı veya her bağlantıda aynı oyun deneyiminin garanti edildiği anlamına gelmez. Oyun içi gerçek kullanıcı testi ayrıca gerekir. Tam matrisin son çalışmasından sonra yalnız sürüm gösterimi ve paket içindeki lisans kaynakları düzenlendi; 50 normal test ve üç loader build'i yeniden geçti.
+
+## Bakım fork'u ve safra.2 düzeltmeleri
+
+Yukarıdaki ilk ağ matrisi ve canlı oyun oturumları `safra.1` motoruyla yapıldı. Ayrı Kwik fork'unun ilk Windows/Linux CI kontrolleri geçti; ancak yayın öncesi Safra tünel testinin tekrarı bir zaman aşımı üretti. İlk `v0.11.0-safra.1` etiketi korunarak yayın akışı iptal edildi; bu etiket için release dosyaları yayımlanmadı.
+
+İncelemede iki bağımsız hata belirlendi. Gönderici, paketi sokete verdikten sonra kurtarma takibine kaydediyordu. Soket gönderimi dönmeden ACK geldiğinde onaylanmış veri yolda görünmeye devam edebiliyordu. Kaydın soket gönderiminden önce yapılması bu yarışı kapatır. Soket gönderimi içinden ACK işleyen yeni test eski kodda 1127 bayt yolda görünmesiyle başarısız, düzeltmeyle başarılıdır.
+
+Diğer hata, 1 ms altı RTT'nin tam sayı ölçümünde 0 ms olmasıdır. Kayıp zaman eşiği 0'a düşüyor, açık assertion testte sunucu bağlantısını durduruyordu. Aynı durum üretimde yanlış kayıp kararı da üretebilir. Eşik artık [RFC 9002 bölüm 6.1.2](https://www.rfc-editor.org/rfc/rfc9002.html#section-6.1.2) doğrultusunda en az 1 ms'dir. Yeni test, 0 ms RTT'de paketin anında kayıp sayılmadığını ve süre geçince doğru kayıp kararını doğrular. Eski kodda assertion ile başarısızdır.
+
+Bu iki düzeltmeyle 1073 çekirdek testinin 1072'si başarılı, önceden kapalı 1 test kapalıdır. Geçici test parametreleriyle Safra'nın gerçek TLS/QUIC tünelinde 100 kayıpsız ve 100 tek paket kayıplı 300000 bayt aktarımın tamamı geçti; her bayt kontrol edildi. Aynı koşullarda düzeltme öncesi tekrarlar zaman aşımı üretiyordu. Geçici paket izleme ve test kodları üretim kaynaklarından kaldırıldı. Bu çalışma pacing, BBR, MTU keşfi veya uygulama jitter tamponu eklemez.
+
+[`safra.2` ağ matrisi](network-results-2026-10-21-safra2.csv) yeniden tamamlandı: 50 normal test ve 24 ağ aktarımı başarılı, içerik ve sıra doğru, en büyük QUIC datagramı 1200 bayt. Yavaş okuyucuda otomatik pencere indirmede 191988 → 82025, yüklemede 178235 → 67902 bayta küçüldü. Ağır sıra bozulması/kopya profilinde aktarım 38.06–38.60 saniye sürdü. Kayıp ve tıkanıklık kurtarması bu koşulda hâlâ belirgin sınırlamadır; sürüm bütün hatlarda hız artışı vaat etmez. Ham sonuçlar tek koşudur ve ilk sürümün ölçümüyle kontrollü hız karşılaştırması sayılmaz.
