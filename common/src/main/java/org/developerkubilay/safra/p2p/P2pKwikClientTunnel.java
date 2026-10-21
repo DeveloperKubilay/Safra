@@ -163,11 +163,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         if (active == null || closed.get()) {
             return;
         }
-        Statistics stats = active.getStats();
-        QuicStream activeStream = stream;
-        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms), receive window {} bytes",
-            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar(),
-            activeStream == null ? 0 : activeStream.getReceiveWindowSize());
+        P2pKwikStreams.logLinkQuality(logger, "client", connectionId, active, stream);
     }
 
     private void closeForRetry() {

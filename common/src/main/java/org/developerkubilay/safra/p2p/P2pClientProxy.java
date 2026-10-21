@@ -73,7 +73,7 @@ public final class P2pClientProxy implements AutoCloseable {
         P2pRuntime.start("safra-p2p-client-recv", () -> receiveLoop(initialTransport));
         P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
         if (SafraBuildInfo.diagnostics()) {
-            scheduler.scheduleAtFixedRate(this::logLinkQuality, 30L, 30L, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(this::logLinkQuality, 5L, 5L, TimeUnit.SECONDS);
         }
         if (shareCode.isRendezvous()) {
             scheduler.scheduleWithFixedDelay(this::checkConnectionLiveness, 2000L, 1000L, TimeUnit.MILLISECONDS);
