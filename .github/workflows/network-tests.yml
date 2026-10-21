@@ -8,7 +8,7 @@ on:
       - 'gradle/**'
       - 'gradle.properties'
       - 'settings.gradle'
-      - 'tools/prepare_kwik.py'
+      - 'libs/kwik/**'
       - '.github/workflows/network-tests.yml'
   pull_request:
     paths:
@@ -16,7 +16,7 @@ on:
       - 'gradle/**'
       - 'gradle.properties'
       - 'settings.gradle'
-      - 'tools/prepare_kwik.py'
+      - 'libs/kwik/**'
       - '.github/workflows/network-tests.yml'
 
 permissions:
@@ -37,20 +37,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Prepare Kwik sources
-        run: python3 tools/prepare_kwik.py
-      - name: Test Kwik
-        working-directory: ../kwik
-        run: bash ./gradlew :kwik:test --stacktrace
       - name: Test Safra and changing network conditions
         run: bash ./gradlew :common:test -PnetworkTests=true --configure-on-demand --stacktrace
-      - name: Collect Kwik reports
-        if: always()
-        run: |
-          mkdir -p build/kwik-reports
-          for report in ../kwik/core/build/reports/tests ../kwik/core/build/test-results; do
-            if [ -d "$report" ]; then cp -R "$report" build/kwik-reports/; fi
-          done
       - name: Save reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,4 +47,3 @@ jobs:
           path: |
             build/*/common/reports/
             build/*/common/test-results/
-            build/kwik-reports/

@@ -151,6 +151,10 @@ subprojects {
     layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.buildDirectorySuffix}/${project.name}"))
 
     repositories {
+        maven {
+            url = rootProject.uri('libs/kwik')
+            content { includeModule 'tech.kwik', 'kwik' }
+        }
         mavenCentral()
         maven {
             name = 'Fabric'

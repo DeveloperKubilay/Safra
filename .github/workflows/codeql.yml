@@ -26,9 +26,6 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Prepare Kwik sources
-        run: python3 tools/prepare_kwik.py
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
