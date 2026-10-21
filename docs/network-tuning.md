@@ -70,6 +70,20 @@ Sertifika testi, bildirilen kimlikle QUIC sunucusunun gerçek sertifikası farkl
 
 Bu sonuçlar bir güvenlik denetiminin tamamlandığı veya her bağlantıda aynı oyun deneyiminin garanti edildiği anlamına gelmez. Oyun içi gerçek kullanıcı testi ayrıca gerekir. Tam matrisin son çalışmasından sonra yalnız sürüm gösterimi ve paket içindeki lisans kaynakları düzenlendi; 50 normal test ve üç loader build'i yeniden geçti.
 
+## Ana Kwik deposuna katkılar
+
+Bakım dalının adı `adaptive-receive-window` olarak değiştirildi. Hazırlık betiği hareketli dal yerine değiştirilmeyen `v0.11.0-safra.2` etiketini klonlar ve yine `23bb551b2d5e89a1ab313fb830e981d65eb51f2a` kaynağını doğrular. Bu düzenleme Minecraft'ta kullanılan motoru veya yayımlanmış sürüm dosyalarını değiştirmez. Ana Kwik deposunda zaten `v0.12` ve `v0.12.1` bulunduğu için 0.11 tabanlı bakım sürümü 0.12 olarak yeniden etiketlenmedi.
+
+Güncel ana kod (`101c733d`) üzerinden birbirinden bağımsız üç PR hazırlandı:
+
+- [#99: Çok hızlı ACK gelmeden önce gönderilen paketi kaydetme](https://github.com/ptrd/kwik/pull/99): regresyon eski kodda başarısız, düzeltmeyle 11 gönderici testi başarılı.
+- [#100: Kaybolan MAX_DATA bildirimini güncel bağlantı sınırıyla yeniden gönderme](https://github.com/ptrd/kwik/pull/100): regresyon eski kodda başarısız, düzeltmeyle 51 akış yöneticisi testi başarılı.
+- [#101: İsteğe bağlı, sınırlandırılmış canlı alım penceresi](https://github.com/ptrd/kwik/pull/101): API ve hesaplama yaklaşımı için taslak PR; ilgili 27 test başarılı.
+
+Pencere PR'ının tam çekirdek taramasında 1178 testten 1174'ü başarılı, 3'ü başarısız, önceden kapalı 1 test atlandı. Aynı iki IPv6/DNS testi ve zamanlamaya duyarlı NewReno testi değiştirilmemiş ana kodda da başarısız oldu: 1168 test, 1164 başarılı, aynı 3 hata, 1 atlanan test. NewReno testi tek başına başarılı olabiliyor. İki DNS testini yerel taramadan çıkarınca pencere dalında 1174 başarılı, aynı NewReno hatası ve 1 atlanan test kaldı. Bu durumlar PR açıklamalarında belirtildi; üretim tıkanıklık kodu değiştirilmedi.
+
+Ana depoda zaten bulunan gönderim kuyruğu yarışı ve minimum kayıp süresi düzeltmeleri yeniden gönderilmedi. PR'lar paket pacing, BBR veya PMTU özelliği içermez; kabul edilmeleri ve resmî sürüm numarası ana proje bakımcısının kararıdır.
+
 ## Bakım fork'u ve safra.2 düzeltmeleri
 
 Yukarıdaki ilk ağ matrisi ve canlı oyun oturumları `safra.1` motoruyla yapıldı. Ayrı Kwik fork'unun ilk Windows/Linux CI kontrolleri geçti; ancak yayın öncesi Safra tünel testinin tekrarı bir zaman aşımı üretti. İlk `v0.11.0-safra.1` etiketi korunarak yayın akışı iptal edildi; bu etiket için release dosyaları yayımlanmadı.
