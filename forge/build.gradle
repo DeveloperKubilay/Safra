@@ -204,6 +204,7 @@ configurations {
 
 dependencies {
     implementation 'tech.kwik:kwik:0.11'
+    compileOnly 'tech.kwik:agent15:3.3'
     kwikRuntime 'tech.kwik:kwik:0.11'
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"

@@ -48,8 +48,8 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private final SecureRandom random = new SecureRandom();
     private final BlockingQueue<ReceivedDatagram> incoming = new ArrayBlockingQueue<>(P2pConstants.DATAGRAM_QUEUE_CAPACITY);
     private final Map<String, CompletableFuture<P2pTurnMessage>> pendingTransactions = new ConcurrentHashMap<>();
-    private final Map<String, InetSocketAddress> permittedPeers = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService scheduler = P2pRuntime.singleScheduler();
+    private final Map<String, PeerPermission> permittedPeers = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = P2pRuntime.schedulerPool(2);
     private final String username;
     private final String credential;
 
@@ -59,6 +59,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private volatile String nonce = "";
     private volatile ScheduledFuture<?> refreshTask;
     private volatile int grantedLifetimeSeconds = P2pConstants.turnAllocationLifetimeSeconds();
+    private volatile long allocationExpiresAtNanos;
 
     private P2pTurnDatagramTransport(Logger logger, String role, DatagramSocket datagramSocket, Socket streamSocket,
                                      InetSocketAddress serverAddress, String clientTransport, int requestTimeoutMs,
@@ -273,15 +274,17 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
     @Override
     public void close() {
-        if (closed) {
-            return;
+        synchronized (scheduler) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            ScheduledFuture<?> task = refreshTask;
+            if (task != null) {
+                task.cancel(false);
+            }
+            scheduler.shutdownNow();
         }
-        closed = true;
-        ScheduledFuture<?> task = refreshTask;
-        if (task != null) {
-            task.cancel(false);
-        }
-        scheduler.shutdownNow();
         if (datagramSocket != null) {
             datagramSocket.close();
         }
@@ -300,9 +303,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         P2pRuntime.start("safra-turn-recv-" + role, this::receiveLoop);
         allocate(requestedTtlSeconds);
         scheduleRefresh();
-        long renewalMs = TimeUnit.SECONDS.toMillis(
-            Math.max(30, P2pConstants.turnPermissionLifetimeSeconds() - P2pConstants.TURN_PERMISSION_REFRESH_MARGIN_SECONDS));
-        scheduler.scheduleAtFixedRate(this::renewPermissions, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
+        scheduler.scheduleWithFixedDelay(this::renewPermissions, 1L, 1L, TimeUnit.SECONDS);
     }
 
     private void allocate(int requestedTtlSeconds) throws IOException {
@@ -314,12 +315,14 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
         relayAddress = resolvedRelayAddress;
         grantedLifetimeSeconds = grantedLifetime(response);
+        allocationExpiresAtNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(grantedLifetimeSeconds);
     }
 
     private void refreshAllocation() throws IOException {
         P2pTurnMessage response = sendTurnRequest(P2pTurnProtocol.TURN_REFRESH_REQUEST, (out, transactionId) ->
             P2pTurnProtocol.putLifetime(out, P2pConstants.turnAllocationLifetimeSeconds()), false);
         grantedLifetimeSeconds = grantedLifetime(response);
+        allocationExpiresAtNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(grantedLifetimeSeconds);
         scheduleRefresh();
     }
 
@@ -344,25 +347,43 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         if (currentTask != null) {
             currentTask.cancel(false);
         }
-        long delayMs = Math.max(
-            TimeUnit.SECONDS.toMillis(30L),
-            TimeUnit.SECONDS.toMillis(grantedLifetimeSeconds)
-                - TimeUnit.SECONDS.toMillis(P2pConstants.TURN_REFRESH_SAFETY_MARGIN_SECONDS)
-        );
+        long lifetimeMs = TimeUnit.SECONDS.toMillis(grantedLifetimeSeconds);
+        long delayMs = Math.max(1L, lifetimeMs - Math.min(lifetimeMs / 2,
+            TimeUnit.SECONDS.toMillis(P2pConstants.TURN_REFRESH_SAFETY_MARGIN_SECONDS)));
         logger.debug("Safra TURN {} allocation holds for {}s, renewing in {}s",
             role, grantedLifetimeSeconds, TimeUnit.MILLISECONDS.toSeconds(delayMs));
-        refreshTask = scheduler.schedule(this::refreshAllocationSafely, delayMs, TimeUnit.MILLISECONDS);
+        scheduleAllocationRefresh(TimeUnit.MILLISECONDS.toNanos(delayMs));
+    }
+
+    private void scheduleAllocationRefresh(long delayNanos) {
+        synchronized (scheduler) {
+            if (!closed) {
+                refreshTask = scheduler.schedule(this::refreshAllocationSafely, delayNanos, TimeUnit.NANOSECONDS);
+            }
+        }
     }
 
     private void refreshAllocationSafely() {
         if (closed) {
             return;
         }
+        if (System.nanoTime() - allocationExpiresAtNanos >= 0L) {
+            close();
+            return;
+        }
         try {
             refreshAllocation();
         } catch (IOException exception) {
+            if (closed) {
+                return;
+            }
             logger.warn("Safra TURN allocation refresh failed: {}", exception.toString());
-            close();
+            long remainingNanos = allocationExpiresAtNanos - System.nanoTime();
+            if (remainingNanos <= 0L) {
+                close();
+            } else {
+                scheduleAllocationRefresh(Math.min(TimeUnit.SECONDS.toNanos(1L), remainingNanos));
+            }
         }
     }
 
@@ -371,7 +392,8 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
      * permission alive, so Kwik's sender thread never stops to talk to the TURN server itself.
      */
     private void ensurePermission(InetSocketAddress remoteAddress) throws IOException {
-        if (!permittedPeers.containsKey(P2pTurnProtocol.permissionKey(remoteAddress))) {
+        PeerPermission permission = permittedPeers.get(P2pTurnProtocol.permissionKey(remoteAddress));
+        if (permission == null || System.nanoTime() - permission.expiresAtNanos() >= 0L) {
             createPermission(remoteAddress);
         }
     }
@@ -379,18 +401,24 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private synchronized void createPermission(InetSocketAddress remoteAddress) throws IOException {
         sendTurnRequest(P2pTurnProtocol.TURN_CREATE_PERMISSION_REQUEST, (out, transactionId) ->
             P2pTurnProtocol.putXorPeerAddress(out, remoteAddress, transactionId), false);
-        permittedPeers.put(P2pTurnProtocol.permissionKey(remoteAddress), remoteAddress);
+        permittedPeers.put(P2pTurnProtocol.permissionKey(remoteAddress), new PeerPermission(remoteAddress,
+            System.nanoTime() + TimeUnit.SECONDS.toNanos(Math.max(1, P2pConstants.turnPermissionLifetimeSeconds()))));
     }
 
     private void renewPermissions() {
-        for (InetSocketAddress peer : permittedPeers.values()) {
+        long renewalNanos = TimeUnit.SECONDS.toNanos(Math.min(P2pConstants.TURN_PERMISSION_REFRESH_MARGIN_SECONDS,
+            Math.max(1, P2pConstants.turnPermissionLifetimeSeconds() / 2)));
+        for (PeerPermission permission : permittedPeers.values()) {
             if (closed) {
                 return;
             }
+            if (permission.expiresAtNanos() - System.nanoTime() > renewalNanos) {
+                continue;
+            }
             try {
-                createPermission(peer);
+                createPermission(permission.address());
             } catch (IOException exception) {
-                logger.warn("Safra TURN permission renewal failed for {}: {}", peer, exception.toString());
+                logger.warn("Safra TURN permission renewal failed for {}: {}", permission.address(), exception.toString());
             }
         }
     }
@@ -403,6 +431,17 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             } catch (IOException exception) {
                 if (!closed) {
                     logger.warn("Safra TURN {} receive failed over {}: {}", role, clientTransport, exception.toString());
+                    if (datagramSocket != null && !datagramSocket.isClosed()) {
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(100L);
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                            close();
+                            return;
+                        }
+                        continue;
+                    }
+                    close();
                 }
                 return;
             }
@@ -553,6 +592,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestTimeoutMs);
             long waitMs = datagramSocket == null ? requestTimeoutMs : P2pConstants.TURN_RETRANSMIT_FIRST_MS;
             while (true) {
+                if (TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()) <= 0L) {
+                    throw new IOException("TURN request timed out");
+                }
                 sendBytes(requestBytes);
                 long remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
                 if (remainingMs <= 0L) {
@@ -582,5 +624,8 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     }
 
     private record ReceivedDatagram(InetSocketAddress remoteAddress, byte[] data) {
+    }
+
+    private record PeerPermission(InetSocketAddress address, long expiresAtNanos) {
     }
 }

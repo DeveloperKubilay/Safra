@@ -51,6 +51,7 @@ fabricApi {
 
 dependencies {
     implementation 'tech.kwik:kwik:0.11'
+    compileOnly 'tech.kwik:agent15:3.3'
     include 'tech.kwik:kwik:0.11'
     include 'tech.kwik:agent15:3.3'
     include 'at.favre.lib:hkdf:2.0.0'

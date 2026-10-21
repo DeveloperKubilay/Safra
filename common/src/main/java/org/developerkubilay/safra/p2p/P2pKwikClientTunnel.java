@@ -97,6 +97,8 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             quicSocket = new P2pKwikDatagramSocket(
                 (datagram, destination) -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
 
+            int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
+            int window = P2pConstants.streamWindowBytes(roundTripMs);
             QuicClientConnectionImpl.ExtendedBuilder builder = new QuicClientConnectionImpl.ExtendedBuilder();
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
             builder.enforceMaxUdpPayloadSize(true);
@@ -107,16 +109,13 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
                 .connectTimeout(Duration.ofNanos(remainingNanos))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
-                .defaultStreamReceiveBufferSize((long) P2pConstants.MAX_STREAM_WINDOW_BYTES)
+                .defaultStreamReceiveBufferSize((long) window)
                 .maxOpenPeerInitiatedBidirectionalStreams(1)
                 .noServerCertificateCheck()
                 .customTrustStore(P2pKwikCertificate.trustStore(certificate))
                 .socketFactory(destination -> quicSocket)
                 .build();
             connection.connect();
-            int roundTripMs = (int) TimeUnit.NANOSECONDS.toMillis(pathRoundTripNanos);
-            int window = P2pConstants.streamWindowBytes(roundTripMs);
-            connection.setDefaultBidirectionalStreamReceiveBufferSize(window);
             if (SafraBuildInfo.diagnostics()) {
                 logger.info("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
                     connectionId, window, roundTripMs);
@@ -138,6 +137,25 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             } else {
                 close();
             }
+        }
+    }
+
+    boolean matchesCertificate(byte[] encoded) {
+        return !closed.get() && certificate != null && Arrays.equals(certificate, encoded);
+    }
+
+    long recoveryTimeoutNanos() {
+        QuicClientConnection active = connection;
+        if (active == null || closed.get()) {
+            return TimeUnit.SECONDS.toNanos(4L);
+        }
+        Statistics stats = active.getStats();
+        return TimeUnit.MILLISECONDS.toNanos(Math.max(4_000L, 6L * stats.smoothedRtt() + 4L * stats.rttVar()));
+    }
+
+    void ping() {
+        if (!closed.get() && connection instanceof QuicClientConnectionImpl active && active.isConnected()) {
+            active.ping();
         }
     }
 

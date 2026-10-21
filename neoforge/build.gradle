@@ -138,6 +138,7 @@ configurations {
 
 dependencies {
     implementation 'tech.kwik:kwik:0.11'
+    compileOnly 'tech.kwik:agent15:3.3'
     kwikRuntime 'tech.kwik:kwik:0.11'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
