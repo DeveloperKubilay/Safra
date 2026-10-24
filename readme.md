@@ -67,7 +67,7 @@ Launch your Minecraft server in **2 clicks** and jump straight into the game
 ✅ No unnecessary systems 🚫  
 ✅ Lightweight and optimized ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ **TLauncher** is used in the preview (alternative launchers are supported)  
 > ✅ Includes **voice chat** support (mod support)
@@ -107,6 +107,37 @@ It was tested with over 180 mods and worked without any issues.
       ❤️ Source code accessible project lives here<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Want to learn how it works?</a>
+    </td>
+  </tr>
+</table>
+
+## 💬 Credits & Contributors
+
+<table align="center">
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://www.instagram.com/1sadorv">
+        <img src="https://i.imgur.com/smKD5Zd.png" width="80px" style="border-radius: 50%;" alt="Isadora" /><br />
+        <sub>✨ <b>Isadora</b></sub>
+      </a><br />
+      <sub>🎨 Artist</sub><br />
+      <a href="https://www.instagram.com/1sadorv">📸 Instagram</a>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/DeveloperKubilay">
+        <img src="https://github.com/DeveloperKubilay.png" width="80px" style="border-radius: 50%;" alt="Kubilay" /><br />
+        <sub><b>Kubilay</b></sub>
+      </a><br />
+      <sub>💻 Core Developer</sub><br />
+      <a href="https://instagram.com/kubi5252">📸 Instagram</a>
+    </td>    
+    <td align="center" width="33%">
+      <a href="https://www.youtube.com/@RandDoyunofficial">
+        <img src="https://avatars.githubusercontent.com/u/221899064?v=4" width="80px" style="border-radius: 50%;" alt="R&D" /><br />
+        <sub><b>R&amp;D</b></sub>
+      </a><br />
+      <sub>🔨 Tester</sub><br />
+      <a href="https://www.youtube.com/@RandDoyunofficial">▶️ YouTube</a>
     </td>
   </tr>
 </table>

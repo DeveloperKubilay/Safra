@@ -20,7 +20,7 @@ Minecraft sunucunu **2 tıkla** aç, direkt oyuna gir
 ✅ Saçma sapan sistemler yok 🚫  
 ✅ Hafif ve optimize yapı ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ Ön izleme görselinde **TLauncher** kullanılmıştır (alternatif başlatıcılar desteklenir)  
 > ✅ **Voice chat** desteği vardır (mod desteği)

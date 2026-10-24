@@ -20,7 +20,7 @@ Starte deinen Minecraft-Server mit **2 Klicks** und spring direkt ins Spiel.
 ✅ Keine unnötigen Systeme 🚫  
 ✅ Leichtgewichtig und optimiert ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ In der Vorschau wird **TLauncher** verwendet (andere Launcher werden ebenfalls unterstützt)  
 > ✅ Enthält **Voice-Chat**-Support (Mod-Unterstützung)

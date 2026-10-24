@@ -20,7 +20,7 @@
 ✅ 無駄なシステムなし 🚫  
 ✅ 軽量で最適化済み ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ プレビューでは **TLauncher** を使用しています（他のランチャーも対応）  
 > ✅ **ボイスチャット**対応も含まれています（Mod対応）

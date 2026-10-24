@@ -20,7 +20,7 @@
 ✅ 没有多余系统 🚫  
 ✅ 轻量且已优化 ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ 预览里使用的是 **TLauncher**（也支持其他启动器）  
 > ✅ 也包含 **语音聊天** 支持（Mod 支持）

@@ -20,7 +20,7 @@
 ✅ 불필요한 시스템 없음 🚫  
 ✅ 가볍고 최적화됨 ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ 미리보기에는 **TLauncher** 가 사용되었습니다 (다른 런처도 지원)  
 > ✅ **보이스 채팅** 지원도 포함되어 있습니다 (모드 지원)

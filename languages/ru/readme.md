@@ -20,7 +20,7 @@
 ✅ Без лишних систем 🚫  
 ✅ Легкий и оптимизированный ⚡  
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot2.png)
+![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/screenshot.png)
 
 > ✅ В превью используется **TLauncher** (альтернативные лаунчеры тоже поддерживаются)  
 > ✅ Есть поддержка **голосового чата** (поддержка мода)
