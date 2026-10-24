@@ -125,9 +125,9 @@ It was tested with over 180 mods and worked without any issues.
     </td>
     <td align="center" width="220">
       <a href="https://github.com/DeveloperKubilay">
-        <img src="https://github.com/DeveloperKubilay.png" width="80px" style="border-radius: 50%;" alt="Kubilay" />
+        <img src="https://avatars.githubusercontent.com/u/107062509?v=4" width="80px" style="border-radius: 50%;" alt="Kubilay" />
       </a><br />
-      <strong>Kubilay</strong><br />
+      <strong>Kubi</strong><br />
       💻 Core Developer<br />
       <a href="https://instagram.com/kubi5252">📸 Instagram</a>
     </td>    
