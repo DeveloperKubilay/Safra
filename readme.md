@@ -119,24 +119,24 @@ It was tested with over 180 mods and worked without any issues.
       <a href="https://www.instagram.com/1sadorv">
         <img src="https://i.imgur.com/smKD5Zd.png" width="80px" style="border-radius: 50%;" alt="Isadora" />
       </a><br />
-      <sub>✨ <b>Isadora</b></sub><br />
-      <sub>🎨 Artist</sub><br />
+      ✨ <strong>Isadora</strong><br />
+      🎨 Artist<br />
       <a href="https://www.instagram.com/1sadorv">📸 Instagram</a>
     </td>
     <td align="center" width="220">
       <a href="https://github.com/DeveloperKubilay">
         <img src="https://github.com/DeveloperKubilay.png" width="80px" style="border-radius: 50%;" alt="Kubilay" />
       </a><br />
-      <sub><b>Kubilay</b></sub><br />
-      <sub>💻 Core Developer</sub><br />
+      <strong>Kubilay</strong><br />
+      💻 Core Developer<br />
       <a href="https://instagram.com/kubi5252">📸 Instagram</a>
     </td>    
     <td align="center" width="220">
       <a href="https://www.youtube.com/@RandDoyunofficial">
         <img src="https://avatars.githubusercontent.com/u/221899064?v=4" width="80px" style="border-radius: 50%;" alt="R&D" />
       </a><br />
-      <sub><b>R&amp;D</b></sub><br />
-      <sub>🔨 Tester</sub><br />
+      <strong>R&amp;D</strong><br />
+      🔨 Tester<br />
       <a href="https://www.youtube.com/@RandDoyunofficial">▶️ YouTube</a>
     </td>
   </tr>
