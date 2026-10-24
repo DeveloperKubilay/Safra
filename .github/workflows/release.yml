@@ -174,7 +174,7 @@ jobs:
       - name: Build release artifacts
         shell: bash
         run: |
-          ./gradlew clean build --stacktrace \
+          ./gradlew clean build --stacktrace --no-configuration-cache \
             -PmcVersion="${{ matrix.mc_version }}" \
             -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
             $SAFRA_BUILD_MODE_ARGS \

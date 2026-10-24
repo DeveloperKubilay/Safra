@@ -5,18 +5,18 @@ on:
   push:
     paths:
       - 'common/**'
+      - 'build.gradle'
       - 'gradle/**'
       - 'gradle.properties'
       - 'settings.gradle'
-      - 'libs/kwik/**'
       - '.github/workflows/network-tests.yml'
   pull_request:
     paths:
       - 'common/**'
+      - 'build.gradle'
       - 'gradle/**'
       - 'gradle.properties'
       - 'settings.gradle'
-      - 'libs/kwik/**'
       - '.github/workflows/network-tests.yml'
 
 permissions:
@@ -38,7 +38,7 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
       - name: Test Safra and changing network conditions
-        run: bash ./gradlew :common:test -PnetworkTests=true --configure-on-demand --stacktrace
+        run: bash ./gradlew :common:test -PnetworkTests=true --configure-on-demand --stacktrace --no-configuration-cache
       - name: Save reports
         if: always()
         uses: actions/upload-artifact@v4
