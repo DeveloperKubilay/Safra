@@ -113,9 +113,9 @@ It was tested with over 180 mods and worked without any issues.
 
 ## 💬 Credits & Contributors
 
-<table align="center" width="100%">
+<table align="center" width="100%" cellpadding="16" cellspacing="0">
   <tr>
-    <td align="center" width="33%" style="padding: 16px 24px;">
+    <td align="center" width="220">
       <a href="https://www.instagram.com/1sadorv">
         <img src="https://i.imgur.com/smKD5Zd.png" width="80px" style="border-radius: 50%;" alt="Isadora" />
       </a><br />
@@ -123,7 +123,7 @@ It was tested with over 180 mods and worked without any issues.
       <sub>🎨 Artist</sub><br />
       <a href="https://www.instagram.com/1sadorv">📸 Instagram</a>
     </td>
-    <td align="center" width="33%" style="padding: 16px 24px;">
+    <td align="center" width="220">
       <a href="https://github.com/DeveloperKubilay">
         <img src="https://github.com/DeveloperKubilay.png" width="80px" style="border-radius: 50%;" alt="Kubilay" />
       </a><br />
@@ -131,7 +131,7 @@ It was tested with over 180 mods and worked without any issues.
       <sub>💻 Core Developer</sub><br />
       <a href="https://instagram.com/kubi5252">📸 Instagram</a>
     </td>    
-    <td align="center" width="33%" style="padding: 16px 24px;">
+    <td align="center" width="220">
       <a href="https://www.youtube.com/@RandDoyunofficial">
         <img src="https://avatars.githubusercontent.com/u/221899064?v=4" width="80px" style="border-radius: 50%;" alt="R&D" />
       </a><br />
