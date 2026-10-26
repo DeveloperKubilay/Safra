@@ -5,6 +5,8 @@ plugins {
     id 'base'
 }
 
+apply from: 'gradle/kwik.gradle'
+
 def versionConfig = [
     '1.21'   : [
         loaderVersion             : '0.19.2',
@@ -274,6 +276,15 @@ subprojects {
     layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.buildDirectorySuffix}/${project.name}"))
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'KwikRelease'
+                    url = rootProject.uri(rootProject.ext.kwikRepository)
+                }
+            }
+            filter { includeModule 'tech.kwik', 'kwik' }
+        }
         mavenCentral()
         maven {
             name = 'Fabric'

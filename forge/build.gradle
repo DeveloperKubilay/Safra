@@ -91,8 +91,9 @@ configurations {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
-    implementation 'tech.kwik:kwik:0.11'
-    kwikRuntime 'tech.kwik:kwik:0.11'
+    implementation "tech.kwik:kwik:${project.kwik_version}"
+    compileOnly "tech.kwik:agent15:${project.agent15_version}"
+    kwikRuntime "tech.kwik:kwik:${project.kwik_version}"
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
