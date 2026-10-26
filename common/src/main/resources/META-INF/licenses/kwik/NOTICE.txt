@@ -1,0 +1,12 @@
+Kwik by Peter Doornbosch
+Upstream: https://github.com/ptrd/kwik
+Base revision: 1be72817017d45dd3f7686b253a9a8343e9681de (v0.12.1)
+Included version: 0.12.1-maintenance.1
+Maintenance fork: https://github.com/DeveloperKubilay/kwik
+Release source revision: 47c9557879bbac8873d8b17940fac5884805371c
+License: GNU Lesser General Public License, version 3 or later
+
+This distribution includes modifications for receive window tuning and stream recovery.
+The maintenance fork contains the complete release sources and build workflow.
+Sources: https://github.com/DeveloperKubilay/kwik/tree/47c9557879bbac8873d8b17940fac5884805371c
+Build: gradlew :kwik:jar
