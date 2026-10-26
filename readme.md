@@ -106,7 +106,7 @@ It was tested with over 180 mods and worked without any issues.
     <td width="70%" align="left">
       ✨ Need a feature, got a version idea, or found a bug?<br />
       You can reach us via <a href="https://discord.gg/NHjBvRxDXP">Discord</a><br /><br />
-      ❤️ Open-source project<br />
+      ❤️ Source-available project<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Want to learn how it works?</a>
     </td>
