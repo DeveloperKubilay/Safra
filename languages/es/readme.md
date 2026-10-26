@@ -9,7 +9,9 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png" alt="Safra" />
+</p>
 
 # Safra 🚀
 
@@ -45,7 +47,7 @@ Se probo con mas de 180 mods y funciono sin problemas.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
 
-> Necesitaras el mod Geyser. Sin embargo, este no es el enfoque principal del mod, por lo que los servidores pueden estar ocupados.
+> Para jugar desde Bedrock, necesitarás el mod Geyser. La compatibilidad con Bedrock no es el enfoque principal de Safra, así que algunos servidores pueden estar ocupados.
 
 ## FAQ 🤔
 

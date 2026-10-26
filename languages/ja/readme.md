@@ -9,7 +9,9 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png" alt="Safra" />
+</p>
 
 # Safra 🚀
 
@@ -45,7 +47,7 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
 
-> Geyser Modが必要です。ただし、これがModの主な目的ではないため、サーバーが混雑している可能性があります。
+> Bedrock版でプレイするにはGeyser Modが必要です。Bedrockとの互換性はSafraの主な目的ではないため、一部のサーバーが混雑している場合があります。
 
 ## FAQ 🤔
 

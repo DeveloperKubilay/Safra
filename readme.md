@@ -9,7 +9,9 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png" alt="Safra" />
+</p>
 
 ## Would you like to read this text in other languages?
 
@@ -92,7 +94,7 @@ It was tested with over 180 mods and worked without any issues.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
 
-> You'll need the Geyser mod. However, this is not the main focus of the mod, so servers may be busy.
+> For Bedrock support, you'll need the Geyser mod. Bedrock compatibility isn't the main focus of Safra, so some servers may be busy.
 
 ## FAQ 🤔
 
@@ -104,7 +106,7 @@ It was tested with over 180 mods and worked without any issues.
     <td width="70%" align="left">
       ✨ Need a feature, got a version idea, or found a bug?<br />
       You can reach us via <a href="https://discord.gg/NHjBvRxDXP">Discord</a><br /><br />
-      ❤️ Source code accessible project lives here<br />
+      ❤️ Open-source project<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Want to learn how it works?</a>
     </td>

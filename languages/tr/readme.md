@@ -9,7 +9,9 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png" alt="Safra" />
+</p>
 
 # Safra 🚀
 
@@ -45,7 +47,7 @@ Senin ve arkadaşlarının kurduğu modlarla rahatça oynayabilirsin
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
 
-> Geyser moduna ihtiyacınız var. Ancak modun ana odağı bu değildir; sunucular yoğun olabilir.
+> Bedrock desteği için Geyser moduna ihtiyacınız var. Bedrock uyumluluğu Safra'nın ana odağı değil; bu yüzden bazı sunucular yoğun olabilir.
 
 ## SSS 🤔
 

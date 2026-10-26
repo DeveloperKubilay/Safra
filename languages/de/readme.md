@@ -9,7 +9,9 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png" alt="Safra" />
+</p>
 
 # Safra 🚀
 
@@ -45,7 +47,7 @@ Es wurde mit über 180 Mods getestet und funktionierte ohne Probleme.
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
 
-> Du benötigst die Geyser-Mod. Dies ist jedoch nicht der Hauptfokus der Mod, daher können die Server ausgelastet sein.
+> Für Bedrock-Unterstützung benötigst du die Geyser-Mod. Die Bedrock-Kompatibilität ist nicht Safras Hauptfokus, daher können einige Server ausgelastet sein.
 
 ## FAQ 🤔
 

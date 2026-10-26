@@ -9,7 +9,9 @@
   <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/readme.gif" alt="alt text" />
 </p>
 
-![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/image1.png" alt="Safra" />
+</p>
 
 # Safra 🚀
 
@@ -45,7 +47,7 @@
 
 ![alt text](https://raw.githubusercontent.com/DeveloperKubilay/Safra/refs/heads/assets/png/bedrock.png)
 
-> Geyser 모드가 필요합니다. 하지만 이것이 모드의 주요 목적은 아니므로 서버가 혼잡할 수 있습니다.
+> Bedrock에서 플레이하려면 Geyser 모드가 필요합니다. Bedrock 호환성은 Safra의 주요 초점이 아니므로 일부 서버가 혼잡할 수 있습니다.
 
 ## FAQ 🤔
 
