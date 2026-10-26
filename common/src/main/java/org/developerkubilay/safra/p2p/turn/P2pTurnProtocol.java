@@ -22,6 +22,7 @@ final class P2pTurnProtocol {
     static final int ATTR_USERNAME = 0x0006;
     static final int ATTR_MESSAGE_INTEGRITY = 0x0008;
     static final int ATTR_ERROR_CODE = 0x0009;
+    static final int ATTR_CHANNEL_NUMBER = 0x000C;
     static final int ATTR_LIFETIME = 0x000D;
     static final int ATTR_XOR_PEER_ADDRESS = 0x0012;
     static final int ATTR_DATA = 0x0013;
@@ -35,6 +36,8 @@ final class P2pTurnProtocol {
     static final int TURN_REFRESH_RESPONSE = 0x0104;
     static final int TURN_CREATE_PERMISSION_REQUEST = 0x0008;
     static final int TURN_CREATE_PERMISSION_RESPONSE = 0x0108;
+    static final int TURN_CHANNEL_BIND_REQUEST = 0x0009;
+    static final int TURN_CHANNEL_BIND_RESPONSE = 0x0109;
     static final int TURN_SEND_INDICATION = 0x0016;
     static final int TURN_DATA_INDICATION = 0x0017;
     static final int ERROR_UNAUTHORIZED = 401;
@@ -91,6 +94,18 @@ final class P2pTurnProtocol {
         return finalizeMessage(TURN_SEND_INDICATION, transactionId, attributes.toByteArray());
     }
 
+    static byte[] channelData(int channel, byte[] payload) throws IOException {
+        if (channel < 0x4000 || channel > 0x4FFF || payload.length > 65535) {
+            throw new IOException("Invalid TURN channel frame");
+        }
+        return ByteBuffer.allocate(4 + ((payload.length + 3) & ~3)).putShort((short) channel)
+            .putShort((short) payload.length).put(payload).array();
+    }
+
+    static void putChannelNumber(ByteArrayOutputStream out, int channel) throws IOException {
+        putAttribute(out, ATTR_CHANNEL_NUMBER, ByteBuffer.allocate(4).putShort((short) channel).array());
+    }
+
     static InetSocketAddress resolveServer(P2pTurnCredentials.TurnServer server) throws IOException {
         InetAddress[] addresses = InetAddress.getAllByName(server.host());
         Arrays.sort(addresses, (left, right) -> Boolean.compare(!(left instanceof Inet4Address), !(right instanceof Inet4Address)));
@@ -117,6 +132,7 @@ final class P2pTurnProtocol {
             case TURN_ALLOCATE_REQUEST -> TURN_ALLOCATE_RESPONSE;
             case TURN_REFRESH_REQUEST -> TURN_REFRESH_RESPONSE;
             case TURN_CREATE_PERMISSION_REQUEST -> TURN_CREATE_PERMISSION_RESPONSE;
+            case TURN_CHANNEL_BIND_REQUEST -> TURN_CHANNEL_BIND_RESPONSE;
             default -> 0;
         };
     }
@@ -126,6 +142,7 @@ final class P2pTurnProtocol {
             case TURN_ALLOCATE_REQUEST -> "allocate";
             case TURN_REFRESH_REQUEST -> "refresh";
             case TURN_CREATE_PERMISSION_REQUEST -> "create-permission";
+            case TURN_CHANNEL_BIND_REQUEST -> "channel-bind";
             default -> "request";
         };
         int errorCode = response.errorCode();
