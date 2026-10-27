@@ -45,7 +45,7 @@ def devUsername = rootProject.ext.devRunUsername(project)
 def forceDirectThenTurn = rootProject.ext.devBooleanProperty('forceDirectThenTurn')
 
 def targetJavaVersion = 25
-def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
+def mixinRefmapFile = layout.buildDirectory.file('mixin/safra.neoforge.refmap.json')
 def mixinMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
 def neoForgeMixinMappingsFile = layout.buildDirectory.file('mappings/identityMixinMappings.tsrg')
 def forgeMixinMappingsFile = project(':forge').layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
