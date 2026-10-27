@@ -49,7 +49,7 @@ def mixinMinecraftVersion = (project.findProperty('minecraft_version') ?: projec
 if (mixinMinecraftVersion == null) {
     throw new GradleException("Could not determine the Forge Minecraft version for mixin mappings")
 }
-def mixinRefmapFile = layout.buildDirectory.file('mixin/main.refmap.json')
+def mixinRefmapFile = layout.buildDirectory.file('mixin/safra.forge.refmap.json')
 def generatedMixinMappingsFile = layout.buildDirectory.file('mappings/formatMixinMappings.tsrg')
 def mixinCompositeMappingsFile = layout.buildDirectory.file('mixin/main.tsrg')
 def mixinCompilerArgs = objects.newInstance(SafraMixinCompilerArgs)
