@@ -309,9 +309,13 @@ tasks.register('normalizeForgeMixinRefmaps') {
             def zipFile = java.nio.file.Path.of(jarFile.absolutePath)
             def zipUri = java.net.URI.create("jar:${zipFile.toUri()}")
             java.nio.file.FileSystems.newFileSystem(zipUri, [:]).withCloseable { zipFs ->
-                def refmapPath = zipFs.getPath('/main.refmap.json')
+                def refmapPath = zipFs.getPath('/safra.forge.refmap.json')
+                def generatedRefmapPath = zipFs.getPath('/main.refmap.json')
+                if (java.nio.file.Files.exists(generatedRefmapPath)) {
+                    java.nio.file.Files.move(generatedRefmapPath, refmapPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                }
                 if (!java.nio.file.Files.exists(refmapPath)) {
-                    throw new GradleException("Missing refmap main.refmap.json in ${jarFile.name}")
+                    throw new GradleException("Missing refmap safra.forge.refmap.json in ${jarFile.name}")
                 }
 
                 def refmap = new groovy.json.JsonSlurper().parse(java.nio.file.Files.newBufferedReader(refmapPath))
