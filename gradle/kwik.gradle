@@ -1,0 +1,48 @@
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.util.jar.JarFile
+
+def kwikVersion = providers.gradleProperty('kwik_version').get()
+if (!(kwikVersion ==~ /[0-9][0-9A-Za-z.+-]*/)) throw new GradleException('Invalid Kwik release version')
+def repository = file('.gradle/kwik')
+def directory = new File(repository, "tech/kwik/kwik/${kwikVersion}")
+def freshDownload = System.getenv('GITHUB_ACTIONS') == 'true'
+def checksum = { File artifact ->
+    def digest = MessageDigest.getInstance('SHA-256')
+    artifact.withInputStream { input ->
+        byte[] buffer = new byte[8192]
+        for (int size; (size = input.read(buffer)) != -1;) digest.update(buffer, 0, size)
+    }
+    digest.digest().encodeHex().toString()
+}
+['jar': 'kwik_sha256', 'pom': 'kwik_pom_sha256'].each { extension, property ->
+    def expected = providers.gradleProperty(property).get()
+    if (!(expected ==~ /[a-f0-9]{64}/)) throw new GradleException("Invalid ${property}")
+    def artifact = new File(directory, "kwik-${kwikVersion}.${extension}")
+    if (!freshDownload && artifact.isFile() && checksum(artifact) == expected) return
+    if (gradle.startParameter.offline) throw new GradleException("Verified Kwik ${kwikVersion} is unavailable offline")
+    directory.mkdirs()
+    def temporary = Files.createTempFile(directory.toPath(), '.kwik-', '.part').toFile()
+    try {
+        def connection = URI.create("https://github.com/DeveloperKubilay/kwik/releases/download/v${kwikVersion}/${artifact.name}?sha256=${expected}").toURL().openConnection()
+        connection.connectTimeout = 15000
+        connection.readTimeout = 60000
+        connection.useCaches = false
+        connection.setRequestProperty('User-Agent', 'Safra-build')
+        connection.inputStream.withCloseable { input -> temporary.withOutputStream { output -> output << input } }
+        if (checksum(temporary) != expected) throw new GradleException("SHA-256 mismatch for ${artifact.name}")
+        if (extension == 'jar') new JarFile(temporary).withCloseable { jar ->
+            def entry = jar.getJarEntry('tech/kwik/core/version.properties')
+            if (entry == null || jar.getInputStream(entry).withCloseable { it.getText('UTF-8').trim() } != kwikVersion)
+                throw new GradleException('Embedded Kwik version differs from the selected release')
+        }
+        Files.move(temporary.toPath(), artifact.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    } catch (Exception failure) {
+        throw new GradleException("Cannot download and verify Kwik ${kwikVersion} from GitHub; build stopped: ${failure.message}", failure)
+    } finally {
+        Files.deleteIfExists(temporary.toPath())
+    }
+}
+ext.kwikRepository = repository
+logger.lifecycle("Verified Kwik ${kwikVersion} SHA-256 (${freshDownload ? 'downloaded from GitHub' : 'local builds may reuse the verified cache'})")

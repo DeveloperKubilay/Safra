@@ -32,6 +32,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
 
     private volatile byte[] certificate;
     private volatile QuicClientConnection connection;
+    private volatile QuicStream stream;
     private volatile P2pKwikDatagramSocket quicSocket;
 
     P2pKwikClientTunnel(Logger logger, int token, int connectionId, Socket minecraftSocket,
@@ -97,7 +98,6 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             quicSocket = new P2pKwikDatagramSocket(
                 (datagram, destination) -> sender.accept(P2pPacket.quicData(token, connectionId, datagram)));
 
-            long connectTimeoutNanos = Math.max(TimeUnit.SECONDS.toNanos(4), remainingNanos);
             QuicClientConnectionImpl.ExtendedBuilder builder = new QuicClientConnectionImpl.ExtendedBuilder();
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
             builder.enforceMaxUdpPayloadSize(true);
@@ -106,7 +106,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .host(P2pConstants.LOCAL_PROXY_HOST)
                 .port(P2pConstants.KWIK_VIRTUAL_PORT)
                 .applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
-                .connectTimeout(Duration.ofNanos(connectTimeoutNanos))
+                .connectTimeout(Duration.ofNanos(remainingNanos))
                 .maxIdleTimeout(Duration.ofSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS))
                 .defaultStreamReceiveBufferSize((long) P2pConstants.MAX_STREAM_WINDOW_BYTES)
                 .maxOpenPeerInitiatedBidirectionalStreams(1)
@@ -122,12 +122,12 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 logger.info("Safra tunnel {} sized its window to {} bytes for a {}ms round trip",
                     connectionId, window, roundTripMs);
             }
-            QuicStream stream = connection.createStream(true);
+            stream = connection.createStream(true);
             P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             if (established != null) {
                 established.run();
             }
-            logger.info("Safra Kwik client tunnel {} connected", connectionId);
+            logger.debug("Safra Kwik client tunnel {} connected", connectionId);
         } catch (IOException | GeneralSecurityException | InterruptedException | RuntimeException exception) {
             if (exception instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -154,6 +154,25 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         return System.nanoTime() - requestedAt;
     }
 
+    boolean matchesCertificate(byte[] encoded) {
+        return !closed.get() && certificate != null && Arrays.equals(certificate, encoded);
+    }
+
+    long recoveryTimeoutNanos() {
+        QuicClientConnection active = connection;
+        if (active == null || closed.get()) {
+            return TimeUnit.SECONDS.toNanos(4L);
+        }
+        Statistics stats = active.getStats();
+        return TimeUnit.MILLISECONDS.toNanos(Math.max(4_000L, 6L * stats.smoothedRtt() + 4L * stats.rttVar()));
+    }
+
+    void ping() {
+        if (!closed.get() && connection instanceof QuicClientConnectionImpl active && active.isConnected()) {
+            active.ping();
+        }
+    }
+
     void logLinkQuality() {
         if (!SafraBuildInfo.diagnostics()) {
             return;
@@ -162,9 +181,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         if (active == null || closed.get()) {
             return;
         }
-        Statistics stats = active.getStats();
-        logger.info("Safra tunnel {}: {} packets, {} lost, rtt {}ms (variation {}ms)",
-            connectionId, stats.packetsSent(), stats.lostPackets(), stats.smoothedRtt(), stats.rttVar());
+        P2pKwikStreams.logLinkQuality(logger, "client", connectionId, active, stream);
     }
 
     private void closeForRetry() {

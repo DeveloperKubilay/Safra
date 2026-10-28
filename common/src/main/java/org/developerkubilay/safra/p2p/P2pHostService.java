@@ -323,6 +323,9 @@ public final class P2pHostService implements AutoCloseable {
             kwikServer = new P2pKwikHostServer(LOGGER, tcpPort, targetAddress, kwikCertificate, this::sendPacket);
             scheduler.scheduleAtFixedRate(kwikServer::sweepIdlePeers, P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS,
                 P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (SafraBuildInfo.diagnostics()) {
+                scheduler.scheduleAtFixedRate(kwikServer::logLinkQuality, 5L, 5L, TimeUnit.SECONDS);
+            }
         } catch (IOException | GeneralSecurityException exception) {
             LOGGER.warn("Safra Kwik host server could not be started: {}", exception.toString());
         }

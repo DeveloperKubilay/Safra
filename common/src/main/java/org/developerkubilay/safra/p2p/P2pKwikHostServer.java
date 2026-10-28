@@ -9,6 +9,7 @@ import tech.kwik.core.server.ApplicationProtocolConnection;
 import tech.kwik.core.server.ApplicationProtocolConnectionFactory;
 import tech.kwik.core.server.ServerConnectionConfig;
 import tech.kwik.core.server.ServerConnector;
+import tech.kwik.core.server.ServerConnection;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -102,6 +103,17 @@ final class P2pKwikHostServer implements AutoCloseable {
             logger.debug("Safra Kwik host dropped idle joiner {}", peer.connectionId);
             return true;
         });
+    }
+
+    void logLinkQuality() {
+        if (!SafraBuildInfo.diagnostics()) return;
+        for (Peer peer : peersByConnection.values()) {
+            try {
+                P2pKwikStreams.logLinkQuality(logger, "host", peer.connectionId, peer.connection, peer.stream);
+            } catch (RuntimeException exception) {
+                logger.debug("Safra could not read the host Kwik statistics: {}", exception.toString());
+            }
+        }
     }
 
     @Override
@@ -210,6 +222,8 @@ final class P2pKwikHostServer implements AutoCloseable {
         private volatile InetSocketAddress remote;
         private volatile P2pDatagramTransport transport;
         private volatile long lastSeenAt;
+        private volatile QuicConnection connection;
+        private volatile QuicStream stream;
 
         private Peer(int connectionId, int token, InetSocketAddress address) {
             this.connectionId = connectionId;
@@ -229,6 +243,13 @@ final class P2pKwikHostServer implements AutoCloseable {
                         logger.warn("Safra Kwik host refused a second Minecraft stream on one QUIC connection");
                         quicConnection.close();
                         return;
+                    }
+                    if (SafraBuildInfo.diagnostics() && quicConnection instanceof ServerConnection serverConnection) {
+                        Peer peer = peersByPort.get(serverConnection.getInitialRemoteAddress().getPort());
+                        if (peer != null) {
+                            peer.connection = quicConnection;
+                            peer.stream = stream;
+                        }
                     }
                     P2pRuntime.start("safra-kwik-host-stream", () -> openMinecraftStream(quicConnection, stream));
                 }

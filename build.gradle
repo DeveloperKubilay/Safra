@@ -5,6 +5,8 @@ plugins {
     id 'base'
 }
 
+apply from: 'gradle/kwik.gradle'
+
 ext.mcProfiles = [
     '1.20': [
         release_minecraft_line       : '1.20',
@@ -255,6 +257,15 @@ subprojects {
     layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.build_directory_suffix}/${project.name}"))
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'KwikRelease'
+                    url = rootProject.uri(rootProject.ext.kwikRepository)
+                }
+            }
+            filter { includeModule 'tech.kwik', 'kwik' }
+        }
         mavenCentral()
         maven {
             name = 'Fabric'
