@@ -5,6 +5,8 @@ plugins {
     id 'base'
 }
 
+apply from: 'gradle/kwik.gradle'
+
 ext.mcProfiles = [
     '1.17': [
         release_minecraft_line       : '1.17',
@@ -272,6 +274,15 @@ subprojects {
     layout.buildDirectory.set(rootProject.file("build/${rootProject.ext.build_directory_suffix}/${project.name}"))
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'KwikRelease'
+                    url = rootProject.uri(rootProject.ext.kwikRepository)
+                }
+            }
+            filter { includeModule 'tech.kwik', 'kwik' }
+        }
         mavenCentral()
         maven {
             name = 'Fabric'
@@ -548,9 +559,16 @@ tasks.register('verifyMixinArtifacts') {
         }.each { jarFile ->
             JarFile jar = new JarFile(jarFile)
             try {
+                if (jar.getJarEntry('main.refmap.json') != null) {
+                    throw new GradleException("Legacy main.refmap.json must not be packaged in ${jarFile.name}")
+                }
+
                 mixinConfigRequirements.each { configName, loader ->
                     def configEntry = jar.getJarEntry(configName)
                     if (configEntry == null) {
+                        if (jarFile.name.contains("-${loader}-")) {
+                            throw new GradleException("Missing mixin config ${configName} in ${jarFile.name}")
+                        }
                         return
                     }
 
@@ -558,6 +576,11 @@ tasks.register('verifyMixinArtifacts') {
                     def refmapName = config.refmap
                     if (!(refmapName instanceof String) || refmapName.isBlank()) {
                         throw new GradleException("Missing refmap in ${jarFile.name}:${configName}")
+                    }
+
+                    def expectedRefmapName = "safra.${loader}.refmap.json"
+                    if (refmapName != expectedRefmapName) {
+                        throw new GradleException("Expected refmap ${expectedRefmapName} in ${jarFile.name}:${configName}, found ${refmapName}")
                     }
 
                     def refmapEntry = jar.getJarEntry(refmapName)

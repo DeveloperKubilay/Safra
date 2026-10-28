@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -68,10 +69,11 @@ public final class P2pClientProxy implements AutoCloseable {
             proxyServer.getInetAddress().getHostAddress(), proxyServer.getLocalPort(), remoteAddress);
 
         lastPacketReceivedNanos = System.nanoTime();
-        P2pRuntime.start("safra-p2p-client-recv", this::receiveLoop);
+        P2pDatagramTransport initialTransport = transport;
+        P2pRuntime.start("safra-p2p-client-recv", () -> receiveLoop(initialTransport));
         P2pRuntime.start("safra-p2p-client-accept", this::acceptLoop);
         if (SafraBuildInfo.diagnostics()) {
-            scheduler.scheduleAtFixedRate(this::logLinkQuality, 30L, 30L, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(this::logLinkQuality, 5L, 5L, TimeUnit.SECONDS);
         }
         if (shareCode.isRendezvous()) {
             scheduler.scheduleWithFixedDelay(this::checkConnectionLiveness, 2000L, 1000L, TimeUnit.MILLISECONDS);
@@ -93,13 +95,14 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         if (closed) {
             return;
         }
         closed = true;
         connections.values().forEach(P2pKwikClientTunnel::close);
         connections.clear();
+        pendingRetrySockets.forEach(this::closeQuietly);
         pendingRetrySockets.clear();
         scheduler.shutdownNow();
         if (proxyServer != null && !proxyServer.isClosed()) {
@@ -233,7 +236,11 @@ public final class P2pClientProxy implements AutoCloseable {
             () -> P2pRuntime.start("safra-kwik-direct-retry", () -> retryDirectKwik(localSocket)));
     }
 
-    private void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
+    private synchronized void startKwikAttempt(Socket localSocket, long timeoutMs, Runnable failure) {
+        if (closed) {
+            finishKwik(localSocket);
+            return;
+        }
         int connectionId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
         LOGGER.debug("Safra Kwik client accepted local Minecraft connection {}; dialing {} (timeout={}ms)",
             connectionId, remoteAddress, timeoutMs);
@@ -267,14 +274,8 @@ public final class P2pClientProxy implements AutoCloseable {
                 throw new IOException("Fresh direct endpoint and host use different IP families");
             }
 
-            P2pDatagramTransport previousTransport = transport;
-            transport = freshBinding.transport();
-            remoteAddress = refreshedHostAddress;
-            relayTransportActive = false;
+            activateRoute(new RelayRoute(freshBinding, refreshedHostAddress, tunnelToken));
             freshBinding = null;
-            if (previousTransport != null && !previousTransport.isClosed()) {
-                previousTransport.close();
-            }
             if (SafraBuildInfo.diagnostics()) {
                 LOGGER.info("Safra starting the second direct Kwik attempt against {}", remoteAddress);
             } else {
@@ -300,14 +301,7 @@ public final class P2pClientProxy implements AutoCloseable {
 
         try {
             RelayRoute relayRoute = createRelayRoute();
-            P2pDatagramTransport previousTransport = transport;
-            transport = relayRoute.binding().transport();
-            remoteAddress = relayRoute.address();
-            tunnelToken = relayRoute.tunnelToken();
-            relayTransportActive = true;
-            if (previousTransport != null && !previousTransport.isClosed()) {
-                previousTransport.close();
-            }
+            activateRoute(relayRoute);
             if (SafraBuildInfo.diagnostics()) {
                 LOGGER.info("Safra starting a Kwik attempt over TURN against {}", remoteAddress);
             } else {
@@ -334,10 +328,11 @@ public final class P2pClientProxy implements AutoCloseable {
     }
 
     private void checkConnectionLiveness() {
-        if (closed || rendezvousSession == null || relayTransportActive || connections.isEmpty() || !pendingRetrySockets.isEmpty()) {
-            return;
+        if (!closed && pendingRetrySockets.isEmpty()
+            && System.nanoTime() - lastPacketReceivedNanos >= SILENCE_TIMEOUT_NANOS / 2) {
+            connections.values().forEach(P2pKwikClientTunnel::ping);
         }
-        if (System.nanoTime() - lastPacketReceivedNanos < SILENCE_TIMEOUT_NANOS) {
+        if (!needsRecovery()) {
             return;
         }
         if (!migratingEndpoint.compareAndSet(false, true)) {
@@ -348,59 +343,117 @@ public final class P2pClientProxy implements AutoCloseable {
 
     private void migrateEndpoint() {
         try {
-            if (closed || rendezvousSession == null || relayTransportActive || connections.isEmpty()) {
-                return;
+            for (int attempt = 0; attempt < 2 && needsRecovery(); attempt++) {
+                P2pTransportBinding binding = null;
+                try {
+                    binding = P2pUdpBindingFactory.createDirectJoinBinding(stunClient);
+                    if (!needsRecovery()) {
+                        return;
+                    }
+                    InetSocketAddress address = rendezvousSession.refreshDirect(binding.publicEndpoints());
+                    if (address != null && binding.stunEndpoints().containsKey(P2pSockets.addressFamily(address))
+                        && probeDirectRoute(binding, address) && needsRecovery()) {
+                        activateRoute(new RelayRoute(binding, address, tunnelToken));
+                        announceRoute();
+                        return;
+                    }
+                } catch (IOException | RuntimeException exception) {
+                    LOGGER.debug("Safra direct recovery attempt {} failed: {}", attempt + 1, exception.toString());
+                } finally {
+                    if (binding != null && binding.transport() != transport) {
+                        binding.close();
+                    }
+                }
             }
-            P2pTransportBinding freshBinding = P2pUdpBindingFactory.createDirectJoinBinding(stunClient);
-            try {
-                if (closed || rendezvousSession == null || relayTransportActive || connections.isEmpty()) {
-                    freshBinding.close();
-                    return;
+            if (needsRecovery() && !P2pConstants.neverUseRelayServer()) {
+                RelayRoute route = createRelayRoute();
+                try {
+                    if (needsRecovery()) {
+                        activateRoute(route);
+                        announceRoute();
+                    }
+                } finally {
+                    if (route.binding().transport() != transport) {
+                        route.binding().close();
+                    }
                 }
-                if (System.nanoTime() - lastPacketReceivedNanos < SILENCE_TIMEOUT_NANOS) {
-                    freshBinding.close();
-                    return;
-                }
-                InetSocketAddress refreshedHostAddress = rendezvousSession.refreshDirect(freshBinding.publicEndpoints());
-                if (refreshedHostAddress == null
-                    || !freshBinding.stunEndpoints().containsKey(P2pSockets.addressFamily(refreshedHostAddress))) {
-                    freshBinding.close();
-                    return;
-                }
-
-                P2pDatagramTransport previousTransport = transport;
-                transport = freshBinding.transport();
-                remoteAddress = refreshedHostAddress;
-                relayTransportActive = false;
-                if (previousTransport != null && !previousTransport.isClosed()) {
-                    previousTransport.close();
-                }
-                lastPacketReceivedNanos = System.nanoTime();
-                for (long delay : P2pConstants.PUNCH_DELAYS_MS) {
-                    scheduler.schedule(() -> sendPacket(P2pPacket.punch(tunnelToken), remoteAddress), delay, TimeUnit.MILLISECONDS);
-                }
-                for (int connectionId : connections.keySet()) {
-                    sendPacket(P2pPacket.quicOpen(tunnelToken, connectionId), remoteAddress);
-                    scheduler.schedule(() -> sendPacket(P2pPacket.quicOpen(tunnelToken, connectionId), remoteAddress), 250L, TimeUnit.MILLISECONDS);
-                }
-                if (SafraBuildInfo.diagnostics()) {
-                    LOGGER.info("Safra client migrated direct UDP transport to {}", P2pSockets.preferredEndpoint(freshBinding.publicEndpoints()));
-                }
-            } catch (IOException exception) {
-                freshBinding.close();
-                LOGGER.debug("Safra client endpoint migration failed: {}", exception.toString());
             }
         } catch (IOException | RuntimeException exception) {
-            LOGGER.debug("Safra could not discover fresh STUN endpoint during migration: {}", exception.toString());
+            LOGGER.debug("Safra could not recover its active route: {}", exception.toString());
         } finally {
             migratingEndpoint.set(false);
         }
     }
 
-    private void receiveLoop() {
+    private boolean needsRecovery() {
+        P2pDatagramTransport active = transport;
+        long timeout = connections.values().stream().mapToLong(P2pKwikClientTunnel::recoveryTimeoutNanos)
+            .max().orElse(SILENCE_TIMEOUT_NANOS);
+        return !closed && rendezvousSession != null && !connections.isEmpty() && pendingRetrySockets.isEmpty()
+            && active != null && (active.isClosed() || System.nanoTime() - lastPacketReceivedNanos >= timeout);
+    }
+
+    private boolean probeDirectRoute(P2pTransportBinding binding, InetSocketAddress address) throws IOException {
+        P2pDirectDatagramTransport direct = (P2pDirectDatagramTransport) binding.transport();
+        direct.socket().setSoTimeout(500);
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(P2pConstants.KWIK_DIRECT_ATTEMPT_TIMEOUT_MS);
+        byte[] buffer = new byte[P2pConstants.MAX_DATAGRAM_SIZE];
+        try {
+            while (needsRecovery() && System.nanoTime() - deadline < 0L) {
+                for (int connectionId : connections.keySet()) {
+                    byte[] request = P2pPacket.quicOpen(tunnelToken, connectionId).encode();
+                    direct.send(new DatagramPacket(request, request.length, address));
+                }
+                DatagramPacket response = new DatagramPacket(buffer, buffer.length);
+                try {
+                    direct.receive(response);
+                } catch (SocketTimeoutException ignored) {
+                    continue;
+                }
+                P2pPacket packet = P2pPacket.decode(buffer, response.getLength());
+                if (packet != null && packet.token() == tunnelToken && address.equals(response.getSocketAddress())
+                    && packet.type() == P2pPacket.Type.QUIC_CERTIFICATE) {
+                    P2pKwikClientTunnel connection = connections.get(packet.connectionId());
+                    if (connection != null && connection.matchesCertificate(packet.payload())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } finally {
+            direct.socket().setSoTimeout(0);
+        }
+    }
+
+    private synchronized void activateRoute(RelayRoute route) throws IOException {
+        if (closed) {
+            route.binding().close();
+            throw new IOException("Safra client proxy is closed");
+        }
+        P2pDatagramTransport previous = transport;
+        transport = route.binding().transport();
+        remoteAddress = route.address();
+        tunnelToken = route.tunnelToken();
+        relayTransportActive = route.binding().relay();
+        lastPacketReceivedNanos = System.nanoTime();
+        P2pDatagramTransport active = transport;
+        P2pRuntime.start("safra-p2p-client-recv", () -> receiveLoop(active));
+        if (previous != null && previous != active) {
+            previous.close();
+        }
+    }
+
+    private void announceRoute() {
+        for (int connectionId : connections.keySet()) {
+            sendPacket(P2pPacket.quicOpen(tunnelToken, connectionId), remoteAddress);
+            scheduler.schedule(() -> sendPacket(P2pPacket.quicOpen(tunnelToken, connectionId), remoteAddress), 250L, TimeUnit.MILLISECONDS);
+        }
+        LOGGER.info("Safra recovered its tunnel over {}", relayTransportActive ? "TURN" : "direct UDP");
+    }
+
+    private void receiveLoop(P2pDatagramTransport activeTransport) {
         byte[] buffer = new byte[65535];
-        while (!closed) {
-            P2pDatagramTransport activeTransport = transport;
+        while (!closed && activeTransport == transport) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 if (activeTransport == null) {
@@ -410,19 +463,20 @@ public final class P2pClientProxy implements AutoCloseable {
             } catch (IOException exception) {
                 if (!closed) {
                     LOGGER.debug("Client UDP receive failed: {}", exception.toString());
-                    if (activeTransport != transport || (activeTransport != null && !activeTransport.isClosed())) {
+                    if (activeTransport == transport && activeTransport != null && !activeTransport.isClosed()) {
                         continue;
                     }
                 }
                 return;
             }
 
+            if (activeTransport != transport) {
+                return;
+            }
             P2pPacket decoded = P2pPacket.decode(packet.getData(), packet.getLength());
             if (decoded == null || decoded.token() != tunnelToken) {
                 continue;
             }
-
-            lastPacketReceivedNanos = System.nanoTime();
 
             if (decoded.type() == P2pPacket.Type.PUNCH) {
                 InetSocketAddress senderAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
@@ -432,25 +486,29 @@ public final class P2pClientProxy implements AutoCloseable {
 
             P2pKwikClientTunnel connection = connections.get(decoded.connectionId());
             if (connection != null) {
+                if (decoded.type() == P2pPacket.Type.QUIC_DATA) {
+                    lastPacketReceivedNanos = System.nanoTime();
+                }
                 connection.handlePacket(decoded);
             }
         }
     }
 
     private void sendPacket(P2pPacket packet, InetSocketAddress remoteAddress) {
-        if (closed || transport == null || transport.isClosed()) {
+        P2pDatagramTransport active = transport;
+        if (closed || active == null || active.isClosed()) {
             return;
         }
 
         byte[] encoded = packet.encode();
         try {
-            transport.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
+            active.send(new DatagramPacket(encoded, encoded.length, remoteAddress));
         } catch (IOException exception) {
             LOGGER.debug("Client UDP send failed: {}", exception.toString());
         }
     }
 
-    private void removeConnection(int connectionId) {
+    private synchronized void removeConnection(int connectionId) {
         connections.remove(connectionId);
         if (!closed) {
             scheduler.schedule(this::closeIfIdle, 1L, TimeUnit.SECONDS);
@@ -489,7 +547,7 @@ public final class P2pClientProxy implements AutoCloseable {
         }
     }
 
-    private void closeIfIdle() {
+    private synchronized void closeIfIdle() {
         if (!closed && connections.isEmpty() && pendingRetrySockets.isEmpty()) {
             close();
         }

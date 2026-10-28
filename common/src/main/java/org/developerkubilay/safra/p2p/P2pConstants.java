@@ -24,7 +24,6 @@ public final class P2pConstants {
     public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
     static final int MIN_STREAM_WINDOW_BYTES = 64 * 1024;
     static final int MAX_STREAM_WINDOW_BYTES = 256 * 1024;
-    private static final int STREAM_WINDOW_TARGET_BYTES_PER_SECOND = 1_500_000;
     static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 10_000L;
     /**
      * When the host punches, spread over the attempt it is punching for. The last packet lands a
@@ -171,16 +170,6 @@ public final class P2pConstants {
 
     public static int turnCredentialTtlSeconds() {
         return integerProperty("safra.p2p.turnCredentialTtlSeconds", TURN_DEFAULT_CREDENTIAL_TTL_SECONDS);
-    }
-
-    /**
-     * Terrain and movement share one ordered stream, so whatever is queued ahead of a movement packet
-     * is time that packet waits; but a window below what a round trip carries leaves the link idle
-     * instead. The balance is the bandwidth-delay product, so it is measured per connection.
-     */
-    static int streamWindowBytes(int roundTripMs) {
-        long window = (long) STREAM_WINDOW_TARGET_BYTES_PER_SECOND * Math.max(1, roundTripMs) / 1000L;
-        return (int) Math.min(MAX_STREAM_WINDOW_BYTES, Math.max(MIN_STREAM_WINDOW_BYTES, window));
     }
 
     public static int turnAllocationLifetimeSeconds() {

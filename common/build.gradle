@@ -19,11 +19,25 @@ java {
 }
 
 dependencies {
-    implementation 'tech.kwik:kwik:0.11'
+    implementation "tech.kwik:kwik:${project.kwik_version}"
+    compileOnly "tech.kwik:agent15:${project.agent15_version}"
     compileOnly 'com.google.code.gson:gson:2.11.0'
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testImplementation 'org.slf4j:slf4j-api:2.0.16'
+    testRuntimeOnly 'com.google.code.gson:gson:2.11.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+
+tasks.named('test') {
+    useJUnitPlatform {
+        if (!providers.gradleProperty('networkTests').map { it.toBoolean() }.getOrElse(false)) excludeTags 'network'
+    }
+    systemProperty 'safra.networkReport', layout.buildDirectory.file('reports/network-quality.csv').get().asFile.absolutePath
+    systemProperty 'safra.networkProfile', providers.gradleProperty('networkProfile').getOrElse('all')
+    systemProperty 'safra.tunnelTestRepetitions', providers.gradleProperty('tunnelTestRepetitions').getOrElse('1')
 }
 
 processResources {
