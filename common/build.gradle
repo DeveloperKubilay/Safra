@@ -18,7 +18,11 @@ java {
     withSourcesJar()
 }
 
+sourceSets.test.java.srcDir(rootProject.file('client-network/src/main/java'))
+sourceSets.test.java.srcDir(rootProject.file('client-network/src/test/java'))
+
 dependencies {
+    testImplementation 'io.netty:netty-handler:4.1.25.Final'
     implementation "tech.kwik:kwik:${project.kwik_version}"
     compileOnly "tech.kwik:agent15:${project.agent15_version}"
     compileOnly 'com.google.code.gson:gson:2.11.0'

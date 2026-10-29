@@ -98,6 +98,35 @@ class P2pClientProxyTest {
         }
     }
 
+    @Test
+    void matchesOnlyTheOpenProxySocketEndpoint() throws Exception {
+        try (var proxy = new P2pClientProxy(new P2pShareCode("127.0.0.1", 25565, 7, null), () -> { });
+             var server = new java.net.ServerSocket(0, 16, P2pSockets.loopbackAddress())) {
+            var endpoint = (InetSocketAddress) server.getLocalSocketAddress();
+            assertFalse(proxy.matchesProxyEndpoint(endpoint));
+            set(proxy, "proxyServer", server);
+            assertTrue(proxy.matchesProxyEndpoint(endpoint));
+            assertFalse(proxy.matchesProxyEndpoint(null));
+            assertFalse(proxy.matchesProxyEndpoint(new InetSocketAddress(P2pSockets.loopbackAddress(), 0)));
+            assertFalse(proxy.matchesProxyEndpoint(InetSocketAddress.createUnresolved("localhost", endpoint.getPort())));
+            assertFalse(proxy.matchesProxyEndpoint(new InetSocketAddress("192.0.2.1", endpoint.getPort())));
+            assertFalse(proxy.matchesProxyEndpoint(new InetSocketAddress("127.0.0.2", endpoint.getPort())));
+            proxy.close();
+            assertFalse(proxy.matchesProxyEndpoint(endpoint));
+        }
+    }
+
+    @Test
+    void rejectsAClosedProxyListener() throws Exception {
+        try (var proxy = new P2pClientProxy(new P2pShareCode("127.0.0.1", 25565, 7, null), () -> { });
+             var server = new java.net.ServerSocket(0, 16, P2pSockets.loopbackAddress())) {
+            var endpoint = server.getLocalSocketAddress();
+            set(proxy, "proxyServer", server);
+            server.close();
+            assertFalse(proxy.matchesProxyEndpoint(endpoint));
+        }
+    }
+
     private static Object get(Object target, String name) throws Exception {
         var field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);

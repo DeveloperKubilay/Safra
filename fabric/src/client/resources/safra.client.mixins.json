@@ -7,6 +7,7 @@
     "AddServerScreenMixin",
     "ClickableWidgetAccessor",
     "ConnectScreenMixin",
+    "ClientConnectionMixin",
     "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",

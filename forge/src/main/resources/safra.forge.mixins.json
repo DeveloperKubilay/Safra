@@ -7,6 +7,7 @@
   "client": [
     "AbstractWidgetAccessor",
     "ConnectScreenMixin",
+    "ConnectionMixin",
     "DisconnectedScreenMixin",
     "DirectJoinServerScreenMixin",
     "EditServerScreenMixin",

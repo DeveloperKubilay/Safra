@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +80,14 @@ public final class P2pClientProxy implements AutoCloseable {
             scheduler.scheduleWithFixedDelay(this::checkConnectionLiveness, 2000L, 1000L, TimeUnit.MILLISECONDS);
         }
         return proxyServer.getLocalPort();
+    }
+
+    public boolean matchesProxyEndpoint(SocketAddress address) {
+        ServerSocket server = proxyServer;
+        return !closed && server != null && !server.isClosed()
+            && address instanceof InetSocketAddress endpoint && !endpoint.isUnresolved()
+            && endpoint.getPort() == server.getLocalPort()
+            && server.getInetAddress().equals(endpoint.getAddress());
     }
 
     public boolean usesRendezvousShareCode() {

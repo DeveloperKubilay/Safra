@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -287,6 +288,11 @@ public final class P2pManager {
 
     public static String toDisplayAddress(String address) {
         return P2pShareCode.toDisplayAddress(address);
+    }
+
+    public boolean isActiveProxyEndpoint(SocketAddress address) {
+        P2pClientProxy proxy = activeClientProxy;
+        return proxy != null && proxy.matchesProxyEndpoint(address);
     }
 
     private boolean activeClientUsesDirectShareAddress() {

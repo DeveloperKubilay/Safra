@@ -8,6 +8,7 @@ plugins {
 sourceSets {
     main {
         java.srcDir(project(':common').file('src/main/java'))
+        java.srcDir(rootProject.file('client-network/src/main/java'))
         resources.srcDir(project(':common').file('src/main/resources'))
         if (project.selected_mc_profile == '1.17.1') {
             java.srcDir('src/forge1171/java')
