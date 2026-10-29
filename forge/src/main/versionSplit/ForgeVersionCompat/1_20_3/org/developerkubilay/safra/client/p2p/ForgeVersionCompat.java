@@ -77,7 +77,9 @@ public final class ForgeVersionCompat {
                 if (parameterTypes.length != 5 && parameterTypes.length != 6) {
                     continue;
                 }
-                if (!Modifier.isStatic(method.getModifiers())
+                if (!Modifier.isPublic(method.getModifiers())
+                    || !Modifier.isStatic(method.getModifiers())
+                    || method.getReturnType() != void.class
                     || parameterTypes[0] != Screen.class
                     || parameterTypes[1] != Minecraft.class
                     || parameterTypes[2] != ServerAddress.class
