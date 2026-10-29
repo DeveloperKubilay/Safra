@@ -13,7 +13,8 @@
     "MultiplayerScreenMixin",
     "MinecraftLifecycleMixin",
     "OpenToLanScreenMixin",
-    "ServerStatusPingerMixin"
+    "ServerStatusPingerMixin",
+    "ServerLoginNetworkHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

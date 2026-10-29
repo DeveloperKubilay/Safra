@@ -41,7 +41,7 @@ final class P2pKwikHostServer implements AutoCloseable {
     private final Sender sender;
     private final Map<Integer, Peer> peersByConnection = new ConcurrentHashMap<>();
     private final Map<Integer, Peer> peersByPort = new ConcurrentHashMap<>();
-    private final Set<Socket> openMinecraftSockets = ConcurrentHashMap.newKeySet();
+    private final Map<Socket, P2pHostConnectionRegistry.Registration> openMinecraftSockets = new ConcurrentHashMap<>();
     private final Set<QuicConnection> activeConnections = ConcurrentHashMap.newKeySet();
     private final AtomicInteger nextPeerPort = new AtomicInteger(P2pConstants.KWIK_VIRTUAL_PORT);
     private final P2pKwikDatagramSocket socket;
@@ -121,10 +121,20 @@ final class P2pKwikHostServer implements AutoCloseable {
 
     @Override
     public void close() {
-        if (closed) {
-            return;
+        synchronized (openMinecraftSockets) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            openMinecraftSockets.forEach((localSocket, registration) -> {
+                registration.close();
+                try {
+                    localSocket.close();
+                } catch (IOException ignored) {
+                }
+            });
+            openMinecraftSockets.clear();
         }
-        closed = true;
         peersByConnection.clear();
         peersByPort.clear();
         for (QuicConnection connection : activeConnections) {
@@ -134,13 +144,6 @@ final class P2pKwikHostServer implements AutoCloseable {
             }
         }
         activeConnections.clear();
-        for (Socket localSocket : openMinecraftSockets) {
-            try {
-                localSocket.close();
-            } catch (IOException ignored) {
-            }
-        }
-        openMinecraftSockets.clear();
         connector.close();
         socket.close();
     }
@@ -220,21 +223,45 @@ final class P2pKwikHostServer implements AutoCloseable {
             quicConnection.close();
             return;
         }
+        Socket minecraftSocket = new Socket();
         try {
-            Socket minecraftSocket = new Socket(minecraftAddress, minecraftPort);
             P2pSockets.tune(minecraftSocket);
-            openMinecraftSockets.add(minecraftSocket);
+            InetSocketAddress target = new InetSocketAddress(minecraftAddress, minecraftPort);
+            synchronized (openMinecraftSockets) {
+                if (closed) {
+                    throw new IOException("Safra host is closed");
+                }
+                minecraftSocket.bind(new InetSocketAddress(minecraftAddress, 0));
+                openMinecraftSockets.put(minecraftSocket,
+                    P2pHostConnectionRegistry.getInstance().register(minecraftSocket, target));
+            }
+            minecraftSocket.connect(target);
+            if (closed || minecraftSocket.isClosed()) {
+                throw new IOException("Safra host closed during tunnel connection");
+            }
             P2pKwikStreams.pipe(logger, "host", stream, minecraftSocket, () -> {
-                openMinecraftSockets.remove(minecraftSocket);
+                closeMinecraftSocket(minecraftSocket);
                 activeConnections.remove(quicConnection);
                 quicConnection.close();
             });
             logger.debug("Safra Kwik host tunnel connected to local Minecraft {}:{}",
                 minecraftAddress.getHostAddress(), minecraftPort);
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
+            closeMinecraftSocket(minecraftSocket);
             logger.warn("Safra Kwik host could not reach local Minecraft: {}", exception.toString());
             activeConnections.remove(quicConnection);
             quicConnection.close();
+        }
+    }
+
+    private void closeMinecraftSocket(Socket minecraftSocket) {
+        P2pHostConnectionRegistry.Registration registration = openMinecraftSockets.remove(minecraftSocket);
+        if (registration != null) {
+            registration.close();
+        }
+        try {
+            minecraftSocket.close();
+        } catch (IOException ignored) {
         }
     }
 

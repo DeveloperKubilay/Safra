@@ -4,6 +4,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import org.developerkubilay.safra.p2p.P2pConstants;
+import org.developerkubilay.safra.p2p.SafraBuildInfo;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -33,6 +35,11 @@ public final class P2pLoginTimeout {
             originalTimeoutMillis = timeout.getReaderIdleTimeInMillis();
             extendedHandler = new ReadTimeoutHandler(P2pConstants.PROXY_LOGIN_TIMEOUT_SECONDS);
             connection.pipeline().replace(timeout, "timeout", extendedHandler);
+            if (SafraBuildInfo.diagnostics()) {
+                LoggerFactory.getLogger(P2pLoginTimeout.class).info(
+                    "Safra LOGIN read timeout extended to {}s on {} -> {}",
+                    P2pConstants.PROXY_LOGIN_TIMEOUT_SECONDS, connection.localAddress(), connection.remoteAddress());
+            }
         });
     }
 
@@ -47,6 +54,11 @@ public final class P2pLoginTimeout {
                 && connection.pipeline().get("timeout") == extendedHandler) {
                 connection.pipeline().replace(extendedHandler, "timeout",
                     new ReadTimeoutHandler(originalTimeoutMillis, TimeUnit.MILLISECONDS));
+                if (SafraBuildInfo.diagnostics()) {
+                    LoggerFactory.getLogger(P2pLoginTimeout.class).info(
+                        "Safra LOGIN read timeout restored to {}ms on {} -> {}",
+                        originalTimeoutMillis, connection.localAddress(), connection.remoteAddress());
+                }
             }
             extendedHandler = null;
         });

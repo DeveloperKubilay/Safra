@@ -13,6 +13,7 @@ import tech.kwik.core.stream.StreamManager;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -115,5 +116,76 @@ class P2pKwikClientTunnelTest {
             assertTrue(failed.await(5, TimeUnit.SECONDS));
             assertEquals(0, established.get());
         }
+    }
+
+    @Test
+    void exchangesTinyBidirectionalPayloadsBeforeEof() throws Exception {
+        var logger = LoggerFactory.getLogger(getClass());
+        CountDownLatch established = new CountDownLatch(1);
+        CountDownLatch failed = new CountDownLatch(1);
+        AtomicReference<P2pKwikClientTunnel> tunnelRef = new AtomicReference<>();
+        AtomicReference<SocketAddress> sourceEndpoint = new AtomicReference<>();
+        AtomicReference<SocketAddress> targetEndpoint = new AtomicReference<>();
+        int[] sizes = {1, 3, 15, 40, 255, 256, 257};
+        try (ServerSocket target = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             ServerSocket proxy = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             Socket game = new Socket()) {
+            game.setReceiveBufferSize(1_024);
+            game.connect(proxy.getLocalSocketAddress());
+            game.setSoTimeout(8_000);
+            FutureTask<Void> serverTask = new FutureTask<>(() -> {
+                try (Socket targetSocket = target.accept()) {
+                    targetSocket.setSoTimeout(8_000);
+                    sourceEndpoint.set(targetSocket.getRemoteSocketAddress());
+                    targetEndpoint.set(targetSocket.getLocalSocketAddress());
+                    assertTrue(P2pHostConnectionRegistry.getInstance().matches(sourceEndpoint.get(), targetEndpoint.get()));
+                    for (int size : sizes) {
+                        byte[] expectedRequest = createPayload(size, 1);
+                        byte[] actualRequest = targetSocket.getInputStream().readNBytes(size);
+                        assertArrayEquals(expectedRequest, actualRequest);
+
+                        byte[] response = createPayload(size, 2);
+                        targetSocket.getOutputStream().write(response);
+                        targetSocket.getOutputStream().flush();
+                    }
+                    assertEquals(-1, targetSocket.getInputStream().read());
+                }
+                return null;
+            });
+            P2pRuntime.start("safra-test-server", serverTask);
+            try (var host = new P2pKwikHostServer(logger, target.getLocalPort(), P2pSockets.loopbackAddress(),
+                P2pKwikCertificate.create(), (transport, packet, address) -> tunnelRef.get().handlePacket(packet));
+                 var tunnel = new P2pKwikClientTunnel(logger, 7, 9, proxy.accept(), 7_000,
+                     packet -> host.handlePacket(packet, new InetSocketAddress(P2pSockets.loopbackAddress(), 4444), null),
+                     () -> { }, failed::countDown, established::countDown)) {
+                tunnelRef.set(tunnel);
+                tunnel.start();
+                assertTrue(established.await(5, TimeUnit.SECONDS));
+                for (int size : sizes) {
+                    byte[] request = createPayload(size, 1);
+                    game.getOutputStream().write(request);
+                    game.getOutputStream().flush();
+
+                    byte[] expectedResponse = createPayload(size, 2);
+                    byte[] actualResponse = game.getInputStream().readNBytes(size);
+                    assertArrayEquals(expectedResponse, actualResponse);
+                }
+                game.shutdownOutput();
+                assertEquals(-1, game.getInputStream().read());
+                serverTask.get(5, TimeUnit.SECONDS);
+                assertEquals(1, failed.getCount());
+            }
+            assertNotNull(sourceEndpoint.get());
+            assertNotNull(targetEndpoint.get());
+            assertFalse(P2pHostConnectionRegistry.getInstance().matches(sourceEndpoint.get(), targetEndpoint.get()));
+        }
+    }
+
+    private static byte[] createPayload(int size, int seed) {
+        byte[] payload = new byte[size];
+        for (int i = 0; i < size; i++) {
+            payload[i] = (byte) ((i * 31 + seed) & 0xFF);
+        }
+        return payload;
     }
 }

@@ -15,6 +15,7 @@
     "JoinMultiplayerScreenMixin",
     "MinecraftLifecycleMixin",
     "ServerStatusPingerMixin",
+    "ServerLoginPacketListenerImplMixin",
     "ShareToLanScreenMixin"
   ],
   "injectors": {
