@@ -247,4 +247,31 @@ public final class ForgeClientCompat {
             currentClass = currentClass.getSuperclass();
         }
     }
+
+    public static void setLan(net.minecraft.client.multiplayer.ServerData target, boolean lan) {
+        if (target == null) {
+            return;
+        }
+        for (String fieldName : new String[]{"lan", "f_105417_"}) {
+            try {
+                Field field = net.minecraft.client.multiplayer.ServerData.class.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                field.setBoolean(target, lan);
+                return;
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        for (Field field : net.minecraft.client.multiplayer.ServerData.class.getDeclaredFields()) {
+            if (field.getType() == boolean.class && !Modifier.isStatic(field.getModifiers())) {
+                try {
+                    field.setAccessible(true);
+                    field.setBoolean(target, lan);
+                    if (target.isLan() == lan) {
+                        return;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
 }

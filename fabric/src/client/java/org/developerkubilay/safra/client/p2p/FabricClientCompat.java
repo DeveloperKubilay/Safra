@@ -80,6 +80,33 @@ public final class FabricClientCompat {
         }
     }
 
+    public static void setLocal(ServerInfo target, boolean local) {
+        if (target == null) {
+            return;
+        }
+        for (String fieldName : new String[]{"local", "lan", "field_3763", "f_105417_"}) {
+            try {
+                Field field = ServerInfo.class.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                field.setBoolean(target, local);
+                return;
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        for (Field field : ServerInfo.class.getDeclaredFields()) {
+            if (field.getType() == boolean.class && !Modifier.isStatic(field.getModifiers())) {
+                try {
+                    field.setAccessible(true);
+                    field.setBoolean(target, local);
+                    if (target.isLocal() == local) {
+                        return;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
     public static void narrate(MinecraftClient client, Text text) {
         if (client == null || text == null) {
             return;

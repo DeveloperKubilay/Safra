@@ -141,6 +141,7 @@ public final class P2pManager {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         ServerInfo snapshot = new ServerInfo(originalServerInfo.name, originalServerInfo.address, originalServerInfo.isLocal());
         FabricClientCompat.copyServerInfo(snapshot, originalServerInfo);
+        FabricClientCompat.setLocal(snapshot, true);
 
         long generation;
         synchronized (this) {
@@ -218,8 +219,9 @@ public final class P2pManager {
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerAddress socketAddress = ServerAddress.parse(localAddress);
-        ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
+        ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, true);
         FabricClientCompat.copyServerInfo(rewritten, originalServerInfo);
+        FabricClientCompat.setLocal(rewritten, true);
         rewritten.address = localAddress;
         String worldCode = proxy.worldCode();
         rewritten.name = (worldCode != null && !worldCode.isBlank()) ? worldCode : shareCode.toDisplayCode();
