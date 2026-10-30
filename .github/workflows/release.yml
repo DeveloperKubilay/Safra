@@ -168,7 +168,20 @@ jobs:
           if [[ -n "${JAVA_HOME_17_X64:-}" ]]; then
             toolchain_paths="${toolchain_paths},${JAVA_HOME_17_X64}"
           fi
+          if [[ -d "/usr/lib/jvm/temurin-25-jdk-amd64" ]]; then
+            toolchain_paths="${toolchain_paths},/usr/lib/jvm/temurin-25-jdk-amd64"
+          fi
           echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${toolchain_paths} -Dorg.gradle.java.installations.auto-detect=false" >> "$GITHUB_ENV"
+
+      - name: Cache MinecraftForge caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/minecraftforge
+          key: ${{ runner.os }}-minecraftforge-${{ matrix.mc_version }}-${{ hashFiles('**/build.gradle', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-minecraftforge-${{ matrix.mc_version }}-
+            ${{ runner.os }}-minecraftforge-
 
       - name: Resolve build mode
         shell: bash
@@ -209,12 +222,27 @@ jobs:
       - name: Build release artifacts
         shell: bash
         run: |
-          ./gradlew clean build --stacktrace \
-            -Pmc_profile="${{ matrix.mc_version }}" \
-            -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
-            $SAFRA_LOADER_BUILD_ARGS \
-            $SAFRA_BUILD_MODE_ARGS \
-            $SAFRA_DIAGNOSTICS_ARGS
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Build attempt $attempt of $max_attempts..."
+            if ./gradlew clean build --stacktrace \
+              -Pmc_profile="${{ matrix.mc_version }}" \
+              -Pmod_version="${{ needs.prepare.outputs.version_number }}" \
+              $SAFRA_LOADER_BUILD_ARGS \
+              $SAFRA_BUILD_MODE_ARGS \
+              $SAFRA_DIAGNOSTICS_ARGS; then
+              break
+            fi
+            attempt=$((attempt + 1))
+            if [ $attempt -le $max_attempts ]; then
+              echo "Build failed (transient network or toolchain timeout). Retrying in 10s..."
+              sleep 10
+            else
+              echo "Build failed after $max_attempts attempts."
+              exit 1
+            fi
+          done
 
       - name: Collect release artifacts
         shell: bash
