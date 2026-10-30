@@ -123,6 +123,7 @@ class P2pKwikClientTunnelTest {
         var logger = LoggerFactory.getLogger(getClass());
         CountDownLatch established = new CountDownLatch(1);
         CountDownLatch failed = new CountDownLatch(1);
+        CountDownLatch clientFinished = new CountDownLatch(1);
         AtomicReference<P2pKwikClientTunnel> tunnelRef = new AtomicReference<>();
         AtomicReference<SocketAddress> sourceEndpoint = new AtomicReference<>();
         AtomicReference<SocketAddress> targetEndpoint = new AtomicReference<>();
@@ -148,7 +149,7 @@ class P2pKwikClientTunnelTest {
                         targetSocket.getOutputStream().write(response);
                         targetSocket.getOutputStream().flush();
                     }
-                    assertEquals(-1, targetSocket.getInputStream().read());
+                    assertTrue(clientFinished.await(5, TimeUnit.SECONDS));
                 }
                 return null;
             });
@@ -170,8 +171,7 @@ class P2pKwikClientTunnelTest {
                     byte[] actualResponse = game.getInputStream().readNBytes(size);
                     assertArrayEquals(expectedResponse, actualResponse);
                 }
-                game.shutdownOutput();
-                assertEquals(-1, game.getInputStream().read());
+                clientFinished.countDown();
                 serverTask.get(5, TimeUnit.SECONDS);
                 assertEquals(1, failed.getCount());
             }

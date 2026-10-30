@@ -168,7 +168,7 @@ jobs:
           if [[ -n "${JAVA_HOME_17_X64:-}" ]]; then
             toolchain_paths="${toolchain_paths},${JAVA_HOME_17_X64}"
           fi
-          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${toolchain_paths} -Dorg.gradle.java.installations.auto-detect=true" >> "$GITHUB_ENV"
+          echo "GRADLE_OPTS=-Dorg.gradle.java.home=${JAVA_HOME} -Dorg.gradle.java.installations.paths=${toolchain_paths} -Dorg.gradle.java.installations.auto-detect=false" >> "$GITHUB_ENV"
 
       - name: Resolve build mode
         shell: bash
