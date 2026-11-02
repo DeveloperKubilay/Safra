@@ -216,6 +216,15 @@ public final class P2pManager {
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
         pendingFailureKind = P2pErrorKind.OTHER;
+        SafraHostPermissions.reset();
+    }
+
+    public synchronized long getHostStartGeneration() {
+        return hostStartGeneration;
+    }
+
+    public boolean isHosting() {
+        return hostService != null;
     }
 
     public synchronized void startBedrockRelay(Consumer<String> readyHandler, Runnable unavailableHandler) {

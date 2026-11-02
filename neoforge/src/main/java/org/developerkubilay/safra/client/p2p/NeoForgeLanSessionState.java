@@ -11,6 +11,7 @@ public final class NeoForgeLanSessionState {
     private static volatile boolean p2pEnabled = true;
     private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
+    private static volatile boolean grantHostOperatorEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
@@ -27,6 +28,7 @@ public final class NeoForgeLanSessionState {
         }
         onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         allowCommandsEnabled = config.isOpenToLanAllowCommandsEnabled();
+        grantHostOperatorEnabled = config.isOpenToLanGrantHostOperator();
         fixedCodeEnabled = config.isOpenToLanFixedCodeEnabled();
         fixedCode = P2pShareCode.normalizeRendezvousCode(config.getOpenToLanFixedCode());
         if (fixedCode == null) {
@@ -74,6 +76,15 @@ public final class NeoForgeLanSessionState {
         SafraClientConfig.get().setOpenToLanAllowCommandsEnabled(enabled);
     }
 
+    public static boolean isGrantHostOperatorEnabled() {
+        return grantHostOperatorEnabled;
+    }
+
+    public static void setGrantHostOperatorEnabled(boolean enabled) {
+        grantHostOperatorEnabled = enabled;
+        SafraClientConfig.get().setOpenToLanGrantHostOperator(enabled);
+    }
+
     public static boolean isFixedCodeEnabled() {
         return fixedCodeEnabled;
     }
@@ -117,10 +128,12 @@ public final class NeoForgeLanSessionState {
 
     public static void resetServerSettings() {
         allowCommandsEnabled = false;
+        grantHostOperatorEnabled = false;
         fixedCodeEnabled = true;
         resetGameRules();
         SafraClientConfig config = SafraClientConfig.get();
         config.setOpenToLanAllowCommandsEnabled(false);
+        config.setOpenToLanGrantHostOperator(false);
         config.setOpenToLanFixedCodeEnabled(true);
     }
 }

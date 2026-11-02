@@ -16,6 +16,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.SafraHostPermissions;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 @Mixin(ShareToLanScreen.class)
@@ -40,9 +42,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Shadow
     private EditBox portEdit;
-
-    @Shadow
-    private boolean commands;
 
     @Unique
     private Button safra$p2pButton;
@@ -69,7 +68,6 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         FabricLanSessionState.loadFromConfig();
-        this.commands = FabricLanSessionState.isAllowCommandsEnabled();
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -109,7 +107,6 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = {"method_19851", "lambda$init$2"}, at = @At("HEAD"), require = 0)
     private void safra$applyOnlineMode(IntegratedServer server, Button button, CallbackInfo ci) {
         if (server != null) {
-            this.commands = FabricLanSessionState.isAllowCommandsEnabled();
             server.setUsesAuthentication(this.safra$onlineModeEnabled);
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
@@ -144,7 +141,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         String rawWorldName = server.getWorldData() != null ? server.getWorldData().getLevelName() : "World";
         long seed = server.overworld() != null ? server.overworld().getSeed() : 0L;
         String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.minecraft.execute(() -> {
+        CompletableFuture<P2pShareCode> startFuture = P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.minecraft.execute(() -> {
             this.safra$addClientSystemMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
@@ -153,7 +150,14 @@ abstract class OpenToLanScreenMixin extends Screen {
             if (!youtubeUrl.isBlank()) {
                 this.safra$addClientSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
             }
-        })).whenComplete((shareCode, throwable) -> {
+        }));
+        long hostGeneration = P2pManager.getInstance().getHostStartGeneration();
+        boolean grantHostOperator = FabricLanSessionState.isGrantHostOperatorEnabled();
+        startFuture.whenComplete((shareCode, throwable) -> {
+            if (throwable == null) {
+                server.execute(() -> SafraHostPermissions.activate(server, hostGeneration, grantHostOperator));
+            }
+
             if (this.minecraft == null) {
                 return;
             }

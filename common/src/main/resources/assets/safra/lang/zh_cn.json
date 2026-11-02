@@ -22,6 +22,8 @@
   "safra.p2p.game_rules": "Game Rules",
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
+  "safra.p2p.grant_host_operator.on": "赋予房主权限: 开启",
+  "safra.p2p.grant_host_operator.off": "赋予房主权限: 关闭",
   "safra.p2p.online_mode.short.off": "在线：关",
   "safra.p2p.game_rules.reset": "重置游戏规则",
   "safra.p2p.fixed_code.on": "使用固定代码：开",

@@ -20,9 +20,6 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Shadow
     private EditBox portEdit;
 
-    @Shadow
-    private boolean commands;
-
     @Unique
     private Button safra$p2pButton;
 
@@ -42,7 +39,6 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         ForgeLanSessionState.loadFromConfig();
-        this.commands = ForgeLanSessionState.isAllowCommandsEnabled();
     }
 
     @Inject(method = "init", at = @At("TAIL"))

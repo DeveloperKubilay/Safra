@@ -10,6 +10,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.NeoForgeLanGameRules;
 import org.developerkubilay.safra.client.p2p.NeoForgeLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.SafraHostPermissions;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 @Mixin(IntegratedServer.class)
@@ -63,7 +65,7 @@ abstract class IntegratedServerMixin {
         String rawWorldName = server.getWorldData() != null ? server.getWorldData().getLevelName() : "World";
         long seed = server.overworld() != null ? server.overworld().getSeed() : 0L;
         String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> client.execute(() -> {
+        CompletableFuture<P2pShareCode> startFuture = P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> client.execute(() -> {
             client.gui.getChat().addMessage(
                 Component.translatable("safra.p2p.host.relay_warning").copy().withStyle(ChatFormatting.YELLOW)
             );
@@ -72,7 +74,14 @@ abstract class IntegratedServerMixin {
             if (!youtubeUrl.isBlank()) {
                 client.gui.getChat().addMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
             }
-        })).whenComplete((shareCode, throwable) -> {
+        }));
+        long hostGeneration = P2pManager.getInstance().getHostStartGeneration();
+        boolean grantHostOperator = NeoForgeLanSessionState.isGrantHostOperatorEnabled();
+        startFuture.whenComplete((shareCode, throwable) -> {
+            if (throwable == null) {
+                server.execute(() -> SafraHostPermissions.activate(server, hostGeneration, grantHostOperator));
+            }
+
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
