@@ -7,10 +7,16 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.commands.DeOpCommands;
+import net.minecraft.server.commands.OpCommand;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.permissions.PermissionLevel;
@@ -44,7 +50,7 @@ public final class SafraWorldOpsManager {
     private static volatile boolean hostingActive;
     private static volatile boolean persistenceDisabled;
 
-    private static WeakReference<IntegratedServer> boundServer;
+    private static volatile WeakReference<IntegratedServer> boundServer;
     private static Path worldOpsPath;
     private static boolean malformedWarned;
     private static long activeHostingGeneration = -1;
@@ -54,6 +60,25 @@ public final class SafraWorldOpsManager {
 
     public static boolean isRecognizedOpsList(StoredUserList<?, ?> list) {
         return recognizedOpsList != null && list == recognizedOpsList;
+    }
+
+    public static void registerCommands(Commands commands) {
+        CommandDispatcher<CommandSourceStack> vanillaCommands = new CommandDispatcher<>();
+        OpCommand.register(vanillaCommands);
+        DeOpCommands.register(vanillaCommands);
+        for (CommandNode<CommandSourceStack> node : vanillaCommands.getRoot().getChildren()) {
+            if (commands.getDispatcher().getRoot().getChild(node.getName()) == null) {
+                var builder = node.createBuilder().requires(source -> {
+                    WeakReference<IntegratedServer> reference = boundServer;
+                    return hostingActive && reference != null && reference.get() == source.getServer()
+                        && P2pManager.getInstance().isHosting() && node.canUse(source);
+                });
+                for (CommandNode<CommandSourceStack> child : node.getChildren()) {
+                    builder.then(child);
+                }
+                commands.getDispatcher().getRoot().addChild(builder.build());
+            }
+        }
     }
 
     public static void activate(IntegratedServer server, long generation, boolean grantHostOperator) {
