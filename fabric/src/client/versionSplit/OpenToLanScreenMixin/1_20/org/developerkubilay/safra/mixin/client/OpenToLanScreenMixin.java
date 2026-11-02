@@ -17,6 +17,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.SafraHostPermissions;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 @Mixin(OpenToLanScreen.class)
@@ -41,9 +43,6 @@ abstract class OpenToLanScreenMixin extends Screen {
 
     @Shadow
     private TextFieldWidget portField;
-
-    @Shadow
-    private boolean allowCommands;
 
     @Unique
     private ButtonWidget safra$p2pButton;
@@ -70,7 +69,6 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         FabricLanSessionState.loadFromConfig();
-        this.allowCommands = FabricLanSessionState.isAllowCommandsEnabled();
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -110,7 +108,6 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "method_19851", at = @At("HEAD"))
     private void safra$applyOnlineMode(IntegratedServer server, ButtonWidget button, CallbackInfo ci) {
         if (server != null) {
-            this.allowCommands = FabricLanSessionState.isAllowCommandsEnabled();
             server.setOnlineMode(this.safra$onlineModeEnabled);
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
@@ -139,16 +136,28 @@ abstract class OpenToLanScreenMixin extends Screen {
         String rawWorldName = server.getSaveProperties() != null ? server.getSaveProperties().getLevelName() : "World";
         long seed = server.getOverworld() != null ? server.getOverworld().getSeed() : 0L;
         String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.client.execute(() -> {
-            this.client.inGameHud.getChatHud().addMessage(
-                Text.translatable("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
-            );
-            this.client.inGameHud.getChatHud().addMessage(Text.literal("Discord: ").append(safra$discordLink()));
-            String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
-            if (!youtubeUrl.isBlank()) {
-                this.client.inGameHud.getChatHud().addMessage(Text.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+        P2pManager manager = P2pManager.getInstance();
+        boolean grantHostOperator = FabricLanSessionState.isGrantHostOperatorEnabled();
+        CompletableFuture<P2pShareCode> startFuture;
+        long hostGeneration;
+        synchronized (manager) {
+            startFuture = manager.startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.client.execute(() -> {
+                this.client.inGameHud.getChatHud().addMessage(
+                    Text.translatable("safra.p2p.host.relay_warning").formatted(Formatting.YELLOW)
+                );
+                this.client.inGameHud.getChatHud().addMessage(Text.literal("Discord: ").append(safra$discordLink()));
+                String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
+                if (!youtubeUrl.isBlank()) {
+                    this.client.inGameHud.getChatHud().addMessage(Text.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
+                }
+            }));
+            hostGeneration = manager.getHostStartGeneration();
+        }
+        startFuture.whenComplete((shareCode, throwable) -> {
+            if (throwable == null) {
+                server.execute(() -> SafraHostPermissions.activate(server, hostGeneration, grantHostOperator));
             }
-        })).whenComplete((shareCode, throwable) -> {
+
             if (this.client == null) {
                 return;
             }

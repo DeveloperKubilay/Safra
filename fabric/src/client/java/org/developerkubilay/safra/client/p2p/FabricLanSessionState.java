@@ -12,6 +12,7 @@ public final class FabricLanSessionState {
     private static volatile boolean p2pEnabled = true;
     private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
+    private static volatile boolean grantHostOperatorEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
     private static volatile Map<String, String> gameRuleSnapshot = Map.of();
@@ -28,6 +29,7 @@ public final class FabricLanSessionState {
         }
         onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         allowCommandsEnabled = config.isOpenToLanAllowCommandsEnabled();
+        grantHostOperatorEnabled = config.isOpenToLanGrantHostOperator();
         fixedCodeEnabled = config.isOpenToLanFixedCodeEnabled();
         fixedCode = config.getOpenToLanFixedCode();
         gameRuleSnapshot = new LinkedHashMap<>(config.getOpenToLanGameRules());
@@ -69,6 +71,15 @@ public final class FabricLanSessionState {
     public static void setAllowCommandsEnabled(boolean enabled) {
         allowCommandsEnabled = enabled;
         SafraClientConfig.get().setOpenToLanAllowCommandsEnabled(enabled);
+    }
+
+    public static boolean isGrantHostOperatorEnabled() {
+        return grantHostOperatorEnabled;
+    }
+
+    public static void setGrantHostOperatorEnabled(boolean enabled) {
+        grantHostOperatorEnabled = enabled;
+        SafraClientConfig.get().setOpenToLanGrantHostOperator(enabled);
     }
 
     public static boolean isFixedCodeEnabled() {

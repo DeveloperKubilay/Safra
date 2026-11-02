@@ -14,7 +14,7 @@ import java.util.Optional;
 
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
-    private Button allowCommandsButton;
+    private Button grantHostOperatorButton;
     private Button fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
@@ -59,9 +59,9 @@ public final class SafraLanServerSettingsScreen extends Screen {
         int w = safra$getWidth();
         int h = safra$getHeight();
         int top = h / 4 - 20;
-        this.allowCommandsButton = ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(this.getAllowCommandsText(), button -> {
-                ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
-                ForgeButtonCompat.setMessage(button, this.getAllowCommandsText());
+        this.grantHostOperatorButton = ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(this.getGrantHostOperatorText(), button -> {
+                ForgeLanSessionState.setGrantHostOperatorEnabled(!ForgeLanSessionState.isGrantHostOperatorEnabled());
+                ForgeButtonCompat.setMessage(button, this.getGrantHostOperatorText());
             }, w / 2 - 100, top + 24, 200, 20));
 
         this.fixedCodeButton = ForgeScreenCompat.addRenderableWidget(this, ForgeButtonCompat.create(this.getFixedCodeText(), button -> {
@@ -116,11 +116,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private Component getAllowCommandsText() {
+    private Component getGrantHostOperatorText() {
         return ForgeComponentCompat.translatable(
-            ForgeLanSessionState.isAllowCommandsEnabled()
-                ? "safra.p2p.allow_commands.on"
-                : "safra.p2p.allow_commands.off"
+            ForgeLanSessionState.isGrantHostOperatorEnabled()
+                ? "safra.p2p.grant_host_operator.on"
+                : "safra.p2p.grant_host_operator.off"
         );
     }
 

@@ -41,7 +41,6 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"), remap = false)
     private void safra$loadLanSettings(CallbackInfo ci) {
         ForgeLanSessionState.loadFromConfig();
-        this.safra$setField(ForgeLanSessionState.isAllowCommandsEnabled(), "commands", "f_96647_");
     }
 
     @Inject(method = "init", at = @At("TAIL"), remap = false)

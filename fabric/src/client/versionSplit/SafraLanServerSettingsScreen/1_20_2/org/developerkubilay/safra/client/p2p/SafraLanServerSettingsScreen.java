@@ -15,7 +15,7 @@ public final class SafraLanServerSettingsScreen extends Screen {
     private static final int SAFRA_HALF_BUTTON_WIDTH = 118;
 
     private final Screen parent;
-    private ButtonWidget allowCommandsButton;
+    private ButtonWidget grantHostOperatorButton;
     private ButtonWidget fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
@@ -27,9 +27,9 @@ public final class SafraLanServerSettingsScreen extends Screen {
     protected void init() {
         int top = this.height / 4 - 20;
         int left = this.width / 2 - SAFRA_FULL_BUTTON_WIDTH / 2;
-        this.allowCommandsButton = this.addDrawableChild(ButtonWidget.builder(this.getAllowCommandsText(), button -> {
-                FabricLanSessionState.setAllowCommandsEnabled(!FabricLanSessionState.isAllowCommandsEnabled());
-                button.setMessage(this.getAllowCommandsText());
+        this.grantHostOperatorButton = this.addDrawableChild(ButtonWidget.builder(this.getGrantHostOperatorText(), button -> {
+                FabricLanSessionState.setGrantHostOperatorEnabled(!FabricLanSessionState.isGrantHostOperatorEnabled());
+                button.setMessage(this.getGrantHostOperatorText());
             })
             .dimensions(left, top + 24, SAFRA_FULL_BUTTON_WIDTH, 20)
             .build());
@@ -87,11 +87,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private Text getAllowCommandsText() {
+    private Text getGrantHostOperatorText() {
         return Text.translatable(
-            FabricLanSessionState.isAllowCommandsEnabled()
-                ? "safra.p2p.allow_commands.on"
-                : "safra.p2p.allow_commands.off"
+            FabricLanSessionState.isGrantHostOperatorEnabled()
+                ? "safra.p2p.grant_host_operator.on"
+                : "safra.p2p.grant_host_operator.off"
         );
     }
 

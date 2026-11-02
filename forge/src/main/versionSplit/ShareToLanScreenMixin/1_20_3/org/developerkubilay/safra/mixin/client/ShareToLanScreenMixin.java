@@ -49,7 +49,6 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         ForgeLanSessionState.loadFromConfig();
-        this.safra$setField(ForgeLanSessionState.isAllowCommandsEnabled(), "commands", "f_96647_");
     }
 
     @Inject(method = "init", at = @At("HEAD"), cancellable = true)
@@ -154,10 +153,10 @@ abstract class ShareToLanScreenMixin extends Screen {
         int width = 200;
 
         ForgeScreenCompat.addRenderableWidget((Screen) (Object) this, ForgeButtonCompat.create(
-            this.safra$getAllowCommandsText(),
+            this.safra$getGrantHostOperatorText(),
             button -> {
-                ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
-                ForgeButtonCompat.setMessage(button, this.safra$getAllowCommandsText());
+                ForgeLanSessionState.setGrantHostOperatorEnabled(!ForgeLanSessionState.isGrantHostOperatorEnabled());
+                ForgeButtonCompat.setMessage(button, this.safra$getGrantHostOperatorText());
             },
             left,
             top + 24,
@@ -276,11 +275,11 @@ abstract class ShareToLanScreenMixin extends Screen {
     }
 
     @Unique
-    private Component safra$getAllowCommandsText() {
+    private Component safra$getGrantHostOperatorText() {
         return ForgeComponentCompat.translatable(
-            ForgeLanSessionState.isAllowCommandsEnabled()
-                ? "safra.p2p.allow_commands.on"
-                : "safra.p2p.allow_commands.off"
+            ForgeLanSessionState.isGrantHostOperatorEnabled()
+                ? "safra.p2p.grant_host_operator.on"
+                : "safra.p2p.grant_host_operator.off"
         );
     }
 
