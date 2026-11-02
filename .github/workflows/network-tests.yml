@@ -2,22 +2,6 @@ name: Network tests
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'common/**'
-      - 'build.gradle'
-      - 'gradle/**'
-      - 'gradle.properties'
-      - 'settings.gradle'
-      - '.github/workflows/network-tests.yml'
-  pull_request:
-    paths:
-      - 'common/**'
-      - 'build.gradle'
-      - 'gradle/**'
-      - 'gradle.properties'
-      - 'settings.gradle'
-      - '.github/workflows/network-tests.yml'
 
 permissions:
   contents: read
