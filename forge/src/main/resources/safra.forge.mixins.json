@@ -13,7 +13,9 @@
     "ManageServerScreenMixin",
     "MinecraftLifecycleMixin",
     "ServerStatusPingerMixin",
-    "ShareToLanScreenMixin"
+    "ShareToLanScreenMixin",
+    "StoredUserEntryMixin",
+    "StoredUserListMixin"
   ],
   "injectors": {
     "defaultRequire": 1

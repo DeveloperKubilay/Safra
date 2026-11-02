@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
-    private Button allowCommandsButton;
+    private Button grantHostOperatorButton;
     private Button fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
@@ -24,9 +24,9 @@ public final class SafraLanServerSettingsScreen extends Screen {
     @Override
     protected void init() {
         int top = this.height / 4 - 20;
-        this.allowCommandsButton = this.addRenderableWidget(Button.builder(this.getAllowCommandsText(), button -> {
-                LanSessionState.setAllowCommandsEnabled(!LanSessionState.isAllowCommandsEnabled());
-                button.setMessage(this.getAllowCommandsText());
+        this.grantHostOperatorButton = this.addRenderableWidget(Button.builder(this.getGrantHostOperatorText(), button -> {
+                LanSessionState.setGrantHostOperatorEnabled(!LanSessionState.isGrantHostOperatorEnabled());
+                button.setMessage(this.getGrantHostOperatorText());
             })
             .bounds(this.width / 2 - 100, top + 24, 200, 20)
             .build());
@@ -88,11 +88,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private Component getAllowCommandsText() {
+    private Component getGrantHostOperatorText() {
         return Component.translatable(
-            LanSessionState.isAllowCommandsEnabled()
-                ? "safra.p2p.allow_commands.on"
-                : "safra.p2p.allow_commands.off"
+            LanSessionState.isGrantHostOperatorEnabled()
+                ? "safra.p2p.grant_host_operator.on"
+                : "safra.p2p.grant_host_operator.off"
         );
     }
 

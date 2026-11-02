@@ -11,7 +11,9 @@
     "MinecraftLifecycleMixin",
     "MultiplayerScreenMixin",
     "ServerStatusPingerMixin",
-    "OpenToLanScreenMixin"
+    "OpenToLanScreenMixin",
+    "StoredUserEntryMixin",
+    "StoredUserListMixin"
   ],
   "injectors": {
     "defaultRequire": 1
