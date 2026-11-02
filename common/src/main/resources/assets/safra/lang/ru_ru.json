@@ -24,7 +24,6 @@
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.grant_host_operator.on": "Права создателю сервера: ВКЛ",
   "safra.p2p.grant_host_operator.off": "Права создателю сервера: ВЫКЛ",
-  "safra.p2p.warn.malformed_ops": "Safra: Файл ops.json мира поврежден, поэтому сохранение OP отключено для этой сессии.",
   "safra.p2p.online_mode.short.off": "Онлайн: ВЫКЛ",
   "safra.p2p.game_rules.reset": "Сбросить правила игры",
   "safra.p2p.fixed_code.on": "Использовать постоянный код: Вкл",

@@ -24,7 +24,6 @@
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.grant_host_operator.on": "Nadaj uprawnienia gospodarzowi: WL.",
   "safra.p2p.grant_host_operator.off": "Nadaj uprawnienia gospodarzowi: WYL.",
-  "safra.p2p.warn.malformed_ops": "Safra: Plik ops.json swiata jest uszkodzony, wiec zachowywanie uprawnien OP jest wylaczone w tej sesji.",
   "safra.p2p.online_mode.short.off": "Online: WYL",
   "safra.p2p.game_rules.reset": "Resetuj zasady gry",
   "safra.p2p.fixed_code.on": "Uzyj stalego kodu: Wl.",

@@ -13,7 +13,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.LanGameRules;
 import org.developerkubilay.safra.client.p2p.LanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
-import org.developerkubilay.safra.client.p2p.SafraWorldOpsManager;
+import org.developerkubilay.safra.client.p2p.SafraHostPermissions;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.slf4j.Logger;
@@ -81,7 +81,7 @@ abstract class IntegratedServerMixin {
         boolean grantHostOperator = LanSessionState.isGrantHostOperatorEnabled();
         startFuture.whenComplete((shareCode, throwable) -> {
             if (throwable == null) {
-                server.execute(() -> SafraWorldOpsManager.activate(server, hostGeneration, grantHostOperator));
+                server.execute(() -> SafraHostPermissions.activate(server, hostGeneration, grantHostOperator));
             }
 
             client.execute(() -> {

@@ -117,8 +117,6 @@ public final class P2pManager {
             hostService.close();
             hostService = null;
         }
-
-        SafraWorldOpsManager.onHostingStopped();
     }
 
     public CompletableFuture<RewriteResult> createRewriteAsync(ServerData originalServerInfo) {
@@ -218,7 +216,7 @@ public final class P2pManager {
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
         pendingFailureKind = P2pErrorKind.OTHER;
-        SafraWorldOpsManager.reset();
+        SafraHostPermissions.reset();
     }
 
     public synchronized long getHostStartGeneration() {

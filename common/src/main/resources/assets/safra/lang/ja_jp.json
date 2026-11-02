@@ -24,7 +24,6 @@
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.grant_host_operator.on": "ホストに権限を付与: オン",
   "safra.p2p.grant_host_operator.off": "ホストに権限を付与: オフ",
-  "safra.p2p.warn.malformed_ops": "Safra: ワールドの ops.json が破損しているため、このセッションでは OP の永続化が無効化されました。",
   "safra.p2p.online_mode.short.off": "オンライン: オフ",
   "safra.p2p.game_rules.reset": "ゲームルールをリセット",
   "safra.p2p.fixed_code.on": "固定コードを使う: オン",

@@ -4,7 +4,7 @@
   "package": "org.developerkubilay.safra.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "CommandsMixin",
+    "HostPermissionsMixin",
     "ConnectScreenMixin",
     "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
@@ -12,9 +12,7 @@
     "MinecraftLifecycleMixin",
     "MultiplayerScreenMixin",
     "ServerStatusPingerMixin",
-    "OpenToLanScreenMixin",
-    "StoredUserEntryMixin",
-    "StoredUserListMixin"
+    "OpenToLanScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

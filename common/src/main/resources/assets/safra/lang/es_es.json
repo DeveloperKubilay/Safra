@@ -24,7 +24,6 @@
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.grant_host_operator.on": "Dar permisos al anfitrion: SI",
   "safra.p2p.grant_host_operator.off": "Dar permisos al anfitrion: NO",
-  "safra.p2p.warn.malformed_ops": "Safra: El archivo ops.json del mundo esta danado, por lo que la persistencia de OP esta desactivada para esta sesion.",
   "safra.p2p.online_mode.short.off": "Online: NO",
   "safra.p2p.game_rules.reset": "Restablecer reglas del juego",
   "safra.p2p.fixed_code.on": "Usar codigo fijo: Activado",

@@ -24,7 +24,6 @@
   "safra.p2p.allow_commands.off": "Cheats: OFF",
   "safra.p2p.grant_host_operator.on": "호스트에게 권한 부여: 켜짐",
   "safra.p2p.grant_host_operator.off": "호스트에게 권한 부여: 꺼짐",
-  "safra.p2p.warn.malformed_ops": "Safra: 월드의 ops.json 파일이 손상되어 이번 세션 동안 OP 저장이 비활성화되었습니다.",
   "safra.p2p.online_mode.short.off": "온라인: 꺼짐",
   "safra.p2p.game_rules.reset": "게임 규칙 초기화",
   "safra.p2p.fixed_code.on": "고정 코드 사용: 켜짐",
