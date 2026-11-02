@@ -63,13 +63,24 @@ abstract class IntegratedServerMixin {
         }
         int tcpPort = server.getPort();
         Minecraft client = Minecraft.getInstance();
+        java.util.UUID hostId = (client != null && client.player != null && client.player.getGameProfile() != null)
+            ? client.player.getGameProfile().getId()
+            : null;
         client.gui.getChat().addMessage(ForgeClientCompat.translatable("safra.p2p.host.starting"));
         String fixedCode = ForgeLanSessionState.isFixedCodeEnabled() ? ForgeLanSessionState.getFixedCode() : null;
         String rawWorldName = server.getWorldData() != null ? server.getWorldData().getLevelName() : "World";
         long seed = server.overworld() != null ? server.overworld().getSeed() : 0L;
         String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> client.execute(() -> safra$publishRelayWarning(client)))
-            .whenComplete((shareCode, throwable) -> {
+        java.util.concurrent.CompletableFuture<P2pShareCode> startFuture = P2pManager.getInstance().startHostingAsync(
+            tcpPort, fixedCode, worldCode, () -> client.execute(() -> safra$publishRelayWarning(client))
+        );
+        long hostGeneration = P2pManager.getInstance().getHostStartGeneration();
+        boolean grantHostOperator = ForgeLanSessionState.isGrantHostOperatorEnabled();
+        startFuture.whenComplete((shareCode, throwable) -> {
+            if (throwable == null) {
+                server.execute(() -> org.developerkubilay.safra.client.p2p.SafraHostPermissions.activate(server, hostId, hostGeneration, grantHostOperator));
+            }
+
             client.execute(() -> {
                 if (throwable != null) {
                     safra$publishStartFailure(client, tcpPort, throwable);
@@ -78,7 +89,7 @@ abstract class IntegratedServerMixin {
 
                 safra$publishShareCode(client, tcpPort, shareCode);
             });
-            });
+        });
     }
 
     private static void safra$publishRelayWarning(Minecraft client) {

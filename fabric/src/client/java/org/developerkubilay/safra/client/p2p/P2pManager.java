@@ -233,6 +233,15 @@ public final class P2pManager {
         cancelPendingRewriteInternal();
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
+        SafraHostPermissions.reset();
+    }
+
+    public synchronized long getHostStartGeneration() {
+        return hostStartGeneration;
+    }
+
+    public boolean isHosting() {
+        return hostService != null;
     }
 
     public void tick(MinecraftClient client) {
