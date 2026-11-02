@@ -2,6 +2,7 @@ package org.developerkubilay.safra.mixin.client;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletableFuture;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -21,6 +22,7 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.LanGameRules;
 import org.developerkubilay.safra.client.p2p.LanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.SafraHostPermissions;
 import org.developerkubilay.safra.client.p2p.SafraLanServerSettingsScreen;
 import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
@@ -46,9 +48,6 @@ abstract class ShareToLanScreenMixin extends Screen {
 
     @Shadow
     private EditBox portEdit;
-
-    @Shadow
-    private boolean commands;
 
     @Shadow
     private MinecraftServer.MultiplayerScope wantedMultiplayerScope;
@@ -93,7 +92,6 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "init", at = @At("HEAD"))
     private void safra$loadLanSettings(CallbackInfo ci) {
         LanSessionState.loadFromConfig();
-        this.commands = LanSessionState.isAllowCommandsEnabled();
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -146,8 +144,7 @@ abstract class ShareToLanScreenMixin extends Screen {
     @Inject(method = "publish", at = @At("HEAD"))
     private void safra$applyOnlineMode(IntegratedServer server, MinecraftServer.MultiplayerScope scope, CallbackInfo ci) {
         if (server != null && scope == MinecraftServer.MultiplayerScope.LAN) {
-            this.commands = LanSessionState.isAllowCommandsEnabled();
-            server.setUsesAuthentication(LanSessionState.isOnlineModeEnabled());
+                server.setUsesAuthentication(LanSessionState.isOnlineModeEnabled());
             if (LanSessionState.isP2pEnabled()) {
                 server.setPreventProxyConnections(false);
             }
@@ -181,14 +178,21 @@ abstract class ShareToLanScreenMixin extends Screen {
         String rawWorldName = server.getWorldData() != null ? server.getWorldData().getLevelName() : "World";
         long seed = server.overworld() != null ? server.overworld().getSeed() : 0L;
         String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.minecraft.execute(() -> {
+        CompletableFuture<P2pShareCode> startFuture = P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> this.minecraft.execute(() -> {
             safra$addChatLines(Component.translatable("safra.p2p.host.relay_warning"), ChatFormatting.YELLOW);
             safra$addSystemMessage(Component.literal("Discord: ").append(safra$discordLink()));
             String youtubeUrl = RemoteRendezvousConfigUpdater.youtubeUrl();
             if (!youtubeUrl.isBlank()) {
                 safra$addSystemMessage(Component.literal("Youtube: ").append(safra$youtubeLink(youtubeUrl)));
             }
-        })).whenComplete((shareCode, throwable) -> {
+        }));
+        long hostGeneration = P2pManager.getInstance().getHostStartGeneration();
+        boolean grantHostOperator = LanSessionState.isGrantHostOperatorEnabled();
+        startFuture.whenComplete((shareCode, throwable) -> {
+            if (throwable == null) {
+                server.execute(() -> SafraHostPermissions.activate(server, hostGeneration, grantHostOperator));
+            }
+
             if (this.minecraft == null) {
                 return;
             }

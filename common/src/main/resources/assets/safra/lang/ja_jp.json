@@ -22,6 +22,8 @@
   "safra.p2p.game_rules": "Game Rules",
   "safra.p2p.allow_commands.on": "Cheats: ON",
   "safra.p2p.allow_commands.off": "Cheats: OFF",
+  "safra.p2p.grant_host_operator.on": "ホストに権限を付与: オン",
+  "safra.p2p.grant_host_operator.off": "ホストに権限を付与: オフ",
   "safra.p2p.online_mode.short.off": "オンライン: オフ",
   "safra.p2p.game_rules.reset": "ゲームルールをリセット",
   "safra.p2p.fixed_code.on": "固定コードを使う: オン",

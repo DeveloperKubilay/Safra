@@ -4,6 +4,7 @@
   "package": "org.developerkubilay.safra.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "HostPermissionsMixin",
     "ConnectScreenMixin",
     "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
