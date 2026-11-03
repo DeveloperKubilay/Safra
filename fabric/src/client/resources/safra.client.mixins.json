@@ -8,14 +8,12 @@
     "AddServerScreenMixin",
     "ClickableWidgetAccessor",
     "ConnectScreenMixin",
-    "ClientConnectionMixin",
     "DisconnectedScreenMixin",
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",
     "MinecraftLifecycleMixin",
     "OpenToLanScreenMixin",
-    "ServerStatusPingerMixin",
-    "ServerLoginNetworkHandlerMixin"
+    "ServerStatusPingerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

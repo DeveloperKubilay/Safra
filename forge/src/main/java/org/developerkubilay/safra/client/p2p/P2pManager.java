@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
-import org.developerkubilay.safra.client.ForgeClientCompat;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.p2p.P2pClientProxy;
 import org.developerkubilay.safra.p2p.P2pConstants;
@@ -142,7 +141,6 @@ public final class P2pManager {
         Objects.requireNonNull(originalServerInfo, "originalServerInfo");
         ServerData snapshot = new ServerData(originalServerInfo.name, originalServerInfo.ip, originalServerInfo.isLan());
         snapshot.copyFrom(originalServerInfo);
-        ForgeClientCompat.setLan(snapshot, true);
 
         long generation;
         synchronized (this) {
@@ -220,9 +218,8 @@ public final class P2pManager {
         }
         String localAddress = P2pConstants.LOCAL_PROXY_HOST + ":" + localPort;
         ServerAddress socketAddress = ServerAddress.parseString(localAddress);
-        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, true);
+        ServerData rewritten = new ServerData(originalServerInfo.name, localAddress, originalServerInfo.isLan());
         rewritten.copyFrom(originalServerInfo);
-        ForgeClientCompat.setLan(rewritten, true);
         rewritten.ip = localAddress;
         String worldCode = proxy.worldCode();
         rewritten.name = (worldCode != null && !worldCode.isBlank()) ? worldCode : shareCode.toDisplayCode();

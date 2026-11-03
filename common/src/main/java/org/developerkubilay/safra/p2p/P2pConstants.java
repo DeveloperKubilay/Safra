@@ -24,7 +24,7 @@ public final class P2pConstants {
     public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
     static final int MIN_STREAM_WINDOW_BYTES = 64 * 1024;
     static final int MAX_STREAM_WINDOW_BYTES = 256 * 1024;
-    static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 10_000L;
+    static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 7_000L;
     /**
      * When the host punches, spread over the attempt it is punching for. The last packet lands a
      * second before the joiner gives up: a schedule that outlives the attempt is a packet the peer
@@ -32,8 +32,6 @@ public final class P2pConstants {
      */
     static final long[] PUNCH_DELAYS_MS = {0L, 100L, 250L, 500L, 1_000L, 1_500L, 2_500L, 4_000L, 6_000L};
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
-    public static final int PROXY_LOGIN_TIMEOUT_SECONDS = 180;
-    public static final int HOST_LOGIN_TIMEOUT_TICKS = PROXY_LOGIN_TIMEOUT_SECONDS * 20;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
     static final long STUN_REFRESH_MS = 10_000L;

@@ -8,7 +8,6 @@
     "HostPermissionsMixin",
     "AbstractWidgetAccessor",
     "ConnectScreenMixin",
-    "ConnectionMixin",
     "DisconnectedScreenMixin",
     "DirectJoinServerScreenMixin",
     "EditServerScreenMixin",
@@ -16,7 +15,6 @@
     "JoinMultiplayerScreenMixin",
     "MinecraftLifecycleMixin",
     "ServerStatusPingerMixin",
-    "ServerLoginPacketListenerImplMixin",
     "ShareToLanScreenMixin"
   ],
   "injectors": {
