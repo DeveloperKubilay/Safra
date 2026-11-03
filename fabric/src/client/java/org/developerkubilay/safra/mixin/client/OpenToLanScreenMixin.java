@@ -6,6 +6,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -16,6 +17,8 @@ import org.developerkubilay.safra.client.config.SafraClientConfig;
 import org.developerkubilay.safra.client.p2p.FabricLanGameRules;
 import org.developerkubilay.safra.client.p2p.FabricLanSessionState;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.SafraHostPermissions;
+import org.developerkubilay.safra.p2p.P2pHostSupport;
 import org.developerkubilay.safra.p2p.P2pShareCode;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -141,10 +144,24 @@ abstract class OpenToLanScreenMixin extends Screen {
 
         this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.starting"));
         String fixedCode = FabricLanSessionState.isFixedCodeEnabled() ? FabricLanSessionState.getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> this.client.execute(this::safra$publishRelayWarning))
-            .whenComplete((shareCode, throwable) -> {
+        String rawWorldName = server.getSaveProperties() != null ? server.getSaveProperties().getLevelName() : "World";
+        long seed = server.getOverworld() != null ? server.getOverworld().getSeed() : 0L;
+        String worldCode = P2pHostSupport.formatWorldCode(rawWorldName, seed);
+        java.util.UUID hostId = (this.client != null && this.client.player != null && this.client.player.getGameProfile() != null)
+            ? this.client.player.getGameProfile().getId()
+            : null;
+        java.util.concurrent.CompletableFuture<P2pShareCode> startFuture = P2pManager.getInstance().startHostingAsync(
+            tcpPort, fixedCode, worldCode, () -> this.client.execute(this::safra$publishRelayWarning)
+        );
+        long hostGeneration = P2pManager.getInstance().getHostStartGeneration();
+        boolean grantHostOperator = FabricLanSessionState.isGrantHostOperatorEnabled();
+        startFuture.whenComplete((shareCode, throwable) -> {
             if (this.client == null) {
                 return;
+            }
+
+            if (throwable == null) {
+                server.execute(() -> SafraHostPermissions.activate(server, hostId, hostGeneration, grantHostOperator));
             }
 
             this.client.execute(() -> {
@@ -155,7 +172,7 @@ abstract class OpenToLanScreenMixin extends Screen {
 
                 safra$publishShareCode(tcpPort, shareCode);
             });
-            });
+        });
     }
 
     @Unique
@@ -200,6 +217,10 @@ abstract class OpenToLanScreenMixin extends Screen {
         Text shareText = new LiteralText(shareCodeText)
             .setStyle(Style.EMPTY
                 .withColor(Formatting.AQUA)
+                .withFormatting(Formatting.UNDERLINE)
+                .withInsertion(shareCodeText)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TranslatableText("safra.p2p.copy_hint")))
             );
         if (!hidden) {
             this.client.inGameHud.getChatHud().addMessage(new TranslatableText("safra.p2p.host.started", shareText));

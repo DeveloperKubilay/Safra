@@ -8,6 +8,7 @@ import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.util.text.event.ClickEvent;
+import net.minecraft.util.text.event.HoverEvent;
 import net.minecraft.world.GameType;
 import org.developerkubilay.safra.client.config.RemoteRendezvousConfigUpdater;
 import org.developerkubilay.safra.client.config.SafraClientConfig;
@@ -67,10 +68,20 @@ abstract class IntegratedServerMixin {
         Minecraft client = Minecraft.getInstance();
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.starting"));
         String fixedCode = safra$isFixedCodeEnabled() ? safra$getFixedCode() : null;
-        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, () -> client.execute(() -> safra$publishRelayWarning(client)))
+        String rawWorldName = safra$getWorldName(server);
+        long seed = safra$getSeed(server);
+        String worldCode = org.developerkubilay.safra.p2p.P2pHostSupport.formatWorldCode(rawWorldName, seed);
+        java.util.UUID hostId = safra$getHostId(client);
+        long hostGeneration = P2pManager.getInstance().getHostStartGeneration();
+        boolean grantHostOperator = safra$isGrantHostOperatorEnabled();
+        P2pManager.getInstance().startHostingAsync(tcpPort, fixedCode, worldCode, () -> client.execute(() -> safra$publishRelayWarning(client)))
             .whenComplete((shareCode, throwable) -> {
             if (client == null) {
                 return;
+            }
+
+            if (throwable == null) {
+                server.execute(() -> org.developerkubilay.safra.client.p2p.SafraHostPermissions.activate(server, hostId, hostGeneration, grantHostOperator));
             }
 
             client.execute(() -> {
@@ -103,7 +114,7 @@ abstract class IntegratedServerMixin {
             tcpPort, hidden ? "hidden" : shareCodeText);
         client.keyboardListener.setClipboardString(shareCodeText);
 
-        ITextComponent shareText = safra$withStyle(new StringTextComponent(shareCodeText), TextFormatting.AQUA, TextFormatting.UNDERLINE);
+        ITextComponent shareText = safra$buildShareComponent(shareCodeText);
         if (!hidden) {
             client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.started", shareText));
         }
@@ -120,6 +131,29 @@ abstract class IntegratedServerMixin {
             client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.copied"));
         }
         client.ingameGUI.getChatGUI().printChatMessage(new TranslationTextComponent("safra.p2p.host.instructions"));
+    }
+
+    private static ITextComponent safra$buildShareComponent(String shareCodeText) {
+        StringTextComponent text = new StringTextComponent(shareCodeText);
+        try {
+            Object style;
+            try {
+                style = Style.class.getField("EMPTY").get(null);
+            } catch (ReflectiveOperationException ignored) {
+                style = Style.class.newInstance();
+            }
+            ClickEvent click = new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shareCodeText);
+            HoverEvent hover = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TranslationTextComponent("safra.p2p.copy_hint"));
+            Object currentStyle = safra$invokeStyleClickEvent(style, click);
+            if (currentStyle == null) currentStyle = style;
+            currentStyle = safra$invokeStyleHoverEvent(currentStyle, hover);
+            if (currentStyle == null) currentStyle = style;
+            currentStyle = safra$invokeStyleInsertion(currentStyle, shareCodeText);
+            if (currentStyle == null) currentStyle = style;
+            text.getClass().getMethod("setStyle", Style.class).invoke(text, currentStyle);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return safra$withStyle(text, TextFormatting.AQUA, TextFormatting.UNDERLINE);
     }
 
     private static void safra$publishStartFailure(Minecraft client, int tcpPort, Throwable throwable) {
@@ -181,13 +215,96 @@ abstract class IntegratedServerMixin {
     }
 
     private static Object safra$invokeStyleClickEvent(Object style, ClickEvent event) {
-        for (String methodName : new String[]{"setClickEvent", "withClickEvent"}) {
+        for (String methodName : new String[]{"setClickEvent", "withClickEvent", "func_240715_a_"}) {
             try {
                 return style.getClass().getMethod(methodName, ClickEvent.class).invoke(style, event);
             } catch (ReflectiveOperationException ignored) {
             }
         }
+        return style;
+    }
+
+    private static Object safra$invokeStyleHoverEvent(Object style, HoverEvent event) {
+        for (String methodName : new String[]{"setHoverEvent", "withHoverEvent", "func_240716_a_"}) {
+            try {
+                return style.getClass().getMethod(methodName, HoverEvent.class).invoke(style, event);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return style;
+    }
+
+    private static Object safra$invokeStyleInsertion(Object style, String insertion) {
+        for (String methodName : new String[]{"setInsertion", "withInsertion", "func_240717_a_"}) {
+            try {
+                return style.getClass().getMethod(methodName, String.class).invoke(style, insertion);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return style;
+    }
+
+    private static boolean safra$isGrantHostOperatorEnabled() {
+        return safra$getBooleanSetting("isGrantHostOperatorEnabled", false);
+    }
+
+    private static java.util.UUID safra$getHostId(Minecraft client) {
+        if (client != null && client.player != null && client.player.getGameProfile() != null) {
+            return client.player.getGameProfile().getId();
+        }
         return null;
+    }
+
+    private static String safra$getWorldName(IntegratedServer server) {
+        for (String m : new String[]{"getWorldName", "func_230415_a_"}) {
+            try {
+                Object config = server.getClass().getMethod("getServerConfiguration").invoke(server);
+                if (config != null) {
+                    Object name = config.getClass().getMethod(m).invoke(config);
+                    if (name instanceof String) {
+                        return (String) name;
+                    }
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+            try {
+                Object config = server.getClass().getMethod("func_230407_a_").invoke(server);
+                if (config != null) {
+                    Object name = config.getClass().getMethod(m).invoke(config);
+                    if (name instanceof String) {
+                        return (String) name;
+                    }
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return "World";
+    }
+
+    private static long safra$getSeed(IntegratedServer server) {
+        for (String m : new String[]{"getSeed", "func_72905_C"}) {
+            try {
+                Object world = server.getClass().getMethod("func_241755_D_").invoke(server);
+                if (world != null) {
+                    Object seed = world.getClass().getMethod(m).invoke(world);
+                    if (seed instanceof Long) {
+                        return (Long) seed;
+                    }
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+            try {
+                Object world = server.getClass().getMethod("getOverworld").invoke(server);
+                if (world != null) {
+                    Object seed = world.getClass().getMethod(m).invoke(world);
+                    if (seed instanceof Long) {
+                        return (Long) seed;
+                    }
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        return 0L;
     }
 
     private static boolean safra$isP2pEnabled() {

@@ -55,6 +55,10 @@ public final class P2pManager {
     }
 
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
+        return startHostingAsync(tcpPort, fixedCode, null, relayReadyHandler);
+    }
+
+    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, String worldCode, Runnable relayReadyHandler) {
         stopHosting();
 
         String rendezvousCode = P2pConstants.useApi30Rendezvous()
@@ -63,7 +67,7 @@ public final class P2pManager {
         int token = P2pConstants.useApi30Rendezvous()
             ? P2pHostSupport.createRendezvousShareToken(rendezvousCode)
             : P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
+        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, worldCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;
 
@@ -105,6 +109,7 @@ public final class P2pManager {
 
     public synchronized void stopHosting() {
         hostStartGeneration++;
+        SafraHostPermissions.reset();
         P2pHostService starting = startingHostService;
         startingHostService = null;
         if (starting != null) {
@@ -123,6 +128,14 @@ public final class P2pManager {
             hostService.close();
             hostService = null;
         }
+    }
+
+    public synchronized boolean isHosting() {
+        return hostService != null || startingHostService != null;
+    }
+
+    public synchronized long getHostStartGeneration() {
+        return hostStartGeneration;
     }
 
     public synchronized RewriteResult createRewrite(ServerData originalServerInfo) throws IOException {
@@ -216,7 +229,8 @@ public final class P2pManager {
         ServerData rewritten = new ServerData(originalServerInfo.serverName, localAddress, originalServerInfo.isOnLAN());
         rewritten.copyFrom(originalServerInfo);
         rewritten.serverIP = localAddress;
-        rewritten.serverName = shareCode.toDisplayCode();
+        String worldCode = proxy.worldCode();
+        rewritten.serverName = (worldCode != null && !worldCode.trim().isEmpty()) ? worldCode : shareCode.toDisplayCode();
         return new RewriteResult(ServerAddress.fromString(rewritten.serverIP), rewritten);
     }
 
@@ -226,6 +240,7 @@ public final class P2pManager {
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
         pendingFailureKind = P2pErrorKind.OTHER;
+        SafraHostPermissions.reset();
     }
 
     public void tick(Minecraft client) {

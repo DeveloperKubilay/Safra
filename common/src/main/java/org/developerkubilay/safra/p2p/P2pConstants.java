@@ -19,6 +19,7 @@ public final class P2pConstants {
     static final int INITIAL_SEND_WINDOW_SIZE = 32;
     static final int MAX_SEND_WINDOW_SIZE = 256;
     static final int SOCKET_BUFFER_SIZE = 1024 * 1024;
+    public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
     static final int TCP_BUFFER_SIZE = 256 * 1024;
     public static final int DIRECT_TRANSPORT_SO_TIMEOUT_MS = 50;
     static final long MAINTENANCE_TICK_MS = 25L;

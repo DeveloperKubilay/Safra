@@ -2,6 +2,7 @@ package org.developerkubilay.safra.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -27,5 +28,13 @@ public final class SafraForgeClientEvents {
             return;
         }
         P2pManager.getInstance().tick(Minecraft.getInstance());
+    }
+
+    @SubscribeEvent
+    public static void clientLoggingOut(ClientPlayerNetworkEvent.LoggedOutEvent event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null && (minecraft.world != null || minecraft.getIntegratedServer() != null)) {
+            P2pManager.getInstance().shutdown();
+        }
     }
 }

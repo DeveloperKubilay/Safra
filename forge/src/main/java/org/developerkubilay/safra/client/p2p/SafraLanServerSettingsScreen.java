@@ -15,7 +15,7 @@ import java.util.Optional;
 
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
-    private Button allowCommandsButton;
+    private Button grantHostOperatorButton;
     private Button fixedCodeButton;
     private boolean safra$closing;
 
@@ -32,15 +32,15 @@ public final class SafraLanServerSettingsScreen extends Screen {
         int width = ForgeScreenCompat.getWidth(this);
         int height = ForgeScreenCompat.getHeight(this);
         int top = height / 4 - 20;
-        this.allowCommandsButton = ForgeScreenCompat.addButton(this, new Button(
+        this.grantHostOperatorButton = ForgeScreenCompat.addButton(this, new Button(
             width / 2 - 100,
             top + 24,
             200,
             20,
-            this.getAllowCommandsText(),
+            this.getGrantHostOperatorText(),
             button -> {
-                ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
-                ForgeScreenCompat.setButtonMessage(button, this.getAllowCommandsText());
+                ForgeLanSessionState.setGrantHostOperatorEnabled(!ForgeLanSessionState.isGrantHostOperatorEnabled());
+                ForgeScreenCompat.setButtonMessage(button, this.getGrantHostOperatorText());
             }
         ));
 
@@ -124,11 +124,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
         }
     }
 
-    private ITextComponent getAllowCommandsText() {
+    private ITextComponent getGrantHostOperatorText() {
         return new TranslationTextComponent(
-            ForgeLanSessionState.isAllowCommandsEnabled()
-                ? "safra.p2p.allow_commands.on"
-                : "safra.p2p.allow_commands.off"
+            ForgeLanSessionState.isGrantHostOperatorEnabled()
+                ? "safra.p2p.grant_host_operator.on"
+                : "safra.p2p.grant_host_operator.off"
         );
     }
 

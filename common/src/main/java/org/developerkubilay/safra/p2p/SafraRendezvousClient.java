@@ -39,11 +39,24 @@ final class SafraRendezvousClient {
         .connectTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .readTimeout(0L, TimeUnit.MILLISECONDS)
         .build();
+    private static final OkHttpClient FINITE_HTTP_CLIENT = HTTP_CLIENT.newBuilder()
+        .readTimeout(P2pConstants.RENDEZVOUS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .build();
 
     private SafraRendezvousClient() {
     }
 
     static HostSession startHost(int tcpPort, int tunnelToken, String preferredRendezvousCode, Collection<InetSocketAddress> publicEndpoints,
+                                 Collection<InetSocketAddress> voicePublicEndpoints,
+                                 Consumer<InetSocketAddress> punchHandler,
+                                 Consumer<InetSocketAddress> voicePunchHandler,
+                                 Consumer<InetSocketAddress> relayRequestHandler) throws IOException {
+        return startHost(tcpPort, tunnelToken, preferredRendezvousCode, null, publicEndpoints, voicePublicEndpoints,
+            punchHandler, voicePunchHandler, relayRequestHandler);
+    }
+
+    static HostSession startHost(int tcpPort, int tunnelToken, String preferredRendezvousCode, String worldCode,
+                                 Collection<InetSocketAddress> publicEndpoints,
                                  Collection<InetSocketAddress> voicePublicEndpoints,
                                  Consumer<InetSocketAddress> punchHandler,
                                  Consumer<InetSocketAddress> voicePunchHandler,
@@ -59,6 +72,7 @@ final class SafraRendezvousClient {
                 tcpPort,
                 tunnelToken,
                 preferredRendezvousCode,
+                worldCode,
                 primaryEndpoint,
                 preferredEndpoint(voicePublicEndpoints)
             );
@@ -121,6 +135,8 @@ final class SafraRendezvousClient {
     }
 
     private interface JoinSessionBackend extends AutoCloseable {
+        String worldCode();
+
         InetSocketAddress hostAddress(boolean relayPreferred);
 
         int tunnelToken();
@@ -162,8 +178,8 @@ final class SafraRendezvousClient {
             this.relayRequestHandler = relayRequestHandler;
         }
 
-        private String open(int tcpPort, int tunnelToken, String preferredCode, InetSocketAddress endpoint,
-                            InetSocketAddress voiceEndpoint) throws IOException {
+        private String open(int tcpPort, int tunnelToken, String preferredCode, String worldCode,
+                            InetSocketAddress endpoint, InetSocketAddress voiceEndpoint) throws IOException {
             JsonObject request = new JsonObject();
             if (!P2pConstants.forceHostFailSafeRelay()) {
                 request.add("network", toNetwork(endpoint));
@@ -175,6 +191,9 @@ final class SafraRendezvousClient {
             request.addProperty("minecraftTcpPort", tcpPort);
             if (preferredCode != null && !preferredCode.trim().isEmpty()) {
                 request.addProperty("code", preferredCode);
+            }
+            if (worldCode != null && !worldCode.trim().isEmpty()) {
+                request.addProperty("worldcode", worldCode);
             }
 
             hostRequest = request;
@@ -241,7 +260,7 @@ final class SafraRendezvousClient {
         }
 
         private void openEventStream(JsonObject request) throws IOException {
-            Response response = send(requestBuilder(httpUri("/session-create"))
+            Response response = sendStream(requestBuilder(httpUri("/session-create"))
                 .header("Accept", "text/event-stream")
                 .header("Content-Type", "application/json")
                 .post(RequestBody.create(JSON, GSON.toJson(request)))
@@ -401,7 +420,7 @@ final class SafraRendezvousClient {
             request.addProperty("code", code);
             Response response = null;
             try {
-                response = send(requestBuilder(httpUri("/relay-request"))
+                response = sendStream(requestBuilder(httpUri("/relay-request"))
                     .header("Accept", "text/event-stream")
                     .header("Content-Type", "application/json")
                     .post(RequestBody.create(JSON, GSON.toJson(request)))
@@ -429,6 +448,7 @@ final class SafraRendezvousClient {
 
     private static final class Api3JoinSessionBackend implements JoinSessionBackend {
         private final String code;
+        private volatile String worldCode;
         private InetSocketAddress joinAddress;
         private InetSocketAddress hostAddress;
         private InetSocketAddress voiceAddress;
@@ -437,6 +457,11 @@ final class SafraRendezvousClient {
 
         private Api3JoinSessionBackend(String code) {
             this.code = code;
+        }
+
+        @Override
+        public String worldCode() {
+            return worldCode;
         }
 
         private void open(InetSocketAddress endpoint) throws IOException {
@@ -460,6 +485,7 @@ final class SafraRendezvousClient {
                 JsonObject relay = object(json, "relay");
                 relayAddress = relayNetwork(relay);
                 relayCredentials = relayCredentials(relay);
+                worldCode = string(json, "worldcode");
                 if (hostAddress == null && relayAddress == null) {
                     throw new IOException("Safra join response did not include a host address");
                 }
@@ -521,7 +547,7 @@ final class SafraRendezvousClient {
 
             JsonObject request = new JsonObject();
             request.addProperty("code", code);
-            Response response = send(requestBuilder(httpUri("/relay-request"))
+            Response response = sendStream(requestBuilder(httpUri("/relay-request"))
                 .header("Accept", "text/event-stream")
                 .header("Content-Type", "application/json")
                 .post(RequestBody.create(JSON, GSON.toJson(request)))
@@ -610,6 +636,10 @@ final class SafraRendezvousClient {
 
                 String body = response.body() != null ? response.body().string() : "";
                 JsonObject json = parseApi3Object(body, "Safra join refresh response is invalid");
+                String refreshedWorld = string(json, "worldcode");
+                if (refreshedWorld != null && !refreshedWorld.trim().isEmpty()) {
+                    worldCode = refreshedWorld;
+                }
                 InetSocketAddress refreshedHost = fromNetwork(array(json, "host"));
                 if (refreshedHost != null) {
                     hostAddress = refreshedHost;
@@ -696,6 +726,10 @@ final class SafraRendezvousClient {
 
         String code() {
             return code;
+        }
+
+        String worldCode() {
+            return backend.worldCode();
         }
 
         InetSocketAddress hostAddress(boolean relayPreferred) {
@@ -786,6 +820,14 @@ final class SafraRendezvousClient {
     }
 
     private static Response send(Request request) throws IOException {
+        return send(request, FINITE_HTTP_CLIENT);
+    }
+
+    private static Response sendStream(Request request) throws IOException {
+        return send(request, HTTP_CLIENT);
+    }
+
+    private static Response send(Request request, OkHttpClient client) throws IOException {
         IOException lastFailure = null;
         int[] retryDelays = {0, 1_000, 10_000};
         for (int attempt = 0; attempt < retryDelays.length; attempt++) {
@@ -799,7 +841,7 @@ final class SafraRendezvousClient {
                 }
             }
             try {
-                return HTTP_CLIENT.newCall(request).execute();
+                return client.newCall(request).execute();
             } catch (IOException exception) {
                 lastFailure = exception;
                 if (!isRetryableConnectFailure(exception) || attempt + 1 >= retryDelays.length) {
