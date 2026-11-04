@@ -25,6 +25,7 @@ public abstract class BaseSafraClientConfig {
     protected boolean openToLanP2pEnabled = true;
     protected boolean openToLanOnlineModeEnabled = false;
     protected boolean openToLanAllowCommandsEnabled = false;
+    protected boolean openToLanGrantHostOperator = false;
     protected boolean openToLanFixedCodeEnabled = true;
     protected String openToLanFixedCode = "";
     protected Map<String, String> openToLanGameRules = new LinkedHashMap<>();
@@ -117,6 +118,17 @@ public abstract class BaseSafraClientConfig {
     public synchronized void setOpenToLanAllowCommandsEnabled(boolean openToLanAllowCommandsEnabled) {
         if (this.openToLanAllowCommandsEnabled != openToLanAllowCommandsEnabled) {
             this.openToLanAllowCommandsEnabled = openToLanAllowCommandsEnabled;
+            save();
+        }
+    }
+
+    public synchronized boolean isOpenToLanGrantHostOperator() {
+        return openToLanGrantHostOperator;
+    }
+
+    public synchronized void setOpenToLanGrantHostOperator(boolean openToLanGrantHostOperator) {
+        if (this.openToLanGrantHostOperator != openToLanGrantHostOperator) {
+            this.openToLanGrantHostOperator = openToLanGrantHostOperator;
             save();
         }
     }

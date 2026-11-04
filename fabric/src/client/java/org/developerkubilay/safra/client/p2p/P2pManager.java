@@ -22,6 +22,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 public final class P2pManager {
+    public static final String COPY_SHARE_CODE_PREFIX = "safra:copy:";
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pManager.class);
     private static final P2pManager INSTANCE = new P2pManager();
     private static final Executor BACKGROUND_EXECUTOR = command -> P2pRuntime.start("safra-p2p-background", command);
@@ -54,6 +55,10 @@ public final class P2pManager {
     }
 
     public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, Runnable relayReadyHandler) {
+        return startHostingAsync(tcpPort, fixedCode, null, relayReadyHandler);
+    }
+
+    public synchronized CompletableFuture<P2pShareCode> startHostingAsync(int tcpPort, String fixedCode, String worldCode, Runnable relayReadyHandler) {
         stopHosting();
 
         String rendezvousCode = P2pConstants.useApi30Rendezvous()
@@ -62,7 +67,7 @@ public final class P2pManager {
         int token = P2pConstants.useApi30Rendezvous()
             ? P2pHostSupport.createRendezvousShareToken(rendezvousCode)
             : P2pHostSupport.createShareToken();
-        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, relayReadyHandler);
+        P2pHostService service = new P2pHostService(tcpPort, token, rendezvousCode, worldCode, relayReadyHandler);
         long generation = ++hostStartGeneration;
         startingHostService = service;
 
@@ -104,6 +109,7 @@ public final class P2pManager {
 
     public synchronized void stopHosting() {
         hostStartGeneration++;
+        SafraHostPermissions.reset();
         P2pHostService starting = startingHostService;
         startingHostService = null;
         if (starting != null) {
@@ -122,6 +128,14 @@ public final class P2pManager {
             hostService.close();
             hostService = null;
         }
+    }
+
+    public synchronized boolean isHosting() {
+        return hostService != null || startingHostService != null;
+    }
+
+    public synchronized long getHostStartGeneration() {
+        return hostStartGeneration;
     }
 
     public synchronized RewriteResult createRewrite(ServerInfo originalServerInfo) throws IOException {
@@ -215,7 +229,8 @@ public final class P2pManager {
         ServerInfo rewritten = new ServerInfo(originalServerInfo.name, localAddress, originalServerInfo.isLocal());
         rewritten.copyFrom(originalServerInfo);
         rewritten.address = localAddress;
-        rewritten.name = shareCode.toDisplayCode();
+        String worldCode = proxy.worldCode();
+        rewritten.name = (worldCode != null && !worldCode.trim().isEmpty()) ? worldCode : shareCode.toDisplayCode();
         return new RewriteResult(rewritten);
     }
 
@@ -225,6 +240,7 @@ public final class P2pManager {
         pendingClientFailureContext = false;
         pendingDirectShareFailureContext = false;
         pendingFailureKind = P2pErrorKind.OTHER;
+        SafraHostPermissions.reset();
     }
 
     public void tick(MinecraftClient client) {

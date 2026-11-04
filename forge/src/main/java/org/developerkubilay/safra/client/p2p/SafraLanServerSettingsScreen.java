@@ -6,7 +6,7 @@ import net.minecraft.util.text.TranslationTextComponent;
 
 public final class SafraLanServerSettingsScreen extends Screen {
     private final Screen parent;
-    private Button allowCommandsButton;
+    private Button grantHostOperatorButton;
     private Button fixedCodeButton;
 
     public SafraLanServerSettingsScreen(Screen parent) {
@@ -16,15 +16,15 @@ public final class SafraLanServerSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        this.allowCommandsButton = this.addButton(new Button(
+        this.grantHostOperatorButton = this.addButton(new Button(
             this.width / 2 - 100,
             this.height / 4 + 24,
             200,
             20,
-            this.getAllowCommandsText(),
+            this.getGrantHostOperatorText(),
             button -> {
-                ForgeLanSessionState.setAllowCommandsEnabled(!ForgeLanSessionState.isAllowCommandsEnabled());
-                button.setMessage(this.getAllowCommandsText());
+                ForgeLanSessionState.setGrantHostOperatorEnabled(!ForgeLanSessionState.isGrantHostOperatorEnabled());
+                button.setMessage(this.getGrantHostOperatorText());
             }
         ));
 
@@ -57,8 +57,8 @@ public final class SafraLanServerSettingsScreen extends Screen {
             new TranslationTextComponent("safra.p2p.server_settings.reset").getString(),
             button -> {
                 ForgeLanSessionState.resetServerSettings();
-                if (this.allowCommandsButton != null) {
-                    this.allowCommandsButton.setMessage(this.getAllowCommandsText());
+                if (this.grantHostOperatorButton != null) {
+                    this.grantHostOperatorButton.setMessage(this.getGrantHostOperatorText());
                 }
                 if (this.fixedCodeButton != null) {
                     this.fixedCodeButton.setMessage(this.getFixedCodeText());
@@ -98,11 +98,11 @@ public final class SafraLanServerSettingsScreen extends Screen {
         super.render(mouseX, mouseY, partialTick);
     }
 
-    private String getAllowCommandsText() {
+    private String getGrantHostOperatorText() {
         return new TranslationTextComponent(
-            ForgeLanSessionState.isAllowCommandsEnabled()
-                ? "safra.p2p.allow_commands.on"
-                : "safra.p2p.allow_commands.off"
+            ForgeLanSessionState.isGrantHostOperatorEnabled()
+                ? "safra.p2p.grant_host_operator.on"
+                : "safra.p2p.grant_host_operator.off"
         ).getString();
     }
 

@@ -1,6 +1,7 @@
 package org.developerkubilay.safra.p2p.turn;
 
 import java.util.List;
+import java.util.Objects;
 
 public final class P2pTurnCredentials {
     private final List<TurnServer> udpServers;
@@ -63,6 +64,28 @@ public final class P2pTurnCredentials {
 
         public int port() {
             return port;
+        }
+
+        @Override
+        public boolean equals(Object object) {
+            if (this == object) {
+                return true;
+            }
+            if (object == null || getClass() != object.getClass()) {
+                return false;
+            }
+            TurnServer that = (TurnServer) object;
+            return port == that.port && Objects.equals(host, that.host);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(host, port);
+        }
+
+        @Override
+        public String toString() {
+            return host + ":" + port;
         }
     }
 }

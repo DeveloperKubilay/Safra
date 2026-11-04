@@ -8,7 +8,12 @@
     "DirectConnectScreenMixin",
     "MultiplayerScreenMixin",
     "OpenToLanScreenMixin",
-    "ServerStatusPingerMixin"
+    "ServerStatusPingerMixin",
+    "HostPermissionsMixin",
+    "MinecraftLifecycleMixin",
+    "DisconnectedScreenMixin",
+    "ShareCodeClickMixin",
+    "ClientPlayDisconnectMixin"
   ],
   "injectors": {
     "defaultRequire": 1

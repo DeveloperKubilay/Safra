@@ -34,5 +34,7 @@
   "safra.p2p.error.server_busy": "The servers are currently full. Please try again later.",
   "safra.p2p.error.session_not_found": "There is currently no open server for this code.",
   "safra.p2p.error.invalid_session": "The server owner must disable Online Mode in Safra's server settings.",
-  "safra.p2p.error.direct_fallback": "Could not communicate with the server.\n详细信息请访问 Discord: "
+  "safra.p2p.error.direct_fallback": "Could not communicate with the server.\n详细信息请访问 Discord: ",
+  "safra.p2p.grant_host_operator.on": "赋予房主权限: 开启",
+  "safra.p2p.grant_host_operator.off": "赋予房主权限: 关闭"
 }

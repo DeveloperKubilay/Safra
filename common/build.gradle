@@ -25,6 +25,18 @@ dependencies {
     compileOnly 'org.slf4j:slf4j-api:2.0.16'
     compileOnly 'com.squareup.okhttp3:okhttp:3.12.13'
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+    testImplementation 'org.slf4j:slf4j-api:1.7.36'
+    testRuntimeOnly 'org.slf4j:slf4j-simple:1.7.36'
+    testRuntimeOnly 'com.google.code.gson:gson:2.11.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.3'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
 }
 
 processResources {

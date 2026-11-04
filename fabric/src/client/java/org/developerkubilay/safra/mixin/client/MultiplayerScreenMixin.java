@@ -10,6 +10,8 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import org.developerkubilay.safra.client.p2p.P2pManager;
+import org.developerkubilay.safra.client.p2p.P2pConnectingScreen;
+import org.developerkubilay.safra.client.p2p.P2pErrorComponents;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -28,17 +30,21 @@ abstract class MultiplayerScreenMixin {
 
     @Inject(method = "connect(Lnet/minecraft/client/network/ServerInfo;)V", at = @At("HEAD"), cancellable = true)
     private void safra$rewriteP2pBeforeVanillaParse(ServerInfo serverInfo, CallbackInfo ci) {
-        if (serverInfo == null || (!P2pManager.isP2pStoredAddress(serverInfo.address) && !P2pManager.isValidP2pAddress(serverInfo.address))) {
+        if (serverInfo == null || !P2pManager.isLikelyP2pAddress(serverInfo.address)) {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        ProgressScreen progressScreen = new ProgressScreen();
-        progressScreen.method_15412(new TranslatableText("connect.connecting"));
-        progressScreen.method_15413(new TranslatableText("safra.p2p.prepare_message"));
-        client.openScreen(progressScreen);
+        Screen currentScreen = (Screen) (Object) this;
+        P2pConnectingScreen progressScreen = new P2pConnectingScreen(
+            currentScreen,
+            () -> P2pManager.getInstance().cancelPendingRewrite()
+        );
+        MinecraftClient.getInstance().openScreen(progressScreen);
         P2pManager.getInstance().createRewriteAsync(serverInfo).whenComplete((rewriteResult, throwable) ->
-            client.execute(() -> {
+            MinecraftClient.getInstance().execute(() -> {
+                if (MinecraftClient.getInstance().currentScreen != progressScreen) {
+                    return;
+                }
                 if (throwable != null) {
                     Throwable cause = throwable;
                     if (throwable instanceof CompletionException && ((CompletionException) throwable).getCause() != null) {
@@ -47,32 +53,33 @@ abstract class MultiplayerScreenMixin {
                     if (cause instanceof CancellationException) {
                         return;
                     }
-                    String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
-                    client.openScreen(this.safra$createDisconnectedScreen(new TranslatableText("safra.p2p.prepare_failed", message)));
+                    MinecraftClient.getInstance().openScreen(
+                        safra$createDisconnectedScreen(currentScreen, P2pErrorComponents.preparationFailure(cause))
+                    );
                     return;
                 }
 
-                client.openScreen(new ConnectScreen(this.parent, client, rewriteResult.serverInfo()));
+                MinecraftClient.getInstance().openScreen(new ConnectScreen(currentScreen, MinecraftClient.getInstance(), rewriteResult.serverInfo()));
             })
         );
         ci.cancel();
     }
 
-    private Screen safra$createDisconnectedScreen(Text reason) {
+    private static Screen safra$createDisconnectedScreen(Screen parent, Text reason) {
         try {
             return DisconnectedScreen.class
                 .getConstructor(Screen.class, String.class, Text.class)
-                .newInstance(this.parent, "connect.failed", reason);
+                .newInstance(parent, "connect.failed", reason);
         } catch (ReflectiveOperationException ignored) {
         }
 
         try {
             return DisconnectedScreen.class
                 .getConstructor(Screen.class, Text.class, Text.class)
-                .newInstance(this.parent, new TranslatableText("connect.failed"), reason);
+                .newInstance(parent, new TranslatableText("connect.failed"), reason);
         } catch (ReflectiveOperationException ignored) {
         }
 
-        return this.parent;
+        return parent == null ? new net.minecraft.client.gui.screen.TitleScreen() : parent;
     }
 }

@@ -34,5 +34,7 @@
   "safra.p2p.error.server_busy": "The servers are currently full. Please try again later.",
   "safra.p2p.error.session_not_found": "There is currently no open server for this code.",
   "safra.p2p.error.invalid_session": "The server owner must disable Online Mode in Safra's server settings.",
-  "safra.p2p.error.direct_fallback": "Could not communicate with the server.\nPara mais informações, Discord: "
+  "safra.p2p.error.direct_fallback": "Could not communicate with the server.\nPara mais informações, Discord: ",
+  "safra.p2p.grant_host_operator.on": "Conceder permissoes ao anfitriao: SIM",
+  "safra.p2p.grant_host_operator.off": "Conceder permissoes ao anfitriao: NAO"
 }

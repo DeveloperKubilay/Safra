@@ -11,6 +11,7 @@ public final class FabricLanSessionState {
     private static volatile boolean p2pEnabled = true;
     private static volatile boolean onlineModeEnabled = false;
     private static volatile boolean allowCommandsEnabled;
+    private static volatile boolean grantHostOperatorEnabled;
     private static volatile boolean fixedCodeEnabled;
     private static volatile String fixedCode = "";
     private static volatile Map<String, String> gameRuleSnapshot = java.util.Collections.emptyMap();
@@ -24,6 +25,7 @@ public final class FabricLanSessionState {
         p2pEnabled = config.isOpenToLanP2pEnabled();
         onlineModeEnabled = config.isOpenToLanOnlineModeEnabled();
         allowCommandsEnabled = config.isOpenToLanAllowCommandsEnabled();
+        grantHostOperatorEnabled = config.isOpenToLanGrantHostOperator();
         fixedCodeEnabled = config.isOpenToLanFixedCodeEnabled();
         fixedCode = config.getOpenToLanFixedCode();
         gameRuleSnapshot = new LinkedHashMap<>(config.getOpenToLanGameRules());
@@ -62,6 +64,15 @@ public final class FabricLanSessionState {
     public static void setAllowCommandsEnabled(boolean enabled) {
         allowCommandsEnabled = enabled;
         SafraClientConfig.get().setOpenToLanAllowCommandsEnabled(enabled);
+    }
+
+    public static boolean isGrantHostOperatorEnabled() {
+        return grantHostOperatorEnabled;
+    }
+
+    public static void setGrantHostOperatorEnabled(boolean enabled) {
+        grantHostOperatorEnabled = enabled;
+        SafraClientConfig.get().setOpenToLanGrantHostOperator(enabled);
     }
 
     public static boolean isFixedCodeEnabled() {
@@ -106,16 +117,21 @@ public final class FabricLanSessionState {
         SafraClientConfig.get().setOpenToLanGameRules(delta);
     }
 
-    public static void resetServerSettings() {
-        allowCommandsEnabled = false;
-        resetGameRules();
-        SafraClientConfig.get().setOpenToLanAllowCommandsEnabled(false);
-    }
-
     public static void resetGameRules() {
         gameRuleSnapshot = defaultGameRuleSnapshot.isEmpty()
             ? java.util.Collections.<String, String>emptyMap()
             : new LinkedHashMap<>(defaultGameRuleSnapshot);
         SafraClientConfig.get().setOpenToLanGameRules(java.util.Collections.<String, String>emptyMap());
+    }
+
+    public static void resetServerSettings() {
+        allowCommandsEnabled = false;
+        grantHostOperatorEnabled = false;
+        fixedCodeEnabled = true;
+        resetGameRules();
+        SafraClientConfig config = SafraClientConfig.get();
+        config.setOpenToLanAllowCommandsEnabled(false);
+        config.setOpenToLanGrantHostOperator(false);
+        config.setOpenToLanFixedCodeEnabled(true);
     }
 }

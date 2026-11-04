@@ -6,6 +6,10 @@
   "client": [
     "DirectConnectServerScreenMixin",
     "DirectJoinServerScreenMixin",
+    "DisconnectedScreenMixin",
+    "ClientPlayNetHandlerMixin",
+    "HostPermissionsMixin",
+    "ShareCodeClickMixin",
     "IntegratedServerMixin",
     "JoinMultiplayerScreenMixin",
     "ServerStatusPingerMixin",
