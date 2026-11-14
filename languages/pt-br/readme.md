@@ -62,7 +62,7 @@ Foi testado com mais de 180 mods e funcionou sem problemas.
       ❤️ O código-fonte do projeto está disponível aqui<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/pt-br/how_it_works.md">👀 Quer ver como isso funciona?</a><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 Política de Privacidade</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/pt-br/PRIVACY.md">🔒 Política de Privacidade</a>
     </td>
   </tr>
 </table>

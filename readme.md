@@ -122,7 +122,7 @@ It was tested with over 180 mods and worked without any issues.
       <a href="https://www.instagram.com/1sadorv">
         <img src="https://i.imgur.com/smKD5Zd.png" width="80px" style="border-radius: 50%;" alt="Isadora" />
       </a><br />
-      ✨ <strong>Isadora</strong><br />
+      <strong>Isadora</strong><br />
       🎨 Artist
     </td>
     <td align="center" width="220">

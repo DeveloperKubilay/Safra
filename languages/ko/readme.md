@@ -62,7 +62,7 @@
       ❤️ 프로젝트 소스 코드는 여기에서 확인할 수 있습니다<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ko/how_it_works.md">👀 어떻게 작동하는지 볼래요?</a><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 개인정보 처리방침</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ko/PRIVACY.md">🔒 개인정보 처리방침</a>
     </td>
   </tr>
 </table>

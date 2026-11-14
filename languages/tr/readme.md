@@ -62,7 +62,7 @@ Senin ve arkadaşlarının kurduğu modlarla rahatça oynayabilirsin
       ❤️ Kaynak koduna buradan erişebilirsin<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/tr/how_it_works.md">👀 Nasıl çalışıyor öğrenmek ister misin?</a><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 Gizlilik Politikası</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/tr/PRIVACY.md">🔒 Gizlilik Politikası</a>
     </td>
   </tr>
 </table>

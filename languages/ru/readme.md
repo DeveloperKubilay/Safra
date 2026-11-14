@@ -62,7 +62,7 @@
       ❤️ Исходный код проекта доступен здесь<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
       <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ru/how_it_works.md">👀 Хочешь узнать, как это работает?</a><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 Политика конфиденциальности</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ru/PRIVACY.md">🔒 Политика конфиденциальности</a>
     </td>
   </tr>
 </table>
