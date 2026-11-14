@@ -61,7 +61,8 @@
       いつでも <a href="https://discord.gg/NHjBvRxDXP">Discord</a> からご連絡いただけます。<br /><br />
       ❤️ プロジェクトのソースコードはこちらから確認できます<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ja/how_it_works.md">👀 どう動くのか見てみますか？</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/ja/how_it_works.md">👀 どう動くのか見てみますか？</a><br />
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 プライバシーポリシー</a>
     </td>
   </tr>
 </table>

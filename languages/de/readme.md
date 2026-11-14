@@ -61,7 +61,8 @@ Es wurde mit über 180 Mods getestet und funktionierte ohne Probleme.
       Du kannst uns jederzeit über <a href="https://discord.gg/NHjBvRxDXP">Discord</a> erreichen.<br /><br />
       ❤️ Hier findest du den zugänglichen Quellcode<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/de/how_it_works.md">👀 Willst du sehen, wie es funktioniert?</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/de/how_it_works.md">👀 Willst du sehen, wie es funktioniert?</a><br />
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 Datenschutzerklärung</a>
     </td>
   </tr>
 </table>

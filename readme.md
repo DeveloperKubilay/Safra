@@ -108,7 +108,8 @@ It was tested with over 180 mods and worked without any issues.
       You can reach us via <a href="https://discord.gg/NHjBvRxDXP">Discord</a><br /><br />
       ❤️ Source code accessible project lives here<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Want to learn how it works?</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/how_it_works.md">👀 Want to learn how it works?</a><br />
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 Privacy Policy</a>
     </td>
   </tr>
 </table>
@@ -122,24 +123,21 @@ It was tested with over 180 mods and worked without any issues.
         <img src="https://i.imgur.com/smKD5Zd.png" width="80px" style="border-radius: 50%;" alt="Isadora" />
       </a><br />
       ✨ <strong>Isadora</strong><br />
-      🎨 Artist<br />
-      <a href="https://www.instagram.com/1sadorv">📸 Instagram</a>
+      🎨 Artist
     </td>
     <td align="center" width="220">
       <a href="https://github.com/DeveloperKubilay">
         <img src="https://avatars.githubusercontent.com/u/107062509?v=4" width="80px" style="border-radius: 50%;" alt="Kubilay" />
       </a><br />
       <strong>Kubi</strong><br />
-      💻 Core Developer<br />
-      <a href="https://instagram.com/kubi5252">📸 Instagram</a>
+      💻 Core Developer
     </td>    
     <td align="center" width="220">
       <a href="https://www.youtube.com/@RandDoyunofficial">
         <img src="https://avatars.githubusercontent.com/u/221899064?v=4" width="80px" style="border-radius: 50%;" alt="R&D" />
       </a><br />
       <strong>R&amp;D</strong><br />
-      🔨 Tester<br />
-      <a href="https://www.youtube.com/@RandDoyunofficial">▶️ YouTube</a>
+      🔨 Tester
     </td>
   </tr>
 </table>

@@ -61,7 +61,8 @@
       你随时都可以通过 <a href="https://discord.gg/NHjBvRxDXP">Discord</a> 联系我们。<br /><br />
       ❤️ 项目源代码可在此处查看<br />
       <a href="https://github.com/DeveloperKubilay/Safra">DeveloperKubilay/Safra</a><br /><br />
-      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/zh-cn/how_it_works.md">👀 想看看它是怎么工作的吗？</a>
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/languages/zh-cn/how_it_works.md">👀 想看看它是怎么工作的吗？</a><br />
+      <a href="https://github.com/DeveloperKubilay/Safra/blob/assets/PRIVACY.md">🔒 隐私政策</a>
     </td>
   </tr>
 </table>
