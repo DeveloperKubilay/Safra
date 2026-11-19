@@ -49,6 +49,7 @@ public final class P2pHostService implements AutoCloseable {
     private SafraBedrockRelayHost bedrockRelayHost;
     private volatile boolean primaryTransportRelay;
     private boolean relayReadyNotified;
+    private boolean relayPublished;
     private volatile boolean closed;
     private P2pKwikCertificate kwikCertificate;
     private volatile P2pKwikHostServer kwikServer;
@@ -380,6 +381,7 @@ public final class P2pHostService implements AutoCloseable {
             P2pTransportBinding relayBinding = P2pUdpBindingFactory.createTurnBinding(LOGGER, "host", pendingCredentials);
             relayFallbackTransport = relayBinding.transport();
             P2pRuntime.start("safra-p2p-host-relay-recv", () -> receiveLoop(relayFallbackTransport, true));
+            relayPublished = false;
             publishRelayReady(relayBinding.publicEndpoints());
             notifyRelayReady();
             if (SafraBuildInfo.diagnostics()) {
@@ -406,12 +408,13 @@ public final class P2pHostService implements AutoCloseable {
     }
 
     private void publishRelayReady(Collection<InetSocketAddress> publicEndpoints) {
-        if (rendezvousSession == null || publicEndpoints == null || publicEndpoints.isEmpty()) {
+        if (relayPublished || rendezvousSession == null || publicEndpoints == null || publicEndpoints.isEmpty()) {
             return;
         }
 
         try {
             rendezvousSession.publishRelay(publicEndpoints, "auto");
+            relayPublished = true;
         } catch (IOException exception) {
             LOGGER.warn("Safra P2P host relay publish failed", exception);
         }
