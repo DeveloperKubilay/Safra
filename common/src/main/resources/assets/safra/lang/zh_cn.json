@@ -36,5 +36,7 @@
   "safra.p2p.host.update_available": "A newer Safra version is available: %s",
   "safra.bedrock.host.started": "Safra Bedrock 服务器已启动：%s",
   "safra.bedrock.host.unavailable": "Safra：我们的服务器已全部满载，无法开启 Bedrock 服务器。",
-  "safra.bedrock.whitelist_warning": "Safra：为了安全，请启用白名单。"
+  "safra.bedrock.whitelist_warning": "Safra：为了安全，请启用白名单。",
+  "safra.p2p.connect.wait": "请稍候...",
+  "safra.p2p.connect.wait_longer": "耗时较长，请稍候..."
 }
