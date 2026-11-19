@@ -77,7 +77,7 @@ class P2pKwikClientTunnelTest {
                 var managerField = QuicClientConnectionImpl.class.getDeclaredField("streamManager");
                 managerField.setAccessible(true);
                 StreamManager manager = (StreamManager) managerField.get(connection);
-                assertEquals(P2pConstants.MAX_STREAM_WINDOW_BYTES, parameters.getInitialMaxStreamDataBidiLocal());
+                assertEquals(P2pConstants.MIN_STREAM_WINDOW_BYTES, parameters.getInitialMaxStreamDataBidiLocal());
                 assertEquals(manager.getMaxBidirectionalStreamBufferSize(), parameters.getInitialMaxStreamDataBidiLocal());
                 game.getOutputStream().write(1);
                 Thread.sleep(250);
