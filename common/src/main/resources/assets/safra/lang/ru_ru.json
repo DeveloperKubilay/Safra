@@ -36,5 +36,7 @@
   "safra.p2p.host.update_available": "A newer Safra version is available: %s",
   "safra.bedrock.host.started": "Сервер Safra Bedrock запущен: %s",
   "safra.bedrock.host.unavailable": "Safra: Наши серверы полностью заполнены, поэтому сервер Bedrock открыть невозможно.",
-  "safra.bedrock.whitelist_warning": "Safra: Включите белый список для безопасности."
+  "safra.bedrock.whitelist_warning": "Safra: Включите белый список для безопасности.",
+  "safra.p2p.connect.wait": "Пожалуйста, подождите...",
+  "safra.p2p.connect.wait_longer": "Это занимает немного больше времени, пожалуйста, подождите..."
 }
