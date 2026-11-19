@@ -36,5 +36,7 @@
   "safra.p2p.host.update_available": "Safra modunun daha guncel bir surumu var: %s",
   "safra.bedrock.host.started": "Safra Bedrock sunucusu başlatıldı: %s",
   "safra.bedrock.host.unavailable": "Safra: Sunucularımız tamamen dolu, Bedrock sunucusu açılamıyor.",
-  "safra.bedrock.whitelist_warning": "Safra: Güvenliğiniz için beyaz listeyi açın."
+  "safra.bedrock.whitelist_warning": "Safra: Güvenliğiniz için beyaz listeyi açın.",
+  "safra.p2p.connect.wait": "Lütfen bekleyin...",
+  "safra.p2p.connect.wait_longer": "Bu işlem biraz uzun sürüyor, lütfen bekleyin..."
 }
