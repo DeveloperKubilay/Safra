@@ -9,6 +9,7 @@ import java.lang.ref.WeakReference;
 
 public final class SafraHostPermissions {
     private static volatile WeakReference<IntegratedServer> grantedServer = new WeakReference<>(null);
+    private static volatile WeakReference<IntegratedServer> lanAllowCommandsServer = new WeakReference<>(null);
 
     private SafraHostPermissions() {
     }
@@ -20,21 +21,46 @@ public final class SafraHostPermissions {
                 return;
             }
             grantedServer = new WeakReference<>(server);
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                if (isGranted(server, player.nameAndId())) {
-                    server.getPlayerList().sendPlayerPermissionLevel(player);
-                }
-            }
+            refreshHostPermissionLevel(server);
         }
     }
 
+    public static void setLanAllowCommands(IntegratedServer server, boolean allowCommands) {
+        if (server == null) {
+            return;
+        }
+        if (allowCommands) {
+            lanAllowCommandsServer = new WeakReference<>(server);
+        } else if (lanAllowCommandsServer.get() == server) {
+            lanAllowCommandsServer = new WeakReference<>(null);
+        }
+        refreshHostPermissionLevel(server);
+    }
+
     public static boolean isGranted(MinecraftServer server, NameAndId profile) {
+        if (server == null || profile == null) {
+            return false;
+        }
         IntegratedServer granted = grantedServer.get();
-        return granted != null && granted == server && granted.getSingleplayerProfile() != null
-            && granted.getSingleplayerProfile().id().equals(profile.id());
+        IntegratedServer lanGranted = lanAllowCommandsServer.get();
+        IntegratedServer active = granted == server ? granted : (lanGranted == server ? lanGranted : null);
+        return active != null && active.getSingleplayerProfile() != null
+            && active.getSingleplayerProfile().id().equals(profile.id());
     }
 
     public static void reset() {
         grantedServer = new WeakReference<>(null);
+        lanAllowCommandsServer = new WeakReference<>(null);
+    }
+
+    private static void refreshHostPermissionLevel(IntegratedServer server) {
+        if (server.getSingleplayerProfile() == null) {
+            return;
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (server.getSingleplayerProfile().id().equals(player.nameAndId().id())) {
+                server.getPlayerList().sendPlayerPermissionLevel(player);
+            }
+        }
     }
 }

@@ -50,6 +50,9 @@ abstract class ShareToLanScreenMixin extends Screen {
     private EditBox portEdit;
 
     @Shadow
+    private boolean commands;
+
+    @Shadow
     private MinecraftServer.MultiplayerScope wantedMultiplayerScope;
 
     @Shadow
@@ -162,6 +165,8 @@ abstract class ShareToLanScreenMixin extends Screen {
         if (server == null || scope != MinecraftServer.MultiplayerScope.LAN) {
             return;
         }
+
+        SafraHostPermissions.setLanAllowCommands(server, this.commands);
 
         if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
             LanGameRules.applyToServer(server, LanSessionState.getGameRuleSnapshot());
