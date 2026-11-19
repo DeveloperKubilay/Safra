@@ -59,6 +59,9 @@ abstract class OpenToLanScreenMixin extends Screen {
     private Boolean wantedAllowCommands;
 
     @Shadow
+    private Boolean wantedGuestCommandAccess;
+
+    @Shadow
     private GameType wantedDefaultGameMode;
 
     @Shadow
@@ -134,6 +137,7 @@ abstract class OpenToLanScreenMixin extends Screen {
         }
 
         this.wantedMultiplayerScope = MinecraftServer.MultiplayerScope.LAN;
+        this.wantedGuestCommandAccess = this.wantedAllowCommands;
         this.safra$invokeUpdatePortControlsState();
 
         this.safra$lanWorldLabel = this.safra$createLegacyLabel(Component.literal("LAN World"), 62 + SAFRA_LAYOUT_Y_OFFSET);
@@ -153,6 +157,7 @@ abstract class OpenToLanScreenMixin extends Screen {
             CycleButton.onOffBuilder(Boolean.TRUE.equals(this.wantedAllowCommands))
                 .create(this.width / 2 + 3, 108 + SAFRA_LAYOUT_Y_OFFSET, 148, 20, Component.translatable("selectWorld.allowCommands"), (button, value) -> {
                     this.wantedAllowCommands = value;
+                    this.wantedGuestCommandAccess = value;
                     FabricLanSessionState.setAllowCommandsEnabled(value);
                     this.safra$updateApplyState();
                 })
@@ -256,10 +261,13 @@ abstract class OpenToLanScreenMixin extends Screen {
     @Inject(method = "publish", at = @At("HEAD"))
     private void safra$applyOnlineMode(IntegratedServer server, MinecraftServer.MultiplayerScope scope, CallbackInfo ci) {
         if (server != null && scope == MinecraftServer.MultiplayerScope.LAN) {
-                server.setUsesAuthentication(this.safra$onlineModeEnabled);
+            server.setUsesAuthentication(this.safra$onlineModeEnabled);
             if (this.safra$p2pEnabled) {
                 server.setPreventProxyConnections(false);
             }
+            boolean allowCommands = Boolean.TRUE.equals(this.wantedAllowCommands);
+            server.setWorldAllowCommands(allowCommands);
+            server.setGuestCommandAccess(allowCommands);
             SAFRA_LOGGER.debug(
                 "Safra LAN auth settings: onlineMode={}, preventProxyConnections={}, enforceSecureProfile={}",
                 server.usesAuthentication(),
@@ -274,6 +282,8 @@ abstract class OpenToLanScreenMixin extends Screen {
         if (server == null || scope != MinecraftServer.MultiplayerScope.LAN) {
             return;
         }
+
+        SafraHostPermissions.setLanAllowCommands(server, Boolean.TRUE.equals(this.wantedAllowCommands));
 
         if (!SafraClientConfig.get().getOpenToLanGameRules().isEmpty()) {
             FabricLanGameRules.applyToServer(server, FabricLanSessionState.getGameRuleSnapshot());
