@@ -32,5 +32,7 @@
   "safra.p2p.server_settings.short": "Einstellungen",
   "safra.p2p.server_list_motd": "Safra-P2P-Server",
   "safra.p2p.server_list_status": "P2P",
-  "safra.p2p.host.update_available": "A newer Safra version is available: %s"
+  "safra.p2p.host.update_available": "A newer Safra version is available: %s",
+  "safra.p2p.connect.wait": "Bitte warten...",
+  "safra.p2p.connect.wait_longer": "Dies dauert etwas länger, bitte warten..."
 }

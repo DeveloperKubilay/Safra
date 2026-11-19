@@ -3,6 +3,7 @@ package org.developerkubilay.safra.client.p2p;
 import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
 import org.developerkubilay.safra.client.FabricScreenCompat;
+import org.developerkubilay.safra.p2p.P2pClientProxy;
 
 public final class P2pConnectingScreen extends ProgressScreen {
     private final Screen parent;
@@ -13,8 +14,18 @@ public final class P2pConnectingScreen extends ProgressScreen {
         super(false);
         this.parent = parent;
         this.cancelAction = cancelAction;
+        P2pClientProxy.beginConnectAttempt();
         setTitle(FabricClientCompat.translatable("connect.connecting"));
         setTask(FabricClientCompat.translatable("safra.p2p.prepare_message"));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        String stageKey = P2pClientProxy.currentConnectingStageTranslationKey();
+        if (stageKey != null) {
+            setTask(FabricClientCompat.translatable(stageKey));
+        }
     }
 
     @Override
@@ -43,6 +54,7 @@ public final class P2pConnectingScreen extends ProgressScreen {
             return;
         }
         canceled = true;
+        P2pClientProxy.clearConnectAttempt();
         cancelAction.run();
         FabricScreenCompat.open(client, parent);
     }
