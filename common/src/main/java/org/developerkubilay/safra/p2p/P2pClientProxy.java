@@ -25,6 +25,9 @@ public final class P2pClientProxy implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(P2pClientProxy.class);
     private static final long SILENCE_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(4L);
 
+    private static volatile long activeConnectStartedAtNanos;
+    private static volatile P2pClientProxy currentConnectingProxy;
+
     private final P2pShareCode shareCode;
     private final P2pStunClient stunClient = new P2pStunClient();
     private final Map<Integer, P2pKwikClientTunnel> connections = new ConcurrentHashMap<>();
@@ -39,6 +42,7 @@ public final class P2pClientProxy implements AutoCloseable {
     private volatile SafraRendezvousClient.JoinSession rendezvousSession;
     private volatile int tunnelToken;
     private volatile boolean relayTransportActive;
+    private volatile boolean tunnelEstablished;
     private volatile boolean closed;
     private volatile long lastPacketReceivedNanos;
     private volatile String worldCode;
@@ -47,6 +51,39 @@ public final class P2pClientProxy implements AutoCloseable {
     public P2pClientProxy(P2pShareCode shareCode, Runnable onClose) {
         this.shareCode = shareCode;
         this.onClose = onClose;
+        if (activeConnectStartedAtNanos == 0L) {
+            activeConnectStartedAtNanos = System.nanoTime();
+        }
+        currentConnectingProxy = this;
+    }
+
+    public static void beginConnectAttempt() {
+        activeConnectStartedAtNanos = System.nanoTime();
+        currentConnectingProxy = null;
+    }
+
+    public static void clearConnectAttempt() {
+        activeConnectStartedAtNanos = 0L;
+        currentConnectingProxy = null;
+    }
+
+    public static String currentConnectingStageTranslationKey() {
+        long startedAt = activeConnectStartedAtNanos;
+        if (startedAt == 0L) {
+            return null;
+        }
+        P2pClientProxy proxy = currentConnectingProxy;
+        if (proxy != null && (proxy.closed || proxy.tunnelEstablished)) {
+            return null;
+        }
+        long elapsedSeconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startedAt);
+        if (elapsedSeconds >= 12L) {
+            return "safra.p2p.connect.wait_longer";
+        }
+        if (elapsedSeconds >= 5L) {
+            return "safra.p2p.connect.wait";
+        }
+        return null;
     }
 
     public int start() throws IOException {
@@ -100,6 +137,9 @@ public final class P2pClientProxy implements AutoCloseable {
             return;
         }
         closed = true;
+        if (currentConnectingProxy == this) {
+            clearConnectAttempt();
+        }
         connections.values().forEach(P2pKwikClientTunnel::close);
         connections.clear();
         pendingRetrySockets.forEach(this::closeQuietly);
@@ -253,7 +293,11 @@ public final class P2pClientProxy implements AutoCloseable {
             packet -> sendPacket(packet, remoteAddress),
             () -> removeConnection(connectionId),
             failure,
-            () -> pendingRetrySockets.remove(localSocket)
+            () -> {
+                tunnelEstablished = true;
+                activeConnectStartedAtNanos = 0L;
+                pendingRetrySockets.remove(localSocket);
+            }
         );
         connections.put(connectionId, connection);
         connection.start();
