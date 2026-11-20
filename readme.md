@@ -96,6 +96,12 @@ It was tested with over 180 mods and worked without any issues.
 
 > For Bedrock support, you'll need the Geyser mod. Bedrock compatibility isn't the main focus of Safra, so some servers may be busy.
 
+## Video Tutorials 🎥
+
+- 📦 **How to install the mod:** [Watch on YouTube](https://youtu.be/k2tiqyJItlo)
+- 🎮 **How to enable Bedrock support:** [Watch on YouTube](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **Troubleshooting:** [Watch on YouTube](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>

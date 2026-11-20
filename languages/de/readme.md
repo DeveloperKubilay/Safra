@@ -49,6 +49,12 @@ Es wurde mit über 180 Mods getestet und funktionierte ohne Probleme.
 
 > Für Bedrock-Unterstützung benötigst du die Geyser-Mod. Die Bedrock-Kompatibilität ist nicht Safras Hauptfokus, daher können einige Server ausgelastet sein.
 
+## Video-Tutorials 🎥
+
+- 📦 **So installierst du die Mod:** [Auf YouTube ansehen](https://youtu.be/k2tiqyJItlo)
+- 🎮 **So richtest du die Bedrock-Unterstützung ein:** [Auf YouTube ansehen](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **Fehlerbehebung:** [Auf YouTube ansehen](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>

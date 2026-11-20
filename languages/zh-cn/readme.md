@@ -49,6 +49,12 @@
 
 > 要通过 Bedrock 游玩，需要安装 Geyser Mod。Bedrock 兼容性不是 Safra 的主要方向，因此部分服务器可能会比较繁忙。
 
+## 视频教程 🎥
+
+- 📦 **如何安装 Mod：** [在 YouTube 上观看](https://youtu.be/k2tiqyJItlo)
+- 🎮 **如何开启 Bedrock 支持：** [在 YouTube 上观看](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **故障排除：** [在 YouTube 上观看](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>

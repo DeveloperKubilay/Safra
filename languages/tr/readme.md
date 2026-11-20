@@ -49,6 +49,12 @@ Senin ve arkadaşlarının kurduğu modlarla rahatça oynayabilirsin
 
 > Bedrock desteği için Geyser moduna ihtiyacınız var. Bedrock uyumluluğu Safra'nın ana odağı değil; bu yüzden bazı sunucular yoğun olabilir.
 
+## Video Rehberleri 🎥
+
+- 📦 **Mod nasıl yüklenir:** [YouTube'da İzle](https://youtu.be/rFWHenvVyPA)
+- 🎮 **Bedrock desteği nasıl sağlanır:** [YouTube'da İzle](https://youtu.be/wu0sa0Yh3TE)
+- 🔧 **Sorun giderme:** [YouTube'da İzle](https://youtu.be/TfYTckhJVdc)
+
 ## SSS 🤔
 
 <table>

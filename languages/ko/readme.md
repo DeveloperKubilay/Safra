@@ -49,6 +49,12 @@
 
 > Bedrock에서 플레이하려면 Geyser 모드가 필요합니다. Bedrock 호환성은 Safra의 주요 초점이 아니므로 일부 서버가 혼잡할 수 있습니다.
 
+## 비디오 튜토리얼 🎥
+
+- 📦 **모드 설치 방법:** [YouTube에서 시청](https://youtu.be/k2tiqyJItlo)
+- 🎮 **Bedrock 지원 설정 방법:** [YouTube에서 시청](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **문제 해결:** [YouTube에서 시청](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>

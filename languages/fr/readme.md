@@ -49,6 +49,12 @@ Il a été testé avec plus de 180 mods et a fonctionné sans aucun problème.
 
 > Pour jouer depuis Bedrock, tu auras besoin du mod Geyser. La compatibilité Bedrock n'est pas l'objectif principal de Safra, donc certains serveurs peuvent être très sollicités.
 
+## Tutoriels vidéo 🎥
+
+- 📦 **Comment installer le mod :** [Regarder sur YouTube](https://youtu.be/k2tiqyJItlo)
+- 🎮 **Comment activer le support Bedrock :** [Regarder sur YouTube](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **Dépannage :** [Regarder sur YouTube](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>

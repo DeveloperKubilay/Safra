@@ -49,6 +49,12 @@
 
 > Bedrock版でプレイするにはGeyser Modが必要です。Bedrockとの互換性はSafraの主な目的ではないため、一部のサーバーが混雑している場合があります。
 
+## 動画チュートリアル 🎥
+
+- 📦 **Modの導入方法:** [YouTubeで見る](https://youtu.be/k2tiqyJItlo)
+- 🎮 **Bedrockサポートの設定方法:** [YouTubeで見る](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **トラブルシューティング:** [YouTubeで見る](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>

@@ -49,6 +49,12 @@
 
 > Для игры с Bedrock понадобится мод Geyser. Совместимость с Bedrock — не основное направление Safra, поэтому некоторые серверы могут быть перегружены.
 
+## Видеогайды 🎥
+
+- 📦 **Как установить мод:** [Смотреть на YouTube](https://youtu.be/k2tiqyJItlo)
+- 🎮 **Как включить поддержку Bedrock:** [Смотреть на YouTube](https://youtu.be/Dt7J1OfV_1c)
+- 🔧 **Устранение неполадок:** [Смотреть на YouTube](https://youtu.be/ppaDT7MssM4)
+
 ## FAQ 🤔
 
 <table>
