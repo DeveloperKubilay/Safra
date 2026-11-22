@@ -70,7 +70,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
 
     private void connect() {
         try {
-            P2pSockets.tune(minecraftSocket);
+            P2pSockets.tuneClient(minecraftSocket);
             long certificateDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(attemptTimeoutMs);
             while (certificate == null && System.nanoTime() < certificateDeadline) {
                 requestCertificate(500L);
@@ -94,6 +94,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
             builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
             builder.enforceMaxUdpPayloadSize(true);
             builder.useStrictSmallestAllowedMaximumDatagramSize();
+            builder.useLowLatencyCongestionControl(true);
             connection = builder
                 .host(P2pConstants.LOCAL_PROXY_HOST)
                 .port(P2pConstants.KWIK_VIRTUAL_PORT)
