@@ -61,6 +61,7 @@ final class P2pKwikHostServer implements AutoCloseable {
             .maxBidirectionalStreamBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES)
             .maxIdleTimeoutInSeconds(P2pConstants.KWIK_IDLE_TIMEOUT_SECONDS)
             .useStrictSmallestAllowedMaximumDatagramSize(true)
+            .useLowLatencyCongestionControl(true)
             .build();
         connector = ServerConnector.builder()
             .withSocket(socket)
@@ -200,7 +201,7 @@ final class P2pKwikHostServer implements AutoCloseable {
     private void openMinecraftStream(QuicConnection quicConnection, QuicStream stream) {
         try {
             Socket minecraftSocket = new Socket(minecraftAddress, minecraftPort);
-            P2pSockets.tune(minecraftSocket);
+            P2pSockets.tuneHost(minecraftSocket);
             P2pKwikStreams.pipe(logger, "host", stream, minecraftSocket, quicConnection::close);
             logger.debug("Safra Kwik host tunnel connected to local Minecraft {}:{}",
                 minecraftAddress.getHostAddress(), minecraftPort);

@@ -85,7 +85,8 @@ class P2pNetworkQualityTest {
             var config = ServerConnectionConfig.builder().maxOpenPeerInitiatedBidirectionalStreams(1)
                 .maxOpenPeerInitiatedUnidirectionalStreams(0).maxConnectionBufferSize(MAX)
                 .maxBidirectionalStreamBufferSize(initial).maxIdleTimeoutInSeconds(15)
-                .useStrictSmallestAllowedMaximumDatagramSize(true).build();
+                .useStrictSmallestAllowedMaximumDatagramSize(true)
+                .useLowLatencyCongestionControl(true).build();
             try (var server = ServerConnector.builder().withSocket(serverSocket)
                 .withKeyStore(certificate.keyStore(), "safra-p2p", P2pKwikCertificate.keyPassword())
                 .withConfiguration(config).withLogger(new NullLogger()).build()) {
@@ -105,6 +106,7 @@ class P2pNetworkQualityTest {
                 builder.maxUdpPayloadSize(P2pConstants.MAX_PAYLOAD_SIZE);
                 builder.enforceMaxUdpPayloadSize(true);
                 builder.useStrictSmallestAllowedMaximumDatagramSize();
+                builder.useLowLatencyCongestionControl(true);
                 QuicClientConnection client = builder.host(P2pConstants.LOCAL_PROXY_HOST)
                     .port(P2pConstants.KWIK_VIRTUAL_PORT).applicationProtocol(P2pConstants.KWIK_APPLICATION_PROTOCOL)
                     .connectTimeout(Duration.ofSeconds(8)).maxIdleTimeout(Duration.ofSeconds(15))
