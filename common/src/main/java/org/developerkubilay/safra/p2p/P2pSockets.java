@@ -44,10 +44,21 @@ public final class P2pSockets {
     }
 
     static void tune(Socket socket) {
+        tuneClient(socket);
+    }
+
+    static void tuneClient(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
-        trySet(() -> socket.setReceiveBufferSize(P2pConstants.MAX_STREAM_WINDOW_BYTES));
+        trySet(() -> socket.setReceiveBufferSize(64 * 1024));
         trySet(() -> socket.setSendBufferSize(P2pConstants.MAX_STREAM_WINDOW_BYTES));
+    }
+
+    static void tuneHost(Socket socket) {
+        trySet(() -> socket.setTcpNoDelay(true));
+        trySet(() -> socket.setKeepAlive(true));
+        trySet(() -> socket.setReceiveBufferSize(64 * 1024));
+        trySet(() -> socket.setSendBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES));
     }
 
     static InetAddress loopbackAddress() {
