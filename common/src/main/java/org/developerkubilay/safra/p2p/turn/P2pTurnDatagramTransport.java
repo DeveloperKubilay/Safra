@@ -22,17 +22,23 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private final Logger logger;
@@ -89,12 +95,9 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     public static P2pTurnDatagramTransport open(Logger logger, String role, P2pTurnCredentials credentials) throws IOException {
         List<String> failures = new ArrayList<>();
         for (int attempt = 0; attempt < P2pConstants.TURN_UDP_ATTEMPTS; attempt++) {
-            for (P2pTurnCredentials.TurnServer server : credentials.udpServers()) {
-                try {
-                    return openDatagram(logger, role, credentials, server);
-                } catch (IOException exception) {
-                    failures.add(refused(logger, role, "udp", server, exception));
-                }
+            P2pTurnDatagramTransport transport = openDatagramRace(logger, role, credentials, failures);
+            if (transport != null) {
+                return transport;
             }
         }
 
@@ -121,6 +124,120 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         throw new IOException("TURN relay could not be opened: " + String.join(" | ", failures));
     }
 
+    /**
+     * Staggers UDP TURN server attempts (Happy Eyeballs) so a silent port such as :3478 does not
+     * burn its entire timeout before :443 is tried, while avoiding an extra allocation when the
+     * primary server responds promptly.
+     */
+    private static P2pTurnDatagramTransport openDatagramRace(Logger logger, String role,
+                                                              P2pTurnCredentials credentials,
+                                                              List<String> failures) throws IOException {
+        List<P2pTurnCredentials.TurnServer> servers = credentials.udpServers();
+        if (servers.isEmpty()) {
+            return null;
+        }
+        if (servers.size() == 1) {
+            P2pTurnCredentials.TurnServer server = servers.get(0);
+            try {
+                P2pTurnDatagramTransport transport = openDatagram(logger, role, credentials, server, null, null);
+                logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
+                return transport;
+            } catch (IOException exception) {
+                failures.add(refused(logger, role, "udp", server, exception));
+                return null;
+            }
+        }
+
+        AtomicReference<P2pTurnDatagramTransport> winner = new AtomicReference<>();
+        AtomicBoolean cancelled = new AtomicBoolean();
+        Set<AutoCloseable> activeResources = ConcurrentHashMap.newKeySet();
+        List<String> roundFailures = Collections.synchronizedList(new ArrayList<>());
+        CountDownLatch roundDone = new CountDownLatch(1);
+        AtomicInteger pending = new AtomicInteger();
+        AtomicBoolean allLaunched = new AtomicBoolean();
+
+        for (int index = 0; index < servers.size(); index++) {
+            if (winner.get() != null) {
+                break;
+            }
+            P2pTurnCredentials.TurnServer server = servers.get(index);
+            CountDownLatch attemptFinished = new CountDownLatch(1);
+            pending.incrementAndGet();
+            P2pRuntime.start("safra-turn-udp-" + role + "-" + index, () -> {
+                try {
+                    P2pTurnDatagramTransport transport = openDatagram(
+                        logger, role, credentials, server, activeResources, cancelled);
+                    if (winner.compareAndSet(null, transport)) {
+                        cancelled.set(true);
+                        closeCompetingResources(activeResources, transport, transport.datagramSocket);
+                        logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
+                        roundDone.countDown();
+                    } else {
+                        transport.close();
+                    }
+                } catch (IOException exception) {
+                    if (!cancelled.get()) {
+                        roundFailures.add(refused(logger, role, "udp", server, exception));
+                    }
+                } finally {
+                    attemptFinished.countDown();
+                    if (pending.decrementAndGet() == 0 && allLaunched.get()) {
+                        roundDone.countDown();
+                    }
+                }
+            });
+
+            if (index + 1 < servers.size()) {
+                try {
+                    attemptFinished.await(P2pConstants.TURN_UDP_STAGGER_DELAY_MS, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException exception) {
+                    cancelled.set(true);
+                    closeCompetingResources(activeResources, null, null);
+                    Thread.currentThread().interrupt();
+                    throw new IOException("TURN UDP race was interrupted", exception);
+                }
+                if (winner.get() != null) {
+                    break;
+                }
+            }
+        }
+
+        allLaunched.set(true);
+        if (pending.get() == 0) {
+            roundDone.countDown();
+        }
+
+        try {
+            roundDone.await();
+        } catch (InterruptedException exception) {
+            cancelled.set(true);
+            closeCompetingResources(activeResources, null, null);
+            Thread.currentThread().interrupt();
+            throw new IOException("TURN UDP race was interrupted", exception);
+        }
+
+        P2pTurnDatagramTransport selected = winner.get();
+        if (selected != null) {
+            return selected;
+        }
+        failures.addAll(roundFailures);
+        return null;
+    }
+
+    private static void closeCompetingResources(Set<AutoCloseable> activeResources,
+                                                P2pTurnDatagramTransport keeper,
+                                                DatagramSocket keeperSocket) {
+        for (AutoCloseable resource : activeResources) {
+            if (resource == keeper || resource == keeperSocket) {
+                continue;
+            }
+            try {
+                resource.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     /** Which relay we had to give up on, said once, because the next one succeeding used to hide it. */
     private static String refused(Logger logger, String role, String scheme,
                                   P2pTurnCredentials.TurnServer server, IOException exception) {
@@ -137,12 +254,26 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
 
     private static P2pTurnDatagramTransport openDatagram(Logger logger, String role,
                                                           P2pTurnCredentials credentials,
-                                                          P2pTurnCredentials.TurnServer server) throws IOException {
+                                                          P2pTurnCredentials.TurnServer server,
+                                                          Set<AutoCloseable> activeResources,
+                                                          AtomicBoolean cancelled) throws IOException {
         DatagramSocket socket = null;
         P2pTurnDatagramTransport started = null;
         try {
+            if (cancelled != null && cancelled.get()) {
+                throw new IOException("TURN UDP attempt cancelled");
+            }
             InetSocketAddress serverAddress = P2pTurnProtocol.resolveServer(server);
+            if (cancelled != null && cancelled.get()) {
+                throw new IOException("TURN UDP attempt cancelled");
+            }
             socket = P2pSockets.datagramSocket();
+            if (activeResources != null) {
+                activeResources.add(socket);
+                if (cancelled != null && cancelled.get()) {
+                    throw new IOException("TURN UDP attempt cancelled");
+                }
+            }
             socket.connect(serverAddress);
             P2pTurnDatagramTransport transport = new P2pTurnDatagramTransport(
                 logger,
@@ -156,8 +287,13 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 credentials.credential()
             );
             started = transport;
+            if (activeResources != null) {
+                activeResources.add(transport);
+                if (cancelled != null && cancelled.get()) {
+                    throw new IOException("TURN UDP attempt cancelled");
+                }
+            }
             transport.start(credentials.ttlSeconds());
-            logger.info("Safra TURN {} transport active via UDP: {}", role, server.host() + ":" + server.port());
             return transport;
         } catch (IOException exception) {
             if (started != null) {
@@ -166,6 +302,15 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
                 socket.close();
             }
             throw exception;
+        } finally {
+            if (activeResources != null) {
+                if (started != null) {
+                    activeResources.remove(started);
+                }
+                if (socket != null) {
+                    activeResources.remove(socket);
+                }
+            }
         }
     }
 

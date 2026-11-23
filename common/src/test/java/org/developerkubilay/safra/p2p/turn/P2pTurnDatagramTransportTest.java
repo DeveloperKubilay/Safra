@@ -6,16 +6,20 @@ import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -97,6 +101,155 @@ class P2pTurnDatagramTransportTest {
             assertEquals(P2pTurnProtocol.TURN_CHANNEL_BIND_REQUEST, reply.get(2, TimeUnit.SECONDS));
             assertTrue((long) get(permission, "permissionExpiresAtNanos") > oldExpiry);
         }
+    }
+
+    @Test
+    void openWinsViaSecondUdpServerWhenFirstHangs() throws Exception {
+        InetSocketAddress expectedRelay = new InetSocketAddress("127.0.0.1", 49152);
+        try (DatagramSocket silentServer = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+             DatagramSocket respondingServer = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            FutureTask<Void> responder = startMockTurnAllocateServer(respondingServer, expectedRelay, null);
+            P2pTurnCredentials credentials = new P2pTurnCredentials(
+                List.of(
+                    new P2pTurnCredentials.TurnServer("127.0.0.1", silentServer.getLocalPort()),
+                    new P2pTurnCredentials.TurnServer("127.0.0.1", respondingServer.getLocalPort())
+                ),
+                List.of(),
+                List.of(),
+                "user",
+                "password",
+                600
+            );
+
+            long startedNanos = System.nanoTime();
+            try (P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(
+                LoggerFactory.getLogger(getClass()), "test", credentials)) {
+                long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
+                assertEquals(expectedRelay, transport.relayAddress());
+                assertTrue(elapsedMs < 1_500L, "Expected staggered UDP race to win in < 1500ms, took " + elapsedMs + "ms");
+            }
+            responder.get(2, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void openSkipsSecondUdpServerWhenFirstSucceedsQuickly() throws Exception {
+        InetSocketAddress expectedRelay = new InetSocketAddress("127.0.0.1", 49153);
+        try (DatagramSocket primaryServer = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+             DatagramSocket secondaryServer = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            FutureTask<Void> primary = startMockTurnAllocateServer(primaryServer, expectedRelay, null);
+            AtomicInteger secondaryPackets = new AtomicInteger();
+            FutureTask<Void> secondaryWatcher = new FutureTask<>(() -> {
+                secondaryServer.setSoTimeout(600);
+                try {
+                    while (!secondaryServer.isClosed()) {
+                        secondaryServer.receive(new DatagramPacket(new byte[2_048], 2_048));
+                        secondaryPackets.incrementAndGet();
+                    }
+                } catch (java.net.SocketTimeoutException | java.net.SocketException ignored) {
+                }
+                return null;
+            });
+            P2pRuntime.start("safra-test-turn-secondary", secondaryWatcher);
+
+            P2pTurnCredentials credentials = new P2pTurnCredentials(
+                List.of(
+                    new P2pTurnCredentials.TurnServer("127.0.0.1", primaryServer.getLocalPort()),
+                    new P2pTurnCredentials.TurnServer("127.0.0.1", secondaryServer.getLocalPort())
+                ),
+                List.of(),
+                List.of(),
+                "user",
+                "password",
+                600
+            );
+
+            try (P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(
+                LoggerFactory.getLogger(getClass()), "test", credentials)) {
+                assertEquals(expectedRelay, transport.relayAddress());
+            }
+            primary.get(2, TimeUnit.SECONDS);
+            secondaryWatcher.get(2, TimeUnit.SECONDS);
+            assertEquals(0, secondaryPackets.get(), "Secondary UDP server should not be dialed when primary succeeds quickly");
+        }
+    }
+
+    private static FutureTask<Void> startMockTurnAllocateServer(DatagramSocket server,
+                                                                InetSocketAddress relayedAddress,
+                                                                AtomicInteger receivedCount) {
+        FutureTask<Void> task = new FutureTask<>(() -> {
+            server.setSoTimeout(4_000);
+            for (int step = 0; step < 2; step++) {
+                DatagramPacket packet = new DatagramPacket(new byte[2_048], 2_048);
+                server.receive(packet);
+                if (receivedCount != null) {
+                    receivedCount.incrementAndGet();
+                }
+                P2pTurnMessage request = P2pTurnMessage.parse(packet.getData(), packet.getLength());
+                assertNotNull(request);
+                assertEquals(P2pTurnProtocol.TURN_ALLOCATE_REQUEST, request.type());
+                byte[] response = request.attribute(P2pTurnProtocol.ATTR_MESSAGE_INTEGRITY) == null
+                    ? buildTurnErrorResponse(0x0113, request.transactionId(), 401, "Unauthorized", "testrealm", "testnonce")
+                    : buildTurnAllocateSuccess(request.transactionId(), relayedAddress, 600);
+                server.send(new DatagramPacket(response, response.length, packet.getSocketAddress()));
+            }
+            return null;
+        });
+        P2pRuntime.start("safra-test-mock-turn", task);
+        return task;
+    }
+
+    private static byte[] buildTurnErrorResponse(int type, byte[] transactionId, int code,
+                                                 String reason, String realm, String nonce) throws Exception {
+        ByteArrayOutputStream attrs = new ByteArrayOutputStream();
+        byte[] reasonBytes = reason.getBytes(StandardCharsets.UTF_8);
+        byte[] errorVal = new byte[4 + reasonBytes.length];
+        errorVal[2] = (byte) (code / 100);
+        errorVal[3] = (byte) (code % 100);
+        System.arraycopy(reasonBytes, 0, errorVal, 4, reasonBytes.length);
+        writeTurnAttr(attrs, P2pTurnProtocol.ATTR_ERROR_CODE, errorVal);
+        writeTurnAttr(attrs, P2pTurnProtocol.ATTR_REALM, realm.getBytes(StandardCharsets.UTF_8));
+        writeTurnAttr(attrs, P2pTurnProtocol.ATTR_NONCE, nonce.getBytes(StandardCharsets.UTF_8));
+        return wrapStunMessage(type, transactionId, attrs.toByteArray());
+    }
+
+    private static byte[] buildTurnAllocateSuccess(byte[] transactionId, InetSocketAddress relayed, int lifetime) throws Exception {
+        ByteArrayOutputStream attrs = new ByteArrayOutputStream();
+        byte[] rawIp = relayed.getAddress().getAddress();
+        ByteBuffer xor = ByteBuffer.allocate(8);
+        xor.put((byte) 0).put((byte) 0x01);
+        xor.putShort((short) (relayed.getPort() ^ (P2pTurnProtocol.MAGIC_COOKIE >>> 16)));
+        byte[] cookie = ByteBuffer.allocate(4).putInt(P2pTurnProtocol.MAGIC_COOKIE).array();
+        for (int i = 0; i < 4; i++) {
+            xor.put((byte) (rawIp[i] ^ cookie[i]));
+        }
+        writeTurnAttr(attrs, P2pTurnProtocol.ATTR_XOR_RELAYED_ADDRESS, xor.array());
+        writeTurnAttr(attrs, P2pTurnProtocol.ATTR_LIFETIME, ByteBuffer.allocate(4).putInt(lifetime).array());
+        return wrapStunMessage(P2pTurnProtocol.TURN_ALLOCATE_RESPONSE, transactionId, attrs.toByteArray());
+    }
+
+    private static void writeTurnAttr(ByteArrayOutputStream out, int type, byte[] value) throws Exception {
+        out.write((type >>> 8) & 0xFF);
+        out.write(type & 0xFF);
+        out.write((value.length >>> 8) & 0xFF);
+        out.write(value.length & 0xFF);
+        out.write(value);
+        int padding = (4 - (value.length & 3)) & 3;
+        for (int i = 0; i < padding; i++) {
+            out.write(0);
+        }
+    }
+
+    private static byte[] wrapStunMessage(int type, byte[] transactionId, byte[] attrs) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        out.write((type >>> 8) & 0xFF);
+        out.write(type & 0xFF);
+        out.write((attrs.length >>> 8) & 0xFF);
+        out.write(attrs.length & 0xFF);
+        out.write(ByteBuffer.allocate(4).putInt(P2pTurnProtocol.MAGIC_COOKIE).array());
+        out.write(transactionId);
+        out.write(attrs);
+        return out.toByteArray();
     }
 
     @SuppressWarnings("unchecked")
