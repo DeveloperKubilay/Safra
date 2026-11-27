@@ -99,6 +99,52 @@ class P2pClientProxyTest {
     }
 
     @Test
+    void doesNotTriggerRecoveryDuringShortLagHiccup() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            var needsRecovery = P2pClientProxy.class.getDeclaredMethod("needsRecovery");
+            needsRecovery.setAccessible(true);
+            set(fixture.proxy, "lastPacketReceivedNanos", System.nanoTime() - TimeUnit.SECONDS.toNanos(5));
+            assertFalse((boolean) needsRecovery.invoke(fixture.proxy));
+            set(fixture.proxy, "lastPacketReceivedNanos", System.nanoTime() - TimeUnit.SECONDS.toNanos(8));
+            assertTrue((boolean) needsRecovery.invoke(fixture.proxy));
+        }
+    }
+
+    @Test
+    void monitoredSocketDetectsLocalClientCancelImmediatelyAndPreservesPrefetchedBytes() throws Exception {
+        try (var listener = new java.net.ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             var client = new Socket(P2pSockets.loopbackAddress(), listener.getLocalPort());
+             var accepted = listener.accept()) {
+            var disconnected = new java.util.concurrent.CountDownLatch(1);
+            var monitored = new P2pClientProxy.MonitoredClientSocket(accepted, socket -> disconnected.countDown());
+            monitored.startWatching();
+            client.getOutputStream().write(new byte[]{1, 2, 3, 4});
+            client.getOutputStream().flush();
+            Thread.sleep(100L);
+
+            byte[] prefix = monitored.getInputStream().readNBytes(4);
+            assertArrayEquals(new byte[]{1, 2, 3, 4}, prefix);
+            client.getOutputStream().write(new byte[]{5, 6});
+            client.getOutputStream().flush();
+            assertArrayEquals(new byte[]{5, 6}, monitored.getInputStream().readNBytes(2));
+            assertEquals(1, disconnected.getCount());
+            monitored.close();
+        }
+
+        try (var listener = new java.net.ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             var client = new Socket(P2pSockets.loopbackAddress(), listener.getLocalPort());
+             var accepted = listener.accept()) {
+            var disconnected = new java.util.concurrent.CountDownLatch(1);
+            var monitored = new P2pClientProxy.MonitoredClientSocket(accepted, socket -> disconnected.countDown());
+            monitored.startWatching();
+            client.close();
+            assertTrue(disconnected.await(500L, TimeUnit.MILLISECONDS));
+            assertTrue(monitored.isRemoteClosed());
+            monitored.close();
+        }
+    }
+
+    @Test
     void matchesOnlyTheOpenProxySocketEndpoint() throws Exception {
         try (var proxy = new P2pClientProxy(new P2pShareCode("127.0.0.1", 25565, 7, null), () -> { });
              var server = new java.net.ServerSocket(0, 16, P2pSockets.loopbackAddress())) {
@@ -150,7 +196,7 @@ class P2pClientProxyTest {
             set(proxy, "rendezvousSession", constructor.newInstance("test"));
             set(proxy, "transport", original);
             set(proxy, "tunnelToken", 7);
-            set(proxy, "lastPacketReceivedNanos", System.nanoTime() - TimeUnit.SECONDS.toNanos(5));
+            set(proxy, "lastPacketReceivedNanos", System.nanoTime() - TimeUnit.SECONDS.toNanos(10));
             var tunnel = new P2pKwikClientTunnel(LoggerFactory.getLogger(getClass()), 7, 9, new Socket(),
                 7_000, packet -> { }, () -> { }, () -> { }, () -> { });
             set(tunnel, "certificate", new byte[]{1, 2, 3});
