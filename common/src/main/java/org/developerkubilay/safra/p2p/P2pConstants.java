@@ -31,6 +31,7 @@ public final class P2pConstants {
      * was never awake to answer, which is what the second attempt used to do at five seconds.
      */
     static final long[] PUNCH_DELAYS_MS = {0L, 100L, 250L, 500L, 1_000L, 1_500L, 2_500L, 4_000L, 6_000L};
+    static final long KWIK_DIRECT_TO_RELAY_TIMEOUT_MS = 4_000L;
     static final long KWIK_RELAY_TIMEOUT_MS = 10_000L;
     static final int STUN_DISCOVERY_ATTEMPTS = 3;
     static final int STUN_INITIAL_RETRY_MS = 500;
@@ -45,7 +46,7 @@ public final class P2pConstants {
     public static final int TURN_REQUEST_TIMEOUT_MS = 8_000;
     public static final int TURN_UDP_REQUEST_TIMEOUT_MS = 2_500;
     public static final int TURN_UDP_ATTEMPTS = 2;
-    public static final long TURN_UDP_STAGGER_DELAY_MS = 250L;
+    public static final long TURN_UDP_STAGGER_DELAY_MS = 1_000L;
     public static final int TURN_RETRANSMIT_FIRST_MS = 500;
     public static final int TURN_DEFAULT_CREDENTIAL_TTL_SECONDS = 10 * 60;
     static final int TURN_DEFAULT_ALLOCATION_LIFETIME_SECONDS = 10 * 60;
