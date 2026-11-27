@@ -31,6 +31,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private volatile byte[] certificate;
+    private volatile Thread connectThread;
     private volatile QuicClientConnection connection;
     private volatile QuicStream stream;
     private volatile P2pKwikDatagramSocket quicSocket;
@@ -69,11 +70,15 @@ final class P2pKwikClientTunnel implements AutoCloseable {
     }
 
     private void connect() {
+        connectThread = Thread.currentThread();
         try {
             P2pSockets.tuneClient(minecraftSocket);
             long certificateDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(attemptTimeoutMs);
-            while (certificate == null && System.nanoTime() < certificateDeadline) {
+            while (!closed.get() && certificate == null && System.nanoTime() < certificateDeadline) {
                 requestCertificate(500L);
+            }
+            if (closed.get()) {
+                return;
             }
             if (certificate == null) {
                 throw new IOException("The Kwik host certificate did not arrive in time");
@@ -108,23 +113,31 @@ final class P2pKwikClientTunnel implements AutoCloseable {
                 .socketFactory(destination -> quicSocket)
                 .build();
             connection.connect();
+            if (closed.get()) {
+                return;
+            }
             stream = connection.createStream(true);
-            P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             if (established != null) {
                 established.run();
             }
+            P2pKwikStreams.pipe(logger, "client", stream, minecraftSocket, this::close);
             logger.debug("Safra Kwik client tunnel {} connected", connectionId);
         } catch (IOException | GeneralSecurityException | InterruptedException | RuntimeException exception) {
             if (exception instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
+            if (closed.get()) {
+                return;
+            }
             logger.warn("Safra Kwik client tunnel {} could not be opened: {}", connectionId, exception.toString());
-            if (!closed.get() && failure != null) {
+            if (failure != null) {
                 closeForRetry();
                 failure.run();
             } else {
                 close();
             }
+        } finally {
+            connectThread = null;
         }
     }
 
@@ -132,13 +145,17 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         return !closed.get() && certificate != null && Arrays.equals(certificate, encoded);
     }
 
+    boolean ownsSocket(Socket socket) {
+        return minecraftSocket == socket;
+    }
+
     long recoveryTimeoutNanos() {
         QuicClientConnection active = connection;
         if (active == null || closed.get()) {
-            return TimeUnit.SECONDS.toNanos(4L);
+            return TimeUnit.SECONDS.toNanos(7L);
         }
         Statistics stats = active.getStats();
-        return TimeUnit.MILLISECONDS.toNanos(Math.max(4_000L, 6L * stats.smoothedRtt() + 4L * stats.rttVar()));
+        return TimeUnit.MILLISECONDS.toNanos(Math.max(7_000L, 6L * stats.smoothedRtt() + 4L * stats.rttVar()));
     }
 
     void ping() {
@@ -171,6 +188,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        interruptConnectThread();
         sender.accept(P2pPacket.close(token, connectionId));
         closeQuic();
         removal.run();
@@ -180,6 +198,7 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        interruptConnectThread();
         if (notifyRemote) {
             sender.accept(P2pPacket.close(token, connectionId));
         }
@@ -189,6 +208,13 @@ final class P2pKwikClientTunnel implements AutoCloseable {
         } catch (IOException ignored) {
         }
         removal.run();
+    }
+
+    private void interruptConnectThread() {
+        Thread thread = connectThread;
+        if (thread != null && thread != Thread.currentThread()) {
+            thread.interrupt();
+        }
     }
 
     private void closeQuic() {
