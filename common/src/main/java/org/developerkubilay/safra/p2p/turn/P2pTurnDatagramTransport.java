@@ -51,6 +51,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
     private final String clientTransport;
     private final int requestTimeoutMs;
     private final Object sendMonitor = new Object();
+    private final Object channelTableMonitor = new Object();
     private final SecureRandom random = new SecureRandom();
     private final BlockingQueue<ReceivedDatagram> incoming = new ArrayBlockingQueue<>(P2pConstants.DATAGRAM_QUEUE_CAPACITY);
     private final Map<String, CompletableFuture<P2pTurnMessage>> pendingTransactions = new ConcurrentHashMap<>();
@@ -431,6 +432,7 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
             }
             scheduler.shutdownNow();
         }
+        sendDeallocateBestEffort();
         if (datagramSocket != null) {
             datagramSocket.close();
         }
@@ -535,34 +537,67 @@ public final class P2pTurnDatagramTransport implements P2pDatagramTransport {
         }
     }
 
-    private synchronized PeerChannel ensureChannel(InetSocketAddress address) throws IOException {
+    private void sendDeallocateBestEffort() {
+        if (relayAddress == null || realm.isBlank() || nonce.isBlank()) {
+            return;
+        }
+        try {
+            byte[] request = P2pTurnProtocol.buildRequest(
+                random,
+                username,
+                realm,
+                nonce,
+                credential,
+                P2pTurnProtocol.TURN_REFRESH_REQUEST,
+                (out, transactionId) -> P2pTurnProtocol.putLifetime(out, 0),
+                P2pTurnProtocol.AuthMode.LONG_TERM
+            );
+            sendBytes(request);
+        } catch (IOException | RuntimeException ignored) {
+        }
+    }
+
+    private PeerChannel ensureChannel(InetSocketAddress address) throws IOException {
         String key = P2pTurnProtocol.permissionKey(address);
         PeerChannel channel = channelsByPeer.get(key);
-        if (channel == null) {
-            if (nextChannel > 0x4FFF) throw new IOException("TURN channel limit reached");
-            channel = new PeerChannel(nextChannel++, address);
-            channelsByPeer.put(key, channel);
-            channelsByNumber.put(channel.number, channel);
+        long now = System.nanoTime();
+        if (channel != null && now - Math.min(channel.expiresAtNanos, channel.permissionExpiresAtNanos) < 0L) {
+            return channel;
         }
-        if (System.nanoTime() - Math.min(channel.expiresAtNanos, channel.permissionExpiresAtNanos) >= 0) {
-            bindChannel(channel);
+        if (channel == null) {
+            synchronized (channelTableMonitor) {
+                channel = channelsByPeer.get(key);
+                if (channel == null) {
+                    if (nextChannel > 0x4FFF) throw new IOException("TURN channel limit reached");
+                    channel = new PeerChannel(nextChannel++, address);
+                    channelsByPeer.put(key, channel);
+                    channelsByNumber.put(channel.number, channel);
+                }
+            }
+        }
+        synchronized (channel) {
+            if (System.nanoTime() - Math.min(channel.expiresAtNanos, channel.permissionExpiresAtNanos) >= 0L) {
+                bindChannel(channel);
+            }
         }
         return channel;
     }
 
-    private synchronized void bindChannel(PeerChannel channel) throws IOException {
-        long previousExpiry = channel.expiresAtNanos;
-        channel.expiresAtNanos = Math.max(previousExpiry, System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestTimeoutMs));
-        try {
-            sendTurnRequest(P2pTurnProtocol.TURN_CHANNEL_BIND_REQUEST, (out, transactionId) -> {
-                P2pTurnProtocol.putChannelNumber(out, channel.number);
-                P2pTurnProtocol.putXorPeerAddress(out, channel.address, transactionId);
-            }, false);
-            channel.expiresAtNanos = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
-            channel.permissionExpiresAtNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(permissionLifetimeSeconds());
-        } catch (IOException exception) {
-            channel.expiresAtNanos = previousExpiry;
-            throw exception;
+    private void bindChannel(PeerChannel channel) throws IOException {
+        synchronized (channel) {
+            long previousExpiry = channel.expiresAtNanos;
+            channel.expiresAtNanos = Math.max(previousExpiry, System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestTimeoutMs));
+            try {
+                sendTurnRequest(P2pTurnProtocol.TURN_CHANNEL_BIND_REQUEST, (out, transactionId) -> {
+                    P2pTurnProtocol.putChannelNumber(out, channel.number);
+                    P2pTurnProtocol.putXorPeerAddress(out, channel.address, transactionId);
+                }, false);
+                channel.expiresAtNanos = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+                channel.permissionExpiresAtNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(permissionLifetimeSeconds());
+            } catch (IOException exception) {
+                channel.expiresAtNanos = previousExpiry;
+                throw exception;
+            }
         }
     }
 
