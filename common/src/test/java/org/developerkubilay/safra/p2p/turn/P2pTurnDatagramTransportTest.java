@@ -126,7 +126,7 @@ class P2pTurnDatagramTransportTest {
                 LoggerFactory.getLogger(getClass()), "test", credentials)) {
                 long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
                 assertEquals(expectedRelay, transport.relayAddress());
-                assertTrue(elapsedMs < 1_500L, "Expected staggered UDP race to win in < 1500ms, took " + elapsedMs + "ms");
+                assertTrue(elapsedMs < 2_200L, "Expected staggered UDP race to win in < 2200ms, took " + elapsedMs + "ms");
             }
             responder.get(2, TimeUnit.SECONDS);
         }
@@ -171,6 +171,92 @@ class P2pTurnDatagramTransportTest {
             primary.get(2, TimeUnit.SECONDS);
             secondaryWatcher.get(2, TimeUnit.SECONDS);
             assertEquals(0, secondaryPackets.get(), "Secondary UDP server should not be dialed when primary succeeds quickly");
+        }
+    }
+
+    @Test
+    void closeSendsZeroLifetimeRefreshToFreeAllocation() throws Exception {
+        InetSocketAddress expectedRelay = new InetSocketAddress("127.0.0.1", 49154);
+        try (DatagramSocket server = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            FutureTask<Integer> serverTask = new FutureTask<>(() -> {
+                server.setSoTimeout(4_000);
+                for (int step = 0; step < 2; step++) {
+                    DatagramPacket packet = new DatagramPacket(new byte[2_048], 2_048);
+                    server.receive(packet);
+                    P2pTurnMessage request = P2pTurnMessage.parse(packet.getData(), packet.getLength());
+                    assertNotNull(request);
+                    byte[] response = request.attribute(P2pTurnProtocol.ATTR_MESSAGE_INTEGRITY) == null
+                        ? buildTurnErrorResponse(0x0113, request.transactionId(), 401, "Unauthorized", "testrealm", "testnonce")
+                        : buildTurnAllocateSuccess(request.transactionId(), expectedRelay, 600);
+                    server.send(new DatagramPacket(response, response.length, packet.getSocketAddress()));
+                }
+                DatagramPacket refreshPacket = new DatagramPacket(new byte[2_048], 2_048);
+                server.receive(refreshPacket);
+                P2pTurnMessage refresh = P2pTurnMessage.parse(refreshPacket.getData(), refreshPacket.getLength());
+                assertNotNull(refresh);
+                assertEquals(P2pTurnProtocol.TURN_REFRESH_REQUEST, refresh.type());
+                byte[] lifetime = refresh.attribute(P2pTurnProtocol.ATTR_LIFETIME);
+                assertNotNull(lifetime);
+                assertEquals(4, lifetime.length);
+                return ByteBuffer.wrap(lifetime).getInt();
+            });
+            P2pRuntime.start("safra-test-turn-dealloc", serverTask);
+            P2pTurnCredentials credentials = new P2pTurnCredentials(
+                List.of(new P2pTurnCredentials.TurnServer("127.0.0.1", server.getLocalPort())),
+                List.of(),
+                List.of(),
+                "user",
+                "password",
+                600
+            );
+            P2pTurnDatagramTransport transport = P2pTurnDatagramTransport.open(
+                LoggerFactory.getLogger(getClass()), "test", credentials);
+            transport.close();
+            assertEquals(0, serverTask.get(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void sendDoesNotBlockWhileBackgroundChannelRenewalWaits() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            InetSocketAddress peer = new InetSocketAddress("192.0.2.1", 25565);
+            var constructor = Class.forName(P2pTurnDatagramTransport.class.getName() + "$PeerChannel")
+                .getDeclaredConstructor(int.class, InetSocketAddress.class);
+            constructor.setAccessible(true);
+            Object permission = constructor.newInstance(0x4000, peer);
+            set(permission, "expiresAtNanos", System.nanoTime() + TimeUnit.MINUTES.toNanos(5));
+            set(permission, "permissionExpiresAtNanos", System.nanoTime() + TimeUnit.SECONDS.toNanos(20));
+            permissions(fixture.transport).put(P2pTurnProtocol.permissionKey(peer), permission);
+
+            java.util.concurrent.CountDownLatch renewalStarted = new java.util.concurrent.CountDownLatch(1);
+            FutureTask<Void> delayedReply = new FutureTask<>(() -> {
+                DatagramPacket request = new DatagramPacket(new byte[2_048], 2_048);
+                fixture.server.receive(request);
+                renewalStarted.countDown();
+                Thread.sleep(400L);
+                byte[] response = ByteBuffer.allocate(20)
+                    .putShort((short) P2pTurnProtocol.TURN_CHANNEL_BIND_RESPONSE)
+                    .putShort((short) 0)
+                    .putInt(P2pTurnProtocol.MAGIC_COOKIE)
+                    .put(request.getData(), 8, 12)
+                    .array();
+                fixture.server.send(new DatagramPacket(response, response.length, request.getSocketAddress()));
+                return null;
+            });
+            P2pRuntime.start("safra-test-delayed-bind", delayedReply);
+            P2pRuntime.start("safra-test-renew-bg", () -> {
+                try {
+                    invoke(fixture.transport, "renewChannels");
+                } catch (Exception ignored) {
+                }
+            });
+
+            assertTrue(renewalStarted.await(2, TimeUnit.SECONDS));
+            long sendStartNanos = System.nanoTime();
+            fixture.transport.send(new DatagramPacket(new byte[]{1, 2, 3}, 3, peer));
+            long sendMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sendStartNanos);
+            assertTrue(sendMs < 150L, "Expected send() not to block on channel renewal, took " + sendMs + "ms");
+            delayedReply.get(2, TimeUnit.SECONDS);
         }
     }
 

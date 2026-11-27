@@ -116,4 +116,28 @@ class P2pKwikClientTunnelTest {
             assertEquals(0, established.get());
         }
     }
+
+    @Test
+    void closingDuringCertificateWaitStopsImmediately() throws Exception {
+        var logger = LoggerFactory.getLogger(getClass());
+        CountDownLatch failed = new CountDownLatch(1);
+        AtomicInteger established = new AtomicInteger();
+        try (ServerSocket proxy = new ServerSocket(0, 1, P2pSockets.loopbackAddress());
+             Socket game = new Socket(P2pSockets.loopbackAddress(), proxy.getLocalPort());
+             var tunnel = new P2pKwikClientTunnel(logger, 7, 9, proxy.accept(), 7_000,
+                 packet -> { }, () -> { }, failed::countDown, established::incrementAndGet)) {
+            tunnel.start();
+            Thread.sleep(100L);
+            tunnel.close();
+            var threadField = P2pKwikClientTunnel.class.getDeclaredField("connectThread");
+            threadField.setAccessible(true);
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(500L);
+            while (threadField.get(tunnel) != null && System.nanoTime() < deadline) {
+                Thread.sleep(10L);
+            }
+            assertNull(threadField.get(tunnel), "Connect thread should exit immediately after close()");
+            assertEquals(1, failed.getCount());
+            assertEquals(0, established.get());
+        }
+    }
 }
