@@ -256,13 +256,18 @@ app.post("/relay-request", async (req, res) => {
     if (codeCheck(req.body.code)) return res.code(400).send("Invalid session code");
     const session = sessions.get(req.body.code);
     if (!session) return res.code(404).send("Session not found");
-    if (session.relay) return res.code(409).send("Relay already assigned for this session");
-    const RelayId = randomBytes(16).toString("hex");
-    console.slientlog(`[${new Date().toISOString()}] Relay request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'} | RelayId: ${RelayId}`);
-    const turnCredentials = await getTurnCredentials(RelayId);
-    if (!turnCredentials) return res.code(502).send("TURN credentials unavailable");
-    session.write(eventMessage("relay-assigned", turnCredentials));
-    session.relay = turnCredentials;
+    if (session.relay?.network) {
+        eventStream(res);
+        return res.raw.end(eventMessage("relay-accepted", session));
+    }
+    if (!session.relay) {
+        const RelayId = randomBytes(16).toString("hex");
+        console.slientlog(`[${new Date().toISOString()}] Relay request from IP: ${req.ip} with code: ${req.body.code} | UA: ${req.headers['user-agent'] || '-'} | Ray: ${req.headers['cf-ray'] || '-'} | RelayId: ${RelayId}`);
+        const turnCredentials = await getTurnCredentials(RelayId);
+        if (!turnCredentials) return res.code(502).send("TURN credentials unavailable");
+        session.write(eventMessage("relay-assigned", turnCredentials));
+        session.relay = turnCredentials;
+    }
     eventStream(res);
     const state = { alive: true, ip: req.ip };
     function writeandClose(data) {
