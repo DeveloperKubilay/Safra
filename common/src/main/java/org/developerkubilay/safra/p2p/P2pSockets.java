@@ -50,14 +50,14 @@ public final class P2pSockets {
     static void tuneClient(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
-        trySet(() -> socket.setReceiveBufferSize(64 * 1024));
-        trySet(() -> socket.setSendBufferSize(P2pConstants.MAX_STREAM_WINDOW_BYTES));
+        trySet(() -> socket.setReceiveBufferSize(P2pConstants.LOCAL_TCP_RECEIVE_BUFFER_BYTES));
+        trySet(() -> socket.setSendBufferSize(P2pConstants.LOCAL_TCP_SEND_BUFFER_BYTES));
     }
 
     static void tuneHost(Socket socket) {
         trySet(() -> socket.setTcpNoDelay(true));
         trySet(() -> socket.setKeepAlive(true));
-        trySet(() -> socket.setReceiveBufferSize(64 * 1024));
+        trySet(() -> socket.setReceiveBufferSize(P2pConstants.LOCAL_TCP_RECEIVE_BUFFER_BYTES));
         trySet(() -> socket.setSendBufferSize(P2pConstants.MIN_STREAM_WINDOW_BYTES));
     }
 

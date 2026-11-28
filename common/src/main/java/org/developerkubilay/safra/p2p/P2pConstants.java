@@ -23,7 +23,9 @@ public final class P2pConstants {
     /** How many datagrams a receive queue holds before it drops, sized like the socket buffer it stands in for. */
     public static final int DATAGRAM_QUEUE_CAPACITY = SOCKET_BUFFER_SIZE / MAX_DATAGRAM_SIZE;
     static final int MIN_STREAM_WINDOW_BYTES = 256 * 1024;
-    static final int MAX_STREAM_WINDOW_BYTES = 512 * 1024;
+    static final int MAX_STREAM_WINDOW_BYTES = 2 * 1024 * 1024;
+    static final int LOCAL_TCP_RECEIVE_BUFFER_BYTES = 256 * 1024;
+    static final int LOCAL_TCP_SEND_BUFFER_BYTES = 512 * 1024;
     static final long KWIK_DIRECT_ATTEMPT_TIMEOUT_MS = 7_000L;
     /**
      * When the host punches, spread over the attempt it is punching for. The last packet lands a
